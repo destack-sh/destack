@@ -1,5 +1,6 @@
 import type {
   Branch,
+  CustomEvent,
   EventStatus,
   IsActor,
   IsExtensible,
@@ -27,6 +28,12 @@ export abstract class InputEvent extends Event implements IsExtensible {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.

@@ -23,7 +23,7 @@ from .object import (
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
-    from destack.language import Cson, StructDefinition
+    from destack.language import Cson, MethodDefinition, StructDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -118,6 +118,9 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
     __inherits__: ClassVar[tuple[StructType, ...]] = ()
     """Structs that extend this Struct type (directly and indirectly)."""
     __inherited_by__: ClassVar[tuple[StructType, ...]] = ()
+
+    """The methods for this Struct type."""
+    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
 
     def __eq__(self, other: Any):
         """Equals the Struct contents."""

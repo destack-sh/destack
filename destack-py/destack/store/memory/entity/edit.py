@@ -9,7 +9,6 @@ import structlog
 from opentelemetry import trace
 
 from destack.language import (
-    CASCADING_EDIT_TYPES,
     EdgeDirection,
     EditEvent,
     EditOperation,
@@ -104,7 +103,7 @@ def _optimize_edits(context: MemoryContext, edits: Sequence[EditEvent]) -> list[
         buffer.clear()
 
     for edit in edits:
-        if edit.type in CASCADING_EDIT_TYPES:
+        if edit.type == EditType.DELETE or edit.type == EditType.RESTORE:
             flush()  # close current segment
             optimized_edits.append(edit)  # keep position
         else:

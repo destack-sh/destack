@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
+  CustomEvent,
   Graph,
   IsActor,
   IsExtensible,
@@ -80,6 +81,12 @@ export abstract class NotificationEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -178,6 +185,18 @@ export class NotificationSentEvent extends NotificationEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -296,6 +315,7 @@ export class NotificationSentEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -347,6 +367,11 @@ export class NotificationSentEvent extends NotificationEvent {
       throw new Error(`NotificationSentEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -449,6 +474,9 @@ export class NotificationSentEvent extends NotificationEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -486,6 +514,9 @@ export class NotificationSentEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -566,13 +597,16 @@ export class NotificationSentEvent extends NotificationEvent {
     objectCson["1"] = 1400502;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -600,12 +634,17 @@ export class NotificationSentEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationSentEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -624,9 +663,10 @@ export class NotificationSentEvent extends NotificationEvent {
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new NotificationSentEvent({
       node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -674,6 +714,9 @@ export class NotificationSentEvent extends NotificationEvent {
     const objectProto: Partial<NotificationSentEventProto> = { metatype: 1400502 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -716,6 +759,16 @@ export class NotificationSentEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -839,6 +892,18 @@ export class NotificationRescindedEvent extends NotificationEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
@@ -955,6 +1020,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1006,6 +1072,11 @@ export class NotificationRescindedEvent extends NotificationEvent {
       throw new Error(`NotificationRescindedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -1108,6 +1179,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -1145,6 +1219,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -1225,13 +1302,16 @@ export class NotificationRescindedEvent extends NotificationEvent {
     objectCson["1"] = 1400503;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -1259,12 +1339,17 @@ export class NotificationRescindedEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationRescindedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1283,9 +1368,10 @@ export class NotificationRescindedEvent extends NotificationEvent {
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new NotificationRescindedEvent({
       node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1333,6 +1419,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     const objectProto: Partial<NotificationRescindedEventProto> = { metatype: 1400503 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -1375,6 +1464,16 @@ export class NotificationRescindedEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -1498,6 +1597,18 @@ export class NotificationReadEvent extends NotificationEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
@@ -1614,6 +1725,7 @@ export class NotificationReadEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1665,6 +1777,11 @@ export class NotificationReadEvent extends NotificationEvent {
       throw new Error(`NotificationReadEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -1767,6 +1884,9 @@ export class NotificationReadEvent extends NotificationEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -1804,6 +1924,9 @@ export class NotificationReadEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -1884,13 +2007,16 @@ export class NotificationReadEvent extends NotificationEvent {
     objectCson["1"] = 1400504;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -1918,12 +2044,17 @@ export class NotificationReadEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationReadEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1942,9 +2073,10 @@ export class NotificationReadEvent extends NotificationEvent {
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new NotificationReadEvent({
       node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1992,6 +2124,9 @@ export class NotificationReadEvent extends NotificationEvent {
     const objectProto: Partial<NotificationReadEventProto> = { metatype: 1400504 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -2034,6 +2169,16 @@ export class NotificationReadEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -2157,6 +2302,18 @@ export class NotificationDismissedEvent extends NotificationEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
@@ -2273,6 +2430,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2324,6 +2482,11 @@ export class NotificationDismissedEvent extends NotificationEvent {
       throw new Error(`NotificationDismissedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -2426,6 +2589,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -2463,6 +2629,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -2543,13 +2712,16 @@ export class NotificationDismissedEvent extends NotificationEvent {
     objectCson["1"] = 1400505;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -2577,12 +2749,17 @@ export class NotificationDismissedEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationDismissedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2601,9 +2778,10 @@ export class NotificationDismissedEvent extends NotificationEvent {
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new NotificationDismissedEvent({
       node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2651,6 +2829,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     const objectProto: Partial<NotificationDismissedEventProto> = { metatype: 1400505 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -2693,6 +2874,16 @@ export class NotificationDismissedEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -2816,6 +3007,18 @@ export class NotificationExpiredEvent extends NotificationEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
@@ -2932,6 +3135,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2983,6 +3187,11 @@ export class NotificationExpiredEvent extends NotificationEvent {
       throw new Error(`NotificationExpiredEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -3085,6 +3294,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -3122,6 +3334,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -3202,13 +3417,16 @@ export class NotificationExpiredEvent extends NotificationEvent {
     objectCson["1"] = 1400506;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -3236,12 +3454,17 @@ export class NotificationExpiredEvent extends NotificationEvent {
     _connection?: any | null,
   ): NotificationExpiredEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -3260,9 +3483,10 @@ export class NotificationExpiredEvent extends NotificationEvent {
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new NotificationExpiredEvent({
       node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -3310,6 +3534,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     const objectProto: Partial<NotificationExpiredEventProto> = { metatype: 1400506 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -3352,6 +3579,16 @@ export class NotificationExpiredEvent extends NotificationEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,

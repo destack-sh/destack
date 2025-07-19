@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
+  CustomEvent,
   EventStatus,
   Graph,
   Icon,
@@ -50,6 +51,12 @@ export abstract class SceneEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.

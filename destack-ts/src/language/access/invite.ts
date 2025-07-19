@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { Role } from "@destack/language/access/role";
 import type {
   Branch,
+  CustomEvent,
   Graph,
   IsActor,
   IsExtensible,
@@ -58,6 +59,12 @@ export abstract class InviteEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -168,6 +175,18 @@ export class InviteSentEvent extends InviteEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -327,6 +346,7 @@ export class InviteSentEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -382,6 +402,11 @@ export class InviteSentEvent extends InviteEvent {
       throw new Error(`InviteSentEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -525,6 +550,9 @@ export class InviteSentEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -566,6 +594,9 @@ export class InviteSentEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -646,13 +677,16 @@ export class InviteSentEvent extends InviteEvent {
     objectCson["1"] = 360102;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -684,12 +718,17 @@ export class InviteSentEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteSentEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -724,9 +763,10 @@ export class InviteSentEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -768,6 +808,9 @@ export class InviteSentEvent extends InviteEvent {
     const objectProto: Partial<InviteSentEventProto> = { metatype: 360102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -836,6 +879,16 @@ export class InviteSentEvent extends InviteEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -951,6 +1004,18 @@ export class InviteRescindedEvent extends InviteEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -1093,6 +1158,7 @@ export class InviteRescindedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1146,6 +1212,11 @@ export class InviteRescindedEvent extends InviteEvent {
       throw new Error(`InviteRescindedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -1270,6 +1341,9 @@ export class InviteRescindedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -1309,6 +1383,9 @@ export class InviteRescindedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -1389,13 +1466,16 @@ export class InviteRescindedEvent extends InviteEvent {
     objectCson["1"] = 360103;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -1425,12 +1505,17 @@ export class InviteRescindedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteRescindedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1463,9 +1548,10 @@ export class InviteRescindedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1513,6 +1599,9 @@ export class InviteRescindedEvent extends InviteEvent {
     const objectProto: Partial<InviteRescindedEventProto> = { metatype: 360103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -1571,6 +1660,16 @@ export class InviteRescindedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -1692,6 +1791,18 @@ export class InviteAcceptedEvent extends InviteEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -1851,6 +1962,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1906,6 +2018,11 @@ export class InviteAcceptedEvent extends InviteEvent {
       throw new Error(`InviteAcceptedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -2049,6 +2166,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -2090,6 +2210,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -2170,13 +2293,16 @@ export class InviteAcceptedEvent extends InviteEvent {
     objectCson["1"] = 360104;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -2208,12 +2334,17 @@ export class InviteAcceptedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteAcceptedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2248,9 +2379,10 @@ export class InviteAcceptedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2298,6 +2430,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 360104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -2366,6 +2501,16 @@ export class InviteAcceptedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
@@ -2487,6 +2632,18 @@ export class InviteRejectedEvent extends InviteEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -2629,6 +2786,7 @@ export class InviteRejectedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2682,6 +2840,11 @@ export class InviteRejectedEvent extends InviteEvent {
       throw new Error(`InviteRejectedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -2806,6 +2969,9 @@ export class InviteRejectedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -2845,6 +3011,9 @@ export class InviteRejectedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
@@ -2925,13 +3094,16 @@ export class InviteRejectedEvent extends InviteEvent {
     objectCson["1"] = 360105;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -2961,12 +3133,17 @@ export class InviteRejectedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteRejectedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2999,9 +3176,10 @@ export class InviteRejectedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -3049,6 +3227,9 @@ export class InviteRejectedEvent extends InviteEvent {
     const objectProto: Partial<InviteRejectedEventProto> = { metatype: 360105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -3107,6 +3288,16 @@ export class InviteRejectedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,

@@ -14,7 +14,7 @@ import { hashFloat, hashInt } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400000 ==== */
 /**
- * A vector.
+ * A Vector.
  */
 export abstract class Vector extends StructFrozen {
   static metatype: StructType = StructType.VECTOR;
@@ -29,7 +29,7 @@ registerStructClass(StructType.VECTOR, Vector);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400010 ==== */
 /**
- * A floating point vector.
+ * A floating point Vector.
  */
 export abstract class Vectorf extends Vector {
   static metatype: StructType = StructType.VECTORF;
@@ -44,7 +44,7 @@ registerStructClass(StructType.VECTORF, Vectorf);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400020 ==== */
 /**
- * An integer vector.
+ * An integer Vector.
  */
 export abstract class Vectori extends Vector {
   static metatype: StructType = StructType.VECTORI;
@@ -59,19 +59,19 @@ registerStructClass(StructType.VECTORI, Vectori);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400011 ==== */
 /**
- * A 2D float vector.
+ * A 2D floating point Vector.
  */
 export class Vector2f extends Vectorf {
   static metatype: StructType = StructType.VECTOR2F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector2f.x
+   * The x-coordinate of the Vector2f.
    */
   readonly x: number;
 
   /**
-   * Vector2f.y
+   * The y-coordinate of the Vector2f.
    */
   readonly y: number;
 
@@ -412,24 +412,24 @@ registerStructClass(StructType.VECTOR2F, Vector2f);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400012 ==== */
 /**
- * A 3D float vector.
+ * A 3D floating point vector.
  */
 export class Vector3f extends Vectorf {
   static metatype: StructType = StructType.VECTOR3F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector3f.x
+   * The x-coordinate of the Vector3f.
    */
   readonly x: number;
 
   /**
-   * Vector3f.y
+   * The y-coordinate of the Vector3f.
    */
   readonly y: number;
 
   /**
-   * Vector3f.z
+   * The z-coordinate of the Vector3f.
    */
   readonly z: number;
 
@@ -811,29 +811,29 @@ registerStructClass(StructType.VECTOR3F, Vector3f);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400013 ==== */
 /**
- * A 4D float vector.
+ * A 4D floating point vector.
  */
 export class Vector4f extends Vectorf {
   static metatype: StructType = StructType.VECTOR4F;
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector4f.x
+   * The x-coordinate of the Vector4f.
    */
   readonly x: number;
 
   /**
-   * Vector4f.y
+   * The y-coordinate of the Vector4f.
    */
   readonly y: number;
 
   /**
-   * Vector4f.z
+   * The z-coordinate of the Vector4f.
    */
   readonly z: number;
 
   /**
-   * Vector4f.w
+   * The w-coordinate of the Vector4f.
    */
   readonly w: number;
 
@@ -1253,12 +1253,12 @@ export class Vector2i extends Vectori {
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector2i.x
+   * The x-coordinate of the Vector2i.
    */
   readonly x: number;
 
   /**
-   * Vector2i.y
+   * The y-coordinate of the Vector2i.
    */
   readonly y: number;
 
@@ -1606,17 +1606,17 @@ export class Vector3i extends Vectori {
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector3i.x
+   * The x-coordinate of the Vector3i.
    */
   readonly x: number;
 
   /**
-   * Vector3i.y
+   * The y-coordinate of the Vector3i.
    */
   readonly y: number;
 
   /**
-   * Vector3i.z
+   * The z-coordinate of the Vector3i.
    */
   readonly z: number;
 
@@ -1995,22 +1995,22 @@ export class Vector4i extends Vectori {
   static __isFrozen__: boolean = true;
 
   /**
-   * Vector4i.x
+   * The x-coordinate of the Vector4i.
    */
   readonly x: number;
 
   /**
-   * Vector4i.y
+   * The y-coordinate of the Vector4i.
    */
   readonly y: number;
 
   /**
-   * Vector4i.z
+   * The z-coordinate of the Vector4i.
    */
   readonly z: number;
 
   /**
-   * Vector4i.w
+   * The w-coordinate of the Vector4i.
    */
   readonly w: number;
 

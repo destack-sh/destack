@@ -8,6 +8,7 @@ from destack.language.core import (
     IsRunnable,
     IsSourceable,
     NodeType,
+    builtin_action,
     builtin_node,
     builtin_property,
 )
@@ -34,3 +35,13 @@ class Service(
     """
 
     icon: "Icon | None" = builtin_property(102)
+
+    @builtin_action(101)
+    async def start(self):
+        """Start the Service."""
+        pass
+
+    @builtin_action(102)
+    async def stop(self):
+        """Stop the Service."""
+        pass

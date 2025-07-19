@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity } from "@destack/language/core/builtin/entity";
+import type { CustomEvent } from "@destack/language/core/builtin/event";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
@@ -28,18 +29,6 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:CONSTANT:CASCADING_EDIT_TYPES ==== */
-/**
- * CASCADING_EDIT_TYPES
- */
-// prettier-ignore
-export const CASCADING_EDIT_TYPES = [
-  (20 /* EditType.DELETE */),
-  (21 /* EditType.RESTORE */)
-];
-
-/* ==== DESTACK_GENERATED_END:CONSTANT:CASCADING_EDIT_TYPES ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:200 ==== */
 /**
@@ -92,6 +81,18 @@ export class EditEvent extends Event {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  get definition(): CustomEvent | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
@@ -257,6 +258,7 @@ export class EditEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: CustomEvent | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -316,6 +318,11 @@ export class EditEvent extends Event {
       throw new Error(`EditEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
@@ -473,6 +480,9 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
@@ -531,6 +541,9 @@ export class EditEvent extends Event {
     }
     if (this.reverseValue != null) {
       h = (h * 31 + this.reverseValue.hash()) & 0xffffffff;
+    }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -632,13 +645,16 @@ export class EditEvent extends Event {
     objectCson["1"] = 50100;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    if (object.definitionPtr != null) {
+      objectCson["11"] = object.definitionPtr.toCson();
+    }
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -722,12 +738,17 @@ export class EditEvent extends Event {
       reverseValueValue != undefined
         ? _Value.fromCson(reverseValueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectCson["12"];
+    const definitionPtrValue = objectCson["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -754,9 +775,10 @@ export class EditEvent extends Event {
       value: unpackedValue,
       reverseOperation: unpackedReverseOperation,
       reverseValue: unpackedReverseValue,
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      definition: unpackedDefinitionPtr,
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -798,6 +820,9 @@ export class EditEvent extends Event {
     const objectProto: Partial<EditEventProto> = { metatype: 50100 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
@@ -894,6 +919,16 @@ export class EditEvent extends Event {
       reverseValue:
         objectProto.reverseValue != undefined
           ? _Value.fromProto(objectProto.reverseValue!, _session, _supergraph, _graph, _connection)
+          : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,

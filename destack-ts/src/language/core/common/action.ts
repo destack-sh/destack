@@ -1,12 +1,18 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import {
+  NodeType,
+  PlatformType,
+  RuntimeLanguage,
+  StructType,
+} from "@destack/language/core/builtin/common";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
+import { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor, IsRunnable, IsScriptable } from "@destack/language/core/builtin/trait";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
-import { Method, MethodCardinality, MethodDefinition } from "@destack/language/core/common/method";
+import { Method, MethodDefinition } from "@destack/language/core/common/method";
 import type { Space } from "@destack/language/core/common/space";
 import type { Text } from "@destack/language/core/common/text";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -25,6 +31,9 @@ import {
   ActionProto,
   MaterializationProto,
   MethodCardinalityProto,
+  MethodTypeProto,
+  PlatformTypeProto,
+  RuntimeLanguageProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
@@ -40,10 +49,14 @@ export class ActionDefinition extends MethodDefinition {
 
   constructor(options: {
     id: number;
+    type: MethodType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyDefinition[];
+    cardinality?: MethodCardinality;
+    platforms?: readonly PlatformType[];
+    languages?: readonly RuntimeLanguage[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -63,11 +76,33 @@ export class ActionDefinition extends MethodDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.type === other.type)) {
+      return false;
+    }
     if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
       if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.cardinality === other.cardinality)) {
+      return false;
+    }
+    if (this.platforms.length != other.platforms.length) {
+      return false;
+    }
+    for (let i = 0; i < this.platforms.length; i++) {
+      if (!(this.platforms[i] === other.platforms[i])) {
+        return false;
+      }
+    }
+    if (this.languages.length != other.languages.length) {
+      return false;
+    }
+    for (let i = 0; i < this.languages.length; i++) {
+      if (!(this.languages[i] === other.languages[i])) {
         return false;
       }
     }
@@ -110,9 +145,21 @@ export class ActionDefinition extends MethodDefinition {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + this.cardinality) & 0xffffffff;
+    if (this.platforms && this.platforms.length > 0) {
+      for (const _item of this.platforms) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.languages && this.languages.length > 0) {
+      for (const _item of this.languages) {
+        h = (h * 31 + _item) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -145,6 +192,7 @@ export class ActionDefinition extends MethodDefinition {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 35100;
     objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
     objectCson["101"] = object.name;
     if (object.icon != null) {
       objectCson["102"] = object.icon.toCson();
@@ -158,6 +206,21 @@ export class ActionDefinition extends MethodDefinition {
         packedProperties.push(item.toCson());
       }
       objectCson["104"] = packedProperties;
+    }
+    objectCson["110"] = object.cardinality;
+    if (object.platforms.length > 0) {
+      const packedPlatforms: any[] = [];
+      for (const item of object.platforms) {
+        packedPlatforms.push(item);
+      }
+      objectCson["120"] = packedPlatforms;
+    }
+    if (object.languages.length > 0) {
+      const packedLanguages: any[] = [];
+      for (const item of object.languages) {
+        packedLanguages.push(item);
+      }
+      objectCson["121"] = packedLanguages;
     }
     return objectCson;
   }
@@ -181,6 +244,18 @@ export class ActionDefinition extends MethodDefinition {
         );
       }
     }
+    const unpackedPlatforms: any[] = [];
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
+        unpackedPlatforms.push(Number(item));
+      }
+    }
+    const unpackedLanguages: any[] = [];
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
+        unpackedLanguages.push(Number(item));
+      }
+    }
     const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -189,7 +264,11 @@ export class ActionDefinition extends MethodDefinition {
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new ActionDefinition({
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
+      cardinality: Number(objectCson["110"]),
+      platforms: unpackedPlatforms,
+      languages: unpackedLanguages,
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
@@ -220,6 +299,7 @@ export class ActionDefinition extends MethodDefinition {
   static __packProto__(object: ActionDefinition): ActionDefinitionProto {
     const objectProto: Partial<ActionDefinitionProto> = { metatype: 35100 };
     objectProto.id = object.id;
+    objectProto.type = Number(object.type) as MethodTypeProto;
     objectProto.name = object.name;
     if (object.icon != null) {
       objectProto.icon = object.icon.toProto();
@@ -233,6 +313,21 @@ export class ActionDefinition extends MethodDefinition {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
+    }
+    objectProto.cardinality = Number(object.cardinality) as MethodCardinalityProto;
+    if (object.platforms) {
+      const packedPlatforms: any[] = [];
+      for (const item of object.platforms) {
+        packedPlatforms.push(Number(item) as PlatformTypeProto);
+      }
+      objectProto.platforms = packedPlatforms;
+    }
+    if (object.languages) {
+      const packedLanguages: any[] = [];
+      for (const item of object.languages) {
+        packedLanguages.push(Number(item) as RuntimeLanguageProto);
+      }
+      objectProto.languages = packedLanguages;
     }
     return objectProto as ActionDefinitionProto;
   }
@@ -256,8 +351,24 @@ export class ActionDefinition extends MethodDefinition {
         );
       }
     }
+    const unpackedPlatforms: any[] = [];
+    if (objectProto.platforms) {
+      for (const item of objectProto.platforms) {
+        unpackedPlatforms.push(Number(item) as PlatformType);
+      }
+    }
+    const unpackedLanguages: any[] = [];
+    if (objectProto.languages) {
+      for (const item of objectProto.languages) {
+        unpackedLanguages.push(Number(item) as RuntimeLanguage);
+      }
+    }
     return new ActionDefinition({
+      type: Number(objectProto.type) as MethodType,
       properties: unpackedProperties,
+      cardinality: Number(objectProto.cardinality) as MethodCardinality,
+      platforms: unpackedPlatforms,
+      languages: unpackedLanguages,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -329,9 +440,11 @@ export class Action extends Method implements IsRunnable {
     name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    icon?: Icon | null;
+    type: MethodType;
     text?: Text | null;
     cardinality?: MethodCardinality;
+    platforms?: readonly PlatformType[];
+    languages?: readonly RuntimeLanguage[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -349,10 +462,7 @@ export class Action extends Method implements IsRunnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
+    if (!(this._type === other._type)) {
       return false;
     }
     if (
@@ -363,6 +473,22 @@ export class Action extends Method implements IsRunnable {
     }
     if (!(this._cardinality === other._cardinality)) {
       return false;
+    }
+    if (this._platforms.length != other._platforms.length) {
+      return false;
+    }
+    for (let i = 0; i < this._platforms.length; i++) {
+      if (!(this._platforms[i] === other._platforms[i])) {
+        return false;
+      }
+    }
+    if (this._languages.length != other._languages.length) {
+      return false;
+    }
+    for (let i = 0; i < this._languages.length; i++) {
+      if (!(this._languages[i] === other._languages[i])) {
+        return false;
+      }
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
@@ -399,13 +525,21 @@ export class Action extends Method implements IsRunnable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
+    h = (h * 31 + this._type) & 0xffffffff;
     if (this._text != null) {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
     h = (h * 31 + this._cardinality) & 0xffffffff;
+    if (this._platforms && this._platforms.length > 0) {
+      for (const _item of this._platforms) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this._languages && this._languages.length > 0) {
+      for (const _item of this._languages) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -534,13 +668,25 @@ export class Action extends Method implements IsRunnable {
     if (object._key != null) {
       objectCson["70"] = object._key;
     }
-    if (object._icon != null) {
-      objectCson["102"] = object._icon.toCson();
-    }
+    objectCson["100"] = object._type;
     if (object._text != null) {
       objectCson["104"] = object._text.toCson();
     }
     objectCson["110"] = object._cardinality;
+    if (object._platforms.length > 0) {
+      const packedPlatforms: any[] = [];
+      for (const item of object._platforms) {
+        packedPlatforms.push(item);
+      }
+      objectCson["120"] = packedPlatforms;
+    }
+    if (object._languages.length > 0) {
+      const packedLanguages: any[] = [];
+      for (const item of object._languages) {
+        packedLanguages.push(item);
+      }
+      objectCson["121"] = packedLanguages;
+    }
     return objectCson;
   }
 
@@ -554,22 +700,28 @@ export class Action extends Method implements IsRunnable {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectCson["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const textValue = objectCson["104"];
     const unpackedText =
       textValue != undefined
         ? _Text.fromCson(textValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedPlatforms: any[] = [];
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
+        unpackedPlatforms.push(Number(item));
+      }
+    }
+    const unpackedLanguages: any[] = [];
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
+        unpackedLanguages.push(Number(item));
+      }
+    }
     const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -621,9 +773,11 @@ export class Action extends Method implements IsRunnable {
         : null;
     return new Action({
       parent: unpackedParentPtr,
-      icon: unpackedIcon,
+      type: Number(objectCson["100"]),
       text: unpackedText,
       cardinality: Number(objectCson["110"]),
+      platforms: unpackedPlatforms,
+      languages: unpackedLanguages,
       id: String(objectCson["2"]),
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -716,13 +870,25 @@ export class Action extends Method implements IsRunnable {
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
+    objectProto.type = Number(object._type) as MethodTypeProto;
     if (object._text != null) {
       objectProto.text = object._text.toProto();
     }
     objectProto.cardinality = Number(object._cardinality) as MethodCardinalityProto;
+    if (object._platforms) {
+      const packedPlatforms: any[] = [];
+      for (const item of object._platforms) {
+        packedPlatforms.push(Number(item) as PlatformTypeProto);
+      }
+      objectProto.platforms = packedPlatforms;
+    }
+    if (object._languages) {
+      const packedLanguages: any[] = [];
+      for (const item of object._languages) {
+        packedLanguages.push(Number(item) as RuntimeLanguageProto);
+      }
+      objectProto.languages = packedLanguages;
+    }
     return objectProto as ActionProto;
   }
 
@@ -736,7 +902,18 @@ export class Action extends Method implements IsRunnable {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedPlatforms: any[] = [];
+    if (objectProto.platforms) {
+      for (const item of objectProto.platforms) {
+        unpackedPlatforms.push(Number(item) as PlatformType);
+      }
+    }
+    const unpackedLanguages: any[] = [];
+    if (objectProto.languages) {
+      for (const item of objectProto.languages) {
+        unpackedLanguages.push(Number(item) as RuntimeLanguage);
+      }
+    }
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -757,15 +934,14 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
+      type: Number(objectProto.type) as MethodType,
       text:
         objectProto.text != undefined
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       cardinality: Number(objectProto.cardinality) as MethodCardinality,
+      platforms: unpackedPlatforms,
+      languages: unpackedLanguages,
       id: String(objectProto.id),
       source:
         objectProto.sourcePtr != undefined

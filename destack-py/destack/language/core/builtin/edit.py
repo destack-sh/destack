@@ -5,7 +5,6 @@ from opentelemetry import trace
 
 from .common import EnumType, NodeType
 from .const import UNSET
-from .constant import register_constant
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .event import Event
@@ -30,10 +29,6 @@ class EditType(Enum):
     MOVE = 11, "Move an Entity to a new parent Entity (or detach)"
     DELETE = 20, "Delete an Entity (and its descendants)"
     RESTORE = 21, "Restore a deleted Entity (and its descendants)"
-
-
-CASCADING_EDIT_TYPES: tuple[EditType, ...] = (EditType.DELETE, EditType.RESTORE)
-register_constant("CASCADING_EDIT_TYPES", CASCADING_EDIT_TYPES)
 
 
 @builtin_enum(EnumType.EDIT_OPERATION)

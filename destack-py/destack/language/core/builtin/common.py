@@ -79,6 +79,7 @@ class EnumType(Enum):
     MIGRATION_TYPE = 31_000
 
     # logic
+    METHOD_TYPE = 701_000
     METHOD_CARDINALITY = 701_001
 
     # universe [100_000-200_000]
@@ -604,8 +605,10 @@ class NodeType(Enum):
     TIMER = 705_100, "Timer", None, "fas fa-clock"
     TIMER_EVENT = 705_101, "Timer Event", None, "fas fa-clock"
     TIMER_STARTED_EVENT = 705_102, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 705_103, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 705_104, "Timer Cancelled Event", None, "fas fa-clock"
+    TIMER_PAUSED_EVENT = 705_103, "Timer Paused Event", None, "fas fa-clock"
+    TIMER_RESUMED_EVENT = 705_104, "Timer Resumed Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 705_105, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 705_106, "Timer Cancelled Event", None, "fas fa-clock"
     ROUTE = 710_000, "Route", None, "fas fa-route"
     CURSOR = 712_000, "Cursor", None, "fas fa-cursor"
     EVENT_CURSOR = 712_100, "Event Cursor", None, "fas fa-cursor"

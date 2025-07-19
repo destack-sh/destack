@@ -1566,13 +1566,13 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
     objectCson["6"] = object.definitionPtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -1602,12 +1602,12 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): GaugeMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1637,9 +1637,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -3133,13 +3133,13 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
     objectCson["6"] = object.definitionPtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -3169,12 +3169,12 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): CounterMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -3204,9 +3204,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -4700,13 +4700,13 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
     objectCson["6"] = object.definitionPtr.toCson();
-    objectCson["10"] = object.branchPtr.toCson();
-    objectCson["11"] = object.snapshotPtr.toCson();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectCson["12"] = object.precededByPtr.toCson();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectCson["13"] = object.causedByPtr.toCson();
+      objectCson["15"] = object.causedByPtr.toCson();
     }
     objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectCson["21"] = object.createdEpoch;
@@ -4736,12 +4736,12 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): HistogramMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectCson["12"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectCson["13"];
+    const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
         ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
@@ -4771,9 +4771,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
-        objectCson["11"],
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,

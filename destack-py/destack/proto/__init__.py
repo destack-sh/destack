@@ -157,6 +157,8 @@ AnyNodeProto = Union[
     ServiceProto,
     TimerEventProto,
     TimerStartedEventProto,
+    TimerPausedEventProto,
+    TimerResumedEventProto,
     TimerCompletedEventProto,
     TimerCancelledEventProto,
     TimerProto,

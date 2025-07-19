@@ -4,10 +4,10 @@
 // tslint:disable
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
-import { WireType } from "@protobuf-ts/runtime";
 import type { BinaryReadOptions } from "@protobuf-ts/runtime";
 import type { IBinaryReader } from "@protobuf-ts/runtime";
 import { UnknownFieldHandler } from "@protobuf-ts/runtime";
+import { WireType } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
@@ -112,9 +112,9 @@ export interface ActionProto {
      */
     key?: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     * @generated from protobuf field: symbol.destack.MethodTypeProto type = 100
      */
-    icon?: IconProto;
+    type: MethodTypeProto;
     /**
      * @generated from protobuf field: optional symbol.destack.TextProto text = 104
      */
@@ -123,6 +123,14 @@ export interface ActionProto {
      * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
      */
     cardinality: MethodCardinalityProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PlatformTypeProto platforms = 120
+     */
+    platforms: PlatformTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.RuntimeLanguageProto languages = 121
+     */
+    languages: RuntimeLanguageProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.ActionDefinitionProto
@@ -136,6 +144,10 @@ export interface ActionDefinitionProto {
      * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
     id: number;
+    /**
+     * @generated from protobuf field: symbol.destack.MethodTypeProto type = 100
+     */
+    type: MethodTypeProto;
     /**
      * @generated from protobuf field: string name = 101
      */
@@ -152,6 +164,18 @@ export interface ActionDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
      */
     properties: PropertyDefinitionProto[];
+    /**
+     * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
+     */
+    cardinality: MethodCardinalityProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PlatformTypeProto platforms = 120
+     */
+    platforms: PlatformTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.RuntimeLanguageProto languages = 121
+     */
+    languages: RuntimeLanguageProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.AggregationProto
@@ -956,19 +980,23 @@ export interface ClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -1196,19 +1224,23 @@ export interface ClipboardEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -1997,19 +2029,23 @@ export interface CopyEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -2115,19 +2151,19 @@ export interface CounterMeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -2967,19 +3003,23 @@ export interface CutEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3281,19 +3321,23 @@ export interface DoubleClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3394,19 +3438,23 @@ export interface DragEndEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3483,19 +3531,23 @@ export interface DragEnterEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3572,19 +3624,23 @@ export interface DragEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3661,19 +3717,23 @@ export interface DragLeaveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3750,19 +3810,23 @@ export interface DragOverEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3839,19 +3903,23 @@ export interface DragStartEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -3928,19 +3996,23 @@ export interface DropEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4017,19 +4089,23 @@ export interface EditEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4439,19 +4515,23 @@ export interface EntitlementEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4512,19 +4592,23 @@ export interface EntitlementExpiredEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4585,19 +4669,23 @@ export interface EntitlementGrantedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4658,19 +4746,23 @@ export interface EntitlementRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -4731,19 +4823,23 @@ export interface EntitlementRevokedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -5013,19 +5109,23 @@ export interface EventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -5543,19 +5643,23 @@ export interface FocusEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -5628,19 +5732,23 @@ export interface FocusInEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -5713,19 +5821,23 @@ export interface FocusOutEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -5996,19 +6108,23 @@ export interface FollowAddedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -6065,19 +6181,23 @@ export interface FollowEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -6134,19 +6254,23 @@ export interface FollowRemovedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -6621,19 +6745,19 @@ export interface GaugeMeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -7100,19 +7224,19 @@ export interface HistogramMeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -7427,19 +7551,23 @@ export interface InputEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -7924,19 +8052,23 @@ export interface InviteAcceptedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8011,19 +8143,23 @@ export interface InviteEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8090,19 +8226,23 @@ export interface InviteRejectedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8169,19 +8309,23 @@ export interface InviteRescindedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8248,19 +8392,23 @@ export interface InviteSentEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8364,19 +8512,23 @@ export interface KeyDownEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8481,19 +8633,23 @@ export interface KeyEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8598,19 +8754,23 @@ export interface KeyPressEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -8715,19 +8875,23 @@ export interface KeyUpEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -9421,19 +9585,23 @@ export interface LogEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -9664,19 +9832,19 @@ export interface MeasurementEventProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -9844,19 +10012,23 @@ export interface MembershipEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -9923,19 +10095,23 @@ export interface MembershipJoinedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -10010,19 +10186,23 @@ export interface MembershipLeftEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -10167,9 +10347,9 @@ export interface MethodProto {
      */
     key?: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     * @generated from protobuf field: symbol.destack.MethodTypeProto type = 100
      */
-    icon?: IconProto;
+    type: MethodTypeProto;
     /**
      * @generated from protobuf field: optional symbol.destack.TextProto text = 104
      */
@@ -10178,6 +10358,14 @@ export interface MethodProto {
      * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
      */
     cardinality: MethodCardinalityProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PlatformTypeProto platforms = 120
+     */
+    platforms: PlatformTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.RuntimeLanguageProto languages = 121
+     */
+    languages: RuntimeLanguageProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.MethodDefinitionProto
@@ -10191,6 +10379,10 @@ export interface MethodDefinitionProto {
      * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
     id: number;
+    /**
+     * @generated from protobuf field: symbol.destack.MethodTypeProto type = 100
+     */
+    type: MethodTypeProto;
     /**
      * @generated from protobuf field: string name = 101
      */
@@ -10207,6 +10399,18 @@ export interface MethodDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 104
      */
     properties: PropertyDefinitionProto[];
+    /**
+     * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
+     */
+    cardinality: MethodCardinalityProto;
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PlatformTypeProto platforms = 120
+     */
+    platforms: PlatformTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.RuntimeLanguageProto languages = 121
+     */
+    languages: RuntimeLanguageProto[];
 }
 /**
  * An Entity that represents a Metric.
@@ -10538,19 +10742,23 @@ export interface MouseEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -10984,19 +11192,23 @@ export interface NotificationDismissedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11055,19 +11267,23 @@ export interface NotificationEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11126,19 +11342,23 @@ export interface NotificationExpiredEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11197,19 +11417,23 @@ export interface NotificationReadEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11268,19 +11492,23 @@ export interface NotificationRescindedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11339,19 +11567,23 @@ export interface NotificationSentEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -11852,19 +12084,23 @@ export interface PasteEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12053,19 +12289,23 @@ export interface PointerDownEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12162,19 +12402,23 @@ export interface PointerEnterEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12271,19 +12515,23 @@ export interface PointerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12380,19 +12628,23 @@ export interface PointerLeaveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12489,19 +12741,23 @@ export interface PointerLongPressEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12598,19 +12854,23 @@ export interface PointerMoveEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12707,19 +12967,23 @@ export interface PointerOverEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -12816,19 +13080,23 @@ export interface PointerUpEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -13389,19 +13657,23 @@ export interface ReactionAddedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -13462,19 +13734,23 @@ export interface ReactionEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -13535,19 +13811,23 @@ export interface ReactionRemovedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -13914,19 +14194,23 @@ export interface RoleAssignedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -13989,19 +14273,23 @@ export interface RoleEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14064,19 +14352,23 @@ export interface RoleUnassignedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14343,19 +14635,23 @@ export interface RunCompletedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14418,19 +14714,23 @@ export interface RunEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14493,19 +14793,23 @@ export interface RunFailedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14568,19 +14872,23 @@ export interface RunPauseRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14643,19 +14951,23 @@ export interface RunPausedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14718,19 +15030,23 @@ export interface RunResumeRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14793,19 +15109,23 @@ export interface RunResumedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14868,19 +15188,23 @@ export interface RunStartedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -14943,19 +15267,23 @@ export interface RunStopRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15107,19 +15435,23 @@ export interface SanctionEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15180,19 +15512,23 @@ export interface SanctionExpiredEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15253,19 +15589,23 @@ export interface SanctionGrantedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15326,19 +15666,23 @@ export interface SanctionRequestedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15399,19 +15743,23 @@ export interface SanctionRevokedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -15583,19 +15931,23 @@ export interface SceneEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -16425,19 +16777,19 @@ export interface SignalProto {
      */
     definitionPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -16510,19 +16862,23 @@ export interface SingleClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -17021,19 +17377,23 @@ export interface SpanEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -17479,19 +17839,23 @@ export interface StarAddedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -17548,19 +17912,23 @@ export interface StarEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -17617,19 +17985,23 @@ export interface StarRemovedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -18866,19 +19238,23 @@ export interface TimerCancelledEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -18937,19 +19313,23 @@ export interface TimerCompletedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -19008,19 +19388,173 @@ export interface TimerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
+     */
+    causedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 21 [jstype = JS_NUMBER]
+     */
+    createdEpoch: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 22
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 23
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 24
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp client_created_at = 25
+     */
+    clientCreatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 client_epoch = 26 [jstype = JS_NUMBER]
+     */
+    clientEpoch: number;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 40
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * A Timer was paused.
+ *
+ * @generated from protobuf message symbol.destack.TimerPausedEventProto
+ */
+export interface TimerPausedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
+     */
+    branchPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
+     */
+    precededByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
+     */
+    causedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 21 [jstype = JS_NUMBER]
+     */
+    createdEpoch: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 22
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 23
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 24
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp client_created_at = 25
+     */
+    clientCreatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 client_epoch = 26 [jstype = JS_NUMBER]
+     */
+    clientEpoch: number;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 40
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+}
+/**
+ * A Timer was resumed.
+ *
+ * @generated from protobuf message symbol.destack.TimerResumedEventProto
+ */
+export interface TimerResumedEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
+     */
+    branchPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
+     */
+    precededByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -19079,19 +19613,23 @@ export interface TimerStartedEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -19514,19 +20052,23 @@ export interface TriggerEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -19585,19 +20127,23 @@ export interface TripleClickEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -20304,19 +20850,23 @@ export interface ViewEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -20375,19 +20925,23 @@ export interface WheelEventProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 10
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 11
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 12
      */
     branchPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 13
      */
     snapshotPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14
      */
     precededByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 13
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto caused_by_ptr = 15
      */
     causedByPtr?: NodeReferenceProto;
     /**
@@ -21206,15 +21760,27 @@ export interface SomeNodeProto {
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
+        oneofKind: "timerPausedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TimerPausedEventProto timer_paused_event = 705103
+         */
+        timerPausedEvent: TimerPausedEventProto;
+    } | {
+        oneofKind: "timerResumedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TimerResumedEventProto timer_resumed_event = 705104
+         */
+        timerResumedEvent: TimerResumedEventProto;
+    } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705105
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705106
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
@@ -22194,15 +22760,27 @@ export interface SomeEventProto {
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
+        oneofKind: "timerPausedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TimerPausedEventProto timer_paused_event = 705103
+         */
+        timerPausedEvent: TimerPausedEventProto;
+    } | {
+        oneofKind: "timerResumedEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TimerResumedEventProto timer_resumed_event = 705104
+         */
+        timerResumedEvent: TimerResumedEventProto;
+    } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705105
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705106
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
@@ -23439,6 +24017,10 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_MIGRATION_TYPE = 31000;
      */
     ENUM_TYPE_MIGRATION_TYPE = 31000,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_METHOD_TYPE = 701000;
+     */
+    ENUM_TYPE_METHOD_TYPE = 701000,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_METHOD_CARDINALITY = 701001;
      */
@@ -24799,6 +25381,27 @@ export enum MethodCardinalityProto {
     METHOD_CARDINALITY_UNARY = 1
 }
 /**
+ * @generated from protobuf enum symbol.destack.MethodTypeProto
+ */
+export enum MethodTypeProto {
+    /**
+     * @generated from protobuf enum value: METHOD_TYPE_UNSPECIFIED = 0;
+     */
+    METHOD_TYPE_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: METHOD_TYPE_PROPERTY = 1;
+     */
+    METHOD_TYPE_PROPERTY = 1,
+    /**
+     * @generated from protobuf enum value: METHOD_TYPE_INSTANCE = 2;
+     */
+    METHOD_TYPE_INSTANCE = 2,
+    /**
+     * @generated from protobuf enum value: METHOD_TYPE_STATIC = 3;
+     */
+    METHOD_TYPE_STATIC = 3
+}
+/**
  * Type of a builtin Migration.
  *
  * @generated from protobuf enum symbol.destack.MigrationTypeProto
@@ -25258,13 +25861,21 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_TIMER_STARTED_EVENT = 705102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 705103;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_PAUSED_EVENT = 705103;
      */
-    NODE_TYPE_TIMER_COMPLETED_EVENT = 705103,
+    NODE_TYPE_TIMER_PAUSED_EVENT = 705103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 705104;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_RESUMED_EVENT = 705104;
      */
-    NODE_TYPE_TIMER_CANCELLED_EVENT = 705104,
+    NODE_TYPE_TIMER_RESUMED_EVENT = 705104,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 705105;
+     */
+    NODE_TYPE_TIMER_COMPLETED_EVENT = 705105,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 705106;
+     */
+    NODE_TYPE_TIMER_CANCELLED_EVENT = 705106,
     /**
      * @generated from protobuf enum value: NODE_TYPE_ROUTE = 710000;
      */
@@ -27674,9 +28285,11 @@ class ActionProto$Type extends MessageType<ActionProto> {
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.MethodTypeProto", MethodTypeProto] },
             { no: 104, name: "text", kind: "message", T: () => TextProto },
-            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] }
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
+            { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
+            { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
         ]);
     }
     create(value?: PartialMessage<ActionProto>): ActionProto {
@@ -27689,7 +28302,10 @@ class ActionProto$Type extends MessageType<ActionProto> {
         message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.type = 0;
         message.cardinality = 0;
+        message.platforms = [];
+        message.languages = [];
         if (value !== undefined)
             reflectionMergePartial<ActionProto>(this, message, value);
         return message;
@@ -27765,14 +28381,28 @@ class ActionProto$Type extends MessageType<ActionProto> {
                 case /* optional string key */ 70:
                     message.key = reader.string();
                     break;
-                case /* optional symbol.destack.IconProto icon */ 102:
-                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                case /* symbol.destack.MethodTypeProto type */ 100:
+                    message.type = reader.int32();
                     break;
                 case /* optional symbol.destack.TextProto text */ 104:
                     message.text = TextProto.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
+                    break;
+                case /* repeated symbol.destack.PlatformTypeProto platforms */ 120:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.platforms.push(reader.int32());
+                    else
+                        message.platforms.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.RuntimeLanguageProto languages */ 121:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.languages.push(reader.int32());
+                    else
+                        message.languages.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27872,15 +28502,29 @@ class ActionProto$Type extends MessageType<ActionProto> {
         /* optional string key = 70; */
         if (message.key !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.key);
-        /* optional symbol.destack.IconProto icon = 102; */
-        if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodTypeProto type = 100; */
+        if (message.type !== 0)
+            writer.tag(100, WireType.Varint).int32(message.type);
         /* optional symbol.destack.TextProto text = 104; */
         if (message.text)
             TextProto.internalBinaryWrite(message.text, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MethodCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
+        /* repeated symbol.destack.PlatformTypeProto platforms = 120; */
+        if (message.platforms.length) {
+            writer.tag(120, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.platforms.length; i++)
+                writer.int32(message.platforms[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.RuntimeLanguageProto languages = 121; */
+        if (message.languages.length) {
+            writer.tag(121, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.languages.length; i++)
+                writer.int32(message.languages[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27897,18 +28541,26 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
         super("symbol.destack.ActionDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.MethodTypeProto", MethodTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
+            { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
+            { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
         ]);
     }
     create(value?: PartialMessage<ActionDefinitionProto>): ActionDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         message.name = "";
         message.properties = [];
+        message.cardinality = 0;
+        message.platforms = [];
+        message.languages = [];
         if (value !== undefined)
             reflectionMergePartial<ActionDefinitionProto>(this, message, value);
         return message;
@@ -27924,6 +28576,9 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
                 case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
                     message.id = reader.int64().toNumber();
                     break;
+                case /* symbol.destack.MethodTypeProto type */ 100:
+                    message.type = reader.int32();
+                    break;
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
@@ -27935,6 +28590,23 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
+                    message.cardinality = reader.int32();
+                    break;
+                case /* repeated symbol.destack.PlatformTypeProto platforms */ 120:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.platforms.push(reader.int32());
+                    else
+                        message.platforms.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.RuntimeLanguageProto languages */ 121:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.languages.push(reader.int32());
+                    else
+                        message.languages.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27954,6 +28626,9 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
         /* int64 id = 2 [jstype = JS_NUMBER]; */
         if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.destack.MethodTypeProto type = 100; */
+        if (message.type !== 0)
+            writer.tag(100, WireType.Varint).int32(message.type);
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
@@ -27966,6 +28641,23 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodCardinalityProto cardinality = 110; */
+        if (message.cardinality !== 0)
+            writer.tag(110, WireType.Varint).int32(message.cardinality);
+        /* repeated symbol.destack.PlatformTypeProto platforms = 120; */
+        if (message.platforms.length) {
+            writer.tag(120, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.platforms.length; i++)
+                writer.int32(message.platforms[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.RuntimeLanguageProto languages = 121; */
+        if (message.languages.length) {
+            writer.tag(121, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.languages.length; i++)
+                writer.int32(message.languages[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29742,10 +30434,11 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -29799,16 +30492,19 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -29905,18 +30601,21 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -30251,10 +30950,11 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -30296,16 +30996,19 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -30381,18 +31084,21 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32058,10 +32764,11 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -32103,16 +32810,19 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -32188,18 +32898,21 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -32340,10 +33053,10 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -32383,16 +33096,16 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -32446,18 +33159,18 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34167,10 +34880,11 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -34212,16 +34926,19 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -34297,18 +35014,21 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -34990,10 +35710,11 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -35047,16 +35768,19 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -35153,18 +35877,21 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35243,10 +35970,11 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -35289,16 +36017,19 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -35377,18 +36108,21 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35449,10 +36183,11 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -35495,16 +36230,19 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -35583,18 +36321,21 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35655,10 +36396,11 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -35701,16 +36443,19 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -35789,18 +36534,21 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -35861,10 +36609,11 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -35907,16 +36656,19 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -35995,18 +36747,21 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36067,10 +36822,11 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -36113,16 +36869,19 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -36201,18 +36960,21 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36273,10 +37035,11 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -36319,16 +37082,19 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -36407,18 +37173,21 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36479,10 +37248,11 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -36525,16 +37295,19 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -36613,18 +37386,21 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -36685,10 +37461,11 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -36734,16 +37511,19 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -36818,18 +37598,21 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -37579,10 +38362,11 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -37620,16 +38404,19 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -37683,18 +38470,21 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -37742,10 +38532,11 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -37783,16 +38574,19 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -37846,18 +38640,21 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -37905,10 +38702,11 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -37946,16 +38744,19 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -38009,18 +38810,21 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38068,10 +38872,11 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38109,16 +38914,19 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -38172,18 +38980,21 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38231,10 +39042,11 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38272,16 +39084,19 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -38335,18 +39150,21 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -38836,10 +39654,11 @@ class EventProto$Type extends MessageType<EventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38876,16 +39695,19 @@ class EventProto$Type extends MessageType<EventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -38936,18 +39758,21 @@ class EventProto$Type extends MessageType<EventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40001,10 +40826,11 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -40046,16 +40872,19 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -40131,18 +40960,21 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40200,10 +41032,11 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -40245,16 +41078,19 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -40330,18 +41166,21 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -40399,10 +41238,11 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -40444,16 +41284,19 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -40529,18 +41372,21 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41034,10 +41880,11 @@ class FollowAddedEventProto$Type extends MessageType<FollowAddedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41074,16 +41921,19 @@ class FollowAddedEventProto$Type extends MessageType<FollowAddedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -41134,18 +41984,21 @@ class FollowAddedEventProto$Type extends MessageType<FollowAddedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41190,10 +42043,11 @@ class FollowEventProto$Type extends MessageType<FollowEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41230,16 +42084,19 @@ class FollowEventProto$Type extends MessageType<FollowEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -41290,18 +42147,21 @@ class FollowEventProto$Type extends MessageType<FollowEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -41346,10 +42206,11 @@ class FollowRemovedEventProto$Type extends MessageType<FollowRemovedEventProto> 
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -41386,16 +42247,19 @@ class FollowRemovedEventProto$Type extends MessageType<FollowRemovedEventProto> 
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -41446,18 +42310,21 @@ class FollowRemovedEventProto$Type extends MessageType<FollowRemovedEventProto> 
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -42394,10 +43261,10 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -42437,16 +43304,16 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -42500,18 +43367,18 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -43559,10 +44426,10 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -43602,16 +44469,16 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -43665,18 +44532,18 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -44306,10 +45173,11 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -44351,16 +45219,19 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -44436,18 +45307,21 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45413,10 +46287,11 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -45458,16 +46333,19 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -45530,18 +46408,21 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45598,10 +46479,11 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -45640,16 +46522,19 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -45706,18 +46591,21 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45768,10 +46656,11 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -45810,16 +46699,19 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -45876,18 +46768,21 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -45938,10 +46833,11 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -45980,16 +46876,19 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -46046,18 +46945,21 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46108,10 +47010,11 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -46153,16 +47056,19 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -46225,18 +47131,21 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46377,10 +47286,11 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -46438,16 +47348,19 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -46547,18 +47460,21 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46640,10 +47556,11 @@ class KeyEventProto$Type extends MessageType<KeyEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -46701,16 +47618,19 @@ class KeyEventProto$Type extends MessageType<KeyEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -46810,18 +47730,21 @@ class KeyEventProto$Type extends MessageType<KeyEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -46903,10 +47826,11 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -46964,16 +47888,19 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -47073,18 +48000,21 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -47166,10 +48096,11 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -47227,16 +48158,19 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -47336,18 +48270,21 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -48683,10 +49620,11 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -48729,16 +49667,19 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -48814,18 +49755,21 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49211,10 +50155,10 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49254,16 +50198,16 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -49317,18 +50261,18 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49615,10 +50559,11 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49657,16 +50602,19 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -49723,18 +50671,21 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49785,10 +50736,11 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -49830,16 +50782,19 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -49902,18 +50857,21 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -49970,10 +50928,11 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50012,16 +50971,19 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -50078,18 +51040,21 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -50159,9 +51124,11 @@ class MethodProto$Type extends MessageType<MethodProto> {
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.MethodTypeProto", MethodTypeProto] },
             { no: 104, name: "text", kind: "message", T: () => TextProto },
-            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] }
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
+            { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
+            { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
         ]);
     }
     create(value?: PartialMessage<MethodProto>): MethodProto {
@@ -50174,7 +51141,10 @@ class MethodProto$Type extends MessageType<MethodProto> {
         message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.type = 0;
         message.cardinality = 0;
+        message.platforms = [];
+        message.languages = [];
         if (value !== undefined)
             reflectionMergePartial<MethodProto>(this, message, value);
         return message;
@@ -50250,14 +51220,28 @@ class MethodProto$Type extends MessageType<MethodProto> {
                 case /* optional string key */ 70:
                     message.key = reader.string();
                     break;
-                case /* optional symbol.destack.IconProto icon */ 102:
-                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                case /* symbol.destack.MethodTypeProto type */ 100:
+                    message.type = reader.int32();
                     break;
                 case /* optional symbol.destack.TextProto text */ 104:
                     message.text = TextProto.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
+                    break;
+                case /* repeated symbol.destack.PlatformTypeProto platforms */ 120:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.platforms.push(reader.int32());
+                    else
+                        message.platforms.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.RuntimeLanguageProto languages */ 121:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.languages.push(reader.int32());
+                    else
+                        message.languages.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50357,15 +51341,29 @@ class MethodProto$Type extends MessageType<MethodProto> {
         /* optional string key = 70; */
         if (message.key !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.key);
-        /* optional symbol.destack.IconProto icon = 102; */
-        if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodTypeProto type = 100; */
+        if (message.type !== 0)
+            writer.tag(100, WireType.Varint).int32(message.type);
         /* optional symbol.destack.TextProto text = 104; */
         if (message.text)
             TextProto.internalBinaryWrite(message.text, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MethodCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
+        /* repeated symbol.destack.PlatformTypeProto platforms = 120; */
+        if (message.platforms.length) {
+            writer.tag(120, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.platforms.length; i++)
+                writer.int32(message.platforms[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.RuntimeLanguageProto languages = 121; */
+        if (message.languages.length) {
+            writer.tag(121, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.languages.length; i++)
+                writer.int32(message.languages[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50382,18 +51380,26 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
         super("symbol.destack.MethodDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.MethodTypeProto", MethodTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
+            { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
+            { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
         ]);
     }
     create(value?: PartialMessage<MethodDefinitionProto>): MethodDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
+        message.type = 0;
         message.name = "";
         message.properties = [];
+        message.cardinality = 0;
+        message.platforms = [];
+        message.languages = [];
         if (value !== undefined)
             reflectionMergePartial<MethodDefinitionProto>(this, message, value);
         return message;
@@ -50409,6 +51415,9 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
                 case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
                     message.id = reader.int64().toNumber();
                     break;
+                case /* symbol.destack.MethodTypeProto type */ 100:
+                    message.type = reader.int32();
+                    break;
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
@@ -50420,6 +51429,23 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
+                    message.cardinality = reader.int32();
+                    break;
+                case /* repeated symbol.destack.PlatformTypeProto platforms */ 120:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.platforms.push(reader.int32());
+                    else
+                        message.platforms.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.RuntimeLanguageProto languages */ 121:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.languages.push(reader.int32());
+                    else
+                        message.languages.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50439,6 +51465,9 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
         /* int64 id = 2 [jstype = JS_NUMBER]; */
         if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
+        /* symbol.destack.MethodTypeProto type = 100; */
+        if (message.type !== 0)
+            writer.tag(100, WireType.Varint).int32(message.type);
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
@@ -50451,6 +51480,23 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodCardinalityProto cardinality = 110; */
+        if (message.cardinality !== 0)
+            writer.tag(110, WireType.Varint).int32(message.cardinality);
+        /* repeated symbol.destack.PlatformTypeProto platforms = 120; */
+        if (message.platforms.length) {
+            writer.tag(120, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.platforms.length; i++)
+                writer.int32(message.platforms[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.RuntimeLanguageProto languages = 121; */
+        if (message.languages.length) {
+            writer.tag(121, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.languages.length; i++)
+                writer.int32(message.languages[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -51180,10 +52226,11 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -51237,16 +52284,19 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -51343,18 +52393,21 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52397,10 +53450,11 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -52437,16 +53491,19 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -52497,18 +53554,21 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52553,10 +53613,11 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -52593,16 +53654,19 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -52653,18 +53717,21 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52709,10 +53776,11 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -52749,16 +53817,19 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -52809,18 +53880,21 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -52865,10 +53939,11 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -52905,16 +53980,19 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -52965,18 +54043,21 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53021,10 +54102,11 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -53061,16 +54143,19 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -53121,18 +54206,21 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -53177,10 +54265,11 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -53217,16 +54306,19 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -53277,18 +54369,21 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -54361,10 +55456,11 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -54406,16 +55502,19 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -54491,18 +55590,21 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -54830,10 +55932,11 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -54885,16 +55988,19 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -54988,18 +56094,21 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -55075,10 +56184,11 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -55130,16 +56240,19 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -55233,18 +56346,21 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -55320,10 +56436,11 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -55375,16 +56492,19 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -55478,18 +56598,21 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -55565,10 +56688,11 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -55620,16 +56744,19 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -55723,18 +56850,21 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -55810,10 +56940,11 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -55865,16 +56996,19 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -55968,18 +57102,21 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56055,10 +57192,11 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -56110,16 +57248,19 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -56213,18 +57354,21 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56300,10 +57444,11 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -56355,16 +57500,19 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -56458,18 +57606,21 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -56545,10 +57696,11 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -56600,16 +57752,19 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -56703,18 +57858,21 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -57892,10 +59050,11 @@ class ReactionAddedEventProto$Type extends MessageType<ReactionAddedEventProto> 
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -57934,16 +59093,19 @@ class ReactionAddedEventProto$Type extends MessageType<ReactionAddedEventProto> 
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -57997,18 +59159,21 @@ class ReactionAddedEventProto$Type extends MessageType<ReactionAddedEventProto> 
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -58056,10 +59221,11 @@ class ReactionEventProto$Type extends MessageType<ReactionEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -58098,16 +59264,19 @@ class ReactionEventProto$Type extends MessageType<ReactionEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -58161,18 +59330,21 @@ class ReactionEventProto$Type extends MessageType<ReactionEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -58220,10 +59392,11 @@ class ReactionRemovedEventProto$Type extends MessageType<ReactionRemovedEventPro
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -58262,16 +59435,19 @@ class ReactionRemovedEventProto$Type extends MessageType<ReactionRemovedEventPro
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -58325,18 +59501,21 @@ class ReactionRemovedEventProto$Type extends MessageType<ReactionRemovedEventPro
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -59071,10 +60250,11 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -59112,16 +60292,19 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -59175,18 +60358,21 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -59234,10 +60420,11 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -59275,16 +60462,19 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -59338,18 +60528,21 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -59397,10 +60590,11 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -59438,16 +60632,19 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -59501,18 +60698,21 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60002,10 +61202,11 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60043,16 +61244,19 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60106,18 +61310,21 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60165,10 +61372,11 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60206,16 +61414,19 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60269,18 +61480,21 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60328,10 +61542,11 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60369,16 +61584,19 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60432,18 +61650,21 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60491,10 +61712,11 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60532,16 +61754,19 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60595,18 +61820,21 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60654,10 +61882,11 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60695,16 +61924,19 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60758,18 +61990,21 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60817,10 +62052,11 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60858,16 +62094,19 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -60921,18 +62160,21 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -60980,10 +62222,11 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61021,16 +62264,19 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -61084,18 +62330,21 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -61143,10 +62392,11 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61184,16 +62434,19 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -61247,18 +62500,21 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -61306,10 +62562,11 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61347,16 +62604,19 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -61410,18 +62670,21 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -61662,10 +62925,11 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61703,16 +62967,19 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -61766,18 +63033,21 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -61825,10 +63095,11 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61866,16 +63137,19 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -61929,18 +63203,21 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -61988,10 +63265,11 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -62029,16 +63307,19 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -62092,18 +63373,21 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -62151,10 +63435,11 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -62192,16 +63477,19 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -62255,18 +63543,21 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -62314,10 +63605,11 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -62355,16 +63647,19 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -62418,18 +63713,21 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -62720,10 +64018,11 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -62760,16 +64059,19 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -62820,18 +64122,21 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -64651,10 +65956,10 @@ class SignalProto$Type extends MessageType<SignalProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -64699,16 +66004,16 @@ class SignalProto$Type extends MessageType<SignalProto> {
                 case /* symbol.destack.NodeReferenceProto definition_ptr */ 6:
                     message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -64787,18 +66092,18 @@ class SignalProto$Type extends MessageType<SignalProto> {
         /* symbol.destack.NodeReferenceProto definition_ptr = 6; */
         if (message.definitionPtr)
             NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -64856,10 +66161,11 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -64913,16 +66219,19 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -65019,18 +66328,21 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -65971,10 +67283,11 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -66011,16 +67324,19 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -66071,18 +67387,21 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -66944,10 +68263,11 @@ class StarAddedEventProto$Type extends MessageType<StarAddedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -66984,16 +68304,19 @@ class StarAddedEventProto$Type extends MessageType<StarAddedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -67044,18 +68367,21 @@ class StarAddedEventProto$Type extends MessageType<StarAddedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -67100,10 +68426,11 @@ class StarEventProto$Type extends MessageType<StarEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -67140,16 +68467,19 @@ class StarEventProto$Type extends MessageType<StarEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -67200,18 +68530,21 @@ class StarEventProto$Type extends MessageType<StarEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -67256,10 +68589,11 @@ class StarRemovedEventProto$Type extends MessageType<StarRemovedEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -67296,16 +68630,19 @@ class StarRemovedEventProto$Type extends MessageType<StarRemovedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -67356,18 +68693,21 @@ class StarRemovedEventProto$Type extends MessageType<StarRemovedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -70224,10 +71564,11 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -70264,16 +71605,19 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -70324,18 +71668,21 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -70380,10 +71727,11 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -70420,16 +71768,19 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -70480,18 +71831,21 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -70536,10 +71890,11 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -70576,16 +71931,19 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -70636,18 +71994,21 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -70686,16 +72047,343 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
  */
 export const TimerEventProto = new TimerEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TimerPausedEventProto$Type extends MessageType<TimerPausedEventProto> {
+    constructor() {
+        super("symbol.destack.TimerPausedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 25, name: "client_created_at", kind: "message", T: () => Timestamp },
+            { no: 26, name: "client_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<TimerPausedEventProto>): TimerPausedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.createdEpoch = 0;
+        message.clientEpoch = 0;
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<TimerPausedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TimerPausedEventProto): TimerPausedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
+                    message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
+                    message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
+                    message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* int64 created_epoch = 21 [jstype = JS_NUMBER] */ 21:
+                    message.createdEpoch = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 22:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 23:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 24:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* google.protobuf.Timestamp client_created_at */ 25:
+                    message.clientCreatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.clientCreatedAt);
+                    break;
+                case /* int64 client_epoch = 26 [jstype = JS_NUMBER] */ 26:
+                    message.clientEpoch = reader.int64().toNumber();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TimerPausedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
+        if (message.branchPtr)
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
+        if (message.precededByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
+        if (message.causedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 21 [jstype = JS_NUMBER]; */
+        if (message.createdEpoch !== 0)
+            writer.tag(21, WireType.Varint).int64(message.createdEpoch);
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 22; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 23; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 24; */
+        if (message.clientNonce !== undefined)
+            writer.tag(24, WireType.LengthDelimited).string(message.clientNonce);
+        /* google.protobuf.Timestamp client_created_at = 25; */
+        if (message.clientCreatedAt)
+            Timestamp.internalBinaryWrite(message.clientCreatedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* int64 client_epoch = 26 [jstype = JS_NUMBER]; */
+        if (message.clientEpoch !== 0)
+            writer.tag(26, WireType.Varint).int64(message.clientEpoch);
+        /* symbol.destack.EventStatusProto status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.TimerPausedEventProto
+ */
+export const TimerPausedEventProto = new TimerPausedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TimerResumedEventProto$Type extends MessageType<TimerResumedEventProto> {
+    constructor() {
+        super("symbol.destack.TimerResumedEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 25, name: "client_created_at", kind: "message", T: () => Timestamp },
+            { no: 26, name: "client_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<TimerResumedEventProto>): TimerResumedEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.createdEpoch = 0;
+        message.clientEpoch = 0;
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<TimerResumedEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TimerResumedEventProto): TimerResumedEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
+                    message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
+                    message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
+                    message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* int64 created_epoch = 21 [jstype = JS_NUMBER] */ 21:
+                    message.createdEpoch = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 22:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 23:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 24:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* google.protobuf.Timestamp client_created_at */ 25:
+                    message.clientCreatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.clientCreatedAt);
+                    break;
+                case /* int64 client_epoch = 26 [jstype = JS_NUMBER] */ 26:
+                    message.clientEpoch = reader.int64().toNumber();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TimerResumedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
+        if (message.branchPtr)
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
+        if (message.precededByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
+        if (message.causedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 21 [jstype = JS_NUMBER]; */
+        if (message.createdEpoch !== 0)
+            writer.tag(21, WireType.Varint).int64(message.createdEpoch);
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 22; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 23; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 24; */
+        if (message.clientNonce !== undefined)
+            writer.tag(24, WireType.LengthDelimited).string(message.clientNonce);
+        /* google.protobuf.Timestamp client_created_at = 25; */
+        if (message.clientCreatedAt)
+            Timestamp.internalBinaryWrite(message.clientCreatedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* int64 client_epoch = 26 [jstype = JS_NUMBER]; */
+        if (message.clientEpoch !== 0)
+            writer.tag(26, WireType.Varint).int64(message.clientEpoch);
+        /* symbol.destack.EventStatusProto status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.TimerResumedEventProto
+ */
+export const TimerResumedEventProto = new TimerResumedEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
     constructor() {
         super("symbol.destack.TimerStartedEventProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -70732,16 +72420,19 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -70792,18 +72483,21 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -71716,10 +73410,11 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -71756,16 +73451,19 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -71816,18 +73514,21 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -71872,10 +73573,11 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -71929,16 +73631,19 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -72035,18 +73740,21 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -73706,10 +75414,11 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -73746,16 +75455,19 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -73806,18 +75518,21 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -73862,10 +75577,11 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 10, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 13, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 14, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 15, name: "caused_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -73920,16 +75636,19 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 10:
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 11:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto branch_ptr */ 12:
                     message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 13:
                     message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 14:
                     message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 13:
+                case /* optional symbol.destack.NodeReferenceProto caused_by_ptr */ 15:
                     message.causedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.causedByPtr);
                     break;
                 case /* google.protobuf.Timestamp created_at */ 20:
@@ -74029,18 +75748,21 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto branch_ptr = 10; */
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 11; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto branch_ptr = 12; */
         if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto snapshot_ptr = 13; */
         if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 14; */
         if (message.precededByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 13; */
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto caused_by_ptr = 15; */
         if (message.causedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceProto.internalBinaryWrite(message.causedByPtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
         /* google.protobuf.Timestamp created_at = 20; */
         if (message.createdAt)
             Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
@@ -74452,8 +76174,10 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 700000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 12400, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
             { no: 705102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 705103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 705104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 705103, name: "timer_paused_event", kind: "message", oneof: "node", T: () => TimerPausedEventProto },
+            { no: 705104, name: "timer_resumed_event", kind: "message", oneof: "node", T: () => TimerResumedEventProto },
+            { no: 705105, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 705106, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
             { no: 705100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
             { no: 705000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
             { no: 1200000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
@@ -75128,13 +76852,25 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705103:
+                case /* symbol.destack.TimerPausedEventProto timer_paused_event */ 705103:
+                    message.node = {
+                        oneofKind: "timerPausedEvent",
+                        timerPausedEvent: TimerPausedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerPausedEvent)
+                    };
+                    break;
+                case /* symbol.destack.TimerResumedEventProto timer_resumed_event */ 705104:
+                    message.node = {
+                        oneofKind: "timerResumedEvent",
+                        timerResumedEvent: TimerResumedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerResumedEvent)
+                    };
+                    break;
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705105:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705106:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
@@ -75521,12 +77257,18 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.TimerStartedEventProto timer_started_event = 705102; */
         if (message.node.oneofKind === "timerStartedEvent")
             TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(705102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705103; */
+        /* symbol.destack.TimerPausedEventProto timer_paused_event = 705103; */
+        if (message.node.oneofKind === "timerPausedEvent")
+            TimerPausedEventProto.internalBinaryWrite(message.node.timerPausedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerResumedEventProto timer_resumed_event = 705104; */
+        if (message.node.oneofKind === "timerResumedEvent")
+            TimerResumedEventProto.internalBinaryWrite(message.node.timerResumedEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705105; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705106; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705106, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.EventCursorProto event_cursor = 712100; */
         if (message.node.oneofKind === "eventCursor")
             EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(712100, WireType.LengthDelimited).fork(), options).join();
@@ -76601,8 +78343,10 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 2000204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
             { no: 2000210, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
             { no: 705102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 705103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 705104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 705103, name: "timer_paused_event", kind: "message", oneof: "node", T: () => TimerPausedEventProto },
+            { no: 705104, name: "timer_resumed_event", kind: "message", oneof: "node", T: () => TimerResumedEventProto },
+            { no: 705105, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 705106, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
             { no: 1200001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
             { no: 1200101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
             { no: 1200201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
@@ -76952,13 +78696,25 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705103:
+                case /* symbol.destack.TimerPausedEventProto timer_paused_event */ 705103:
+                    message.node = {
+                        oneofKind: "timerPausedEvent",
+                        timerPausedEvent: TimerPausedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerPausedEvent)
+                    };
+                    break;
+                case /* symbol.destack.TimerResumedEventProto timer_resumed_event */ 705104:
+                    message.node = {
+                        oneofKind: "timerResumedEvent",
+                        timerResumedEvent: TimerResumedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerResumedEvent)
+                    };
+                    break;
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705105:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705106:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
@@ -77132,12 +78888,18 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.TimerStartedEventProto timer_started_event = 705102; */
         if (message.node.oneofKind === "timerStartedEvent")
             TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(705102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705103; */
+        /* symbol.destack.TimerPausedEventProto timer_paused_event = 705103; */
+        if (message.node.oneofKind === "timerPausedEvent")
+            TimerPausedEventProto.internalBinaryWrite(message.node.timerPausedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerResumedEventProto timer_resumed_event = 705104; */
+        if (message.node.oneofKind === "timerResumedEvent")
+            TimerResumedEventProto.internalBinaryWrite(message.node.timerResumedEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705105; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705106; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705106, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunStartedEventProto run_started_event = 1110002; */
         if (message.node.oneofKind === "runStartedEvent")
             RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(1110002, WireType.LengthDelimited).fork(), options).join();
@@ -77307,6 +79069,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
     export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
         

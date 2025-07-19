@@ -731,9 +731,9 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   static metatype: NodeType = NodeType.VARIANT;
 
   /**
-   * Variant.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  abstract get parent(): (Entity & IsExtensible) | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

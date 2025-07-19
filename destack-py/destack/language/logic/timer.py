@@ -34,6 +34,20 @@ class TimerStartedEvent(TimerEvent):
     pass
 
 
+@builtin_node(NodeType.TIMER_PAUSED_EVENT, frozen=True)
+class TimerPausedEvent(TimerEvent):
+    """A Timer was paused."""
+
+    pass
+
+
+@builtin_node(NodeType.TIMER_RESUMED_EVENT, frozen=True)
+class TimerResumedEvent(TimerEvent):
+    """A Timer was resumed."""
+
+    pass
+
+
 @builtin_node(NodeType.TIMER_COMPLETED_EVENT, frozen=True)
 class TimerCompletedEvent(TimerEvent):
     """A Timer was completed."""
