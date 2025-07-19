@@ -5,7 +5,11 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import { ACTIVE_SNAPSHOT, activeSession } from "@destack/language/core/builtin/const";
+import {
+  ACTIVE_BRANCH,
+  ACTIVE_SNAPSHOT,
+  activeSession,
+} from "@destack/language/core/builtin/const";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {

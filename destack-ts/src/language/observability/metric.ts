@@ -14,6 +14,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
@@ -93,8 +94,8 @@ export abstract class Metric extends Entity implements IsSourceable {
   /**
    * The (root) Entity that is being instantiated.
    */
-  abstract get instantiationRoot(): Entity | null;
-  declare readonly instantiationRootPtr: NodeReference | null;
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -366,14 +367,14 @@ export class GaugeMetric extends Metric {
   /**
    * The (root) Entity that is being instantiated.
    */
-  get instantiationRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+  get instance(): Entity | null {
+    const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly instantiationRootPtr: NodeReference | null;
+  readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -500,7 +501,7 @@ export class GaugeMetric extends Metric {
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: GaugeMetric | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
+    instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -608,11 +609,11 @@ export class GaugeMetric extends Metric {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _instantiationRoot = options.instantiationRoot ?? null;
-    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
-      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    let _instance = options.instance ?? null;
+    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+      _instance = (_instance as Node).toRef();
     }
-    this.instantiationRootPtr = _instantiationRoot;
+    this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -809,8 +810,8 @@ export class GaugeMetric extends Metric {
     if (object.precededByPtr != null) {
       objectValue["14"] = object.precededByPtr.toValue();
     }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
+    if (object.instancePtr != null) {
+      objectValue["15"] = object.instancePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -875,16 +876,10 @@ export class GaugeMetric extends Metric {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const instancePtrValue = objectValue["15"];
+    const unpackedInstancePtr =
+      instancePtrValue != undefined
+        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -923,7 +918,7 @@ export class GaugeMetric extends Metric {
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
+      instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -971,8 +966,8 @@ export class GaugeMetric extends Metric {
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    if (object.instancePtr != null) {
+      objectProto.instancePtr = object.instancePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -1071,10 +1066,10 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
+      instance:
+        objectProto.instancePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
+              objectProto.instancePtr!,
               _session,
               _supergraph,
               _graph,
@@ -1359,12 +1354,26 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for GaugeMeasurementEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`GaugeMeasurementEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for GaugeMeasurementEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`GaugeMeasurementEvent.snapshot is required`);
@@ -1937,14 +1946,14 @@ export class CounterMetric extends Metric {
   /**
    * The (root) Entity that is being instantiated.
    */
-  get instantiationRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+  get instance(): Entity | null {
+    const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly instantiationRootPtr: NodeReference | null;
+  readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -2071,7 +2080,7 @@ export class CounterMetric extends Metric {
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: CounterMetric | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
+    instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -2179,11 +2188,11 @@ export class CounterMetric extends Metric {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _instantiationRoot = options.instantiationRoot ?? null;
-    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
-      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    let _instance = options.instance ?? null;
+    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+      _instance = (_instance as Node).toRef();
     }
-    this.instantiationRootPtr = _instantiationRoot;
+    this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -2380,8 +2389,8 @@ export class CounterMetric extends Metric {
     if (object.precededByPtr != null) {
       objectValue["14"] = object.precededByPtr.toValue();
     }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
+    if (object.instancePtr != null) {
+      objectValue["15"] = object.instancePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2446,16 +2455,10 @@ export class CounterMetric extends Metric {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const instancePtrValue = objectValue["15"];
+    const unpackedInstancePtr =
+      instancePtrValue != undefined
+        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2494,7 +2497,7 @@ export class CounterMetric extends Metric {
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
+      instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2542,8 +2545,8 @@ export class CounterMetric extends Metric {
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    if (object.instancePtr != null) {
+      objectProto.instancePtr = object.instancePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2642,10 +2645,10 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
+      instance:
+        objectProto.instancePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
+              objectProto.instancePtr!,
               _session,
               _supergraph,
               _graph,
@@ -2930,12 +2933,26 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for CounterMeasurementEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`CounterMeasurementEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for CounterMeasurementEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`CounterMeasurementEvent.snapshot is required`);
@@ -3508,14 +3525,14 @@ export class HistogramMetric extends Metric {
   /**
    * The (root) Entity that is being instantiated.
    */
-  get instantiationRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+  get instance(): Entity | null {
+    const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly instantiationRootPtr: NodeReference | null;
+  readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -3642,7 +3659,7 @@ export class HistogramMetric extends Metric {
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: HistogramMetric | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
+    instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -3750,11 +3767,11 @@ export class HistogramMetric extends Metric {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _instantiationRoot = options.instantiationRoot ?? null;
-    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
-      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    let _instance = options.instance ?? null;
+    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+      _instance = (_instance as Node).toRef();
     }
-    this.instantiationRootPtr = _instantiationRoot;
+    this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -3951,8 +3968,8 @@ export class HistogramMetric extends Metric {
     if (object.precededByPtr != null) {
       objectValue["14"] = object.precededByPtr.toValue();
     }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
+    if (object.instancePtr != null) {
+      objectValue["15"] = object.instancePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -4017,16 +4034,10 @@ export class HistogramMetric extends Metric {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const instancePtrValue = objectValue["15"];
+    const unpackedInstancePtr =
+      instancePtrValue != undefined
+        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -4065,7 +4076,7 @@ export class HistogramMetric extends Metric {
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
+      instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -4113,8 +4124,8 @@ export class HistogramMetric extends Metric {
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    if (object.instancePtr != null) {
+      objectProto.instancePtr = object.instancePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -4213,10 +4224,10 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
+      instance:
+        objectProto.instancePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
+              objectProto.instancePtr!,
               _session,
               _supergraph,
               _graph,
@@ -4501,12 +4512,26 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for HistogramMeasurementEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`HistogramMeasurementEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for HistogramMeasurementEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`HistogramMeasurementEvent.snapshot is required`);

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Self, Union
 
 from ..builtin.common import NodeType, StructType
 from ..builtin.entity import Entity
-from ..builtin.meta import IndexDeclaration, IndexType
+from ..builtin.meta import ConstraintDeclaration, ConstraintType, IndexDeclaration, IndexType
 from ..builtin.node import builtin_node
 from ..builtin.object import BuiltinObject
 from ..builtin.property import builtin_property, builtin_property_parent
@@ -46,4 +46,32 @@ class Index(Entity):
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
     type: IndexType = builtin_property(100, is_repr=True)
+    properties: list["PropertyReference"] = builtin_property(105)
+
+
+@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
+class ConstraintDefinition(BuiltinDefinition):
+    """Definition of a builtin Constraint."""
+
+    type: "ConstraintType" = builtin_property(100, is_repr=True)
+    properties: list["PropertyReference"] = builtin_property(105)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["BuiltinObject"], declaration: "ConstraintDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name or "Constraint",
+            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
+        )
+
+
+@builtin_node(NodeType.CONSTRAINT)
+class Constraint(Entity):
+    """Constraint of an Entity that must be satisfied."""
+
+    parent: Union["IsExtensible", None] = builtin_property_parent()
+    type: ConstraintType = builtin_property(100, is_repr=True)
     properties: list["PropertyReference"] = builtin_property(105)

@@ -30,7 +30,7 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:32100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:35100 ==== */
 /**
  * Definition of a builtin Action.
  */
@@ -143,7 +143,7 @@ export class ActionDefinition extends MethodDefinition {
 
   static __packValue__(object: ActionDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 32100;
+    objectValue["1"] = 35100;
     objectValue["2"] = object.id;
     objectValue["101"] = object.name;
     if (object.icon != null) {
@@ -224,7 +224,7 @@ export class ActionDefinition extends MethodDefinition {
   }
 
   static __packProto__(object: ActionDefinition): ActionDefinitionProto {
-    const objectProto: Partial<ActionDefinitionProto> = { metatype: 32100 };
+    const objectProto: Partial<ActionDefinitionProto> = { metatype: 35100 };
     objectProto.id = object.id;
     objectProto.name = object.name;
     if (object.icon != null) {
@@ -303,9 +303,9 @@ export class ActionDefinition extends MethodDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ACTION_DEFINITION, ActionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:32100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:35100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:32100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:35100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -322,7 +322,7 @@ export class Action extends Method implements IsRunnable {
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Action | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
+    instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -494,7 +494,7 @@ export class Action extends Method implements IsRunnable {
 
   static __packValue__(object: Action): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 32100;
+    objectValue["1"] = 35100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -509,8 +509,8 @@ export class Action extends Method implements IsRunnable {
     if (object.precededByPtr != null) {
       objectValue["14"] = object.precededByPtr.toValue();
     }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
+    if (object.instancePtr != null) {
+      objectValue["15"] = object.instancePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -605,16 +605,10 @@ export class Action extends Method implements IsRunnable {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const instancePtrValue = objectValue["15"];
+    const unpackedInstancePtr =
+      instancePtrValue != undefined
+        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -657,7 +651,7 @@ export class Action extends Method implements IsRunnable {
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
+      instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -689,7 +683,7 @@ export class Action extends Method implements IsRunnable {
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 32100 };
+    const objectProto: Partial<ActionProto> = { metatype: 35100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -704,8 +698,8 @@ export class Action extends Method implements IsRunnable {
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    if (object.instancePtr != null) {
+      objectProto.instancePtr = object.instancePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -832,10 +826,10 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
+      instance:
+        objectProto.instancePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
+              objectProto.instancePtr!,
               _session,
               _supergraph,
               _graph,
@@ -904,4 +898,4 @@ export class Action extends Method implements IsRunnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:32100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:35100 ==== */

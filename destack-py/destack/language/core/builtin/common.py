@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class EnumType(Enum):
-    # meta [1-100_000]
+    # core [1-100_000]
     ENUM_TYPE = 1
     NODE_TYPE = 2
     STRUCT_TYPE = 3
@@ -62,19 +62,23 @@ class EnumType(Enum):
     QUERY_TYPE = 320
     QUERY_UPDATE_TYPE = 321
 
-    # common
+    # time
     BRANCH_TYPE = 11_000
     SNAPSHOT_TYPE = 11_100
     SNAPSHOT_STATUS = 11_101
+    # base
     RESOURCE_STATUS = 12_100
 
     # custom
     # ...
 
-    # schema
+    # integrity
     INDEX_TYPE = 30_100
     CONSTRAINT_TYPE = 30_200
     MIGRATION_TYPE = 31_000
+
+    # logic
+    METHOD_CARDINALITY = 701_001
 
     # universe [100_000-200_000]
     SPACE_STATUS = 100_000
@@ -105,7 +109,6 @@ class EnumType(Enum):
     # ...
 
     # logic [700_000-800_000]
-    METHOD_CARDINALITY = 701_001
     TRIGGER_TYPE = 705_000
     TIMER_TYPE = 705_100
     DAY_OF_WEEK = 705_101
@@ -204,7 +207,7 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
 @builtin_enum(EnumType.STRUCT_TYPE)
 class StructType(Enum):
-    # meta [1-100_000]
+    # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
     DATUM = 2
@@ -255,9 +258,9 @@ class StructType(Enum):
     # EXPECTATION_DEFINITION = 30_300
     MIGRATION_DEFINITION = 31_000
     MIGRATION_OPERATION_DEFINITION = 31_100
-    METHOD_DEFINITION = 32_000
-    ACTION_DEFINITION = 32_100
-    PERMISSION_DEFINITION = 33_000
+    METHOD_DEFINITION = 35_000
+    ACTION_DEFINITION = 35_100
+    PERMISSION_DEFINITION = 40_000
 
     # universe [100_000-200_000]
     # ...
@@ -370,7 +373,7 @@ class StructType(Enum):
 
 @builtin_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
-    # meta [1-100_000]
+    # core [1-100_000]
     # LOCAL?
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
@@ -475,15 +478,17 @@ class TraitType(Enum):
 
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
-    # meta [1-100_000]
+    # core [1-100_000]
     # root
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
-    # common
+    # space
     SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
+    # time
     BRANCH = 11_000, "Branch", None, "fas fa-code-branch"
     SNAPSHOT = 11_100, "Snapshot", "Point in Space-time", "fas fa-save"
+    # base
     RECORD = 12_000, "Record", "Data Entity", "fas fa-database"
     RESOURCE = 12_100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 12_200, "Metric", None, "fas fa-gauge"
@@ -500,7 +505,7 @@ class NodeType(Enum):
     CUSTOM_ENUM = 20_200, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
     CUSTOM_PROPERTY = 20_300, "Custom Property", "Custom Property Definition", "fas fa-triangle"
     CUSTOM_OPTION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
-    # intrinsic
+    # integrity
     INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"
     CONSTRAINT = 30_200, "Constraint", "Constraint of an Entity", "fas fa-database"
     # EXPECTATION, ...
@@ -511,9 +516,11 @@ class NodeType(Enum):
         "Migration Operation of an Entity",
         "fas fa-database",
     )
-    METHOD = 32_000, "Method", None, "fas fa-code"
-    ACTION = 32_100, "Action", None, "fas fa-code"
-    PERMISSION = 33_000, "Permission", "Permission for something", "fas fa-user-shield"
+    # logic
+    METHOD = 35_000, "Method", None, "fas fa-code"
+    ACTION = 35_100, "Action", None, "fas fa-code"
+    # access
+    PERMISSION = 40_000, "Permission", "Permission for something", "fas fa-user-shield"
 
     # event
     SIGNAL = 50_000, "Signal", "Custom Event instance", "fas fa-signal"
@@ -830,7 +837,7 @@ class NodeType(Enum):
 class UniverseCategory(Enum):
     """How the system is organized."""
 
-    META = 1, "Meta", "Information about the system"
+    CORE = 1, "Core", "Intrinsics"
     UNIVERSE = 100_000, "Universe", "Global computational universe"
     SPACE = 200_000, "Space", "Spacetime organization"
     ACCESS = 300_000, "Access", "Access control"

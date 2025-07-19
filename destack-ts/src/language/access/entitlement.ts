@@ -13,6 +13,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
@@ -362,12 +363,26 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for EntitlementRequestedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`EntitlementRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for EntitlementRequestedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`EntitlementRequestedEvent.snapshot is required`);
@@ -1060,12 +1075,26 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for EntitlementGrantedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`EntitlementGrantedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for EntitlementGrantedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`EntitlementGrantedEvent.snapshot is required`);
@@ -1758,12 +1787,26 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for EntitlementRevokedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`EntitlementRevokedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for EntitlementRevokedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`EntitlementRevokedEvent.snapshot is required`);
@@ -2456,12 +2499,26 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for EntitlementExpiredEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`EntitlementExpiredEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for EntitlementExpiredEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`EntitlementExpiredEvent.snapshot is required`);
@@ -3037,14 +3094,14 @@ export class Entitlement extends Entity {
   /**
    * The (root) Entity that is being instantiated.
    */
-  get instantiationRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+  get instance(): Entity | null {
+    const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly instantiationRootPtr: NodeReference | null;
+  readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -3180,7 +3237,7 @@ export class Entitlement extends Entity {
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Entitlement | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
+    instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -3287,11 +3344,11 @@ export class Entitlement extends Entity {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _instantiationRoot = options.instantiationRoot ?? null;
-    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
-      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    let _instance = options.instance ?? null;
+    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+      _instance = (_instance as Node).toRef();
     }
-    this.instantiationRootPtr = _instantiationRoot;
+    this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _name = options.name ?? null;
@@ -3478,8 +3535,8 @@ export class Entitlement extends Entity {
     if (object.precededByPtr != null) {
       objectValue["14"] = object.precededByPtr.toValue();
     }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
+    if (object.instancePtr != null) {
+      objectValue["15"] = object.instancePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -3531,16 +3588,10 @@ export class Entitlement extends Entity {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const instancePtrValue = objectValue["15"];
+    const unpackedInstancePtr =
+      instancePtrValue != undefined
+        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -3585,7 +3636,7 @@ export class Entitlement extends Entity {
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
+      instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -3632,8 +3683,8 @@ export class Entitlement extends Entity {
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    if (object.instancePtr != null) {
+      objectProto.instancePtr = object.instancePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -3721,10 +3772,10 @@ export class Entitlement extends Entity {
               _connection,
             )
           : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
+      instance:
+        objectProto.instancePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
+              objectProto.instancePtr!,
               _session,
               _supergraph,
               _graph,

@@ -1,8 +1,8 @@
 import { IndexedDBStore } from "@destack-web/store/indexeddb";
+import { createAndActivateSpace } from "@destack/test/conftest";
 import { closePostgresPool, getPostgres, PostgresEntityStore } from "@desys/store/postgres";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  ACTIVE_SPACE,
   Client,
   ClientType,
   Folder,
@@ -17,10 +17,7 @@ import {
   NodeReference,
   NodeType,
   Reaction,
-  Region,
   Session,
-  Space,
-  SpaceStatus,
   Star,
   StoreKey,
   TextView,
@@ -95,13 +92,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     session = new Session({ store, epoch: 1 });
     await session.open();
     // space
-    const space = new Space({
-      name: "My Space",
-      slug: "my-space",
-      status: SpaceStatus.ACTIVE,
-      region: Region.ZURICH,
-    });
-    ACTIVE_SPACE.set(space);
+    createAndActivateSpace({ session });
   });
 
   afterEach(async () => {
@@ -299,7 +290,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     //   const remainingFoldersCount = await Folder.count().executeCount();
     //   expect(remainingFoldersCount).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
     // }
-    
+
     // // restore subfolders one at a time
     // for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
     //   session.restore(folder);

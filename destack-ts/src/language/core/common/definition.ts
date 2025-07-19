@@ -20,11 +20,11 @@ import {
   PropertyReferenceType,
 } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Icon } from "@destack/language/core/common/icon";
 import type {
   ConstraintDefinition,
   IndexDefinition,
-} from "@destack/language/core/common/constraint";
-import type { Icon } from "@destack/language/core/common/icon";
+} from "@destack/language/core/common/integrity";
 import type { PermissionDefinition } from "@destack/language/core/common/permission";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type {

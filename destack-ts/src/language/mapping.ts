@@ -130,12 +130,6 @@ import type {
 } from "@destack/language/core/builtin/trait";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
 import type {
-  Constraint,
-  ConstraintDefinition,
-  Index,
-  IndexDefinition,
-} from "@destack/language/core/common/constraint";
-import type {
   BuiltinDefinition,
   ConstantDefinition,
   EnumDefinition,
@@ -147,6 +141,12 @@ import type {
 } from "@destack/language/core/common/definition";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
+import type {
+  Constraint,
+  ConstraintDefinition,
+  Index,
+  IndexDefinition,
+} from "@destack/language/core/common/integrity";
 import type {
   Method,
   MethodCardinality,
@@ -453,10 +453,10 @@ export type NodeTypeMapping = {
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.METHOD]: Method;
   [NodeType.ACTION]: Action;
-  [NodeType.CONSTRAINT]: Constraint;
-  [NodeType.INDEX]: Index;
   [NodeType.CUSTOM_ENUM]: CustomEnum;
   [NodeType.CUSTOM_OPTION]: CustomOption;
+  [NodeType.INDEX]: Index;
+  [NodeType.CONSTRAINT]: Constraint;
   [NodeType.MIGRATION]: Migration;
   [NodeType.MIGRATION_OPERATION]: MigrationOperation;
   [NodeType.PERMISSION]: Permission;
@@ -656,9 +656,9 @@ export type StructTypeMapping = {
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
-  [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
-  [StructType.INDEX_DEFINITION]: IndexDefinition;
   [StructType.ICON]: Icon;
+  [StructType.INDEX_DEFINITION]: IndexDefinition;
+  [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
   [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
   [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;

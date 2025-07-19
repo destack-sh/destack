@@ -12,6 +12,8 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_BRANCH,
+  ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
   Event,
@@ -431,12 +433,26 @@ export class PointerDownEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerDownEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerDownEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerDownEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerDownEvent.snapshot is required`);
@@ -1363,12 +1379,26 @@ export class PointerUpEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerUpEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerUpEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerUpEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerUpEvent.snapshot is required`);
@@ -2283,12 +2313,26 @@ export class PointerMoveEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerMoveEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerMoveEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerMoveEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerMoveEvent.snapshot is required`);
@@ -3215,12 +3259,26 @@ export class PointerEnterEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerEnterEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerEnterEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerEnterEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerEnterEvent.snapshot is required`);
@@ -4147,12 +4205,26 @@ export class PointerOverEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerOverEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerOverEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerOverEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerOverEvent.snapshot is required`);
@@ -5079,12 +5151,26 @@ export class PointerLeaveEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerLeaveEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerLeaveEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerLeaveEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerLeaveEvent.snapshot is required`);
@@ -6011,12 +6097,26 @@ export class PointerLongPressEvent extends PointerEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for PointerLongPressEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`PointerLongPressEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for PointerLongPressEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`PointerLongPressEvent.snapshot is required`);

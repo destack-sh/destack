@@ -16,6 +16,8 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_BRANCH,
+  ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
   EnumType,
@@ -370,12 +372,26 @@ export class RunStartedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunStartedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunStartedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunStartedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunStartedEvent.snapshot is required`);
@@ -1061,12 +1077,26 @@ export class RunPauseRequestedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunPauseRequestedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunPauseRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunPauseRequestedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunPauseRequestedEvent.snapshot is required`);
@@ -1764,12 +1794,26 @@ export class RunPausedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunPausedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunPausedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunPausedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunPausedEvent.snapshot is required`);
@@ -2455,12 +2499,26 @@ export class RunResumeRequestedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunResumeRequestedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunResumeRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunResumeRequestedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunResumeRequestedEvent.snapshot is required`);
@@ -3158,12 +3216,26 @@ export class RunResumedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunResumedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunResumedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunResumedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunResumedEvent.snapshot is required`);
@@ -3849,12 +3921,26 @@ export class RunStopRequestedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunStopRequestedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunStopRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunStopRequestedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunStopRequestedEvent.snapshot is required`);
@@ -4552,12 +4638,26 @@ export class RunFailedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunFailedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunFailedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunFailedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunFailedEvent.snapshot is required`);
@@ -5243,12 +5343,26 @@ export class RunCompletedEvent extends RunEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for RunCompletedEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`RunCompletedEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for RunCompletedEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`RunCompletedEvent.snapshot is required`);
@@ -5793,8 +5907,8 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   /**
    * The (root) Entity that is being instantiated.
    */
-  abstract get instantiationRoot(): Entity | null;
-  declare readonly instantiationRootPtr: NodeReference | null;
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).

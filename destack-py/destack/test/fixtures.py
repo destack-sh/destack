@@ -113,6 +113,7 @@ def create_space(session: Session) -> tuple[Space, Branch, Snapshot]:
     )
     session.create(space)
     session.create(snapshot)
+    session.create(branch)
     return space, branch, snapshot
 
 

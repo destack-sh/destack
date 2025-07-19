@@ -120,6 +120,8 @@ export class Session {
       node,
       value: toValue(node, null, { nodeAsValue: true }),
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -135,6 +137,8 @@ export class Session {
       node,
       value: toValue(node, null, { nodeAsValue: true }),
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -176,6 +180,8 @@ export class Session {
       reverseOperation: undoOperation,
       reverseValue: oldValue,
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.update(node, edit);
   }
@@ -190,6 +196,8 @@ export class Session {
       node,
       value: toValue(parent),
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.pendingEvents.push(edit);
   }
@@ -204,6 +212,8 @@ export class Session {
       node,
       value: toValue(node, null, { nodeAsValue: true }),
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.pendingEvents.push(edit);
   }
@@ -217,6 +227,8 @@ export class Session {
       type: EditType.RESTORE,
       node,
       space: node.spacePtr,
+      branch: node.branchPtr,
+      snapshot: node.snapshotPtr,
     });
     this.pendingEvents.push(edit);
   }
@@ -230,7 +242,6 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    // TODO :Incomplete: optimistic :SessionStaging
     this._onFlush();
   }
 

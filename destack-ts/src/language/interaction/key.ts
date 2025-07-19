@@ -12,6 +12,8 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_BRANCH,
+  ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
   Event,
@@ -448,12 +450,26 @@ export class KeyDownEvent extends KeyEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for KeyDownEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`KeyDownEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for KeyDownEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`KeyDownEvent.snapshot is required`);
@@ -1388,12 +1404,26 @@ export class KeyUpEvent extends KeyEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for KeyUpEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`KeyUpEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for KeyUpEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`KeyUpEvent.snapshot is required`);
@@ -2328,12 +2358,26 @@ export class KeyPressEvent extends KeyEvent {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for KeyPressEvent`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
       throw new Error(`KeyPressEvent.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for KeyPressEvent`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`KeyPressEvent.snapshot is required`);

@@ -256,9 +256,12 @@ class Session:
             event for event in events if event.status != EventStatus.APPROVED
         ]
         if failed_events:
-            pass  # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
+            # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
+            #  -> general concept of 'authority' over certain Nodes and their processing?
+            #   (like "who runs the timer"? "who runs physics"?)
             #  1) update Event status and 2) do something on failure :RejectedEvents
-        #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
+            #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
+            pass
         return applied_events
 
     async def __aenter__(self):
