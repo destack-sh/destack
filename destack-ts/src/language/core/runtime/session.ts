@@ -16,8 +16,6 @@ import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle
 import { assertNever, Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-console.log("Session.ts");
-
 /**
  * A managed Session for interacting with Destack.
  */

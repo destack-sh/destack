@@ -39,8 +39,6 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-console.log("Method.ts");
-
 /* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
 /**
  * MethodCardinality
