@@ -55,10 +55,10 @@ class Materialization(Enum):
 
     """
 
-    VIRTUAL = 1
-    PARTIAL = 2
-    FULL = 10
-    ROOT = 11
+    VIRTUAL = 1, "Virtual", "Exists only when queried"
+    PARTIAL = 2, "Partial", "Partial override"
+    FULL = 10, "Full", "Full copy"
+    ROOT = 11, "Root", "Root Entity"
 
 
 @builtin_node(

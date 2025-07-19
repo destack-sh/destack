@@ -12,7 +12,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
         Axis3,
         Fill,
         Icon,
-        Scene,
         Vector2f,
     )
 
@@ -38,6 +36,7 @@ class LayerType(Enum):
 
 @builtin_node(
     NodeType.LAYER,
+    expected_ancestor_types=(NodeType.SCENE,),
     expected_descendant_types=(NodeType.VIEW,),
 )
 class Layer(
@@ -47,9 +46,8 @@ class Layer(
     IsScriptable,
     Entity,
 ):
-    """A Layer is a named container for Views."""
+    """A Layer is a container for Views."""
 
-    parent: Optional["Scene"] = builtin_property_parent()
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)
     icon: "Icon | None" = builtin_property(102)
 

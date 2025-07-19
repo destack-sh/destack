@@ -20,11 +20,13 @@ import {
   PropertyReferenceType,
 } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { ActionDefinition } from "@destack/language/core/common/action";
 import type { Icon } from "@destack/language/core/common/icon";
 import type {
   ConstraintDefinition,
   IndexDefinition,
 } from "@destack/language/core/common/integrity";
+import type { MethodDefinition } from "@destack/language/core/common/method";
 import type { PermissionDefinition } from "@destack/language/core/common/permission";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type {
@@ -136,11 +138,6 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly description: string | null;
 
   /**
-   * NodeDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  /**
    * Whether this Node cannot be instantiated directly.
    */
   readonly isAbstract: boolean;
@@ -154,6 +151,36 @@ export class NodeDefinition extends BuiltinDefinition {
    * Whether this Node cannot be modified.
    */
   readonly isFrozen: boolean;
+
+  /**
+   * All properties of this Node.
+   */
+  readonly properties: readonly PropertyDefinition[];
+
+  /**
+   * All indexes of this Node.
+   */
+  readonly indexes: readonly IndexDefinition[];
+
+  /**
+   * All constraints of this Node.
+   */
+  readonly constraints: readonly ConstraintDefinition[];
+
+  /**
+   * All permissions of this Node.
+   */
+  readonly permissions: readonly PermissionDefinition[];
+
+  /**
+   * All methods of this Node (excluding actions).
+   */
+  readonly methods: readonly MethodDefinition[];
+
+  /**
+   * All actions of this Node.
+   */
+  readonly actions: readonly ActionDefinition[];
 
   /**
    * The base type this Node extends (directly).
@@ -184,6 +211,26 @@ export class NodeDefinition extends BuiltinDefinition {
    * Traits directly and indirectly inherited by this Node (directly and indirectly).
    */
   readonly traits: readonly TraitType[];
+
+  /**
+   * The event types related to this Node (directly and indirectly).
+   */
+  readonly eventTypes: readonly NodeType[];
+
+  /**
+   * The base event types related to this Node (directly).
+   */
+  readonly baseEventTypes: readonly NodeType[];
+
+  /**
+   * The enum types related to this Node (directly and indirectly).
+   */
+  readonly enumTypes: readonly EnumType[];
+
+  /**
+   * The base enum types related to this Node (directly).
+   */
+  readonly baseEnumTypes: readonly EnumType[];
 
   /**
    * The parent types of this Node type (directly).
@@ -226,16 +273,6 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly expectedDescendantTypes: readonly NodeType[];
 
   /**
-   * The event types of this Node (directly and indirectly).
-   */
-  readonly eventTypes: readonly NodeType[];
-
-  /**
-   * The base event types of this Node (directly).
-   */
-  readonly baseEventTypes: readonly NodeType[];
-
-  /**
    * NodeDefinition.primaryStoreKeys
    */
   readonly primaryStoreKeys: readonly StoreKey[];
@@ -245,37 +282,31 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly storeDomain: StoreDomain | null;
 
-  /**
-   * NodeDefinition.indexes
-   */
-  readonly indexes: readonly IndexDefinition[];
-
-  /**
-   * NodeDefinition.constraints
-   */
-  readonly constraints: readonly ConstraintDefinition[];
-
-  /**
-   * NodeDefinition.permissions
-   */
-  readonly permissions: readonly PermissionDefinition[];
-
   constructor(options: {
     id: number;
     type: NodeType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
     isAbstract: boolean;
     isExtensible: boolean;
     isFrozen: boolean;
+    properties?: readonly PropertyDefinition[];
+    indexes?: readonly IndexDefinition[];
+    constraints?: readonly ConstraintDefinition[];
+    permissions?: readonly PermissionDefinition[];
+    methods?: readonly MethodDefinition[];
+    actions?: readonly ActionDefinition[];
     baseType?: NodeType | null;
     extendedBy?: readonly NodeType[];
     inherits?: readonly NodeType[];
     inheritedBy?: readonly NodeType[];
     baseTraits?: readonly TraitType[];
     traits?: readonly TraitType[];
+    eventTypes?: readonly NodeType[];
+    baseEventTypes?: readonly NodeType[];
+    enumTypes?: readonly EnumType[];
+    baseEnumTypes?: readonly EnumType[];
     parentTypes?: readonly NodeType[];
     childTypes?: readonly NodeType[];
     ancestorTypes?: readonly NodeType[];
@@ -284,13 +315,8 @@ export class NodeDefinition extends BuiltinDefinition {
     expectedChildTypes?: readonly NodeType[];
     expectedAncestorTypes?: readonly NodeType[];
     expectedDescendantTypes?: readonly NodeType[];
-    eventTypes?: readonly NodeType[];
-    baseEventTypes?: readonly NodeType[];
     primaryStoreKeys?: readonly StoreKey[];
     storeDomain?: StoreDomain | null;
-    indexes?: readonly IndexDefinition[];
-    constraints?: readonly ConstraintDefinition[];
-    permissions?: readonly PermissionDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -325,11 +351,6 @@ export class NodeDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
     let _isAbstract = options.isAbstract;
     if (_isAbstract === null) {
       throw new Error(`NodeDefinition.isAbstract is required`);
@@ -345,6 +366,36 @@ export class NodeDefinition extends BuiltinDefinition {
       throw new Error(`NodeDefinition.isFrozen is required`);
     }
     this.isFrozen = _isFrozen;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this.properties = _properties;
+    let _indexes = options.indexes ?? null;
+    if (_indexes === null) {
+      _indexes = [];
+    }
+    this.indexes = _indexes;
+    let _constraints = options.constraints ?? null;
+    if (_constraints === null) {
+      _constraints = [];
+    }
+    this.constraints = _constraints;
+    let _permissions = options.permissions ?? null;
+    if (_permissions === null) {
+      _permissions = [];
+    }
+    this.permissions = _permissions;
+    let _methods = options.methods ?? null;
+    if (_methods === null) {
+      _methods = [];
+    }
+    this.methods = _methods;
+    let _actions = options.actions ?? null;
+    if (_actions === null) {
+      _actions = [];
+    }
+    this.actions = _actions;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
@@ -372,6 +423,26 @@ export class NodeDefinition extends BuiltinDefinition {
       _traits = [];
     }
     this.traits = _traits;
+    let _eventTypes = options.eventTypes ?? null;
+    if (_eventTypes === null) {
+      _eventTypes = [];
+    }
+    this.eventTypes = _eventTypes;
+    let _baseEventTypes = options.baseEventTypes ?? null;
+    if (_baseEventTypes === null) {
+      _baseEventTypes = [];
+    }
+    this.baseEventTypes = _baseEventTypes;
+    let _enumTypes = options.enumTypes ?? null;
+    if (_enumTypes === null) {
+      _enumTypes = [];
+    }
+    this.enumTypes = _enumTypes;
+    let _baseEnumTypes = options.baseEnumTypes ?? null;
+    if (_baseEnumTypes === null) {
+      _baseEnumTypes = [];
+    }
+    this.baseEnumTypes = _baseEnumTypes;
     let _parentTypes = options.parentTypes ?? null;
     if (_parentTypes === null) {
       _parentTypes = [];
@@ -412,16 +483,6 @@ export class NodeDefinition extends BuiltinDefinition {
       _expectedDescendantTypes = [];
     }
     this.expectedDescendantTypes = _expectedDescendantTypes;
-    let _eventTypes = options.eventTypes ?? null;
-    if (_eventTypes === null) {
-      _eventTypes = [];
-    }
-    this.eventTypes = _eventTypes;
-    let _baseEventTypes = options.baseEventTypes ?? null;
-    if (_baseEventTypes === null) {
-      _baseEventTypes = [];
-    }
-    this.baseEventTypes = _baseEventTypes;
     let _primaryStoreKeys = options.primaryStoreKeys ?? null;
     if (_primaryStoreKeys === null) {
       _primaryStoreKeys = [];
@@ -429,21 +490,6 @@ export class NodeDefinition extends BuiltinDefinition {
     this.primaryStoreKeys = _primaryStoreKeys;
     let _storeDomain = options.storeDomain ?? null;
     this.storeDomain = _storeDomain;
-    let _indexes = options.indexes ?? null;
-    if (_indexes === null) {
-      _indexes = [];
-    }
-    this.indexes = _indexes;
-    let _constraints = options.constraints ?? null;
-    if (_constraints === null) {
-      _constraints = [];
-    }
-    this.constraints = _constraints;
-    let _permissions = options.permissions ?? null;
-    if (_permissions === null) {
-      _permissions = [];
-    }
-    this.permissions = _permissions;
 
     // identity
     // @ts-expect-error(readonly)
@@ -463,14 +509,6 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
     if (!(this.isAbstract === other.isAbstract)) {
       return false;
     }
@@ -479,6 +517,54 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.indexes.length != other.indexes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.indexes.length; i++) {
+      if (!this.indexes[i].equals(other.indexes[i])) {
+        return false;
+      }
+    }
+    if (this.constraints.length != other.constraints.length) {
+      return false;
+    }
+    for (let i = 0; i < this.constraints.length; i++) {
+      if (!this.constraints[i].equals(other.constraints[i])) {
+        return false;
+      }
+    }
+    if (this.permissions.length != other.permissions.length) {
+      return false;
+    }
+    for (let i = 0; i < this.permissions.length; i++) {
+      if (!this.permissions[i].equals(other.permissions[i])) {
+        return false;
+      }
+    }
+    if (this.methods.length != other.methods.length) {
+      return false;
+    }
+    for (let i = 0; i < this.methods.length; i++) {
+      if (!this.methods[i].equals(other.methods[i])) {
+        return false;
+      }
+    }
+    if (this.actions.length != other.actions.length) {
+      return false;
+    }
+    for (let i = 0; i < this.actions.length; i++) {
+      if (!this.actions[i].equals(other.actions[i])) {
+        return false;
+      }
     }
     if (!(this.baseType === other.baseType)) {
       return false;
@@ -520,6 +606,38 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.traits.length; i++) {
       if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    if (this.eventTypes.length != other.eventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.eventTypes.length; i++) {
+      if (!(this.eventTypes[i] === other.eventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEventTypes.length != other.baseEventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEventTypes.length; i++) {
+      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.enumTypes.length != other.enumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.enumTypes.length; i++) {
+      if (!(this.enumTypes[i] === other.enumTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEnumTypes.length != other.baseEnumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEnumTypes.length; i++) {
+      if (!(this.baseEnumTypes[i] === other.baseEnumTypes[i])) {
         return false;
       }
     }
@@ -587,22 +705,6 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.eventTypes.length != other.eventTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.eventTypes.length; i++) {
-      if (!(this.eventTypes[i] === other.eventTypes[i])) {
-        return false;
-      }
-    }
-    if (this.baseEventTypes.length != other.baseEventTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.baseEventTypes.length; i++) {
-      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
-        return false;
-      }
-    }
     if (this.primaryStoreKeys.length != other.primaryStoreKeys.length) {
       return false;
     }
@@ -613,30 +715,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (!(this.storeDomain === other.storeDomain)) {
       return false;
-    }
-    if (this.indexes.length != other.indexes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.indexes.length; i++) {
-      if (!this.indexes[i].equals(other.indexes[i])) {
-        return false;
-      }
-    }
-    if (this.constraints.length != other.constraints.length) {
-      return false;
-    }
-    for (let i = 0; i < this.constraints.length; i++) {
-      if (!this.constraints[i].equals(other.constraints[i])) {
-        return false;
-      }
-    }
-    if (this.permissions.length != other.permissions.length) {
-      return false;
-    }
-    for (let i = 0; i < this.permissions.length; i++) {
-      if (!this.permissions[i].equals(other.permissions[i])) {
-        return false;
-      }
     }
     if (!(this.id === other.id)) {
       return false;
@@ -695,14 +773,39 @@ export class NodeDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
+    if (this.indexes && this.indexes.length > 0) {
+      for (const _item of this.indexes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.constraints && this.constraints.length > 0) {
+      for (const _item of this.constraints) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.permissions && this.permissions.length > 0) {
+      for (const _item of this.permissions) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.methods && this.methods.length > 0) {
+      for (const _item of this.methods) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.actions && this.actions.length > 0) {
+      for (const _item of this.actions) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     if (this.baseType != null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
@@ -728,6 +831,26 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (this.traits && this.traits.length > 0) {
       for (const _item of this.traits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.eventTypes && this.eventTypes.length > 0) {
+      for (const _item of this.eventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
+      for (const _item of this.baseEventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.enumTypes && this.enumTypes.length > 0) {
+      for (const _item of this.enumTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEnumTypes && this.baseEnumTypes.length > 0) {
+      for (const _item of this.baseEnumTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -771,16 +894,6 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.eventTypes && this.eventTypes.length > 0) {
-      for (const _item of this.eventTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
-      for (const _item of this.baseEventTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
     if (this.primaryStoreKeys && this.primaryStoreKeys.length > 0) {
       for (const _item of this.primaryStoreKeys) {
         h = (h * 31 + _item) & 0xffffffff;
@@ -788,21 +901,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (this.storeDomain != null) {
       h = (h * 31 + this.storeDomain) & 0xffffffff;
-    }
-    if (this.indexes && this.indexes.length > 0) {
-      for (const _item of this.indexes) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.constraints && this.constraints.length > 0) {
-      for (const _item of this.constraints) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.permissions && this.permissions.length > 0) {
-      for (const _item of this.permissions) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
@@ -842,154 +940,182 @@ export class NodeDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    objectCson["110"] = object.isAbstract;
+    objectCson["111"] = object.isExtensible;
+    objectCson["112"] = object.isFrozen;
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toCson());
       }
-      objectCson["105"] = packedProperties;
-    }
-    objectCson["110"] = object.isAbstract;
-    objectCson["111"] = object.isExtensible;
-    objectCson["112"] = object.isFrozen;
-    if (object.baseType != null) {
-      objectCson["120"] = object.baseType;
-    }
-    if (object.extendedBy.length > 0) {
-      const packedExtendedBy: any[] = [];
-      for (const item of object.extendedBy) {
-        packedExtendedBy.push(item);
-      }
-      objectCson["121"] = packedExtendedBy;
-    }
-    if (object.inherits.length > 0) {
-      const packedInherits: any[] = [];
-      for (const item of object.inherits) {
-        packedInherits.push(item);
-      }
-      objectCson["122"] = packedInherits;
-    }
-    if (object.inheritedBy.length > 0) {
-      const packedInheritedBy: any[] = [];
-      for (const item of object.inheritedBy) {
-        packedInheritedBy.push(item);
-      }
-      objectCson["123"] = packedInheritedBy;
-    }
-    if (object.baseTraits.length > 0) {
-      const packedBaseTraits: any[] = [];
-      for (const item of object.baseTraits) {
-        packedBaseTraits.push(item);
-      }
-      objectCson["124"] = packedBaseTraits;
-    }
-    if (object.traits.length > 0) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(item);
-      }
-      objectCson["125"] = packedTraits;
-    }
-    if (object.parentTypes.length > 0) {
-      const packedParentTypes: any[] = [];
-      for (const item of object.parentTypes) {
-        packedParentTypes.push(item);
-      }
-      objectCson["130"] = packedParentTypes;
-    }
-    if (object.childTypes.length > 0) {
-      const packedChildTypes: any[] = [];
-      for (const item of object.childTypes) {
-        packedChildTypes.push(item);
-      }
-      objectCson["131"] = packedChildTypes;
-    }
-    if (object.ancestorTypes.length > 0) {
-      const packedAncestorTypes: any[] = [];
-      for (const item of object.ancestorTypes) {
-        packedAncestorTypes.push(item);
-      }
-      objectCson["132"] = packedAncestorTypes;
-    }
-    if (object.descendantTypes.length > 0) {
-      const packedDescendantTypes: any[] = [];
-      for (const item of object.descendantTypes) {
-        packedDescendantTypes.push(item);
-      }
-      objectCson["133"] = packedDescendantTypes;
-    }
-    if (object.expectedParentTypes.length > 0) {
-      const packedExpectedParentTypes: any[] = [];
-      for (const item of object.expectedParentTypes) {
-        packedExpectedParentTypes.push(item);
-      }
-      objectCson["140"] = packedExpectedParentTypes;
-    }
-    if (object.expectedChildTypes.length > 0) {
-      const packedExpectedChildTypes: any[] = [];
-      for (const item of object.expectedChildTypes) {
-        packedExpectedChildTypes.push(item);
-      }
-      objectCson["141"] = packedExpectedChildTypes;
-    }
-    if (object.expectedAncestorTypes.length > 0) {
-      const packedExpectedAncestorTypes: any[] = [];
-      for (const item of object.expectedAncestorTypes) {
-        packedExpectedAncestorTypes.push(item);
-      }
-      objectCson["142"] = packedExpectedAncestorTypes;
-    }
-    if (object.expectedDescendantTypes.length > 0) {
-      const packedExpectedDescendantTypes: any[] = [];
-      for (const item of object.expectedDescendantTypes) {
-        packedExpectedDescendantTypes.push(item);
-      }
-      objectCson["143"] = packedExpectedDescendantTypes;
-    }
-    if (object.eventTypes.length > 0) {
-      const packedEventTypes: any[] = [];
-      for (const item of object.eventTypes) {
-        packedEventTypes.push(item);
-      }
-      objectCson["150"] = packedEventTypes;
-    }
-    if (object.baseEventTypes.length > 0) {
-      const packedBaseEventTypes: any[] = [];
-      for (const item of object.baseEventTypes) {
-        packedBaseEventTypes.push(item);
-      }
-      objectCson["151"] = packedBaseEventTypes;
-    }
-    if (object.primaryStoreKeys.length > 0) {
-      const packedPrimaryStoreKeys: any[] = [];
-      for (const item of object.primaryStoreKeys) {
-        packedPrimaryStoreKeys.push(item);
-      }
-      objectCson["160"] = packedPrimaryStoreKeys;
-    }
-    if (object.storeDomain != null) {
-      objectCson["161"] = object.storeDomain;
+      objectCson["120"] = packedProperties;
     }
     if (object.indexes.length > 0) {
       const packedIndexes: any[] = [];
       for (const item of object.indexes) {
         packedIndexes.push(item.toCson());
       }
-      objectCson["170"] = packedIndexes;
+      objectCson["121"] = packedIndexes;
     }
     if (object.constraints.length > 0) {
       const packedConstraints: any[] = [];
       for (const item of object.constraints) {
         packedConstraints.push(item.toCson());
       }
-      objectCson["171"] = packedConstraints;
+      objectCson["122"] = packedConstraints;
     }
     if (object.permissions.length > 0) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
         packedPermissions.push(item.toCson());
       }
-      objectCson["172"] = packedPermissions;
+      objectCson["123"] = packedPermissions;
+    }
+    if (object.methods.length > 0) {
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.toCson());
+      }
+      objectCson["125"] = packedMethods;
+    }
+    if (object.actions.length > 0) {
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.toCson());
+      }
+      objectCson["126"] = packedActions;
+    }
+    if (object.baseType != null) {
+      objectCson["130"] = object.baseType;
+    }
+    if (object.extendedBy.length > 0) {
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(item);
+      }
+      objectCson["131"] = packedExtendedBy;
+    }
+    if (object.inherits.length > 0) {
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(item);
+      }
+      objectCson["132"] = packedInherits;
+    }
+    if (object.inheritedBy.length > 0) {
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(item);
+      }
+      objectCson["133"] = packedInheritedBy;
+    }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item);
+      }
+      objectCson["134"] = packedBaseTraits;
+    }
+    if (object.traits.length > 0) {
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(item);
+      }
+      objectCson["135"] = packedTraits;
+    }
+    if (object.eventTypes.length > 0) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(item);
+      }
+      objectCson["140"] = packedEventTypes;
+    }
+    if (object.baseEventTypes.length > 0) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(item);
+      }
+      objectCson["141"] = packedBaseEventTypes;
+    }
+    if (object.enumTypes.length > 0) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(item);
+      }
+      objectCson["150"] = packedEnumTypes;
+    }
+    if (object.baseEnumTypes.length > 0) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(item);
+      }
+      objectCson["151"] = packedBaseEnumTypes;
+    }
+    if (object.parentTypes.length > 0) {
+      const packedParentTypes: any[] = [];
+      for (const item of object.parentTypes) {
+        packedParentTypes.push(item);
+      }
+      objectCson["160"] = packedParentTypes;
+    }
+    if (object.childTypes.length > 0) {
+      const packedChildTypes: any[] = [];
+      for (const item of object.childTypes) {
+        packedChildTypes.push(item);
+      }
+      objectCson["161"] = packedChildTypes;
+    }
+    if (object.ancestorTypes.length > 0) {
+      const packedAncestorTypes: any[] = [];
+      for (const item of object.ancestorTypes) {
+        packedAncestorTypes.push(item);
+      }
+      objectCson["162"] = packedAncestorTypes;
+    }
+    if (object.descendantTypes.length > 0) {
+      const packedDescendantTypes: any[] = [];
+      for (const item of object.descendantTypes) {
+        packedDescendantTypes.push(item);
+      }
+      objectCson["163"] = packedDescendantTypes;
+    }
+    if (object.expectedParentTypes.length > 0) {
+      const packedExpectedParentTypes: any[] = [];
+      for (const item of object.expectedParentTypes) {
+        packedExpectedParentTypes.push(item);
+      }
+      objectCson["170"] = packedExpectedParentTypes;
+    }
+    if (object.expectedChildTypes.length > 0) {
+      const packedExpectedChildTypes: any[] = [];
+      for (const item of object.expectedChildTypes) {
+        packedExpectedChildTypes.push(item);
+      }
+      objectCson["171"] = packedExpectedChildTypes;
+    }
+    if (object.expectedAncestorTypes.length > 0) {
+      const packedExpectedAncestorTypes: any[] = [];
+      for (const item of object.expectedAncestorTypes) {
+        packedExpectedAncestorTypes.push(item);
+      }
+      objectCson["172"] = packedExpectedAncestorTypes;
+    }
+    if (object.expectedDescendantTypes.length > 0) {
+      const packedExpectedDescendantTypes: any[] = [];
+      for (const item of object.expectedDescendantTypes) {
+        packedExpectedDescendantTypes.push(item);
+      }
+      objectCson["173"] = packedExpectedDescendantTypes;
+    }
+    if (object.primaryStoreKeys.length > 0) {
+      const packedPrimaryStoreKeys: any[] = [];
+      for (const item of object.primaryStoreKeys) {
+        packedPrimaryStoreKeys.push(item);
+      }
+      objectCson["200"] = packedPrimaryStoreKeys;
+    }
+    if (object.storeDomain != null) {
+      objectCson["201"] = object.storeDomain;
     }
     return objectCson;
   }
@@ -1010,142 +1136,176 @@ export class NodeDefinition extends BuiltinDefinition {
     const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.CONSTRAINT_DEFINITION
     ] as typeof ConstraintDefinition;
+    const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.METHOD_DEFINITION
+    ] as typeof MethodDefinition;
+    const _ActionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.ACTION_DEFINITION
+    ] as typeof ActionDefinition;
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectCson["105"] != undefined) {
-      for (const item of objectCson["105"]) {
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const baseTypeValue = objectCson["120"];
-    const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
-    const unpackedExtendedBy: any[] = [];
+    const unpackedIndexes: any[] = [];
     if (objectCson["121"] != undefined) {
       for (const item of objectCson["121"]) {
-        unpackedExtendedBy.push(Number(item));
-      }
-    }
-    const unpackedInherits: any[] = [];
-    if (objectCson["122"] != undefined) {
-      for (const item of objectCson["122"]) {
-        unpackedInherits.push(Number(item));
-      }
-    }
-    const unpackedInheritedBy: any[] = [];
-    if (objectCson["123"] != undefined) {
-      for (const item of objectCson["123"]) {
-        unpackedInheritedBy.push(Number(item));
-      }
-    }
-    const unpackedBaseTraits: any[] = [];
-    if (objectCson["124"] != undefined) {
-      for (const item of objectCson["124"]) {
-        unpackedBaseTraits.push(Number(item));
-      }
-    }
-    const unpackedTraits: any[] = [];
-    if (objectCson["125"] != undefined) {
-      for (const item of objectCson["125"]) {
-        unpackedTraits.push(Number(item));
-      }
-    }
-    const unpackedParentTypes: any[] = [];
-    if (objectCson["130"] != undefined) {
-      for (const item of objectCson["130"]) {
-        unpackedParentTypes.push(Number(item));
-      }
-    }
-    const unpackedChildTypes: any[] = [];
-    if (objectCson["131"] != undefined) {
-      for (const item of objectCson["131"]) {
-        unpackedChildTypes.push(Number(item));
-      }
-    }
-    const unpackedAncestorTypes: any[] = [];
-    if (objectCson["132"] != undefined) {
-      for (const item of objectCson["132"]) {
-        unpackedAncestorTypes.push(Number(item));
-      }
-    }
-    const unpackedDescendantTypes: any[] = [];
-    if (objectCson["133"] != undefined) {
-      for (const item of objectCson["133"]) {
-        unpackedDescendantTypes.push(Number(item));
-      }
-    }
-    const unpackedExpectedParentTypes: any[] = [];
-    if (objectCson["140"] != undefined) {
-      for (const item of objectCson["140"]) {
-        unpackedExpectedParentTypes.push(Number(item));
-      }
-    }
-    const unpackedExpectedChildTypes: any[] = [];
-    if (objectCson["141"] != undefined) {
-      for (const item of objectCson["141"]) {
-        unpackedExpectedChildTypes.push(Number(item));
-      }
-    }
-    const unpackedExpectedAncestorTypes: any[] = [];
-    if (objectCson["142"] != undefined) {
-      for (const item of objectCson["142"]) {
-        unpackedExpectedAncestorTypes.push(Number(item));
-      }
-    }
-    const unpackedExpectedDescendantTypes: any[] = [];
-    if (objectCson["143"] != undefined) {
-      for (const item of objectCson["143"]) {
-        unpackedExpectedDescendantTypes.push(Number(item));
-      }
-    }
-    const unpackedEventTypes: any[] = [];
-    if (objectCson["150"] != undefined) {
-      for (const item of objectCson["150"]) {
-        unpackedEventTypes.push(Number(item));
-      }
-    }
-    const unpackedBaseEventTypes: any[] = [];
-    if (objectCson["151"] != undefined) {
-      for (const item of objectCson["151"]) {
-        unpackedBaseEventTypes.push(Number(item));
-      }
-    }
-    const unpackedPrimaryStoreKeys: any[] = [];
-    if (objectCson["160"] != undefined) {
-      for (const item of objectCson["160"]) {
-        unpackedPrimaryStoreKeys.push(Number(item));
-      }
-    }
-    const storeDomainValue = objectCson["161"];
-    const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
-    const unpackedIndexes: any[] = [];
-    if (objectCson["170"] != undefined) {
-      for (const item of objectCson["170"]) {
         unpackedIndexes.push(
           _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedConstraints: any[] = [];
-    if (objectCson["171"] != undefined) {
-      for (const item of objectCson["171"]) {
+    if (objectCson["122"] != undefined) {
+      for (const item of objectCson["122"]) {
         unpackedConstraints.push(
           _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedPermissions: any[] = [];
-    if (objectCson["172"] != undefined) {
-      for (const item of objectCson["172"]) {
+    if (objectCson["123"] != undefined) {
+      for (const item of objectCson["123"]) {
         unpackedPermissions.push(
           _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
+    const unpackedMethods: any[] = [];
+    if (objectCson["125"] != undefined) {
+      for (const item of objectCson["125"]) {
+        unpackedMethods.push(
+          _MethodDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedActions: any[] = [];
+    if (objectCson["126"] != undefined) {
+      for (const item of objectCson["126"]) {
+        unpackedActions.push(
+          _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const baseTypeValue = objectCson["130"];
+    const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
+    const unpackedExtendedBy: any[] = [];
+    if (objectCson["131"] != undefined) {
+      for (const item of objectCson["131"]) {
+        unpackedExtendedBy.push(Number(item));
+      }
+    }
+    const unpackedInherits: any[] = [];
+    if (objectCson["132"] != undefined) {
+      for (const item of objectCson["132"]) {
+        unpackedInherits.push(Number(item));
+      }
+    }
+    const unpackedInheritedBy: any[] = [];
+    if (objectCson["133"] != undefined) {
+      for (const item of objectCson["133"]) {
+        unpackedInheritedBy.push(Number(item));
+      }
+    }
+    const unpackedBaseTraits: any[] = [];
+    if (objectCson["134"] != undefined) {
+      for (const item of objectCson["134"]) {
+        unpackedBaseTraits.push(Number(item));
+      }
+    }
+    const unpackedTraits: any[] = [];
+    if (objectCson["135"] != undefined) {
+      for (const item of objectCson["135"]) {
+        unpackedTraits.push(Number(item));
+      }
+    }
+    const unpackedEventTypes: any[] = [];
+    if (objectCson["140"] != undefined) {
+      for (const item of objectCson["140"]) {
+        unpackedEventTypes.push(Number(item));
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectCson["141"] != undefined) {
+      for (const item of objectCson["141"]) {
+        unpackedBaseEventTypes.push(Number(item));
+      }
+    }
+    const unpackedEnumTypes: any[] = [];
+    if (objectCson["150"] != undefined) {
+      for (const item of objectCson["150"]) {
+        unpackedEnumTypes.push(Number(item));
+      }
+    }
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectCson["151"] != undefined) {
+      for (const item of objectCson["151"]) {
+        unpackedBaseEnumTypes.push(Number(item));
+      }
+    }
+    const unpackedParentTypes: any[] = [];
+    if (objectCson["160"] != undefined) {
+      for (const item of objectCson["160"]) {
+        unpackedParentTypes.push(Number(item));
+      }
+    }
+    const unpackedChildTypes: any[] = [];
+    if (objectCson["161"] != undefined) {
+      for (const item of objectCson["161"]) {
+        unpackedChildTypes.push(Number(item));
+      }
+    }
+    const unpackedAncestorTypes: any[] = [];
+    if (objectCson["162"] != undefined) {
+      for (const item of objectCson["162"]) {
+        unpackedAncestorTypes.push(Number(item));
+      }
+    }
+    const unpackedDescendantTypes: any[] = [];
+    if (objectCson["163"] != undefined) {
+      for (const item of objectCson["163"]) {
+        unpackedDescendantTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedParentTypes: any[] = [];
+    if (objectCson["170"] != undefined) {
+      for (const item of objectCson["170"]) {
+        unpackedExpectedParentTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedChildTypes: any[] = [];
+    if (objectCson["171"] != undefined) {
+      for (const item of objectCson["171"]) {
+        unpackedExpectedChildTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedAncestorTypes: any[] = [];
+    if (objectCson["172"] != undefined) {
+      for (const item of objectCson["172"]) {
+        unpackedExpectedAncestorTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedDescendantTypes: any[] = [];
+    if (objectCson["173"] != undefined) {
+      for (const item of objectCson["173"]) {
+        unpackedExpectedDescendantTypes.push(Number(item));
+      }
+    }
+    const unpackedPrimaryStoreKeys: any[] = [];
+    if (objectCson["200"] != undefined) {
+      for (const item of objectCson["200"]) {
+        unpackedPrimaryStoreKeys.push(Number(item));
+      }
+    }
+    const storeDomainValue = objectCson["201"];
+    const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
     const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1155,16 +1315,25 @@ export class NodeDefinition extends BuiltinDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new NodeDefinition({
       type: Number(objectCson["100"]),
-      properties: unpackedProperties,
       isAbstract: objectCson["110"],
       isExtensible: objectCson["111"],
       isFrozen: objectCson["112"],
+      properties: unpackedProperties,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
+      methods: unpackedMethods,
+      actions: unpackedActions,
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
@@ -1173,13 +1342,8 @@ export class NodeDefinition extends BuiltinDefinition {
       expectedChildTypes: unpackedExpectedChildTypes,
       expectedAncestorTypes: unpackedExpectedAncestorTypes,
       expectedDescendantTypes: unpackedExpectedDescendantTypes,
-      eventTypes: unpackedEventTypes,
-      baseEventTypes: unpackedBaseEventTypes,
       primaryStoreKeys: unpackedPrimaryStoreKeys,
       storeDomain: unpackedStoreDomain,
-      indexes: unpackedIndexes,
-      constraints: unpackedConstraints,
-      permissions: unpackedPermissions,
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
@@ -1218,6 +1382,9 @@ export class NodeDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    objectProto.isAbstract = object.isAbstract;
+    objectProto.isExtensible = object.isExtensible;
+    objectProto.isFrozen = object.isFrozen;
     if (object.properties) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
@@ -1225,9 +1392,41 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.properties = packedProperties;
     }
-    objectProto.isAbstract = object.isAbstract;
-    objectProto.isExtensible = object.isExtensible;
-    objectProto.isFrozen = object.isFrozen;
+    if (object.indexes) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toProto());
+      }
+      objectProto.indexes = packedIndexes;
+    }
+    if (object.constraints) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toProto());
+      }
+      objectProto.constraints = packedConstraints;
+    }
+    if (object.permissions) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toProto());
+      }
+      objectProto.permissions = packedPermissions;
+    }
+    if (object.methods) {
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.toProto());
+      }
+      objectProto.methods = packedMethods;
+    }
+    if (object.actions) {
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.toProto());
+      }
+      objectProto.actions = packedActions;
+    }
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as NodeTypeProto;
     }
@@ -1265,6 +1464,34 @@ export class NodeDefinition extends BuiltinDefinition {
         packedTraits.push(Number(item) as TraitTypeProto);
       }
       objectProto.traits = packedTraits;
+    }
+    if (object.eventTypes) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.eventTypes = packedEventTypes;
+    }
+    if (object.baseEventTypes) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.baseEventTypes = packedBaseEventTypes;
+    }
+    if (object.enumTypes) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.enumTypes = packedEnumTypes;
+    }
+    if (object.baseEnumTypes) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.baseEnumTypes = packedBaseEnumTypes;
     }
     if (object.parentTypes) {
       const packedParentTypes: any[] = [];
@@ -1322,20 +1549,6 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.expectedDescendantTypes = packedExpectedDescendantTypes;
     }
-    if (object.eventTypes) {
-      const packedEventTypes: any[] = [];
-      for (const item of object.eventTypes) {
-        packedEventTypes.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.eventTypes = packedEventTypes;
-    }
-    if (object.baseEventTypes) {
-      const packedBaseEventTypes: any[] = [];
-      for (const item of object.baseEventTypes) {
-        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.baseEventTypes = packedBaseEventTypes;
-    }
     if (object.primaryStoreKeys) {
       const packedPrimaryStoreKeys: any[] = [];
       for (const item of object.primaryStoreKeys) {
@@ -1345,27 +1558,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (object.storeDomain != null) {
       objectProto.storeDomain = Number(object.storeDomain) as StoreDomainProto;
-    }
-    if (object.indexes) {
-      const packedIndexes: any[] = [];
-      for (const item of object.indexes) {
-        packedIndexes.push(item.toProto());
-      }
-      objectProto.indexes = packedIndexes;
-    }
-    if (object.constraints) {
-      const packedConstraints: any[] = [];
-      for (const item of object.constraints) {
-        packedConstraints.push(item.toProto());
-      }
-      objectProto.constraints = packedConstraints;
-    }
-    if (object.permissions) {
-      const packedPermissions: any[] = [];
-      for (const item of object.permissions) {
-        packedPermissions.push(item.toProto());
-      }
-      objectProto.permissions = packedPermissions;
     }
     return objectProto as NodeDefinitionProto;
   }
@@ -1386,6 +1578,12 @@ export class NodeDefinition extends BuiltinDefinition {
     const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.CONSTRAINT_DEFINITION
     ] as typeof ConstraintDefinition;
+    const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.METHOD_DEFINITION
+    ] as typeof MethodDefinition;
+    const _ActionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.ACTION_DEFINITION
+    ] as typeof ActionDefinition;
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
     ] as typeof PermissionDefinition;
@@ -1395,6 +1593,46 @@ export class NodeDefinition extends BuiltinDefinition {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
           _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedIndexes: any[] = [];
+    if (objectProto.indexes) {
+      for (const item of objectProto.indexes) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectProto.constraints) {
+      for (const item of objectProto.constraints) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedPermissions: any[] = [];
+    if (objectProto.permissions) {
+      for (const item of objectProto.permissions) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedMethods: any[] = [];
+    if (objectProto.methods) {
+      for (const item of objectProto.methods) {
+        unpackedMethods.push(
+          _MethodDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedActions: any[] = [];
+    if (objectProto.actions) {
+      for (const item of objectProto.actions) {
+        unpackedActions.push(
+          _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1426,6 +1664,30 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.traits) {
       for (const item of objectProto.traits) {
         unpackedTraits.push(Number(item) as TraitType);
+      }
+    }
+    const unpackedEventTypes: any[] = [];
+    if (objectProto.eventTypes) {
+      for (const item of objectProto.eventTypes) {
+        unpackedEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectProto.baseEventTypes) {
+      for (const item of objectProto.baseEventTypes) {
+        unpackedBaseEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedEnumTypes: any[] = [];
+    if (objectProto.enumTypes) {
+      for (const item of objectProto.enumTypes) {
+        unpackedEnumTypes.push(Number(item) as EnumType);
+      }
+    }
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectProto.baseEnumTypes) {
+      for (const item of objectProto.baseEnumTypes) {
+        unpackedBaseEnumTypes.push(Number(item) as EnumType);
       }
     }
     const unpackedParentTypes: any[] = [];
@@ -1476,54 +1738,23 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedExpectedDescendantTypes.push(Number(item) as NodeType);
       }
     }
-    const unpackedEventTypes: any[] = [];
-    if (objectProto.eventTypes) {
-      for (const item of objectProto.eventTypes) {
-        unpackedEventTypes.push(Number(item) as NodeType);
-      }
-    }
-    const unpackedBaseEventTypes: any[] = [];
-    if (objectProto.baseEventTypes) {
-      for (const item of objectProto.baseEventTypes) {
-        unpackedBaseEventTypes.push(Number(item) as NodeType);
-      }
-    }
     const unpackedPrimaryStoreKeys: any[] = [];
     if (objectProto.primaryStoreKeys) {
       for (const item of objectProto.primaryStoreKeys) {
         unpackedPrimaryStoreKeys.push(Number(item) as StoreKey);
       }
     }
-    const unpackedIndexes: any[] = [];
-    if (objectProto.indexes) {
-      for (const item of objectProto.indexes) {
-        unpackedIndexes.push(
-          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedConstraints: any[] = [];
-    if (objectProto.constraints) {
-      for (const item of objectProto.constraints) {
-        unpackedConstraints.push(
-          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedPermissions: any[] = [];
-    if (objectProto.permissions) {
-      for (const item of objectProto.permissions) {
-        unpackedPermissions.push(
-          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new NodeDefinition({
       type: Number(objectProto.type) as NodeType,
-      properties: unpackedProperties,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
       isFrozen: objectProto.isFrozen,
+      properties: unpackedProperties,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
+      methods: unpackedMethods,
+      actions: unpackedActions,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
       extendedBy: unpackedExtendedBy,
@@ -1531,6 +1762,10 @@ export class NodeDefinition extends BuiltinDefinition {
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
@@ -1539,16 +1774,11 @@ export class NodeDefinition extends BuiltinDefinition {
       expectedChildTypes: unpackedExpectedChildTypes,
       expectedAncestorTypes: unpackedExpectedAncestorTypes,
       expectedDescendantTypes: unpackedExpectedDescendantTypes,
-      eventTypes: unpackedEventTypes,
-      baseEventTypes: unpackedBaseEventTypes,
       primaryStoreKeys: unpackedPrimaryStoreKeys,
       storeDomain:
         objectProto.storeDomain != undefined
           ? (Number(objectProto.storeDomain) as StoreDomain)
           : null,
-      indexes: unpackedIndexes,
-      constraints: unpackedConstraints,
-      permissions: unpackedPermissions,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1639,11 +1869,6 @@ export class TraitDefinition extends BuiltinDefinition {
   readonly description: string | null;
 
   /**
-   * TraitDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  /**
    * TraitDefinition.alias
    */
   readonly alias: string;
@@ -1654,39 +1879,54 @@ export class TraitDefinition extends BuiltinDefinition {
   readonly isExtensible: boolean;
 
   /**
-   * Traits directly and indirectly inherited by this trait.
+   * All properties of this Trait.
    */
-  readonly traits: readonly TraitType[];
+  readonly properties: readonly PropertyDefinition[];
 
   /**
-   * Traits directly inherited by this trait.
-   */
-  readonly baseTraits: readonly TraitType[];
-
-  /**
-   * The event types of this Trait (directly and indirectly).
-   */
-  readonly eventTypes: readonly NodeType[];
-
-  /**
-   * The base event types of this Trait (directly).
-   */
-  readonly baseEventTypes: readonly NodeType[];
-
-  /**
-   * TraitDefinition.indexes
+   * All indexes of this Trait.
    */
   readonly indexes: readonly IndexDefinition[];
 
   /**
-   * TraitDefinition.constraints
+   * All constraints of this Trait.
    */
   readonly constraints: readonly ConstraintDefinition[];
 
   /**
-   * TraitDefinition.permissions
+   * All permissions of this Trait.
    */
   readonly permissions: readonly PermissionDefinition[];
+
+  /**
+   * Traits directly inherited by this Trait (directly).
+   */
+  readonly baseTraits: readonly TraitType[];
+
+  /**
+   * Traits directly and indirectly inherited by this Trait (directly and indirectly).
+   */
+  readonly traits: readonly TraitType[];
+
+  /**
+   * The event types related to this Trait (directly and indirectly).
+   */
+  readonly eventTypes: readonly NodeType[];
+
+  /**
+   * The base event types related to this Trait (directly).
+   */
+  readonly baseEventTypes: readonly NodeType[];
+
+  /**
+   * The enum types related to this Trait (directly and indirectly).
+   */
+  readonly enumTypes: readonly EnumType[];
+
+  /**
+   * The base enum types related to this Trait (directly).
+   */
+  readonly baseEnumTypes: readonly EnumType[];
 
   constructor(options: {
     id: number;
@@ -1694,16 +1934,18 @@ export class TraitDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
     alias: string;
     isExtensible: boolean;
-    traits?: readonly TraitType[];
-    baseTraits?: readonly TraitType[];
-    eventTypes?: readonly NodeType[];
-    baseEventTypes?: readonly NodeType[];
+    properties?: readonly PropertyDefinition[];
     indexes?: readonly IndexDefinition[];
     constraints?: readonly ConstraintDefinition[];
     permissions?: readonly PermissionDefinition[];
+    baseTraits?: readonly TraitType[];
+    traits?: readonly TraitType[];
+    eventTypes?: readonly NodeType[];
+    baseEventTypes?: readonly NodeType[];
+    enumTypes?: readonly EnumType[];
+    baseEnumTypes?: readonly EnumType[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1738,11 +1980,6 @@ export class TraitDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
     let _alias = options.alias;
     if (_alias === null) {
       throw new Error(`TraitDefinition.alias is required`);
@@ -1753,26 +1990,11 @@ export class TraitDefinition extends BuiltinDefinition {
       throw new Error(`TraitDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
-    let _traits = options.traits ?? null;
-    if (_traits === null) {
-      _traits = [];
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
     }
-    this.traits = _traits;
-    let _baseTraits = options.baseTraits ?? null;
-    if (_baseTraits === null) {
-      _baseTraits = [];
-    }
-    this.baseTraits = _baseTraits;
-    let _eventTypes = options.eventTypes ?? null;
-    if (_eventTypes === null) {
-      _eventTypes = [];
-    }
-    this.eventTypes = _eventTypes;
-    let _baseEventTypes = options.baseEventTypes ?? null;
-    if (_baseEventTypes === null) {
-      _baseEventTypes = [];
-    }
-    this.baseEventTypes = _baseEventTypes;
+    this.properties = _properties;
     let _indexes = options.indexes ?? null;
     if (_indexes === null) {
       _indexes = [];
@@ -1788,6 +2010,36 @@ export class TraitDefinition extends BuiltinDefinition {
       _permissions = [];
     }
     this.permissions = _permissions;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
+    let _traits = options.traits ?? null;
+    if (_traits === null) {
+      _traits = [];
+    }
+    this.traits = _traits;
+    let _eventTypes = options.eventTypes ?? null;
+    if (_eventTypes === null) {
+      _eventTypes = [];
+    }
+    this.eventTypes = _eventTypes;
+    let _baseEventTypes = options.baseEventTypes ?? null;
+    if (_baseEventTypes === null) {
+      _baseEventTypes = [];
+    }
+    this.baseEventTypes = _baseEventTypes;
+    let _enumTypes = options.enumTypes ?? null;
+    if (_enumTypes === null) {
+      _enumTypes = [];
+    }
+    this.enumTypes = _enumTypes;
+    let _baseEnumTypes = options.baseEnumTypes ?? null;
+    if (_baseEnumTypes === null) {
+      _baseEnumTypes = [];
+    }
+    this.baseEnumTypes = _baseEnumTypes;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1807,49 +2059,17 @@ export class TraitDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
     if (!(this.alias === other.alias)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (this.traits.length != other.traits.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
-    for (let i = 0; i < this.traits.length; i++) {
-      if (!(this.traits[i] === other.traits[i])) {
-        return false;
-      }
-    }
-    if (this.baseTraits.length != other.baseTraits.length) {
-      return false;
-    }
-    for (let i = 0; i < this.baseTraits.length; i++) {
-      if (!(this.baseTraits[i] === other.baseTraits[i])) {
-        return false;
-      }
-    }
-    if (this.eventTypes.length != other.eventTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.eventTypes.length; i++) {
-      if (!(this.eventTypes[i] === other.eventTypes[i])) {
-        return false;
-      }
-    }
-    if (this.baseEventTypes.length != other.baseEventTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.baseEventTypes.length; i++) {
-      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
         return false;
       }
     }
@@ -1874,6 +2094,54 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.permissions.length; i++) {
       if (!this.permissions[i].equals(other.permissions[i])) {
+        return false;
+      }
+    }
+    if (this.baseTraits.length != other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!(this.baseTraits[i] === other.baseTraits[i])) {
+        return false;
+      }
+    }
+    if (this.traits.length != other.traits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.traits.length; i++) {
+      if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    if (this.eventTypes.length != other.eventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.eventTypes.length; i++) {
+      if (!(this.eventTypes[i] === other.eventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEventTypes.length != other.baseEventTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEventTypes.length; i++) {
+      if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.enumTypes.length != other.enumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.enumTypes.length; i++) {
+      if (!(this.enumTypes[i] === other.enumTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEnumTypes.length != other.baseEnumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEnumTypes.length; i++) {
+      if (!(this.baseEnumTypes[i] === other.baseEnumTypes[i])) {
         return false;
       }
     }
@@ -1920,31 +2188,11 @@ export class TraitDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.alias)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashString(this.alias)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.traits && this.traits.length > 0) {
-      for (const _item of this.traits) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.baseTraits && this.baseTraits.length > 0) {
-      for (const _item of this.baseTraits) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.eventTypes && this.eventTypes.length > 0) {
-      for (const _item of this.eventTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
-      for (const _item of this.baseEventTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
       }
     }
     if (this.indexes && this.indexes.length > 0) {
@@ -1960,6 +2208,36 @@ export class TraitDefinition extends BuiltinDefinition {
     if (this.permissions && this.permissions.length > 0) {
       for (const _item of this.permissions) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.traits && this.traits.length > 0) {
+      for (const _item of this.traits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.eventTypes && this.eventTypes.length > 0) {
+      for (const _item of this.eventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEventTypes && this.baseEventTypes.length > 0) {
+      for (const _item of this.baseEventTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.enumTypes && this.enumTypes.length > 0) {
+      for (const _item of this.enumTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEnumTypes && this.baseEnumTypes.length > 0) {
+      for (const _item of this.baseEnumTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -2000,28 +2278,49 @@ export class TraitDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    objectCson["110"] = object.alias;
+    objectCson["111"] = object.isExtensible;
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toCson());
       }
-      objectCson["105"] = packedProperties;
+      objectCson["120"] = packedProperties;
     }
-    objectCson["110"] = object.alias;
-    objectCson["111"] = object.isExtensible;
-    if (object.traits.length > 0) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(item);
+    if (object.indexes.length > 0) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toCson());
       }
-      objectCson["120"] = packedTraits;
+      objectCson["121"] = packedIndexes;
+    }
+    if (object.constraints.length > 0) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toCson());
+      }
+      objectCson["122"] = packedConstraints;
+    }
+    if (object.permissions.length > 0) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toCson());
+      }
+      objectCson["123"] = packedPermissions;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectCson["121"] = packedBaseTraits;
+      objectCson["130"] = packedBaseTraits;
+    }
+    if (object.traits.length > 0) {
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(item);
+      }
+      objectCson["131"] = packedTraits;
     }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
@@ -2037,26 +2336,19 @@ export class TraitDefinition extends BuiltinDefinition {
       }
       objectCson["141"] = packedBaseEventTypes;
     }
-    if (object.indexes.length > 0) {
-      const packedIndexes: any[] = [];
-      for (const item of object.indexes) {
-        packedIndexes.push(item.toCson());
+    if (object.enumTypes.length > 0) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(item);
       }
-      objectCson["160"] = packedIndexes;
+      objectCson["150"] = packedEnumTypes;
     }
-    if (object.constraints.length > 0) {
-      const packedConstraints: any[] = [];
-      for (const item of object.constraints) {
-        packedConstraints.push(item.toCson());
+    if (object.baseEnumTypes.length > 0) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(item);
       }
-      objectCson["161"] = packedConstraints;
-    }
-    if (object.permissions.length > 0) {
-      const packedPermissions: any[] = [];
-      for (const item of object.permissions) {
-        packedPermissions.push(item.toCson());
-      }
-      objectCson["162"] = packedPermissions;
+      objectCson["151"] = packedBaseEnumTypes;
     }
     return objectCson;
   }
@@ -2082,23 +2374,47 @@ export class TraitDefinition extends BuiltinDefinition {
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectCson["105"] != undefined) {
-      for (const item of objectCson["105"]) {
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const unpackedTraits: any[] = [];
-    if (objectCson["120"] != undefined) {
-      for (const item of objectCson["120"]) {
-        unpackedTraits.push(Number(item));
+    const unpackedIndexes: any[] = [];
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectCson["122"] != undefined) {
+      for (const item of objectCson["122"]) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedPermissions: any[] = [];
+    if (objectCson["123"] != undefined) {
+      for (const item of objectCson["123"]) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectCson["121"] != undefined) {
-      for (const item of objectCson["121"]) {
+    if (objectCson["130"] != undefined) {
+      for (const item of objectCson["130"]) {
         unpackedBaseTraits.push(Number(item));
+      }
+    }
+    const unpackedTraits: any[] = [];
+    if (objectCson["131"] != undefined) {
+      for (const item of objectCson["131"]) {
+        unpackedTraits.push(Number(item));
       }
     }
     const unpackedEventTypes: any[] = [];
@@ -2113,28 +2429,16 @@ export class TraitDefinition extends BuiltinDefinition {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
-    const unpackedIndexes: any[] = [];
-    if (objectCson["160"] != undefined) {
-      for (const item of objectCson["160"]) {
-        unpackedIndexes.push(
-          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedEnumTypes: any[] = [];
+    if (objectCson["150"] != undefined) {
+      for (const item of objectCson["150"]) {
+        unpackedEnumTypes.push(Number(item));
       }
     }
-    const unpackedConstraints: any[] = [];
-    if (objectCson["161"] != undefined) {
-      for (const item of objectCson["161"]) {
-        unpackedConstraints.push(
-          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedPermissions: any[] = [];
-    if (objectCson["162"] != undefined) {
-      for (const item of objectCson["162"]) {
-        unpackedPermissions.push(
-          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectCson["151"] != undefined) {
+      for (const item of objectCson["151"]) {
+        unpackedBaseEnumTypes.push(Number(item));
       }
     }
     const iconValue = objectCson["102"];
@@ -2146,16 +2450,18 @@ export class TraitDefinition extends BuiltinDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new TraitDefinition({
       type: Number(objectCson["100"]),
-      properties: unpackedProperties,
       alias: objectCson["110"],
       isExtensible: objectCson["111"],
-      traits: unpackedTraits,
-      baseTraits: unpackedBaseTraits,
-      eventTypes: unpackedEventTypes,
-      baseEventTypes: unpackedBaseEventTypes,
+      properties: unpackedProperties,
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
       permissions: unpackedPermissions,
+      baseTraits: unpackedBaseTraits,
+      traits: unpackedTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
@@ -2194,42 +2500,14 @@ export class TraitDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    objectProto.alias = object.alias;
+    objectProto.isExtensible = object.isExtensible;
     if (object.properties) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
-    }
-    objectProto.alias = object.alias;
-    objectProto.isExtensible = object.isExtensible;
-    if (object.traits) {
-      const packedTraits: any[] = [];
-      for (const item of object.traits) {
-        packedTraits.push(Number(item) as TraitTypeProto);
-      }
-      objectProto.traits = packedTraits;
-    }
-    if (object.baseTraits) {
-      const packedBaseTraits: any[] = [];
-      for (const item of object.baseTraits) {
-        packedBaseTraits.push(Number(item) as TraitTypeProto);
-      }
-      objectProto.baseTraits = packedBaseTraits;
-    }
-    if (object.eventTypes) {
-      const packedEventTypes: any[] = [];
-      for (const item of object.eventTypes) {
-        packedEventTypes.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.eventTypes = packedEventTypes;
-    }
-    if (object.baseEventTypes) {
-      const packedBaseEventTypes: any[] = [];
-      for (const item of object.baseEventTypes) {
-        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
-      }
-      objectProto.baseEventTypes = packedBaseEventTypes;
     }
     if (object.indexes) {
       const packedIndexes: any[] = [];
@@ -2251,6 +2529,48 @@ export class TraitDefinition extends BuiltinDefinition {
         packedPermissions.push(item.toProto());
       }
       objectProto.permissions = packedPermissions;
+    }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.baseTraits = packedBaseTraits;
+    }
+    if (object.traits) {
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.traits = packedTraits;
+    }
+    if (object.eventTypes) {
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.eventTypes = packedEventTypes;
+    }
+    if (object.baseEventTypes) {
+      const packedBaseEventTypes: any[] = [];
+      for (const item of object.baseEventTypes) {
+        packedBaseEventTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.baseEventTypes = packedBaseEventTypes;
+    }
+    if (object.enumTypes) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.enumTypes = packedEnumTypes;
+    }
+    if (object.baseEnumTypes) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.baseEnumTypes = packedBaseEnumTypes;
     }
     return objectProto as TraitDefinitionProto;
   }
@@ -2283,30 +2603,6 @@ export class TraitDefinition extends BuiltinDefinition {
         );
       }
     }
-    const unpackedTraits: any[] = [];
-    if (objectProto.traits) {
-      for (const item of objectProto.traits) {
-        unpackedTraits.push(Number(item) as TraitType);
-      }
-    }
-    const unpackedBaseTraits: any[] = [];
-    if (objectProto.baseTraits) {
-      for (const item of objectProto.baseTraits) {
-        unpackedBaseTraits.push(Number(item) as TraitType);
-      }
-    }
-    const unpackedEventTypes: any[] = [];
-    if (objectProto.eventTypes) {
-      for (const item of objectProto.eventTypes) {
-        unpackedEventTypes.push(Number(item) as NodeType);
-      }
-    }
-    const unpackedBaseEventTypes: any[] = [];
-    if (objectProto.baseEventTypes) {
-      for (const item of objectProto.baseEventTypes) {
-        unpackedBaseEventTypes.push(Number(item) as NodeType);
-      }
-    }
     const unpackedIndexes: any[] = [];
     if (objectProto.indexes) {
       for (const item of objectProto.indexes) {
@@ -2331,18 +2627,56 @@ export class TraitDefinition extends BuiltinDefinition {
         );
       }
     }
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(Number(item) as TraitType);
+      }
+    }
+    const unpackedTraits: any[] = [];
+    if (objectProto.traits) {
+      for (const item of objectProto.traits) {
+        unpackedTraits.push(Number(item) as TraitType);
+      }
+    }
+    const unpackedEventTypes: any[] = [];
+    if (objectProto.eventTypes) {
+      for (const item of objectProto.eventTypes) {
+        unpackedEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedBaseEventTypes: any[] = [];
+    if (objectProto.baseEventTypes) {
+      for (const item of objectProto.baseEventTypes) {
+        unpackedBaseEventTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedEnumTypes: any[] = [];
+    if (objectProto.enumTypes) {
+      for (const item of objectProto.enumTypes) {
+        unpackedEnumTypes.push(Number(item) as EnumType);
+      }
+    }
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectProto.baseEnumTypes) {
+      for (const item of objectProto.baseEnumTypes) {
+        unpackedBaseEnumTypes.push(Number(item) as EnumType);
+      }
+    }
     return new TraitDefinition({
       type: Number(objectProto.type) as TraitType,
-      properties: unpackedProperties,
       alias: objectProto.alias,
       isExtensible: objectProto.isExtensible,
-      traits: unpackedTraits,
-      baseTraits: unpackedBaseTraits,
-      eventTypes: unpackedEventTypes,
-      baseEventTypes: unpackedBaseEventTypes,
+      properties: unpackedProperties,
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
       permissions: unpackedPermissions,
+      baseTraits: unpackedBaseTraits,
+      traits: unpackedTraits,
+      eventTypes: unpackedEventTypes,
+      baseEventTypes: unpackedBaseEventTypes,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -2412,17 +2746,12 @@ export class StructDefinition extends BuiltinDefinition {
   readonly description: string | null;
 
   /**
-   * StructDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  /**
-   * Whether this Struct cannot be modified.
+   * Whether this Struct is read-only (cannot be modified).
    */
   readonly isFrozen: boolean;
 
   /**
-   * Whether this Struct cannot be instantiated directly.
+   * Whether this Struct is abstract (cannot be instantiated directly).
    */
   readonly isAbstract: boolean;
 
@@ -2430,6 +2759,21 @@ export class StructDefinition extends BuiltinDefinition {
    * Whether this Struct can be extended by custom Structs.
    */
   readonly isExtensible: boolean;
+
+  /**
+   * All properties of this Struct.
+   */
+  readonly properties: readonly PropertyDefinition[];
+
+  /**
+   * All methods of this Struct (excluding actions).
+   */
+  readonly methods: readonly MethodDefinition[];
+
+  /**
+   * All actions of this Struct.
+   */
+  readonly actions: readonly ActionDefinition[];
 
   /**
    * The base type this Struct extends (directly).
@@ -2451,20 +2795,34 @@ export class StructDefinition extends BuiltinDefinition {
    */
   readonly inheritedBy: readonly StructType[];
 
+  /**
+   * The enum types related to this Node (directly and indirectly).
+   */
+  readonly enumTypes: readonly EnumType[];
+
+  /**
+   * The base enum types related to this Node (directly).
+   */
+  readonly baseEnumTypes: readonly EnumType[];
+
   constructor(options: {
     id: number;
     type: StructType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
     isFrozen: boolean;
     isAbstract: boolean;
     isExtensible: boolean;
+    properties?: readonly PropertyDefinition[];
+    methods?: readonly MethodDefinition[];
+    actions?: readonly ActionDefinition[];
     baseType?: StructType | null;
     extendedBy?: readonly StructType[];
     inherits?: readonly StructType[];
     inheritedBy?: readonly StructType[];
+    enumTypes?: readonly EnumType[];
+    baseEnumTypes?: readonly EnumType[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2499,11 +2857,6 @@ export class StructDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
     let _isFrozen = options.isFrozen;
     if (_isFrozen === null) {
       throw new Error(`StructDefinition.isFrozen is required`);
@@ -2519,6 +2872,21 @@ export class StructDefinition extends BuiltinDefinition {
       throw new Error(`StructDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this.properties = _properties;
+    let _methods = options.methods ?? null;
+    if (_methods === null) {
+      _methods = [];
+    }
+    this.methods = _methods;
+    let _actions = options.actions ?? null;
+    if (_actions === null) {
+      _actions = [];
+    }
+    this.actions = _actions;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
@@ -2536,6 +2904,16 @@ export class StructDefinition extends BuiltinDefinition {
       _inheritedBy = [];
     }
     this.inheritedBy = _inheritedBy;
+    let _enumTypes = options.enumTypes ?? null;
+    if (_enumTypes === null) {
+      _enumTypes = [];
+    }
+    this.enumTypes = _enumTypes;
+    let _baseEnumTypes = options.baseEnumTypes ?? null;
+    if (_baseEnumTypes === null) {
+      _baseEnumTypes = [];
+    }
+    this.baseEnumTypes = _baseEnumTypes;
 
     // identity
     // @ts-expect-error(readonly)
@@ -2555,14 +2933,6 @@ export class StructDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
     }
@@ -2571,6 +2941,30 @@ export class StructDefinition extends BuiltinDefinition {
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.methods.length != other.methods.length) {
+      return false;
+    }
+    for (let i = 0; i < this.methods.length; i++) {
+      if (!this.methods[i].equals(other.methods[i])) {
+        return false;
+      }
+    }
+    if (this.actions.length != other.actions.length) {
+      return false;
+    }
+    for (let i = 0; i < this.actions.length; i++) {
+      if (!this.actions[i].equals(other.actions[i])) {
+        return false;
+      }
     }
     if (!(this.baseType === other.baseType)) {
       return false;
@@ -2596,6 +2990,22 @@ export class StructDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.inheritedBy.length; i++) {
       if (!(this.inheritedBy[i] === other.inheritedBy[i])) {
+        return false;
+      }
+    }
+    if (this.enumTypes.length != other.enumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.enumTypes.length; i++) {
+      if (!(this.enumTypes[i] === other.enumTypes[i])) {
+        return false;
+      }
+    }
+    if (this.baseEnumTypes.length != other.baseEnumTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseEnumTypes.length; i++) {
+      if (!(this.baseEnumTypes[i] === other.baseEnumTypes[i])) {
         return false;
       }
     }
@@ -2640,14 +3050,24 @@ export class StructDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.methods && this.methods.length > 0) {
+      for (const _item of this.methods) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.actions && this.actions.length > 0) {
+      for (const _item of this.actions) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     if (this.baseType != null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
@@ -2663,6 +3083,16 @@ export class StructDefinition extends BuiltinDefinition {
     }
     if (this.inheritedBy && this.inheritedBy.length > 0) {
       for (const _item of this.inheritedBy) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.enumTypes && this.enumTypes.length > 0) {
+      for (const _item of this.enumTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseEnumTypes && this.baseEnumTypes.length > 0) {
+      for (const _item of this.baseEnumTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -2704,39 +3134,67 @@ export class StructDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    objectCson["110"] = object.isFrozen;
+    objectCson["111"] = object.isAbstract;
+    objectCson["112"] = object.isExtensible;
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toCson());
       }
-      objectCson["105"] = packedProperties;
+      objectCson["120"] = packedProperties;
     }
-    objectCson["110"] = object.isFrozen;
-    objectCson["111"] = object.isAbstract;
-    objectCson["112"] = object.isExtensible;
+    if (object.methods.length > 0) {
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.toCson());
+      }
+      objectCson["125"] = packedMethods;
+    }
+    if (object.actions.length > 0) {
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.toCson());
+      }
+      objectCson["126"] = packedActions;
+    }
     if (object.baseType != null) {
-      objectCson["120"] = object.baseType;
+      objectCson["130"] = object.baseType;
     }
     if (object.extendedBy.length > 0) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(item);
       }
-      objectCson["121"] = packedExtendedBy;
+      objectCson["131"] = packedExtendedBy;
     }
     if (object.inherits.length > 0) {
       const packedInherits: any[] = [];
       for (const item of object.inherits) {
         packedInherits.push(item);
       }
-      objectCson["122"] = packedInherits;
+      objectCson["132"] = packedInherits;
     }
     if (object.inheritedBy.length > 0) {
       const packedInheritedBy: any[] = [];
       for (const item of object.inheritedBy) {
         packedInheritedBy.push(item);
       }
-      objectCson["123"] = packedInheritedBy;
+      objectCson["133"] = packedInheritedBy;
+    }
+    if (object.enumTypes.length > 0) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(item);
+      }
+      objectCson["150"] = packedEnumTypes;
+    }
+    if (object.baseEnumTypes.length > 0) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(item);
+      }
+      objectCson["151"] = packedBaseEnumTypes;
     }
     return objectCson;
   }
@@ -2751,33 +3209,67 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.METHOD_DEFINITION
+    ] as typeof MethodDefinition;
+    const _ActionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.ACTION_DEFINITION
+    ] as typeof ActionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectCson["105"] != undefined) {
-      for (const item of objectCson["105"]) {
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const baseTypeValue = objectCson["120"];
+    const unpackedMethods: any[] = [];
+    if (objectCson["125"] != undefined) {
+      for (const item of objectCson["125"]) {
+        unpackedMethods.push(
+          _MethodDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedActions: any[] = [];
+    if (objectCson["126"] != undefined) {
+      for (const item of objectCson["126"]) {
+        unpackedActions.push(
+          _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const baseTypeValue = objectCson["130"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedExtendedBy: any[] = [];
-    if (objectCson["121"] != undefined) {
-      for (const item of objectCson["121"]) {
+    if (objectCson["131"] != undefined) {
+      for (const item of objectCson["131"]) {
         unpackedExtendedBy.push(Number(item));
       }
     }
     const unpackedInherits: any[] = [];
-    if (objectCson["122"] != undefined) {
-      for (const item of objectCson["122"]) {
+    if (objectCson["132"] != undefined) {
+      for (const item of objectCson["132"]) {
         unpackedInherits.push(Number(item));
       }
     }
     const unpackedInheritedBy: any[] = [];
-    if (objectCson["123"] != undefined) {
-      for (const item of objectCson["123"]) {
+    if (objectCson["133"] != undefined) {
+      for (const item of objectCson["133"]) {
         unpackedInheritedBy.push(Number(item));
+      }
+    }
+    const unpackedEnumTypes: any[] = [];
+    if (objectCson["150"] != undefined) {
+      for (const item of objectCson["150"]) {
+        unpackedEnumTypes.push(Number(item));
+      }
+    }
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectCson["151"] != undefined) {
+      for (const item of objectCson["151"]) {
+        unpackedBaseEnumTypes.push(Number(item));
       }
     }
     const iconValue = objectCson["102"];
@@ -2789,14 +3281,18 @@ export class StructDefinition extends BuiltinDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new StructDefinition({
       type: Number(objectCson["100"]),
-      properties: unpackedProperties,
       isFrozen: objectCson["110"],
       isAbstract: objectCson["111"],
       isExtensible: objectCson["112"],
+      properties: unpackedProperties,
+      methods: unpackedMethods,
+      actions: unpackedActions,
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
@@ -2835,6 +3331,9 @@ export class StructDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    objectProto.isFrozen = object.isFrozen;
+    objectProto.isAbstract = object.isAbstract;
+    objectProto.isExtensible = object.isExtensible;
     if (object.properties) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
@@ -2842,9 +3341,20 @@ export class StructDefinition extends BuiltinDefinition {
       }
       objectProto.properties = packedProperties;
     }
-    objectProto.isFrozen = object.isFrozen;
-    objectProto.isAbstract = object.isAbstract;
-    objectProto.isExtensible = object.isExtensible;
+    if (object.methods) {
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.toProto());
+      }
+      objectProto.methods = packedMethods;
+    }
+    if (object.actions) {
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.toProto());
+      }
+      objectProto.actions = packedActions;
+    }
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as StructTypeProto;
     }
@@ -2869,6 +3379,20 @@ export class StructDefinition extends BuiltinDefinition {
       }
       objectProto.inheritedBy = packedInheritedBy;
     }
+    if (object.enumTypes) {
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.enumTypes = packedEnumTypes;
+    }
+    if (object.baseEnumTypes) {
+      const packedBaseEnumTypes: any[] = [];
+      for (const item of object.baseEnumTypes) {
+        packedBaseEnumTypes.push(Number(item) as EnumTypeProto);
+      }
+      objectProto.baseEnumTypes = packedBaseEnumTypes;
+    }
     return objectProto as StructDefinitionProto;
   }
 
@@ -2882,12 +3406,34 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.METHOD_DEFINITION
+    ] as typeof MethodDefinition;
+    const _ActionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.ACTION_DEFINITION
+    ] as typeof ActionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
           _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedMethods: any[] = [];
+    if (objectProto.methods) {
+      for (const item of objectProto.methods) {
+        unpackedMethods.push(
+          _MethodDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedActions: any[] = [];
+    if (objectProto.actions) {
+      for (const item of objectProto.actions) {
+        unpackedActions.push(
+          _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -2909,17 +3455,33 @@ export class StructDefinition extends BuiltinDefinition {
         unpackedInheritedBy.push(Number(item) as StructType);
       }
     }
+    const unpackedEnumTypes: any[] = [];
+    if (objectProto.enumTypes) {
+      for (const item of objectProto.enumTypes) {
+        unpackedEnumTypes.push(Number(item) as EnumType);
+      }
+    }
+    const unpackedBaseEnumTypes: any[] = [];
+    if (objectProto.baseEnumTypes) {
+      for (const item of objectProto.baseEnumTypes) {
+        unpackedBaseEnumTypes.push(Number(item) as EnumType);
+      }
+    }
     return new StructDefinition({
       type: Number(objectProto.type) as StructType,
-      properties: unpackedProperties,
       isFrozen: objectProto.isFrozen,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
+      properties: unpackedProperties,
+      methods: unpackedMethods,
+      actions: unpackedActions,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as StructType) : null,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
+      enumTypes: unpackedEnumTypes,
+      baseEnumTypes: unpackedBaseEnumTypes,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:

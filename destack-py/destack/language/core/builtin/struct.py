@@ -15,7 +15,7 @@ from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.proto import AnyStructProto
 from destack.utils.func import get_superclasses
 
-from .common import StructType
+from .common import EnumType, StructType
 from .object import (
     BuiltinObject,
     _process_object_cls,
@@ -23,7 +23,7 @@ from .object import (
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
-    from destack.language import Cson, MethodDefinition, StructDefinition
+    from destack.language import ActionDefinition, Cson, MethodDefinition, StructDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -35,9 +35,11 @@ type_ = type
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_struct(
     struct_type: StructType | None,
+    *,
     frozen: bool = False,
     is_abstract: bool = False,
     is_extensible: bool = False,
+    enum_types: tuple[EnumType, ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
 
@@ -57,12 +59,16 @@ def builtin_struct(
         cls.__is_abstract__ = is_abstract
         cls.__is_extensible__ = is_extensible
 
+        # enum types
+        cls.__base_enum_types__ = tuple(enum_types)
+
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
             raise ValueError(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
 
+        # process class
         cls, _ = _process_object_cls(
             cls=cast(type["Struct"], cls),
             object_type=struct_type,
@@ -102,14 +108,16 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]
-    __is_struct__: ClassVar[bool] = True
-
     __definition__: ClassVar["StructDefinition"]
 
+    # flags
+    __is_struct__: ClassVar[bool] = True
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
     """Whether this Struct can be extended by custom Structs."""
     __is_extensible__: ClassVar[bool] = False
+
+    # inheritance
     """The base type this Struct extends (directly)."""
     __base_type__: ClassVar[StructType | None] = None
     """Structs that extend this Struct type (directly)."""
@@ -119,8 +127,15 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
     """Structs that extend this Struct type (directly and indirectly)."""
     __inherited_by__: ClassVar[tuple[StructType, ...]] = ()
 
+    # content
     """The methods for this Struct type."""
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
+    """The actions for this Struct type."""
+    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+
+    # enum
+    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
     def __eq__(self, other: Any):
         """Equals the Struct contents."""
