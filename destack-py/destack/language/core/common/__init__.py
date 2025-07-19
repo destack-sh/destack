@@ -46,7 +46,7 @@ from .query import (
     SortMode,
     SortType,
 )
-from .space import Space, SpaceStatus
+from .space import Space, SpaceStatus, create_space
 from .struct import CustomStruct, DatumMutable
 from .text import (
     Text,
@@ -153,6 +153,7 @@ __all__ = [
     "TypeFormat",
     "ValidationError",
     "Value",
+    "create_space",
     "icon",
     "markdown_to_text",
     "pack_value",
