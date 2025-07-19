@@ -1,5 +1,4 @@
 from .action import Action, ActionDefinition
-from .constraint import Constraint, ConstraintDefinition
 from .definition import (
     BuiltinDefinition,
     ConstantDefinition,
@@ -12,7 +11,7 @@ from .definition import (
 )
 from .enum import CustomEnum, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .index import Index, IndexDefinition
+from .integrity import Constraint, ConstraintDefinition, Index, IndexDefinition
 from .method import Method, MethodDefinition
 from .migration import (
     Migration,

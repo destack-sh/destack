@@ -66,8 +66,8 @@ export abstract class InputView extends View {
   /**
    * The (root) Entity that is being instantiated.
    */
-  abstract get instantiationRoot(): Entity | null;
-  declare readonly instantiationRootPtr: NodeReference | null;
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).

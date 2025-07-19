@@ -12,7 +12,7 @@ from .graph import (
     expand_node_types,
 )
 from .oracle import WORLD_ORACLE, Oracle, WorldOracle
-from .render import Aliasing, Renderer, RenderOptions, get_active_aliasing
+from .render import Aliasing, get_active_aliasing
 from .session import Session
 from .store import EntityStore, EventStore, LiveStore, Store
 
@@ -31,8 +31,6 @@ __all__ = [
     "Oracle",
     "QueryConnection",
     "QueryContainer",
-    "RenderOptions",
-    "Renderer",
     "Session",
     "Store",
     "Supergraph",

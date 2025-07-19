@@ -1825,6 +1825,8 @@ def _generate_file(
         "activeSession",
         "ACTIVE_SPACE",
         "activeSpace",
+        "ACTIVE_BRANCH",
+        "activeBranch",
         "ACTIVE_SNAPSHOT",
         "activeSnapshot",
     }
@@ -1834,6 +1836,8 @@ def _generate_file(
             "activeSession",
             "ACTIVE_SPACE",
             "activeSpace",
+            "ACTIVE_BRANCH",
+            "activeBranch",
             "ACTIVE_SNAPSHOT",
             "activeSnapshot",
         )

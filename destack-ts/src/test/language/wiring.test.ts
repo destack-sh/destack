@@ -1,5 +1,4 @@
 import {
-  ACTIVE_SPACE,
   EventCursor,
   Folder,
   Join,
@@ -7,14 +6,13 @@ import {
   NodeReference,
   NodeType,
   Query,
-  Region,
   Session,
   Space,
-  SpaceStatus,
   User,
   UserStatus,
 } from "@destack/language";
 import { NodeReferenceProto, QueryProto, UserProto } from "@destack/proto";
+import { createAndActivateSpace } from "@destack/test/conftest";
 import { uuid4 } from "@destack/utils";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 
@@ -23,13 +21,7 @@ let session: Session;
 beforeEach(async () => {
   session = new Session({ epoch: 1 });
   await session.open();
-  const space = new Space({
-    name: "My Space",
-    slug: "my-space",
-    status: SpaceStatus.ACTIVE,
-    region: Region.ZURICH,
-  });
-  ACTIVE_SPACE.set(space);
+  const { space } = createAndActivateSpace({ session });
 });
 
 afterEach(async () => {

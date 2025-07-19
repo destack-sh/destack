@@ -1,10 +1,7 @@
 import contextvars
-import dataclasses
-from collections.abc import Collection, Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping
 from typing import (
     TYPE_CHECKING,
-    Any,
     assert_never,
     cast,
 )
@@ -16,13 +13,8 @@ from opentelemetry import trace
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    NODE_TYPES,
-    BuiltinObject,
     Node,
     NodeReference,
-    NodeType,
-    PropertyDeclaration,
-    StructType,
 )
 from .graph import Supergraph
 
@@ -31,25 +23,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-@dataclass(slots=True)
-class RenderOptions:
-    aliasing: "Aliasing"
-    include_properties: Mapping[NodeType | StructType, Collection[PropertyDeclaration]] | None = (
-        None
-    )
-    exclude_properties: Mapping[NodeType | StructType, Collection[PropertyDeclaration]] | None = (
-        None
-    )
-    node_types: Collection[NodeType] = NODE_TYPES
-    # formatting
-    statement_separator: str = "\n"
-    format: bool = True
-    line_length: int = 100
-
-    def replace(self, **kwargs) -> "RenderOptions":
-        return dataclasses.replace(self, **kwargs)
 
 
 class Aliasing:
@@ -167,50 +140,3 @@ ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVa
 
 def get_active_aliasing() -> Aliasing | None:
     return ACTIVE_ALIASING.get(None)
-
-
-class Renderer:
-    """A renderer to render related objects into code(ish)."""
-
-    def __init__(self, options: RenderOptions):
-        self.options = options
-        self.aliasing = options.aliasing
-
-    def __str__(self) -> str:
-        return f"aliases={len(self.aliasing._node_by_alias)}"
-
-    def __repr__(self) -> str:
-        return f"<Renderer {self}>"
-
-    def render_kwargs(self, **kwargs: Any) -> str:
-        """Renders kwargs into a string."""
-        return ", ".join(f"{k}={v}" for k, v in kwargs.items())
-
-    def render_args(self, *args: Any) -> str:
-        """Renders args into a string."""
-        return ", ".join(a for a in args if a is not None)
-
-    def render_builtin_object(
-        self, obj: BuiltinObject, options: RenderOptions | None = None
-    ) -> str:
-        """Renders the given object into an expression (incl. inlined children for node)."""
-        raise NotImplementedError
-
-    def render_expression(
-        self,
-        value: BuiltinObject | PropertyDeclaration,
-        as_ref: bool = False,
-        format: bool = False,
-    ) -> str:
-        """Renders a value into an expression."""
-        raise NotImplementedError
-
-    def render_statement(
-        self,
-        *nodes: Node,
-        append: bool = True,
-        format: bool = False,
-        options: RenderOptions | None = None,
-    ) -> str:
-        """Renders the given objects to a Python block that defines those objects."""
-        raise NotImplementedError
