@@ -19,7 +19,7 @@ export async function executeAppend(options: {
     const store = tx.objectStore(table.name);
     const eventValue = new Value({
       type: NODE_TYPE_SCALAR_BY_TYPE[nodePtr.type],
-      value: event.toValue(),
+      value: event.toCson(),
     });
     const row = packEventRow(eventValue);
     promises.push(store.put(row));

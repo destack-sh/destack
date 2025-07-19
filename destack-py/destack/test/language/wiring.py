@@ -41,13 +41,13 @@ def test_roundtrip_node_reference(session: Session, space: Space):
         f"{unpacked_node_ref.hash()} != {node_ref.hash()}"
     )
 
-    # value
-    node_ref_value = node_ref.to_value()
-    node_ref_value_str = json.dumps(node_ref_value, indent=2)
-    unpacked_node_ref_value = json.loads(node_ref_value_str)
-    unpacked_node_ref = NodeReference.from_value(unpacked_node_ref_value)
+    # cson
+    node_ref_cson = node_ref.to_cson()
+    node_ref_cson_str = json.dumps(node_ref_cson, indent=2)
+    unpacked_node_ref_cson = json.loads(node_ref_cson_str)
+    unpacked_node_ref = NodeReference.from_cson(unpacked_node_ref_cson)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
-    assert unpacked_node_ref.to_value() is unpacked_node_ref_value  # cached (frozen Struct)
+    assert unpacked_node_ref.to_cson() is unpacked_node_ref_cson  # cached (frozen Struct)
     assert unpacked_node_ref.hash() == node_ref.hash(), (
         f"{unpacked_node_ref.hash()} != {node_ref.hash()}"
     )
@@ -73,13 +73,13 @@ def test_roundtrip_query_proto(session: Session, space: Space):
     assert unpacked_query.to_proto() is unpacked_query_data  # cached (frozen Struct)
     assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
-    # value
-    query_value = query.to_value()
-    query_value_str = json.dumps(query_value, indent=2)
-    unpacked_query_value = json.loads(query_value_str)
-    unpacked_query = Query.from_value(unpacked_query_value)
+    # cson
+    query_cson = query.to_cson()
+    query_cson_str = json.dumps(query_cson, indent=2)
+    unpacked_query_cson = json.loads(query_cson_str)
+    unpacked_query = Query.from_cson(unpacked_query_cson)
     assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
-    assert unpacked_query.to_value() is unpacked_query_value  # cached (frozen Struct)
+    assert unpacked_query.to_cson() is unpacked_query_cson  # cached (frozen Struct)
     assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
 
@@ -101,11 +101,11 @@ def test_roundtrip_user_proto(session: Session, space: Space):
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
     assert unpacked_user.hash() == user.hash(), f"{unpacked_user.hash()} != {user.hash()}"
 
-    # value
-    user_value = user.to_value()
-    user_value_str = json.dumps(user_value, indent=2)
-    unpacked_user_value = json.loads(user_value_str)
-    unpacked_user = User.from_value(unpacked_user_value)
+    # cson
+    user_cson = user.to_cson()
+    user_cson_str = json.dumps(user_cson, indent=2)
+    unpacked_user_cson = json.loads(user_cson_str)
+    unpacked_user = User.from_cson(unpacked_user_cson)
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
     assert unpacked_user.hash() == user.hash(), f"{unpacked_user.hash()} != {user.hash()}"
 
@@ -124,10 +124,10 @@ def test_roundtrip_builtin_object(
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
-    # value
-    packed_obj_value = obj.to_value()
-    packed_obj_value_str = json.dumps(packed_obj_value, indent=2)
-    unpacked_obj_value = json.loads(packed_obj_value_str)
-    unpacked_obj = obj.from_value(unpacked_obj_value, _graph=GenericGraph(session.supergraph))
+    # cson
+    packed_obj_cson = obj.to_cson()
+    packed_obj_cson_str = json.dumps(packed_obj_cson, indent=2)
+    unpacked_obj_cson = json.loads(packed_obj_cson_str)
+    unpacked_obj = obj.from_cson(unpacked_obj_cson, _graph=GenericGraph(session.supergraph))
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"

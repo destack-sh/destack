@@ -296,7 +296,7 @@ export class NodeDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -453,7 +453,7 @@ export class NodeDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -822,180 +822,180 @@ export class NodeDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = NodeDefinition.__packValue__(this);
+      this._cson = NodeDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: NodeDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20002;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: NodeDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20002;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    objectValue["110"] = object.isAbstract;
-    objectValue["111"] = object.isExtensible;
-    objectValue["112"] = object.isFrozen;
+    objectCson["110"] = object.isAbstract;
+    objectCson["111"] = object.isExtensible;
+    objectCson["112"] = object.isFrozen;
     if (object.baseType != null) {
-      objectValue["120"] = object.baseType;
+      objectCson["120"] = object.baseType;
     }
     if (object.extendedBy.length > 0) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(item);
       }
-      objectValue["121"] = packedExtendedBy;
+      objectCson["121"] = packedExtendedBy;
     }
     if (object.inherits.length > 0) {
       const packedInherits: any[] = [];
       for (const item of object.inherits) {
         packedInherits.push(item);
       }
-      objectValue["122"] = packedInherits;
+      objectCson["122"] = packedInherits;
     }
     if (object.inheritedBy.length > 0) {
       const packedInheritedBy: any[] = [];
       for (const item of object.inheritedBy) {
         packedInheritedBy.push(item);
       }
-      objectValue["123"] = packedInheritedBy;
+      objectCson["123"] = packedInheritedBy;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["124"] = packedBaseTraits;
+      objectCson["124"] = packedBaseTraits;
     }
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
       }
-      objectValue["125"] = packedTraits;
+      objectCson["125"] = packedTraits;
     }
     if (object.parentTypes.length > 0) {
       const packedParentTypes: any[] = [];
       for (const item of object.parentTypes) {
         packedParentTypes.push(item);
       }
-      objectValue["130"] = packedParentTypes;
+      objectCson["130"] = packedParentTypes;
     }
     if (object.childTypes.length > 0) {
       const packedChildTypes: any[] = [];
       for (const item of object.childTypes) {
         packedChildTypes.push(item);
       }
-      objectValue["131"] = packedChildTypes;
+      objectCson["131"] = packedChildTypes;
     }
     if (object.ancestorTypes.length > 0) {
       const packedAncestorTypes: any[] = [];
       for (const item of object.ancestorTypes) {
         packedAncestorTypes.push(item);
       }
-      objectValue["132"] = packedAncestorTypes;
+      objectCson["132"] = packedAncestorTypes;
     }
     if (object.descendantTypes.length > 0) {
       const packedDescendantTypes: any[] = [];
       for (const item of object.descendantTypes) {
         packedDescendantTypes.push(item);
       }
-      objectValue["133"] = packedDescendantTypes;
+      objectCson["133"] = packedDescendantTypes;
     }
     if (object.expectedParentTypes.length > 0) {
       const packedExpectedParentTypes: any[] = [];
       for (const item of object.expectedParentTypes) {
         packedExpectedParentTypes.push(item);
       }
-      objectValue["140"] = packedExpectedParentTypes;
+      objectCson["140"] = packedExpectedParentTypes;
     }
     if (object.expectedChildTypes.length > 0) {
       const packedExpectedChildTypes: any[] = [];
       for (const item of object.expectedChildTypes) {
         packedExpectedChildTypes.push(item);
       }
-      objectValue["141"] = packedExpectedChildTypes;
+      objectCson["141"] = packedExpectedChildTypes;
     }
     if (object.expectedAncestorTypes.length > 0) {
       const packedExpectedAncestorTypes: any[] = [];
       for (const item of object.expectedAncestorTypes) {
         packedExpectedAncestorTypes.push(item);
       }
-      objectValue["142"] = packedExpectedAncestorTypes;
+      objectCson["142"] = packedExpectedAncestorTypes;
     }
     if (object.expectedDescendantTypes.length > 0) {
       const packedExpectedDescendantTypes: any[] = [];
       for (const item of object.expectedDescendantTypes) {
         packedExpectedDescendantTypes.push(item);
       }
-      objectValue["143"] = packedExpectedDescendantTypes;
+      objectCson["143"] = packedExpectedDescendantTypes;
     }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
       for (const item of object.eventTypes) {
         packedEventTypes.push(item);
       }
-      objectValue["150"] = packedEventTypes;
+      objectCson["150"] = packedEventTypes;
     }
     if (object.baseEventTypes.length > 0) {
       const packedBaseEventTypes: any[] = [];
       for (const item of object.baseEventTypes) {
         packedBaseEventTypes.push(item);
       }
-      objectValue["151"] = packedBaseEventTypes;
+      objectCson["151"] = packedBaseEventTypes;
     }
     if (object.primaryStoreKeys.length > 0) {
       const packedPrimaryStoreKeys: any[] = [];
       for (const item of object.primaryStoreKeys) {
         packedPrimaryStoreKeys.push(item);
       }
-      objectValue["160"] = packedPrimaryStoreKeys;
+      objectCson["160"] = packedPrimaryStoreKeys;
     }
     if (object.storeDomain != null) {
-      objectValue["161"] = object.storeDomain;
+      objectCson["161"] = object.storeDomain;
     }
     if (object.indexes.length > 0) {
       const packedIndexes: any[] = [];
       for (const item of object.indexes) {
-        packedIndexes.push(item.toValue());
+        packedIndexes.push(item.toCson());
       }
-      objectValue["170"] = packedIndexes;
+      objectCson["170"] = packedIndexes;
     }
     if (object.constraints.length > 0) {
       const packedConstraints: any[] = [];
       for (const item of object.constraints) {
-        packedConstraints.push(item.toValue());
+        packedConstraints.push(item.toCson());
       }
-      objectValue["171"] = packedConstraints;
+      objectCson["171"] = packedConstraints;
     }
     if (object.permissions.length > 0) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
-        packedPermissions.push(item.toValue());
+        packedPermissions.push(item.toCson());
       }
-      objectValue["172"] = packedPermissions;
+      objectCson["172"] = packedPermissions;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1015,150 +1015,150 @@ export class NodeDefinition extends BuiltinDefinition {
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const baseTypeValue = objectValue["120"];
+    const baseTypeValue = objectCson["120"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedExtendedBy: any[] = [];
-    if (objectValue["121"] != undefined) {
-      for (const item of objectValue["121"]) {
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
         unpackedExtendedBy.push(Number(item));
       }
     }
     const unpackedInherits: any[] = [];
-    if (objectValue["122"] != undefined) {
-      for (const item of objectValue["122"]) {
+    if (objectCson["122"] != undefined) {
+      for (const item of objectCson["122"]) {
         unpackedInherits.push(Number(item));
       }
     }
     const unpackedInheritedBy: any[] = [];
-    if (objectValue["123"] != undefined) {
-      for (const item of objectValue["123"]) {
+    if (objectCson["123"] != undefined) {
+      for (const item of objectCson["123"]) {
         unpackedInheritedBy.push(Number(item));
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["124"] != undefined) {
-      for (const item of objectValue["124"]) {
+    if (objectCson["124"] != undefined) {
+      for (const item of objectCson["124"]) {
         unpackedBaseTraits.push(Number(item));
       }
     }
     const unpackedTraits: any[] = [];
-    if (objectValue["125"] != undefined) {
-      for (const item of objectValue["125"]) {
+    if (objectCson["125"] != undefined) {
+      for (const item of objectCson["125"]) {
         unpackedTraits.push(Number(item));
       }
     }
     const unpackedParentTypes: any[] = [];
-    if (objectValue["130"] != undefined) {
-      for (const item of objectValue["130"]) {
+    if (objectCson["130"] != undefined) {
+      for (const item of objectCson["130"]) {
         unpackedParentTypes.push(Number(item));
       }
     }
     const unpackedChildTypes: any[] = [];
-    if (objectValue["131"] != undefined) {
-      for (const item of objectValue["131"]) {
+    if (objectCson["131"] != undefined) {
+      for (const item of objectCson["131"]) {
         unpackedChildTypes.push(Number(item));
       }
     }
     const unpackedAncestorTypes: any[] = [];
-    if (objectValue["132"] != undefined) {
-      for (const item of objectValue["132"]) {
+    if (objectCson["132"] != undefined) {
+      for (const item of objectCson["132"]) {
         unpackedAncestorTypes.push(Number(item));
       }
     }
     const unpackedDescendantTypes: any[] = [];
-    if (objectValue["133"] != undefined) {
-      for (const item of objectValue["133"]) {
+    if (objectCson["133"] != undefined) {
+      for (const item of objectCson["133"]) {
         unpackedDescendantTypes.push(Number(item));
       }
     }
     const unpackedExpectedParentTypes: any[] = [];
-    if (objectValue["140"] != undefined) {
-      for (const item of objectValue["140"]) {
+    if (objectCson["140"] != undefined) {
+      for (const item of objectCson["140"]) {
         unpackedExpectedParentTypes.push(Number(item));
       }
     }
     const unpackedExpectedChildTypes: any[] = [];
-    if (objectValue["141"] != undefined) {
-      for (const item of objectValue["141"]) {
+    if (objectCson["141"] != undefined) {
+      for (const item of objectCson["141"]) {
         unpackedExpectedChildTypes.push(Number(item));
       }
     }
     const unpackedExpectedAncestorTypes: any[] = [];
-    if (objectValue["142"] != undefined) {
-      for (const item of objectValue["142"]) {
+    if (objectCson["142"] != undefined) {
+      for (const item of objectCson["142"]) {
         unpackedExpectedAncestorTypes.push(Number(item));
       }
     }
     const unpackedExpectedDescendantTypes: any[] = [];
-    if (objectValue["143"] != undefined) {
-      for (const item of objectValue["143"]) {
+    if (objectCson["143"] != undefined) {
+      for (const item of objectCson["143"]) {
         unpackedExpectedDescendantTypes.push(Number(item));
       }
     }
     const unpackedEventTypes: any[] = [];
-    if (objectValue["150"] != undefined) {
-      for (const item of objectValue["150"]) {
+    if (objectCson["150"] != undefined) {
+      for (const item of objectCson["150"]) {
         unpackedEventTypes.push(Number(item));
       }
     }
     const unpackedBaseEventTypes: any[] = [];
-    if (objectValue["151"] != undefined) {
-      for (const item of objectValue["151"]) {
+    if (objectCson["151"] != undefined) {
+      for (const item of objectCson["151"]) {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
     const unpackedPrimaryStoreKeys: any[] = [];
-    if (objectValue["160"] != undefined) {
-      for (const item of objectValue["160"]) {
+    if (objectCson["160"] != undefined) {
+      for (const item of objectCson["160"]) {
         unpackedPrimaryStoreKeys.push(Number(item));
       }
     }
-    const storeDomainValue = objectValue["161"];
+    const storeDomainValue = objectCson["161"];
     const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
     const unpackedIndexes: any[] = [];
-    if (objectValue["170"] != undefined) {
-      for (const item of objectValue["170"]) {
+    if (objectCson["170"] != undefined) {
+      for (const item of objectCson["170"]) {
         unpackedIndexes.push(
-          _IndexDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedConstraints: any[] = [];
-    if (objectValue["171"] != undefined) {
-      for (const item of objectValue["171"]) {
+    if (objectCson["171"] != undefined) {
+      for (const item of objectCson["171"]) {
         unpackedConstraints.push(
-          _ConstraintDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedPermissions: any[] = [];
-    if (objectValue["172"] != undefined) {
-      for (const item of objectValue["172"]) {
+    if (objectCson["172"] != undefined) {
+      for (const item of objectCson["172"]) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new NodeDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      isAbstract: objectValue["110"],
-      isExtensible: objectValue["111"],
-      isFrozen: objectValue["112"],
+      isAbstract: objectCson["110"],
+      isExtensible: objectCson["111"],
+      isFrozen: objectCson["112"],
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
@@ -1180,23 +1180,23 @@ export class NodeDefinition extends BuiltinDefinition {
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
       permissions: unpackedPermissions,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeDefinition {
-    return NodeDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return NodeDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): NodeDefinitionProto {
@@ -1709,7 +1709,7 @@ export class TraitDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1797,7 +1797,7 @@ export class TraitDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1980,89 +1980,89 @@ export class TraitDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = TraitDefinition.__packValue__(this);
+      this._cson = TraitDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: TraitDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20004;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: TraitDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20004;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    objectValue["110"] = object.alias;
-    objectValue["111"] = object.isExtensible;
+    objectCson["110"] = object.alias;
+    objectCson["111"] = object.isExtensible;
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
       }
-      objectValue["120"] = packedTraits;
+      objectCson["120"] = packedTraits;
     }
     if (object.baseTraits.length > 0) {
       const packedBaseTraits: any[] = [];
       for (const item of object.baseTraits) {
         packedBaseTraits.push(item);
       }
-      objectValue["121"] = packedBaseTraits;
+      objectCson["121"] = packedBaseTraits;
     }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
       for (const item of object.eventTypes) {
         packedEventTypes.push(item);
       }
-      objectValue["140"] = packedEventTypes;
+      objectCson["140"] = packedEventTypes;
     }
     if (object.baseEventTypes.length > 0) {
       const packedBaseEventTypes: any[] = [];
       for (const item of object.baseEventTypes) {
         packedBaseEventTypes.push(item);
       }
-      objectValue["141"] = packedBaseEventTypes;
+      objectCson["141"] = packedBaseEventTypes;
     }
     if (object.indexes.length > 0) {
       const packedIndexes: any[] = [];
       for (const item of object.indexes) {
-        packedIndexes.push(item.toValue());
+        packedIndexes.push(item.toCson());
       }
-      objectValue["160"] = packedIndexes;
+      objectCson["160"] = packedIndexes;
     }
     if (object.constraints.length > 0) {
       const packedConstraints: any[] = [];
       for (const item of object.constraints) {
-        packedConstraints.push(item.toValue());
+        packedConstraints.push(item.toCson());
       }
-      objectValue["161"] = packedConstraints;
+      objectCson["161"] = packedConstraints;
     }
     if (object.permissions.length > 0) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
-        packedPermissions.push(item.toValue());
+        packedPermissions.push(item.toCson());
       }
-      objectValue["162"] = packedPermissions;
+      objectCson["162"] = packedPermissions;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2082,73 +2082,73 @@ export class TraitDefinition extends BuiltinDefinition {
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedTraits: any[] = [];
-    if (objectValue["120"] != undefined) {
-      for (const item of objectValue["120"]) {
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
         unpackedTraits.push(Number(item));
       }
     }
     const unpackedBaseTraits: any[] = [];
-    if (objectValue["121"] != undefined) {
-      for (const item of objectValue["121"]) {
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
         unpackedBaseTraits.push(Number(item));
       }
     }
     const unpackedEventTypes: any[] = [];
-    if (objectValue["140"] != undefined) {
-      for (const item of objectValue["140"]) {
+    if (objectCson["140"] != undefined) {
+      for (const item of objectCson["140"]) {
         unpackedEventTypes.push(Number(item));
       }
     }
     const unpackedBaseEventTypes: any[] = [];
-    if (objectValue["141"] != undefined) {
-      for (const item of objectValue["141"]) {
+    if (objectCson["141"] != undefined) {
+      for (const item of objectCson["141"]) {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
     const unpackedIndexes: any[] = [];
-    if (objectValue["160"] != undefined) {
-      for (const item of objectValue["160"]) {
+    if (objectCson["160"] != undefined) {
+      for (const item of objectCson["160"]) {
         unpackedIndexes.push(
-          _IndexDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedConstraints: any[] = [];
-    if (objectValue["161"] != undefined) {
-      for (const item of objectValue["161"]) {
+    if (objectCson["161"] != undefined) {
+      for (const item of objectCson["161"]) {
         unpackedConstraints.push(
-          _ConstraintDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedPermissions: any[] = [];
-    if (objectValue["162"] != undefined) {
-      for (const item of objectValue["162"]) {
+    if (objectCson["162"] != undefined) {
+      for (const item of objectCson["162"]) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new TraitDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      alias: objectValue["110"],
-      isExtensible: objectValue["111"],
+      alias: objectCson["110"],
+      isExtensible: objectCson["111"],
       traits: unpackedTraits,
       baseTraits: unpackedBaseTraits,
       eventTypes: unpackedEventTypes,
@@ -2156,23 +2156,23 @@ export class TraitDefinition extends BuiltinDefinition {
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
       permissions: unpackedPermissions,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TraitDefinition {
-    return TraitDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return TraitDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TraitDefinitionProto {
@@ -2470,7 +2470,7 @@ export class StructDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -2545,7 +2545,7 @@ export class StructDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -2684,65 +2684,65 @@ export class StructDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StructDefinition.__packValue__(this);
+      this._cson = StructDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StructDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20100;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: StructDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20100;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    objectValue["110"] = object.isFrozen;
-    objectValue["111"] = object.isAbstract;
-    objectValue["112"] = object.isExtensible;
+    objectCson["110"] = object.isFrozen;
+    objectCson["111"] = object.isAbstract;
+    objectCson["112"] = object.isExtensible;
     if (object.baseType != null) {
-      objectValue["120"] = object.baseType;
+      objectCson["120"] = object.baseType;
     }
     if (object.extendedBy.length > 0) {
       const packedExtendedBy: any[] = [];
       for (const item of object.extendedBy) {
         packedExtendedBy.push(item);
       }
-      objectValue["121"] = packedExtendedBy;
+      objectCson["121"] = packedExtendedBy;
     }
     if (object.inherits.length > 0) {
       const packedInherits: any[] = [];
       for (const item of object.inherits) {
         packedInherits.push(item);
       }
-      objectValue["122"] = packedInherits;
+      objectCson["122"] = packedInherits;
     }
     if (object.inheritedBy.length > 0) {
       const packedInheritedBy: any[] = [];
       for (const item of object.inheritedBy) {
         packedInheritedBy.push(item);
       }
-      objectValue["123"] = packedInheritedBy;
+      objectCson["123"] = packedInheritedBy;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2753,73 +2753,67 @@ export class StructDefinition extends BuiltinDefinition {
     ] as typeof PropertyDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const baseTypeValue = objectValue["120"];
+    const baseTypeValue = objectCson["120"];
     const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedExtendedBy: any[] = [];
-    if (objectValue["121"] != undefined) {
-      for (const item of objectValue["121"]) {
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
         unpackedExtendedBy.push(Number(item));
       }
     }
     const unpackedInherits: any[] = [];
-    if (objectValue["122"] != undefined) {
-      for (const item of objectValue["122"]) {
+    if (objectCson["122"] != undefined) {
+      for (const item of objectCson["122"]) {
         unpackedInherits.push(Number(item));
       }
     }
     const unpackedInheritedBy: any[] = [];
-    if (objectValue["123"] != undefined) {
-      for (const item of objectValue["123"]) {
+    if (objectCson["123"] != undefined) {
+      for (const item of objectCson["123"]) {
         unpackedInheritedBy.push(Number(item));
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new StructDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      isFrozen: objectValue["110"],
-      isAbstract: objectValue["111"],
-      isExtensible: objectValue["112"],
+      isFrozen: objectCson["110"],
+      isAbstract: objectCson["111"],
+      isExtensible: objectCson["112"],
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
       inheritedBy: unpackedInheritedBy,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinition {
-    return StructDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StructDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StructDefinitionProto {
@@ -3017,7 +3011,7 @@ export class EnumDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -3060,7 +3054,7 @@ export class EnumDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -3142,38 +3136,38 @@ export class EnumDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = EnumDefinition.__packValue__(this);
+      this._cson = EnumDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: EnumDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20200;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: EnumDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20200;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.options.length > 0) {
       const packedOptions: any[] = [];
       for (const item of object.options) {
-        packedOptions.push(item.toValue());
+        packedOptions.push(item.toCson());
       }
-      objectValue["104"] = packedOptions;
+      objectCson["104"] = packedOptions;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3184,40 +3178,40 @@ export class EnumDefinition extends BuiltinDefinition {
     ] as typeof OptionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedOptions: any[] = [];
-    if (objectValue["104"] != undefined) {
-      for (const item of objectValue["104"]) {
+    if (objectCson["104"] != undefined) {
+      for (const item of objectCson["104"]) {
         unpackedOptions.push(
-          _OptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _OptionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new EnumDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       options: unpackedOptions,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): EnumDefinition {
-    return EnumDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return EnumDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): EnumDefinitionProto {
@@ -3518,7 +3512,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -3657,7 +3651,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -3909,87 +3903,87 @@ export class PropertyDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = PropertyDefinition.__packValue__(this);
+      this._cson = PropertyDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: PropertyDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20300;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: PropertyDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20300;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
-    objectValue["104"] = object.object.toValue();
-    objectValue["105"] = object.originalObject.toValue();
+    objectCson["104"] = object.object.toCson();
+    objectCson["105"] = object.originalObject.toCson();
     if (object.groupId != null) {
-      objectValue["106"] = object.groupId;
+      objectCson["106"] = object.groupId;
     }
-    objectValue["110"] = object.cardinality;
-    objectValue["111"] = object.scalarType;
+    objectCson["110"] = object.cardinality;
+    objectCson["111"] = object.scalarType;
     if (object.primitiveType != null) {
-      objectValue["112"] = object.primitiveType;
+      objectCson["112"] = object.primitiveType;
     }
     if (object.enumType != null) {
-      objectValue["113"] = object.enumType;
+      objectCson["113"] = object.enumType;
     }
     if (object.nodeType != null) {
-      objectValue["114"] = object.nodeType;
+      objectCson["114"] = object.nodeType;
     }
     if (object.structType != null) {
-      objectValue["115"] = object.structType;
+      objectCson["115"] = object.structType;
     }
     if (object.keyType != null) {
-      objectValue["116"] = object.keyType.toValue();
+      objectCson["116"] = object.keyType.toCson();
     }
     if (object.value != null) {
-      objectValue["120"] = object.value.toValue();
+      objectCson["120"] = object.value.toCson();
     }
     if (object.valueFactory != null) {
-      objectValue["121"] = object.valueFactory;
+      objectCson["121"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
-      objectValue["130"] = object.collectionConstraint.toValue();
+      objectCson["130"] = object.collectionConstraint.toCson();
     }
     if (object.stringConstraint != null) {
-      objectValue["131"] = object.stringConstraint.toValue();
+      objectCson["131"] = object.stringConstraint.toCson();
     }
     if (object.numberConstraint != null) {
-      objectValue["132"] = object.numberConstraint.toValue();
+      objectCson["132"] = object.numberConstraint.toCson();
     }
     if (object.nodeConstraint != null) {
-      objectValue["133"] = object.nodeConstraint.toValue();
+      objectCson["133"] = object.nodeConstraint.toCson();
     }
     if (object.edgeType != null) {
-      objectValue["140"] = object.edgeType;
+      objectCson["140"] = object.edgeType;
     }
     if (object.cascade != null) {
-      objectValue["141"] = object.cascade;
+      objectCson["141"] = object.cascade;
     }
-    objectValue["150"] = object.isRequired;
-    objectValue["151"] = object.isUnique;
-    objectValue["153"] = object.isReadonly;
-    objectValue["154"] = object.isMain;
-    objectValue["160"] = object.isWired;
-    objectValue["161"] = object.isStored;
-    objectValue["162"] = object.isRepr;
-    objectValue["163"] = object.isHash;
-    objectValue["164"] = object.isEq;
-    objectValue["165"] = object.isManaged;
-    return objectValue;
+    objectCson["150"] = object.isRequired;
+    objectCson["151"] = object.isUnique;
+    objectCson["153"] = object.isReadonly;
+    objectCson["154"] = object.isMain;
+    objectCson["160"] = object.isWired;
+    objectCson["161"] = object.isStored;
+    objectCson["162"] = object.isRepr;
+    objectCson["163"] = object.isHash;
+    objectCson["164"] = object.isEq;
+    objectCson["165"] = object.isManaged;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4013,33 +4007,33 @@ export class PropertyDefinition extends BuiltinDefinition {
       StructType.OBJECT_DEFINITION_REFERENCE
     ] as typeof ObjectDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const groupIdValue = objectValue["106"];
+    const groupIdValue = objectCson["106"];
     const unpackedGroupId = groupIdValue != undefined ? Number(groupIdValue) : null;
-    const primitiveTypeValue = objectValue["112"];
+    const primitiveTypeValue = objectCson["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["113"];
+    const enumTypeValue = objectCson["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["114"];
+    const nodeTypeValue = objectCson["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["115"];
+    const structTypeValue = objectCson["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const keyTypeValue = objectValue["116"];
+    const keyTypeValue = objectCson["116"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromCson(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["120"];
+    const valueValue = objectCson["120"];
     const unpackedValue =
       valueValue != undefined
-        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["121"];
+    const valueFactoryValue = objectCson["121"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["130"];
+    const collectionConstraintValue = objectCson["130"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? _CollectionConstraint.fromValue(
+        ? _CollectionConstraint.fromCson(
             collectionConstraintValue,
             _session,
             _supergraph,
@@ -4047,10 +4041,10 @@ export class PropertyDefinition extends BuiltinDefinition {
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["131"];
+    const stringConstraintValue = objectCson["131"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? _StringConstraint.fromValue(
+        ? _StringConstraint.fromCson(
             stringConstraintValue,
             _session,
             _supergraph,
@@ -4058,10 +4052,10 @@ export class PropertyDefinition extends BuiltinDefinition {
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["132"];
+    const numberConstraintValue = objectCson["132"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? _NumberConstraint.fromValue(
+        ? _NumberConstraint.fromCson(
             numberConstraintValue,
             _session,
             _supergraph,
@@ -4069,41 +4063,41 @@ export class PropertyDefinition extends BuiltinDefinition {
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["133"];
+    const nodeConstraintValue = objectCson["133"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["140"];
+    const edgeTypeValue = objectCson["140"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["141"];
+    const cascadeValue = objectCson["141"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new PropertyDefinition({
-      type: Number(objectValue["100"]),
-      object: _ObjectDefinitionReference.fromValue(
-        objectValue["104"],
+      type: Number(objectCson["100"]),
+      object: _ObjectDefinitionReference.fromCson(
+        objectCson["104"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      originalObject: _ObjectDefinitionReference.fromValue(
-        objectValue["105"],
+      originalObject: _ObjectDefinitionReference.fromCson(
+        objectCson["105"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       groupId: unpackedGroupId,
-      cardinality: Number(objectValue["110"]),
-      scalarType: Number(objectValue["111"]),
+      cardinality: Number(objectCson["110"]),
+      scalarType: Number(objectCson["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
@@ -4117,34 +4111,34 @@ export class PropertyDefinition extends BuiltinDefinition {
       nodeConstraint: unpackedNodeConstraint,
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
-      isRequired: objectValue["150"],
-      isUnique: objectValue["151"],
-      isReadonly: objectValue["153"],
-      isMain: objectValue["154"],
-      isWired: objectValue["160"],
-      isStored: objectValue["161"],
-      isRepr: objectValue["162"],
-      isHash: objectValue["163"],
-      isEq: objectValue["164"],
-      isManaged: objectValue["165"],
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      isRequired: objectCson["150"],
+      isUnique: objectCson["151"],
+      isReadonly: objectCson["153"],
+      isMain: objectCson["154"],
+      isWired: objectCson["160"],
+      isStored: objectCson["161"],
+      isRepr: objectCson["162"],
+      isHash: objectCson["163"],
+      isEq: objectCson["164"],
+      isManaged: objectCson["165"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
-    return PropertyDefinition.__unpackValue__(
-      objectValue,
+    return PropertyDefinition.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -4568,7 +4562,7 @@ export class OptionDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -4606,7 +4600,7 @@ export class OptionDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -4675,69 +4669,63 @@ export class OptionDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = OptionDefinition.__packValue__(this);
+      this._cson = OptionDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: OptionDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20400;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: OptionDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20400;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): OptionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new OptionDefinition({
-      type: Number(objectValue["100"]),
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      type: Number(objectCson["100"]),
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): OptionDefinition {
-    return OptionDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return OptionDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): OptionDefinitionProto {
@@ -4851,7 +4839,7 @@ export class ConstantDefinition extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -4887,7 +4875,7 @@ export class ConstantDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -4945,55 +4933,55 @@ export class ConstantDefinition extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = ConstantDefinition.__packValue__(this);
+      this._cson = ConstantDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: ConstantDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20301;
-    objectValue["101"] = object.name;
+  static __packCson__(object: ConstantDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20301;
+    objectCson["101"] = object.name;
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
-    objectValue["120"] = object.value.toValue();
-    objectValue["130"] = object.isDeferred;
-    return objectValue;
+    objectCson["120"] = object.value.toCson();
+    objectCson["130"] = object.isDeferred;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new ConstantDefinition({
-      name: objectValue["101"],
+      name: objectCson["101"],
       description: unpackedDescription,
-      value: _Value.fromValue(objectValue["120"], _session, _supergraph, _graph, _connection),
-      isDeferred: objectValue["130"],
-      _value: objectValue,
+      value: _Value.fromCson(objectCson["120"], _session, _supergraph, _graph, _connection),
+      isDeferred: objectCson["130"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): ConstantDefinition {
-    return ConstantDefinition.__unpackValue__(
-      objectValue,
+    return ConstantDefinition.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,

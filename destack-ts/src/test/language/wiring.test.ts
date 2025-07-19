@@ -38,12 +38,12 @@ test("roundtrip node reference", () => {
   });
 
   // value
-  const nodeRefValue = nodeRef.toValue();
+  const nodeRefValue = nodeRef.toCson();
   const nodeRefValueStr = JSON.stringify(nodeRefValue, null, 2);
   const unpackedNodeRefValue = JSON.parse(nodeRefValueStr);
-  const unpackedNodeRef = NodeReference.fromValue(unpackedNodeRefValue);
+  const unpackedNodeRef = NodeReference.fromCson(unpackedNodeRefValue);
   expect(unpackedNodeRef.equals(nodeRef)).toBe(true);
-  expect(unpackedNodeRef.toValue()).toEqual(unpackedNodeRefValue);
+  expect(unpackedNodeRef.toCson()).toEqual(unpackedNodeRefValue);
   expect(unpackedNodeRef.hash()).toEqual(nodeRef.hash());
 
   // proto
@@ -66,12 +66,12 @@ test("roundtrip query", () => {
   });
 
   // value
-  const queryValue = query.toValue();
+  const queryValue = query.toCson();
   const queryValueStr = JSON.stringify(queryValue, null, 2);
   const unpackedQueryValue = JSON.parse(queryValueStr);
-  const unpackedQuery = Query.fromValue(unpackedQueryValue);
+  const unpackedQuery = Query.fromCson(unpackedQueryValue);
   expect(unpackedQuery.equals(query)).toBe(true);
-  expect(unpackedQuery.toValue()).toEqual(unpackedQueryValue);
+  expect(unpackedQuery.toCson()).toEqual(unpackedQueryValue);
   expect(unpackedQuery.hash()).toEqual(query.hash());
 
   // proto
@@ -93,10 +93,10 @@ test("roundtrip user", () => {
   });
 
   // value
-  const userValue = user.toValue();
+  const userValue = user.toCson();
   const userValueStr = JSON.stringify(userValue, null, 2);
   const unpackedUserValue = JSON.parse(userValueStr);
-  const unpackedUser = User.fromValue(unpackedUserValue);
+  const unpackedUser = User.fromCson(unpackedUserValue);
   expect(unpackedUser.equals(user)).toBe(true);
   expect(unpackedUser.hash()).toEqual(user.hash());
 

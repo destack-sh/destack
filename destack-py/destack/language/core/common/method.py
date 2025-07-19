@@ -47,8 +47,7 @@ class Method(
     Entity,
 ):
     """
-    An implementation of a unit of work, usually expressed with Code or some tool.
-    May defer to a builtin or some other service in a separate system.
+    A Method is a small piece of logic.
     """
 
     parent: Union["IsScriptable", None] = builtin_property_parent()

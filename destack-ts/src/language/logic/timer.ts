@@ -550,88 +550,76 @@ export class TimerStartedEvent extends TimerEvent {
     return `<TimerStartedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return TimerStartedEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return TimerStartedEvent.__packCson__(this);
   }
 
-  static __packValue__(object: TimerStartedEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 705102;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: TimerStartedEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 705102;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["101"] = object.nodePtr.toValue();
-    return objectValue;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["101"] = object.nodePtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerStartedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new TimerStartedEvent({
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -639,36 +627,30 @@ export class TimerStartedEvent extends TimerEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerStartedEvent {
-    return TimerStartedEvent.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return TimerStartedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TimerStartedEventProto {
@@ -1221,88 +1203,76 @@ export class TimerCompletedEvent extends TimerEvent {
     return `<TimerCompletedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return TimerCompletedEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return TimerCompletedEvent.__packCson__(this);
   }
 
-  static __packValue__(object: TimerCompletedEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 705103;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: TimerCompletedEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 705103;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["101"] = object.nodePtr.toValue();
-    return objectValue;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["101"] = object.nodePtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerCompletedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new TimerCompletedEvent({
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1310,31 +1280,31 @@ export class TimerCompletedEvent extends TimerEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerCompletedEvent {
-    return TimerCompletedEvent.__unpackValue__(
-      objectValue,
+    return TimerCompletedEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -1892,88 +1862,76 @@ export class TimerCancelledEvent extends TimerEvent {
     return `<TimerCancelledEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return TimerCancelledEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return TimerCancelledEvent.__packCson__(this);
   }
 
-  static __packValue__(object: TimerCancelledEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 705104;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: TimerCancelledEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 705104;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["101"] = object.nodePtr.toValue();
-    return objectValue;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["101"] = object.nodePtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerCancelledEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new TimerCancelledEvent({
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1981,31 +1939,31 @@ export class TimerCancelledEvent extends TimerEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TimerCancelledEvent {
-    return TimerCancelledEvent.__unpackValue__(
-      objectValue,
+    return TimerCancelledEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -2701,60 +2659,60 @@ export class Timer extends Entity implements IsSourceable {
     return `<Timer "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Timer.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Timer.__packCson__(this);
   }
 
-  static __packValue__(object: Timer): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 705100;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Timer): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 705100;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
-    objectValue["100"] = object._type;
+    objectCson["100"] = object._type;
     if (object._schedule != null) {
-      objectValue["110"] = object._schedule.toValue();
+      objectCson["110"] = object._schedule.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2762,70 +2720,64 @@ export class Timer extends Entity implements IsSourceable {
   ): Timer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
-    const scheduleValue = objectValue["110"];
+    const scheduleValue = objectCson["110"];
     const unpackedSchedule =
       scheduleValue != undefined
-        ? _Schedule.fromValue(scheduleValue, _session, _supergraph, _graph, _connection)
+        ? _Schedule.fromCson(scheduleValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Timer({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       schedule: unpackedSchedule,
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2833,31 +2785,31 @@ export class Timer extends Entity implements IsSourceable {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Timer {
-    return Timer.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Timer.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TimerProto {

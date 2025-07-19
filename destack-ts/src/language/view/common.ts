@@ -179,7 +179,7 @@ export class Length extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -208,7 +208,7 @@ export class Length extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -254,45 +254,45 @@ export class Length extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Length.__packValue__(this);
+      this._cson = Length.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Length): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800001;
-    objectValue["101"] = object.unit;
-    objectValue["102"] = object.value;
-    return objectValue;
+  static __packCson__(object: Length): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800001;
+    objectCson["101"] = object.unit;
+    objectCson["102"] = object.value;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Length {
     return new Length({
-      unit: Number(objectValue["101"]),
-      value: objectValue["102"],
-      _value: objectValue,
+      unit: Number(objectCson["101"]),
+      value: objectCson["102"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Length {
-    return Length.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Length.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): LengthProto {
@@ -392,7 +392,7 @@ export class Position extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -424,7 +424,7 @@ export class Position extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -513,80 +513,80 @@ export class Position extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Position.__packValue__(this);
+      this._cson = Position.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Position): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800002;
-    objectValue["100"] = object.type;
+  static __packCson__(object: Position): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800002;
+    objectCson["100"] = object.type;
     if (object.top != null) {
-      objectValue["101"] = object.top.toValue();
+      objectCson["101"] = object.top.toCson();
     }
     if (object.left != null) {
-      objectValue["102"] = object.left.toValue();
+      objectCson["102"] = object.left.toCson();
     }
     if (object.width != null) {
-      objectValue["103"] = object.width.toValue();
+      objectCson["103"] = object.width.toCson();
     }
     if (object.height != null) {
-      objectValue["104"] = object.height.toValue();
+      objectCson["104"] = object.height.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Position {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const topValue = objectValue["101"];
+    const topValue = objectCson["101"];
     const unpackedTop =
       topValue != undefined
-        ? _Length.fromValue(topValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(topValue, _session, _supergraph, _graph, _connection)
         : null;
-    const leftValue = objectValue["102"];
+    const leftValue = objectCson["102"];
     const unpackedLeft =
       leftValue != undefined
-        ? _Length.fromValue(leftValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(leftValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["103"];
+    const widthValue = objectCson["103"];
     const unpackedWidth =
       widthValue != undefined
-        ? _Length.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["104"];
+    const heightValue = objectCson["104"];
     const unpackedHeight =
       heightValue != undefined
-        ? _Length.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Position({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       top: unpackedTop,
       left: unpackedLeft,
       width: unpackedWidth,
       height: unpackedHeight,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Position {
-    return Position.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Position.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): PositionProto {
@@ -701,7 +701,7 @@ export class Dimension extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -735,7 +735,7 @@ export class Dimension extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -786,47 +786,47 @@ export class Dimension extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Dimension.__packValue__(this);
+      this._cson = Dimension.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Dimension): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800003;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.unit;
-    objectValue["102"] = object.value;
-    return objectValue;
+  static __packCson__(object: Dimension): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800003;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.unit;
+    objectCson["102"] = object.value;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Dimension {
     return new Dimension({
-      type: Number(objectValue["100"]),
-      unit: Number(objectValue["101"]),
-      value: objectValue["102"],
-      _value: objectValue,
+      type: Number(objectCson["100"]),
+      unit: Number(objectCson["101"]),
+      value: objectCson["102"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Dimension {
-    return Dimension.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Dimension.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): DimensionProto {
@@ -928,7 +928,7 @@ export class Insets extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -957,7 +957,7 @@ export class Insets extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1043,51 +1043,51 @@ export class Insets extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Insets.__packValue__(this);
+      this._cson = Insets.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Insets): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800006;
+  static __packCson__(object: Insets): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800006;
     if (object.base != null) {
-      objectValue["101"] = object.base;
+      objectCson["101"] = object.base;
     }
     if (object.top != null) {
-      objectValue["102"] = object.top;
+      objectCson["102"] = object.top;
     }
     if (object.left != null) {
-      objectValue["103"] = object.left;
+      objectCson["103"] = object.left;
     }
     if (object.right != null) {
-      objectValue["104"] = object.right;
+      objectCson["104"] = object.right;
     }
     if (object.bottom != null) {
-      objectValue["105"] = object.bottom;
+      objectCson["105"] = object.bottom;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Insets {
-    const baseValue = objectValue["101"];
+    const baseValue = objectCson["101"];
     const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
-    const topValue = objectValue["102"];
+    const topValue = objectCson["102"];
     const unpackedTop = topValue != undefined ? Number(topValue) : null;
-    const leftValue = objectValue["103"];
+    const leftValue = objectCson["103"];
     const unpackedLeft = leftValue != undefined ? Number(leftValue) : null;
-    const rightValue = objectValue["104"];
+    const rightValue = objectCson["104"];
     const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
-    const bottomValue = objectValue["105"];
+    const bottomValue = objectCson["105"];
     const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
     return new Insets({
       base: unpackedBase,
@@ -1095,19 +1095,19 @@ export class Insets extends StructFrozen {
       left: unpackedLeft,
       right: unpackedRight,
       bottom: unpackedBottom,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Insets {
-    return Insets.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Insets.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): InsetsProto {
@@ -1223,7 +1223,7 @@ export class Corners extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1252,7 +1252,7 @@ export class Corners extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1338,51 +1338,51 @@ export class Corners extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Corners.__packValue__(this);
+      this._cson = Corners.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Corners): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800007;
+  static __packCson__(object: Corners): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800007;
     if (object.base != null) {
-      objectValue["101"] = object.base;
+      objectCson["101"] = object.base;
     }
     if (object.topLeft != null) {
-      objectValue["102"] = object.topLeft;
+      objectCson["102"] = object.topLeft;
     }
     if (object.topRight != null) {
-      objectValue["103"] = object.topRight;
+      objectCson["103"] = object.topRight;
     }
     if (object.bottomLeft != null) {
-      objectValue["104"] = object.bottomLeft;
+      objectCson["104"] = object.bottomLeft;
     }
     if (object.bottomRight != null) {
-      objectValue["105"] = object.bottomRight;
+      objectCson["105"] = object.bottomRight;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Corners {
-    const baseValue = objectValue["101"];
+    const baseValue = objectCson["101"];
     const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
-    const topLeftValue = objectValue["102"];
+    const topLeftValue = objectCson["102"];
     const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
-    const topRightValue = objectValue["103"];
+    const topRightValue = objectCson["103"];
     const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : null;
-    const bottomLeftValue = objectValue["104"];
+    const bottomLeftValue = objectCson["104"];
     const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
-    const bottomRightValue = objectValue["105"];
+    const bottomRightValue = objectCson["105"];
     const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
     return new Corners({
       base: unpackedBase,
@@ -1390,19 +1390,19 @@ export class Corners extends StructFrozen {
       topRight: unpackedTopRight,
       bottomLeft: unpackedBottomLeft,
       bottomRight: unpackedBottomRight,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Corners {
-    return Corners.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Corners.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CornersProto {
@@ -1506,7 +1506,7 @@ export class Axis2 extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1531,7 +1531,7 @@ export class Axis2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1608,59 +1608,59 @@ export class Axis2 extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Axis2.__packValue__(this);
+      this._cson = Axis2.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Axis2): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800008;
+  static __packCson__(object: Axis2): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800008;
     if (object.base != null) {
-      objectValue["101"] = object.base;
+      objectCson["101"] = object.base;
     }
     if (object.x != null) {
-      objectValue["102"] = object.x;
+      objectCson["102"] = object.x;
     }
     if (object.y != null) {
-      objectValue["103"] = object.y;
+      objectCson["103"] = object.y;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Axis2 {
-    const baseValue = objectValue["101"];
+    const baseValue = objectCson["101"];
     const unpackedBase = baseValue != undefined ? baseValue : null;
-    const xValue = objectValue["102"];
+    const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["103"];
+    const yValue = objectCson["103"];
     const unpackedY = yValue != undefined ? yValue : null;
     return new Axis2({
       base: unpackedBase,
       x: unpackedX,
       y: unpackedY,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Axis2 {
-    return Axis2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Axis2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Axis2Proto {
@@ -1762,7 +1762,7 @@ export class Axis3 extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1789,7 +1789,7 @@ export class Axis3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1878,65 +1878,65 @@ export class Axis3 extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Axis3.__packValue__(this);
+      this._cson = Axis3.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Axis3): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800009;
+  static __packCson__(object: Axis3): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800009;
     if (object.base != null) {
-      objectValue["101"] = object.base;
+      objectCson["101"] = object.base;
     }
     if (object.x != null) {
-      objectValue["102"] = object.x;
+      objectCson["102"] = object.x;
     }
     if (object.y != null) {
-      objectValue["103"] = object.y;
+      objectCson["103"] = object.y;
     }
     if (object.z != null) {
-      objectValue["104"] = object.z;
+      objectCson["104"] = object.z;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Axis3 {
-    const baseValue = objectValue["101"];
+    const baseValue = objectCson["101"];
     const unpackedBase = baseValue != undefined ? baseValue : null;
-    const xValue = objectValue["102"];
+    const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["103"];
+    const yValue = objectCson["103"];
     const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectValue["104"];
+    const zValue = objectCson["104"];
     const unpackedZ = zValue != undefined ? zValue : null;
     return new Axis3({
       base: unpackedBase,
       x: unpackedX,
       y: unpackedY,
       z: unpackedZ,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Axis3 {
-    return Axis3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Axis3.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Axis3Proto {
@@ -2048,7 +2048,7 @@ export class Grid extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -2083,7 +2083,7 @@ export class Grid extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -2165,73 +2165,73 @@ export class Grid extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Grid.__packValue__(this);
+      this._cson = Grid.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Grid): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800004;
-    objectValue["101"] = object.columns;
-    objectValue["102"] = object.rows;
+  static __packCson__(object: Grid): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800004;
+    objectCson["101"] = object.columns;
+    objectCson["102"] = object.rows;
     if (object.columnWidth != null) {
-      objectValue["103"] = object.columnWidth.toValue();
+      objectCson["103"] = object.columnWidth.toCson();
     }
     if (object.columnMinWidth != null) {
-      objectValue["104"] = object.columnMinWidth.toValue();
+      objectCson["104"] = object.columnMinWidth.toCson();
     }
     if (object.rowHeight != null) {
-      objectValue["105"] = object.rowHeight.toValue();
+      objectCson["105"] = object.rowHeight.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Grid {
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const columnWidthValue = objectValue["103"];
+    const columnWidthValue = objectCson["103"];
     const unpackedColumnWidth =
       columnWidthValue != undefined
-        ? _Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(columnWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const columnMinWidthValue = objectValue["104"];
+    const columnMinWidthValue = objectCson["104"];
     const unpackedColumnMinWidth =
       columnMinWidthValue != undefined
-        ? _Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(columnMinWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rowHeightValue = objectValue["105"];
+    const rowHeightValue = objectCson["105"];
     const unpackedRowHeight =
       rowHeightValue != undefined
-        ? _Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(rowHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Grid({
-      columns: Number(objectValue["101"]),
-      rows: Number(objectValue["102"]),
+      columns: Number(objectCson["101"]),
+      rows: Number(objectCson["102"]),
       columnWidth: unpackedColumnWidth,
       columnMinWidth: unpackedColumnMinWidth,
       rowHeight: unpackedRowHeight,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Grid {
-    return Grid.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Grid.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): GridProto {
@@ -2347,7 +2347,7 @@ export class GridSpan extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -2376,7 +2376,7 @@ export class GridSpan extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -2422,45 +2422,45 @@ export class GridSpan extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = GridSpan.__packValue__(this);
+      this._cson = GridSpan.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: GridSpan): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1800005;
-    objectValue["101"] = object.columns;
-    objectValue["102"] = object.rows;
-    return objectValue;
+  static __packCson__(object: GridSpan): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1800005;
+    objectCson["101"] = object.columns;
+    objectCson["102"] = object.rows;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): GridSpan {
     return new GridSpan({
-      columns: Number(objectValue["101"]),
-      rows: Number(objectValue["102"]),
-      _value: objectValue,
+      columns: Number(objectCson["101"]),
+      rows: Number(objectCson["102"]),
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): GridSpan {
-    return GridSpan.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return GridSpan.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): GridSpanProto {

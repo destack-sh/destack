@@ -149,12 +149,14 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
+"""'Primitives' that actually map to Proto structs (Messages)"""
 _PROTO_PRIMITIVE_MESSAGE_TYPES = (
     PrimitiveType.DATE,
     PrimitiveType.TIME,
     PrimitiveType.DATETIME,
     PrimitiveType.DURATION,
     PrimitiveType.JSON,
+    PrimitiveType.CSON,
 )
 
 
@@ -277,12 +279,12 @@ def _generate_pack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value_e
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return f"pack_proto_json({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"pack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"pack_proto_duration({value_expr})"
+        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+            return f"pack_proto_json({value_expr})"
         else:
             return value_expr
     elif prop.scalar_type == ScalarType.ENUM:
@@ -308,12 +310,12 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return f"unpack_proto_json({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"unpack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"unpack_proto_duration({value_expr})"
+        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+            return f"unpack_proto_json({value_expr})"
         else:
             return f"{value_expr}"
     elif prop.scalar_type == ScalarType.ENUM:

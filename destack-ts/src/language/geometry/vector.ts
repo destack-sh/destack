@@ -83,7 +83,7 @@ export class Vector2f extends Vectorf {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -112,7 +112,7 @@ export class Vector2f extends Vectorf {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -158,45 +158,45 @@ export class Vector2f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector2f.__packValue__(this);
+      this._cson = Vector2f.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector2f): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400011;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    return objectValue;
+  static __packCson__(object: Vector2f): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400011;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector2f {
     return new Vector2f({
-      x: objectValue["101"],
-      y: objectValue["102"],
-      _value: objectValue,
+      x: objectCson["101"],
+      y: objectCson["102"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector2f {
-    return Vector2f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector2f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector2fProto {
@@ -442,7 +442,7 @@ export class Vector3f extends Vectorf {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -476,7 +476,7 @@ export class Vector3f extends Vectorf {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -527,47 +527,47 @@ export class Vector3f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector3f.__packValue__(this);
+      this._cson = Vector3f.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector3f): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400012;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    objectValue["103"] = object.z;
-    return objectValue;
+  static __packCson__(object: Vector3f): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400012;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    objectCson["103"] = object.z;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector3f {
     return new Vector3f({
-      x: objectValue["101"],
-      y: objectValue["102"],
-      z: objectValue["103"],
-      _value: objectValue,
+      x: objectCson["101"],
+      y: objectCson["102"],
+      z: objectCson["103"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector3f {
-    return Vector3f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector3f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector3fProto {
@@ -847,7 +847,7 @@ export class Vector4f extends Vectorf {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -886,7 +886,7 @@ export class Vector4f extends Vectorf {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -942,49 +942,49 @@ export class Vector4f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector4f.__packValue__(this);
+      this._cson = Vector4f.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector4f): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400013;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    objectValue["103"] = object.z;
-    objectValue["104"] = object.w;
-    return objectValue;
+  static __packCson__(object: Vector4f): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400013;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    objectCson["103"] = object.z;
+    objectCson["104"] = object.w;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector4f {
     return new Vector4f({
-      x: objectValue["101"],
-      y: objectValue["102"],
-      z: objectValue["103"],
-      w: objectValue["104"],
-      _value: objectValue,
+      x: objectCson["101"],
+      y: objectCson["102"],
+      z: objectCson["103"],
+      w: objectCson["104"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector4f {
-    return Vector4f.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector4f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector4fProto {
@@ -1270,7 +1270,7 @@ export class Vector2i extends Vectori {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1299,7 +1299,7 @@ export class Vector2i extends Vectori {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1345,45 +1345,45 @@ export class Vector2i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector2i.__packValue__(this);
+      this._cson = Vector2i.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector2i): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400021;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    return objectValue;
+  static __packCson__(object: Vector2i): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400021;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector2i {
     return new Vector2i({
-      x: Number(objectValue["101"]),
-      y: Number(objectValue["102"]),
-      _value: objectValue,
+      x: Number(objectCson["101"]),
+      y: Number(objectCson["102"]),
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector2i {
-    return Vector2i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector2i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector2iProto {
@@ -1629,7 +1629,7 @@ export class Vector3i extends Vectori {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1663,7 +1663,7 @@ export class Vector3i extends Vectori {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1714,47 +1714,47 @@ export class Vector3i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector3i.__packValue__(this);
+      this._cson = Vector3i.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector3i): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400022;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    objectValue["103"] = object.z;
-    return objectValue;
+  static __packCson__(object: Vector3i): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400022;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    objectCson["103"] = object.z;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector3i {
     return new Vector3i({
-      x: Number(objectValue["101"]),
-      y: Number(objectValue["102"]),
-      z: Number(objectValue["103"]),
-      _value: objectValue,
+      x: Number(objectCson["101"]),
+      y: Number(objectCson["102"]),
+      z: Number(objectCson["103"]),
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector3i {
-    return Vector3i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector3i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector3iProto {
@@ -2024,7 +2024,7 @@ export class Vector4i extends Vectori {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -2063,7 +2063,7 @@ export class Vector4i extends Vectori {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -2119,49 +2119,49 @@ export class Vector4i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Vector4i.__packValue__(this);
+      this._cson = Vector4i.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Vector4i): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2400023;
-    objectValue["101"] = object.x;
-    objectValue["102"] = object.y;
-    objectValue["103"] = object.z;
-    objectValue["104"] = object.w;
-    return objectValue;
+  static __packCson__(object: Vector4i): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2400023;
+    objectCson["101"] = object.x;
+    objectCson["102"] = object.y;
+    objectCson["103"] = object.z;
+    objectCson["104"] = object.w;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector4i {
     return new Vector4i({
-      x: Number(objectValue["101"]),
-      y: Number(objectValue["102"]),
-      z: Number(objectValue["103"]),
-      w: Number(objectValue["104"]),
-      _value: objectValue,
+      x: Number(objectCson["101"]),
+      y: Number(objectCson["102"]),
+      z: Number(objectCson["103"]),
+      w: Number(objectCson["104"]),
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Vector4i {
-    return Vector4i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Vector4i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): Vector4iProto {

@@ -623,65 +623,65 @@ export class EditEvent extends Event {
     return `<EditEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return EditEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return EditEvent.__packCson__(this);
   }
 
-  static __packValue__(object: EditEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50100;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: EditEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 50100;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.nodePtr.toValue();
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.nodePtr.toCson();
     if (object.operation != null) {
-      objectValue["102"] = object.operation;
+      objectCson["102"] = object.operation;
     }
     if (object.propertyId != null) {
-      objectValue["103"] = object.propertyId;
+      objectCson["103"] = object.propertyId;
     }
     if (object.customPropertyPtr != null) {
-      objectValue["104"] = object.customPropertyPtr.toValue();
+      objectCson["104"] = object.customPropertyPtr.toCson();
     }
     if (object.key != null) {
-      objectValue["105"] = object.key.toValue();
+      objectCson["105"] = object.key.toCson();
     }
     if (object.value != null) {
-      objectValue["110"] = object.value.toValue();
+      objectCson["110"] = object.value.toCson();
     }
     if (object.reverseOperation != null) {
-      objectValue["202"] = object.reverseOperation;
+      objectCson["202"] = object.reverseOperation;
     }
     if (object.reverseValue != null) {
-      objectValue["210"] = object.reverseValue.toValue();
+      objectCson["210"] = object.reverseValue.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -689,14 +689,14 @@ export class EditEvent extends Event {
   ): EditEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const operationValue = objectValue["102"];
+    const operationValue = objectCson["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propertyIdValue = objectValue["103"];
+    const propertyIdValue = objectCson["103"];
     const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : null;
-    const customPropertyPtrValue = objectValue["104"];
+    const customPropertyPtrValue = objectCson["104"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
-        ? _NodeReference.fromValue(
+        ? _NodeReference.fromCson(
             customPropertyPtrValue,
             _session,
             _supergraph,
@@ -704,55 +704,49 @@ export class EditEvent extends Event {
             _connection,
           )
         : null;
-    const keyValue = objectValue["105"];
+    const keyValue = objectCson["105"];
     const unpackedKey =
       keyValue != undefined
-        ? _Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(keyValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["110"];
+    const valueValue = objectCson["110"];
     const unpackedValue =
       valueValue != undefined
-        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const reverseOperationValue = objectValue["202"];
+    const reverseOperationValue = objectCson["202"];
     const unpackedReverseOperation =
       reverseOperationValue != undefined ? Number(reverseOperationValue) : null;
-    const reverseValueValue = objectValue["210"];
+    const reverseValueValue = objectCson["210"];
     const unpackedReverseValue =
       reverseValueValue != undefined
-        ? _Value.fromValue(reverseValueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(reverseValueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new EditEvent({
-      type: Number(objectValue["100"]),
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      type: Number(objectCson["100"]),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
       operation: unpackedOperation,
       propertyId: unpackedPropertyId,
       customProperty: unpackedCustomPropertyPtr,
@@ -760,15 +754,9 @@ export class EditEvent extends Event {
       value: unpackedValue,
       reverseOperation: unpackedReverseOperation,
       reverseValue: unpackedReverseValue,
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -776,30 +764,30 @@ export class EditEvent extends Event {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): EditEvent {
-    return EditEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return EditEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): EditEventProto {

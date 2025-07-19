@@ -479,7 +479,7 @@ export async function walkNode(options: {
                     (Array.isArray(includeDeleted) &&
                       includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY])))
                 ) {
-                  const parentNodePtr = NodeReference.fromValue(parentPtr);
+                  const parentNodePtr = NodeReference.fromCson(parentPtr);
                   return { nodeId, parentNodePtr };
                 }
               }
@@ -736,7 +736,7 @@ async function executeSubquery(options: {
         if (parentsPtr.has(parentId.toString())) {
           continue;
         }
-        const parentPtr = NodeReference.fromValue(parentPtrValue);
+        const parentPtr = NodeReference.fromCson(parentPtrValue);
         parentsPtr.set(parentPtr.id.toString(), parentPtr);
       }
     }

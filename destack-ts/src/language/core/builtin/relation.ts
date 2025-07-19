@@ -83,7 +83,7 @@ export class NodeDefinitionReference extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -117,7 +117,7 @@ export class NodeDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -172,56 +172,56 @@ export class NodeDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = NodeDefinitionReference.__packValue__(this);
+      this._cson = NodeDefinitionReference.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: NodeDefinitionReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20003;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.nodeType;
+  static __packCson__(object: NodeDefinitionReference): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20003;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.nodeType;
     if (object.definitionPtr != null) {
-      objectValue["105"] = object.definitionPtr.toValue();
+      objectCson["105"] = object.definitionPtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const definitionPtrValue = objectValue["105"];
+    const definitionPtrValue = objectCson["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new NodeDefinitionReference({
-      type: Number(objectValue["100"]),
-      nodeType: Number(objectValue["101"]),
+      type: Number(objectCson["100"]),
+      nodeType: Number(objectCson["101"]),
       definition: unpackedDefinitionPtr,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeDefinitionReference {
-    return NodeDefinitionReference.__unpackValue__(
-      objectValue,
+    return NodeDefinitionReference.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -441,7 +441,7 @@ export class PropertyReference extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -478,7 +478,7 @@ export class PropertyReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -564,56 +564,56 @@ export class PropertyReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = PropertyReference.__packValue__(this);
+      this._cson = PropertyReference.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: PropertyReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1001;
-    objectValue["100"] = object.type;
+  static __packCson__(object: PropertyReference): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1001;
+    objectCson["100"] = object.type;
     if (object.nodeType != null) {
-      objectValue["101"] = object.nodeType;
+      objectCson["101"] = object.nodeType;
     }
     if (object.traitType != null) {
-      objectValue["102"] = object.traitType;
+      objectCson["102"] = object.traitType;
     }
     if (object.structType != null) {
-      objectValue["103"] = object.structType;
+      objectCson["103"] = object.structType;
     }
     if (object.id != null) {
-      objectValue["105"] = object.id;
+      objectCson["105"] = object.id;
     }
     if (object.customPropertyPtr != null) {
-      objectValue["106"] = object.customPropertyPtr.toValue();
+      objectCson["106"] = object.customPropertyPtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["101"];
+    const nodeTypeValue = objectCson["101"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["102"];
+    const traitTypeValue = objectCson["102"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const structTypeValue = objectValue["103"];
+    const structTypeValue = objectCson["103"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const idValue = objectValue["105"];
+    const idValue = objectCson["105"];
     const unpackedId = idValue != undefined ? Number(idValue) : null;
-    const customPropertyPtrValue = objectValue["106"];
+    const customPropertyPtrValue = objectCson["106"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
-        ? _NodeReference.fromValue(
+        ? _NodeReference.fromCson(
             customPropertyPtrValue,
             _session,
             _supergraph,
@@ -622,31 +622,25 @@ export class PropertyReference extends StructFrozen {
           )
         : null;
     return new PropertyReference({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
       id: unpackedId,
       customProperty: unpackedCustomPropertyPtr,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
-    return PropertyReference.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PropertyReference.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): PropertyReferenceProto {
@@ -918,7 +912,7 @@ export class NodeReference extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -957,7 +951,7 @@ export class NodeReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1048,75 +1042,75 @@ export class NodeReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = NodeReference.__packValue__(this);
+      this._cson = NodeReference.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: NodeReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1000;
-    objectValue["100"] = object.type;
-    objectValue["101"] = String(object.id);
+  static __packCson__(object: NodeReference): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1000;
+    objectCson["100"] = object.type;
+    objectCson["101"] = String(object.id);
     if (object.definitionId != null) {
-      objectValue["102"] = String(object.definitionId);
+      objectCson["102"] = String(object.definitionId);
     }
     if (object.branchId != null) {
-      objectValue["103"] = String(object.branchId);
+      objectCson["103"] = String(object.branchId);
     }
     if (object.snapshotId != null) {
-      objectValue["104"] = String(object.snapshotId);
+      objectCson["104"] = String(object.snapshotId);
     }
     if (object.spaceId != null) {
-      objectValue["110"] = String(object.spaceId);
+      objectCson["110"] = String(object.spaceId);
     }
     if (object.storeKey != null) {
-      objectValue["111"] = object.storeKey;
+      objectCson["111"] = object.storeKey;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeReference {
-    const definitionIdValue = objectValue["102"];
+    const definitionIdValue = objectCson["102"];
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
-    const branchIdValue = objectValue["103"];
+    const branchIdValue = objectCson["103"];
     const unpackedBranchId = branchIdValue != undefined ? String(branchIdValue) : null;
-    const snapshotIdValue = objectValue["104"];
+    const snapshotIdValue = objectCson["104"];
     const unpackedSnapshotId = snapshotIdValue != undefined ? String(snapshotIdValue) : null;
-    const spaceIdValue = objectValue["110"];
+    const spaceIdValue = objectCson["110"];
     const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
-    const storeKeyValue = objectValue["111"];
+    const storeKeyValue = objectCson["111"];
     const unpackedStoreKey = storeKeyValue != undefined ? Number(storeKeyValue) : null;
     return new NodeReference({
-      type: Number(objectValue["100"]),
-      id: String(objectValue["101"]),
+      type: Number(objectCson["100"]),
+      id: String(objectCson["101"]),
       definitionId: unpackedDefinitionId,
       branchId: unpackedBranchId,
       snapshotId: unpackedSnapshotId,
       spaceId: unpackedSpaceId,
       storeKey: unpackedStoreKey,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeReference {
-    return NodeReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return NodeReference.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): NodeReferenceProto {
@@ -1251,7 +1245,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1286,7 +1280,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1363,72 +1357,72 @@ export class ObjectDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = ObjectDefinitionReference.__packValue__(this);
+      this._cson = ObjectDefinitionReference.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: ObjectDefinitionReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20001;
-    objectValue["100"] = object.type;
+  static __packCson__(object: ObjectDefinitionReference): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20001;
+    objectCson["100"] = object.type;
     if (object.nodeType != null) {
-      objectValue["101"] = object.nodeType;
+      objectCson["101"] = object.nodeType;
     }
     if (object.traitType != null) {
-      objectValue["102"] = object.traitType;
+      objectCson["102"] = object.traitType;
     }
     if (object.structType != null) {
-      objectValue["103"] = object.structType;
+      objectCson["103"] = object.structType;
     }
     if (object.definitionPtr != null) {
-      objectValue["105"] = object.definitionPtr.toValue();
+      objectCson["105"] = object.definitionPtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): ObjectDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["101"];
+    const nodeTypeValue = objectCson["101"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["102"];
+    const traitTypeValue = objectCson["102"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const structTypeValue = objectValue["103"];
+    const structTypeValue = objectCson["103"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["105"];
+    const definitionPtrValue = objectCson["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ObjectDefinitionReference({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
       definition: unpackedDefinitionPtr,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): ObjectDefinitionReference {
-    return ObjectDefinitionReference.__unpackValue__(
-      objectValue,
+    return ObjectDefinitionReference.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -1564,7 +1558,7 @@ export class StructDefinitionReference extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1598,7 +1592,7 @@ export class StructDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1653,59 +1647,59 @@ export class StructDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StructDefinitionReference.__packValue__(this);
+      this._cson = StructDefinitionReference.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StructDefinitionReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20101;
-    objectValue["100"] = object.type;
+  static __packCson__(object: StructDefinitionReference): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20101;
+    objectCson["100"] = object.type;
     if (object.structType != null) {
-      objectValue["101"] = object.structType;
+      objectCson["101"] = object.structType;
     }
-    objectValue["105"] = object.definitionPtr.toValue();
-    return objectValue;
+    objectCson["105"] = object.definitionPtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const structTypeValue = objectValue["101"];
+    const structTypeValue = objectCson["101"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     return new StructDefinitionReference({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       structType: unpackedStructType,
-      definition: _NodeReference.fromValue(
-        objectValue["105"],
+      definition: _NodeReference.fromCson(
+        objectCson["105"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinitionReference {
-    return StructDefinitionReference.__unpackValue__(
-      objectValue,
+    return StructDefinitionReference.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,

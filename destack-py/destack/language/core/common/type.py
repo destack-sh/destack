@@ -117,7 +117,6 @@ class NodeConstraint(StructFrozen):
 
 TypeFormat = Union[NumberFormat, StringFormat]
 TypeConstraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
-type Json = Any
 
 
 @builtin_struct(StructType.TYPE, frozen=True)

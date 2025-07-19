@@ -99,7 +99,7 @@ export class Icon extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -138,7 +138,7 @@ export class Icon extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -212,41 +212,41 @@ export class Icon extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Icon.__packValue__(this);
+      this._cson = Icon.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Icon): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 400031;
-    objectValue["100"] = object.type;
+  static __packCson__(object: Icon): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 400031;
+    objectCson["100"] = object.type;
     if (object.emoji != null) {
-      objectValue["101"] = object.emoji;
+      objectCson["101"] = object.emoji;
     }
     if (object.faName != null) {
-      objectValue["102"] = object.faName;
+      objectCson["102"] = object.faName;
     }
     if (object.vscName != null) {
-      objectValue["103"] = object.vscName;
+      objectCson["103"] = object.vscName;
     }
     if (object.filePtr != null) {
-      objectValue["104"] = object.filePtr.toValue();
+      objectCson["104"] = object.filePtr.toCson();
     }
     if (object.fileUrl != null) {
-      objectValue["105"] = object.fileUrl;
+      objectCson["105"] = object.fileUrl;
     }
     if (object.color != null) {
-      objectValue["110"] = object.color.toValue();
+      objectCson["110"] = object.color.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -254,45 +254,45 @@ export class Icon extends StructFrozen {
   ): Icon {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const emojiValue = objectValue["101"];
+    const emojiValue = objectCson["101"];
     const unpackedEmoji = emojiValue != undefined ? emojiValue : null;
-    const faNameValue = objectValue["102"];
+    const faNameValue = objectCson["102"];
     const unpackedFaName = faNameValue != undefined ? faNameValue : null;
-    const vscNameValue = objectValue["103"];
+    const vscNameValue = objectCson["103"];
     const unpackedVscName = vscNameValue != undefined ? vscNameValue : null;
-    const filePtrValue = objectValue["104"];
+    const filePtrValue = objectCson["104"];
     const unpackedFilePtr =
       filePtrValue != undefined
-        ? _NodeReference.fromValue(filePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(filePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const fileUrlValue = objectValue["105"];
+    const fileUrlValue = objectCson["105"];
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
-    const colorValue = objectValue["110"];
+    const colorValue = objectCson["110"];
     const unpackedColor =
       colorValue != undefined
-        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromCson(colorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Icon({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       emoji: unpackedEmoji,
       faName: unpackedFaName,
       vscName: unpackedVscName,
       file: unpackedFilePtr,
       fileUrl: unpackedFileUrl,
       color: unpackedColor,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Icon {
-    return Icon.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Icon.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): IconProto {

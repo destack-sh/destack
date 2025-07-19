@@ -298,6 +298,12 @@ def parse_type_annotation(
     elif class_name == "Json":
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = PrimitiveType.JSON
+    elif class_name == "Cson":
+        scalar_type = ScalarType.PRIMITIVE
+        primitive_type = PrimitiveType.CSON
+    elif class_name == "Proto":
+        scalar_type = ScalarType.PRIMITIVE
+        primitive_type = PrimitiveType.PROTO
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True

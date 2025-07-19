@@ -794,75 +794,75 @@ export class Trigger extends Entity implements IsSourceable {
     return `<Trigger "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Trigger.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Trigger.__packCson__(this);
   }
 
-  static __packValue__(object: Trigger): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 705000;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Trigger): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 705000;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
     if (object._event != null) {
-      objectValue["110"] = object._event.toValue();
+      objectCson["110"] = object._event.toCson();
     }
     if (object._where != null) {
-      objectValue["111"] = object._where.toValue();
+      objectCson["111"] = object._where.toCson();
     }
     if (object._targetPtr != null) {
-      objectValue["120"] = object._targetPtr.toValue();
+      objectCson["120"] = object._targetPtr.toCson();
     }
     if (Object.keys(object._arguments).length > 0) {
       const packedArguments: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._arguments)) {
-        packedArguments[String(String(key))] = value.toValue();
+        packedArguments[String(String(key))] = value.toCson();
       }
-      objectValue["121"] = packedArguments;
+      objectCson["121"] = packedArguments;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -875,30 +875,30 @@ export class Trigger extends Entity implements IsSourceable {
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const eventValue = objectValue["110"];
+    const eventValue = objectCson["110"];
     const unpackedEvent =
       eventValue != undefined
-        ? _NodeDefinitionReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
+        ? _NodeDefinitionReference.fromCson(eventValue, _session, _supergraph, _graph, _connection)
         : null;
-    const whereValue = objectValue["111"];
+    const whereValue = objectCson["111"];
     const unpackedWhere =
       whereValue != undefined
-        ? _Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromCson(whereValue, _session, _supergraph, _graph, _connection)
         : null;
-    const targetPtrValue = objectValue["120"];
+    const targetPtrValue = objectCson["120"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedArguments = {} as any;
-    if (objectValue["121"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["121"])) {
-        unpackedArguments[String(key)] = _Value.fromValue(
+    if (objectCson["121"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["121"])) {
+        unpackedArguments[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -907,44 +907,44 @@ export class Trigger extends Entity implements IsSourceable {
         );
       }
     }
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -958,17 +958,11 @@ export class Trigger extends Entity implements IsSourceable {
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -976,31 +970,31 @@ export class Trigger extends Entity implements IsSourceable {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Trigger {
-    return Trigger.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Trigger.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TriggerProto {

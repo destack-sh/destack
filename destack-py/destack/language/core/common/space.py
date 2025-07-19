@@ -107,7 +107,15 @@ def create_space(
 ) -> tuple[Space, "Branch", "Snapshot"]:
     """Create a new Space with a root Branch and Snapshot."""
 
-    from destack.language import REGION, Branch, BranchType, IsActor, Snapshot, SnapshotType
+    from destack.language import (
+        REGION,
+        Branch,
+        BranchType,
+        IsActor,
+        NodeReference,
+        Snapshot,
+        SnapshotType,
+    )
 
     if isinstance(owned_by, IsActor):
         owned_by = owned_by.to_ref()

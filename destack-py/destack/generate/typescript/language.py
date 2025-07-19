@@ -66,9 +66,9 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
-from .grpc import generate_object_proto
+from .cson import generate_cson, generate_object_cson
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
-from .value import generate_object_value, generate_value
+from .proto import generate_object_proto
 
 # ruff: noqa: FURB113
 
@@ -401,7 +401,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
                 "_hash?: number | null",
                 "_repr?: string | null",
                 "_proto?: any | null",
-                "_value?: { [key: string]: any } | null",
+                "_cson?: any | null",
             )
         )
     header_str = ",\n".join(header_parts)
@@ -495,7 +495,7 @@ if (_{ts_name_in} === null) {{
 
         # init default
         if prop.default is not UNSET and prop.default is not None:
-            default_str = generate_value(prop, prop.default)
+            default_str = generate_cson(prop, prop.default)
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = {default_str};
@@ -633,7 +633,7 @@ this._repr = options._repr ?? null;
 // @ts-expect-error(readonly)
 this._proto = options._proto ?? null;
 // @ts-expect-error(readonly)
-this._value = options._value ?? null;
+this._cson = options._cson ?? null;
 """
         else:
             identity_str = """\
@@ -934,7 +934,10 @@ if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
 def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type and prop.primitive_type.is_float:
+        if prop.primitive_type and prop.primitive_type in (
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10", False
         else:
             return "{self_val} === {other_val}", True
@@ -1043,7 +1046,9 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hashBool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
             return f"hashString({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BYTES:
+        elif (
+            prop.primitive_type == PrimitiveType.BYTES or prop.primitive_type == PrimitiveType.PROTO
+        ):
             return f"hashBytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"hashString({value_expr}.toString())"
@@ -1053,7 +1058,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hashString({value_expr}.toString())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hashFloat({value_expr}.total('seconds'))"
-        elif prop.primitive_type == PrimitiveType.JSON:
+        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
             return f"hashString(JSON.stringify({value_expr}))"
         else:
             assert_never(prop.primitive_type)
@@ -1226,7 +1231,7 @@ def _generate_struct(definition: StructDefinition) -> str:
         struct_parts.append(hash_str)
         validate_str = _generate_validate(struct_cls)
         struct_parts.append(validate_str)
-        value_str = generate_object_value(struct_cls)
+        value_str = generate_object_cson(struct_cls)
         struct_parts.append(value_str)
         proto_str = generate_object_proto(struct_cls)
         struct_parts.append(proto_str)
@@ -1371,7 +1376,7 @@ def _generate_node(definition: NodeDefinition) -> str:
         node_parts.append(path_str)
         repr_str = _generate_repr(node_cls)
         node_parts.append(repr_str)
-        value_str = generate_object_value(node_cls)
+        value_str = generate_object_cson(node_cls)
         node_parts.append(value_str)
         proto_str = generate_object_proto(node_cls)
         node_parts.append(proto_str)
@@ -1414,7 +1419,7 @@ def _generate_constant(definition: ConstantDefinition) -> str:
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
 // prettier-ignore
-export const {definition.name} = {generate_value(definition.value.type, definition.value.unpack())};
+export const {definition.name} = {generate_cson(definition.value.type, definition.value.unpack())};
 """
 
 

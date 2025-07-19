@@ -205,7 +205,7 @@ def _execute_edit(
                 assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
                     f"unexpected value: {edit!r}"
                 )
-                parent_ptr = NodeReference.from_value(edit.value.value)
+                parent_ptr = NodeReference.from_cson(edit.value.value)
             else:
                 parent_ptr = None
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
@@ -219,7 +219,7 @@ def _execute_edit(
                 parent_table.rows_by_parent[parent_key].remove(row)
             # update parent pointer
             row.parent_ptr = parent_ptr
-            row.value[ENTITY_PARENT_KEY] = parent_ptr.to_value() if parent_ptr is not None else None
+            row.value[ENTITY_PARENT_KEY] = parent_ptr.to_cson() if parent_ptr is not None else None
             # add to new parent
             if row.parent_ptr is not None:
                 parent_table = context.get_entity_table(row.parent_ptr)

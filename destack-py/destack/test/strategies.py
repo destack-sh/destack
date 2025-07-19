@@ -262,10 +262,12 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.STRING: st.text(min_size=1),
     PrimitiveType.UUID: uuids(),
-    PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
     PrimitiveType.DATETIME: st.datetimes(timezones=st.just(zoneinfo.ZoneInfo("UTC"))),
     PrimitiveType.DURATION: st.timedeltas(),
+    PrimitiveType.JSON: JSON_STRATEGY,
+    PrimitiveType.CSON: JSON_STRATEGY,
+    PrimitiveType.PROTO: st.binary(),
 }
 
 MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {

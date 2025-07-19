@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, StoreDomain, StoreKey, TraitType
+from .common import Cson, NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
@@ -320,18 +320,18 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return self._ref
 
     @classmethod
-    def from_value(
+    def from_cson(
         cls,
-        _object_value: dict,
+        _object_cson: "Cson",
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
         _connection: "QueryConnection | None" = None,
     ) -> Self:
-        node_type = NodeType(_object_value["1"])
+        node_type = NodeType(_object_cson["1"])
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        node = node_cls.from_value(
-            _object_value,
+        node = node_cls.from_cson(
+            _object_cson,
             _session=_session,
             _supergraph=_supergraph,
             _graph=_graph,

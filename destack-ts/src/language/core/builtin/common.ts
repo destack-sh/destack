@@ -33,6 +33,7 @@ export enum EnumType {
   EDGE_TYPE = 107,
   EDGE_DIRECTION = 108,
   CASCADE_ACTION = 109,
+  ENCODING = 110,
   EDIT_TYPE = 200,
   EDIT_OPERATION = 201,
   CONDITIONAL_TYPE = 300,
@@ -847,12 +848,14 @@ export enum PrimitiveType {
   FLOAT64 = 17,
   STRING = 20,
   UUID = 21,
-  JSON = 22,
-  BYTES = 25,
-  DATETIME = 30,
-  DATE = 31,
-  TIME = 32,
-  DURATION = 33,
+  BYTES = 30,
+  DATETIME = 40,
+  DATE = 41,
+  TIME = 42,
+  DURATION = 43,
+  JSON = 50,
+  CSON = 60,
+  PROTO = 61,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -928,12 +931,14 @@ export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.FLOAT64]: Number,
   [PrimitiveType.STRING]: String,
   [PrimitiveType.UUID]: String,
-  [PrimitiveType.JSON]: Object,
   [PrimitiveType.BYTES]: Uint8Array,
   [PrimitiveType.DATETIME]: Temporal.ZonedDateTime,
   [PrimitiveType.DATE]: Temporal.PlainDate,
   [PrimitiveType.TIME]: Temporal.PlainTime,
   [PrimitiveType.DURATION]: Temporal.Duration,
+  [PrimitiveType.JSON]: Object,
+  [PrimitiveType.CSON]: Object,
+  [PrimitiveType.PROTO]: Uint8Array,
 } as const;
 export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Map([
   ["Boolean", PrimitiveType.BOOLEAN],
@@ -967,3 +972,18 @@ export enum ResourceStatus {
 }
 registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:12100 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:110 ==== */
+/**
+ * Encoding
+ */
+export enum Encoding {
+  CSON = 1,
+  PROTO = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ENCODING, Encoding);
+/* ==== DESTACK_GENERATED_END:ENUM:110 ==== */

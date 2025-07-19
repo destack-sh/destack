@@ -66,7 +66,7 @@ async function filterEventRows(options: {
       
       for (const row of rows) {
         const value = unpackEventRow(row);
-        const nodePtr = NodeReference.fromValue(row);
+        const nodePtr = NodeReference.fromCson(row);
         if (evaluateCondition({ value: value.value, condition: where })) {
           filteredRows.push({ nodePtr, value });
         }
@@ -77,7 +77,7 @@ async function filterEventRows(options: {
       const rows = await index.getAll();
       for (const row of rows) {
         const value = unpackEventRow(row);
-        const nodePtr = NodeReference.fromValue(row);
+        const nodePtr = NodeReference.fromCson(row);
         if (evaluateCondition({ value: value.value, condition: where })) {
           filteredRows.push({ nodePtr, value });
         }
@@ -89,7 +89,7 @@ async function filterEventRows(options: {
     const rows = await index.getAll();
     for (const row of rows) {
       const value = unpackEventRow(row);
-      const nodePtr = NodeReference.fromValue(row);
+      const nodePtr = NodeReference.fromCson(row);
       filteredRows.push({ nodePtr, value });
     }
   }

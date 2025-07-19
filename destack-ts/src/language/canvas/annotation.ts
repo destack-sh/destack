@@ -1409,151 +1409,151 @@ export class AnnotationShape extends Shape {
     return `<AnnotationShape "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return AnnotationShape.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return AnnotationShape.__packCson__(this);
   }
 
-  static __packValue__(object: AnnotationShape): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1900300;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: AnnotationShape): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1900300;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object._position != null) {
-      objectValue["110"] = object._position.toValue();
+      objectCson["110"] = object._position.toCson();
     }
     if (object._width != null) {
-      objectValue["111"] = object._width.toValue();
+      objectCson["111"] = object._width.toCson();
     }
     if (object._height != null) {
-      objectValue["112"] = object._height.toValue();
+      objectCson["112"] = object._height.toCson();
     }
     if (object._minWidth != null) {
-      objectValue["113"] = object._minWidth.toValue();
+      objectCson["113"] = object._minWidth.toCson();
     }
     if (object._minHeight != null) {
-      objectValue["114"] = object._minHeight.toValue();
+      objectCson["114"] = object._minHeight.toCson();
     }
     if (object._maxWidth != null) {
-      objectValue["115"] = object._maxWidth.toValue();
+      objectCson["115"] = object._maxWidth.toCson();
     }
     if (object._maxHeight != null) {
-      objectValue["116"] = object._maxHeight.toValue();
+      objectCson["116"] = object._maxHeight.toCson();
     }
     if (object._layout != null) {
-      objectValue["120"] = object._layout;
+      objectCson["120"] = object._layout;
     }
     if (object._direction != null) {
-      objectValue["121"] = object._direction;
+      objectCson["121"] = object._direction;
     }
     if (object._distribute != null) {
-      objectValue["122"] = object._distribute;
+      objectCson["122"] = object._distribute;
     }
     if (object._align != null) {
-      objectValue["123"] = object._align;
+      objectCson["123"] = object._align;
     }
     if (object._gap != null) {
-      objectValue["124"] = object._gap.toValue();
+      objectCson["124"] = object._gap.toCson();
     }
     if (object._padding != null) {
-      objectValue["125"] = object._padding.toValue();
+      objectCson["125"] = object._padding.toCson();
     }
     if (object._grid != null) {
-      objectValue["126"] = object._grid.toValue();
+      objectCson["126"] = object._grid.toCson();
     }
     if (object._gridSpan != null) {
-      objectValue["127"] = object._gridSpan.toValue();
+      objectCson["127"] = object._gridSpan.toCson();
     }
     if (object._aspectRatio != null) {
-      objectValue["128"] = object._aspectRatio;
+      objectCson["128"] = object._aspectRatio;
     }
     if (object._isWrap != null) {
-      objectValue["129"] = object._isWrap;
+      objectCson["129"] = object._isWrap;
     }
     if (object._isVisible != null) {
-      objectValue["140"] = object._isVisible;
+      objectCson["140"] = object._isVisible;
     }
     if (object._opacity != null) {
-      objectValue["141"] = object._opacity;
+      objectCson["141"] = object._opacity;
     }
     if (object._fill != null) {
-      objectValue["142"] = object._fill.toValue();
+      objectCson["142"] = object._fill.toCson();
     }
     if (object._rotation != null) {
-      objectValue["143"] = object._rotation.toValue();
+      objectCson["143"] = object._rotation.toCson();
     }
     if (object._skew != null) {
-      objectValue["144"] = object._skew.toValue();
+      objectCson["144"] = object._skew.toCson();
     }
     if (object._scale != null) {
-      objectValue["145"] = object._scale;
+      objectCson["145"] = object._scale;
     }
     if (object._shadow != null) {
-      objectValue["146"] = object._shadow.toValue();
+      objectCson["146"] = object._shadow.toCson();
     }
     if (object._border != null) {
-      objectValue["147"] = object._border.toValue();
+      objectCson["147"] = object._border.toCson();
     }
     if (object._radius != null) {
-      objectValue["148"] = object._radius.toValue();
+      objectCson["148"] = object._radius.toCson();
     }
     if (object._stroke != null) {
-      objectValue["180"] = object._stroke.toValue();
+      objectCson["180"] = object._stroke.toCson();
     }
     if (object._text != null) {
-      objectValue["250"] = object._text.toValue();
+      objectCson["250"] = object._text.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1575,170 +1575,170 @@ export class AnnotationShape extends Shape {
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const textValue = objectValue["250"];
+    const textValue = objectCson["250"];
     const unpackedText =
       textValue != undefined
-        ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        ? _Text.fromCson(textValue, _session, _supergraph, _graph, _connection)
         : null;
-    const strokeValue = objectValue["180"];
+    const strokeValue = objectCson["180"];
     const unpackedStroke =
       strokeValue != undefined
-        ? _Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const layoutValue = objectValue["120"];
+    const layoutValue = objectCson["120"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
-    const directionValue = objectValue["121"];
+    const directionValue = objectCson["121"];
     const unpackedDirection = directionValue != undefined ? Number(directionValue) : null;
-    const distributeValue = objectValue["122"];
+    const distributeValue = objectCson["122"];
     const unpackedDistribute = distributeValue != undefined ? Number(distributeValue) : null;
-    const alignValue = objectValue["123"];
+    const alignValue = objectCson["123"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const gapValue = objectValue["124"];
+    const gapValue = objectCson["124"];
     const unpackedGap =
       gapValue != undefined
-        ? _Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
+        ? _Axis2.fromCson(gapValue, _session, _supergraph, _graph, _connection)
         : null;
-    const paddingValue = objectValue["125"];
+    const paddingValue = objectCson["125"];
     const unpackedPadding =
       paddingValue != undefined
-        ? _Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
+        ? _Insets.fromCson(paddingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridValue = objectValue["126"];
+    const gridValue = objectCson["126"];
     const unpackedGrid =
       gridValue != undefined
-        ? _Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
+        ? _Grid.fromCson(gridValue, _session, _supergraph, _graph, _connection)
         : null;
-    const gridSpanValue = objectValue["127"];
+    const gridSpanValue = objectCson["127"];
     const unpackedGridSpan =
       gridSpanValue != undefined
-        ? _GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
+        ? _GridSpan.fromCson(gridSpanValue, _session, _supergraph, _graph, _connection)
         : null;
-    const aspectRatioValue = objectValue["128"];
+    const aspectRatioValue = objectCson["128"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const isWrapValue = objectValue["129"];
+    const isWrapValue = objectCson["129"];
     const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
-    const isVisibleValue = objectValue["140"];
+    const isVisibleValue = objectCson["140"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectValue["141"];
+    const opacityValue = objectCson["141"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectValue["142"];
+    const fillValue = objectCson["142"];
     const unpackedFill =
       fillValue != undefined
-        ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
+        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const rotationValue = objectValue["143"];
+    const rotationValue = objectCson["143"];
     const unpackedRotation =
       rotationValue != undefined
-        ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
+        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["144"];
+    const skewValue = objectCson["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["145"];
+    const scaleValue = objectCson["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const shadowValue = objectValue["146"];
+    const shadowValue = objectCson["146"];
     const unpackedShadow =
       shadowValue != undefined
-        ? _Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
+        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
         : null;
-    const borderValue = objectValue["147"];
+    const borderValue = objectCson["147"];
     const unpackedBorder =
       borderValue != undefined
-        ? _Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
+        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
         : null;
-    const radiusValue = objectValue["148"];
+    const radiusValue = objectCson["148"];
     const unpackedRadius =
       radiusValue != undefined
-        ? _Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
+        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
         : null;
-    const positionValue = objectValue["110"];
+    const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
-        ? _Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectValue["111"];
+    const widthValue = objectCson["111"];
     const unpackedWidth =
       widthValue != undefined
-        ? _Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectValue["112"];
+    const heightValue = objectCson["112"];
     const unpackedHeight =
       heightValue != undefined
-        ? _Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectValue["113"];
+    const minWidthValue = objectCson["113"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? _Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectValue["114"];
+    const minHeightValue = objectCson["114"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? _Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectValue["115"];
+    const maxWidthValue = objectCson["115"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? _Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectValue["116"];
+    const maxHeightValue = objectCson["116"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1776,21 +1776,15 @@ export class AnnotationShape extends Shape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
-      isExtensible: objectValue["90"],
+      isExtensible: objectCson["90"],
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1798,18 +1792,18 @@ export class AnnotationShape extends Shape {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
+      name: objectCson["50"],
+      id: String(objectCson["2"]),
       script: unpackedScriptPtr,
-      orderKey: objectValue["31"],
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      orderKey: objectCson["31"],
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1817,14 +1811,14 @@ export class AnnotationShape extends Shape {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): AnnotationShape {
-    return AnnotationShape.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return AnnotationShape.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): AnnotationShapeProto {

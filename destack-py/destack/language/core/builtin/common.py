@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from destack.utils.uuid import UUID
 
@@ -46,6 +46,7 @@ class EnumType(Enum):
     EDGE_TYPE = 107
     EDGE_DIRECTION = 108
     CASCADE_ACTION = 109
+    ENCODING = 110
 
     # edit
     EDIT_TYPE = 200
@@ -1148,8 +1149,21 @@ class CascadeAction(Enum):
 class EdgeDirection(Enum):
     PARENT = 1
     CHILD = 2
-    # DEFINITION, INSTANCE
+    # DEFINITION, INSTANCE, ...
     SIDE = 20
+
+
+@builtin_enum(EnumType.ENCODING)
+class Encoding(Enum):
+    """The encoding of a value."""
+
+    CSON = 1, "CSON", "Constant folded JSON encoding"
+    PROTO = 2, "PROTO", "Protocol Buffers encoding"
+
+
+type Json = Any
+type Cson = Json
+type Proto = bytes
 
 
 @builtin_enum(EnumType.PRIMITIVE_TYPE)
@@ -1159,44 +1173,31 @@ class PrimitiveType(Enum):
     """
 
     BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"
-    # INT8? UINTs?
-    # range: -32_768 to 32_767
+    # integer
     INT16 = 4, "Integer", "Very small integer", "fas fa-tally"
-    # range: -2_147_483_648 to 2_147_483_647
     INT32 = 5, "Integer", "Small integer", "fas fa-tally"
-    # range: -9_223_372_036_854_775_808 to 9_223_372_036_854_775_807
     INT64 = 6, "Integer", "Integer number", "fas fa-tally"
     # numeric(precision, scale)
     DECIMAL = 10, "Decimal", "Decimal number", "fas fa-tally"
-    # FLOAT16?
-    # range: 1.175494351e-38 to 3.402823466e+38
+    # float
     FLOAT32 = 16, "Float", "Small float", "fas fa-hashtag"
-    # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
     FLOAT64 = 17, "Float", "Floating point number", "fas fa-hashtag"
+    # string
     STRING = 20, "String", "Plain text", "fas fa-font-case"
     UUID = 21, "UUID", "UUID", "fas fa-fingerprint"
-    JSON = 22, "JSON", "JSON", "fas fa-brackets-curly"
-    BYTES = 25, "Bytes", "Binary data", "fas fa-file-lines"
+    # bytes
+    BYTES = 30, "Bytes", "Binary data", "fas fa-file-lines"
     # VECTOR?
     # time
-    DATETIME = 30, "Date & Time", "Date & time", "fas fa-calendar-days"
-    DATE = 31, "Date", "Date", "fas fa-calendar-days"
-    TIME = 32, "Time", "Time", "fas fa-clock"
-    DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
+    DATETIME = 40, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATE = 41, "Date", "Date", "fas fa-calendar-days"
+    TIME = 42, "Time", "Time", "fas fa-clock"
+    DURATION = 43, "Duration", "Duration", "fas fa-stopwatch"
+    # compound
+    JSON = 50, "JSON", "JSON", "fas fa-brackets-curly"
     # custom
-    # DSON, PROTO, ...?
-
-    @property
-    def is_numeric(self) -> bool:
-        return self.id >= 2 and self.id < 20
-
-    @property
-    def is_int(self) -> bool:
-        return self.id >= 2 and self.id <= 10
-
-    @property
-    def is_float(self) -> bool:
-        return self.id >= 15 and self.id < 20
+    CSON = 60, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
+    PROTO = 61, "PROTO", "Protocol Buffers", "fas fa-file-lines"
 
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {

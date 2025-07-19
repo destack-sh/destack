@@ -690,7 +690,7 @@ function executeSubquery(options: {
         if (parentsPtr.has(parentId.toString())) {
           continue;
         }
-        const parentPtr = NodeReference.fromValue(parentPtrValue);
+        const parentPtr = NodeReference.fromCson(parentPtrValue);
         parentsPtr.set(parentPtr.id.toString(), parentPtr);
       }
     }

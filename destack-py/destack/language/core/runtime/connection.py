@@ -45,7 +45,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
 
     def _add_result(self, result: QueryResult | QueryResultGroup, query: Query) -> None:
         """Add a QueryResult to the connection (recursively)."""
-        from ..common import unpack_value
+        from ..common import unpack_cson
 
         session = self.connection.session
         supergraph = session.supergraph
@@ -53,7 +53,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
 
         # nodes
         for node_value in result.nodes:
-            node = unpack_value(
+            node = unpack_cson(
                 node_value.value,
                 node_value.type,
                 _session=session,

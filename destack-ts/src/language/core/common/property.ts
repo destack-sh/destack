@@ -1173,116 +1173,116 @@ export class CustomProperty extends Entity implements IsSourceable {
     return `<CustomProperty "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CustomProperty.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CustomProperty.__packCson__(this);
   }
 
-  static __packValue__(object: CustomProperty): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20300;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: CustomProperty): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20300;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
-    objectValue["100"] = object._type;
+    objectCson["100"] = object._type;
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    objectValue["110"] = object._cardinality;
-    objectValue["111"] = object._scalarType;
+    objectCson["110"] = object._cardinality;
+    objectCson["111"] = object._scalarType;
     if (object._primitiveType != null) {
-      objectValue["112"] = object._primitiveType;
+      objectCson["112"] = object._primitiveType;
     }
     if (object._enumType != null) {
-      objectValue["113"] = object._enumType;
+      objectCson["113"] = object._enumType;
     }
     if (object._nodeType != null) {
-      objectValue["114"] = object._nodeType;
+      objectCson["114"] = object._nodeType;
     }
     if (object._structType != null) {
-      objectValue["115"] = object._structType;
+      objectCson["115"] = object._structType;
     }
     if (object._definitionPtr != null) {
-      objectValue["116"] = object._definitionPtr.toValue();
+      objectCson["116"] = object._definitionPtr.toCson();
     }
     if (object._keyType != null) {
-      objectValue["117"] = object._keyType.toValue();
+      objectCson["117"] = object._keyType.toCson();
     }
     if (object._value != null) {
-      objectValue["120"] = object._value.toValue();
+      objectCson["120"] = object._value.toCson();
     }
     if (object._valueFactory != null) {
-      objectValue["121"] = object._valueFactory;
+      objectCson["121"] = object._valueFactory;
     }
     if (object._collectionConstraint != null) {
-      objectValue["130"] = object._collectionConstraint.toValue();
+      objectCson["130"] = object._collectionConstraint.toCson();
     }
     if (object._stringConstraint != null) {
-      objectValue["131"] = object._stringConstraint.toValue();
+      objectCson["131"] = object._stringConstraint.toCson();
     }
     if (object._numberConstraint != null) {
-      objectValue["132"] = object._numberConstraint.toValue();
+      objectCson["132"] = object._numberConstraint.toCson();
     }
     if (object._nodeConstraint != null) {
-      objectValue["133"] = object._nodeConstraint.toValue();
+      objectCson["133"] = object._nodeConstraint.toCson();
     }
     if (object._edgeType != null) {
-      objectValue["140"] = object._edgeType;
+      objectCson["140"] = object._edgeType;
     }
     if (object._cascade != null) {
-      objectValue["141"] = object._cascade;
+      objectCson["141"] = object._cascade;
     }
     if (object._isRequired != null) {
-      objectValue["150"] = object._isRequired;
+      objectCson["150"] = object._isRequired;
     }
     if (object._isUnique != null) {
-      objectValue["151"] = object._isUnique;
+      objectCson["151"] = object._isUnique;
     }
     if (object._isComputed != null) {
-      objectValue["152"] = object._isComputed;
+      objectCson["152"] = object._isComputed;
     }
     if (object._isReadonly != null) {
-      objectValue["153"] = object._isReadonly;
+      objectCson["153"] = object._isReadonly;
     }
     if (object._isMain != null) {
-      objectValue["154"] = object._isMain;
+      objectCson["154"] = object._isMain;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1304,46 +1304,46 @@ export class CustomProperty extends Entity implements IsSourceable {
     ] as typeof NodeConstraint;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const primitiveTypeValue = objectValue["112"];
+    const primitiveTypeValue = objectCson["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["113"];
+    const enumTypeValue = objectCson["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["114"];
+    const nodeTypeValue = objectCson["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["115"];
+    const structTypeValue = objectCson["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["116"];
+    const definitionPtrValue = objectCson["116"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyTypeValue = objectValue["117"];
+    const keyTypeValue = objectCson["117"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromCson(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["120"];
+    const valueValue = objectCson["120"];
     const unpackedValue =
       valueValue != undefined
-        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["121"];
+    const valueFactoryValue = objectCson["121"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["130"];
+    const collectionConstraintValue = objectCson["130"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? _CollectionConstraint.fromValue(
+        ? _CollectionConstraint.fromCson(
             collectionConstraintValue,
             _session,
             _supergraph,
@@ -1351,10 +1351,10 @@ export class CustomProperty extends Entity implements IsSourceable {
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["131"];
+    const stringConstraintValue = objectCson["131"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? _StringConstraint.fromValue(
+        ? _StringConstraint.fromCson(
             stringConstraintValue,
             _session,
             _supergraph,
@@ -1362,10 +1362,10 @@ export class CustomProperty extends Entity implements IsSourceable {
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["132"];
+    const numberConstraintValue = objectCson["132"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? _NumberConstraint.fromValue(
+        ? _NumberConstraint.fromCson(
             numberConstraintValue,
             _session,
             _supergraph,
@@ -1373,63 +1373,63 @@ export class CustomProperty extends Entity implements IsSourceable {
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["133"];
+    const nodeConstraintValue = objectCson["133"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["140"];
+    const edgeTypeValue = objectCson["140"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["141"];
+    const cascadeValue = objectCson["141"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
-    const isRequiredValue = objectValue["150"];
+    const isRequiredValue = objectCson["150"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isUniqueValue = objectValue["151"];
+    const isUniqueValue = objectCson["151"];
     const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
-    const isComputedValue = objectValue["152"];
+    const isComputedValue = objectCson["152"];
     const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
-    const isReadonlyValue = objectValue["153"];
+    const isReadonlyValue = objectCson["153"];
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
-    const isMainValue = objectValue["154"];
+    const isMainValue = objectCson["154"];
     const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new CustomProperty({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       icon: unpackedIcon,
-      cardinality: Number(objectValue["110"]),
-      scalarType: Number(objectValue["111"]),
+      cardinality: Number(objectCson["110"]),
+      scalarType: Number(objectCson["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
@@ -1451,16 +1451,10 @@ export class CustomProperty extends Entity implements IsSourceable {
       isMain: unpackedIsMain,
       source: unpackedSourcePtr,
       key: unpackedKey,
-      materialization: Number(objectValue["10"]),
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      materialization: Number(objectCson["10"]),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1468,31 +1462,31 @@ export class CustomProperty extends Entity implements IsSourceable {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomProperty {
-    return CustomProperty.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CustomProperty.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CustomPropertyProto {

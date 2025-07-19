@@ -1067,7 +1067,7 @@ async function _executeSubquery(options: {
         if (parentsPtr.has(parentId)) {
           continue;
         }
-        const parentPtr = NodeReference.fromValue(parentPtrValue);
+        const parentPtr = NodeReference.fromCson(parentPtrValue);
         parentsPtr.set(parentPtr.id, parentPtr);
       }
     }

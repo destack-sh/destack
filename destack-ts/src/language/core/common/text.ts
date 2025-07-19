@@ -110,7 +110,7 @@ export class TextSpan extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -156,7 +156,7 @@ export class TextSpan extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -239,74 +239,74 @@ export class TextSpan extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = TextSpan.__packValue__(this);
+      this._cson = TextSpan.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: TextSpan): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 400021;
-    objectValue["100"] = object.type;
+  static __packCson__(object: TextSpan): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 400021;
+    objectCson["100"] = object.type;
     if (object.content != null) {
-      objectValue["101"] = object.content;
+      objectCson["101"] = object.content;
     }
     if (object.nodePtr != null) {
-      objectValue["102"] = object.nodePtr.toValue();
+      objectCson["102"] = object.nodePtr.toCson();
     }
     if (object.url != null) {
-      objectValue["105"] = object.url;
+      objectCson["105"] = object.url;
     }
     if (object.isBold != null) {
-      objectValue["150"] = object.isBold;
+      objectCson["150"] = object.isBold;
     }
     if (object.isItalic != null) {
-      objectValue["151"] = object.isItalic;
+      objectCson["151"] = object.isItalic;
     }
     if (object.isStrikethrough != null) {
-      objectValue["152"] = object.isStrikethrough;
+      objectCson["152"] = object.isStrikethrough;
     }
     if (object.isUnderline != null) {
-      objectValue["153"] = object.isUnderline;
+      objectCson["153"] = object.isUnderline;
     }
     if (object.isCode != null) {
-      objectValue["154"] = object.isCode;
+      objectCson["154"] = object.isCode;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TextSpan {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const contentValue = objectValue["101"];
+    const contentValue = objectCson["101"];
     const unpackedContent = contentValue != undefined ? contentValue : null;
-    const nodePtrValue = objectValue["102"];
+    const nodePtrValue = objectCson["102"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const urlValue = objectValue["105"];
+    const urlValue = objectCson["105"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
-    const isBoldValue = objectValue["150"];
+    const isBoldValue = objectCson["150"];
     const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
-    const isItalicValue = objectValue["151"];
+    const isItalicValue = objectCson["151"];
     const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
-    const isStrikethroughValue = objectValue["152"];
+    const isStrikethroughValue = objectCson["152"];
     const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
-    const isUnderlineValue = objectValue["153"];
+    const isUnderlineValue = objectCson["153"];
     const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
-    const isCodeValue = objectValue["154"];
+    const isCodeValue = objectCson["154"];
     const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     return new TextSpan({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       content: unpackedContent,
       node: unpackedNodePtr,
       url: unpackedUrl,
@@ -315,19 +315,19 @@ export class TextSpan extends StructFrozen {
       isStrikethrough: unpackedIsStrikethrough,
       isUnderline: unpackedIsUnderline,
       isCode: unpackedIsCode,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): TextSpan {
-    return TextSpan.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return TextSpan.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TextSpanProto {
@@ -474,7 +474,7 @@ export class Text extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -508,7 +508,7 @@ export class Text extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -582,44 +582,44 @@ export class Text extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Text.__packValue__(this);
+      this._cson = Text.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Text): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 400020;
+  static __packCson__(object: Text): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 400020;
     if (object.spans.length > 0) {
       const packedSpans: any[] = [];
       for (const item of object.spans) {
-        packedSpans.push(item.toValue());
+        packedSpans.push(item.toCson());
       }
-      objectValue["103"] = packedSpans;
+      objectCson["103"] = packedSpans;
     }
     if (object.isBold != null) {
-      objectValue["150"] = object.isBold;
+      objectCson["150"] = object.isBold;
     }
     if (object.isItalic != null) {
-      objectValue["151"] = object.isItalic;
+      objectCson["151"] = object.isItalic;
     }
     if (object.isStrikethrough != null) {
-      objectValue["152"] = object.isStrikethrough;
+      objectCson["152"] = object.isStrikethrough;
     }
     if (object.isUnderline != null) {
-      objectValue["153"] = object.isUnderline;
+      objectCson["153"] = object.isUnderline;
     }
     if (object.isCode != null) {
-      objectValue["154"] = object.isCode;
+      objectCson["154"] = object.isCode;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -627,20 +627,20 @@ export class Text extends StructFrozen {
   ): Text {
     const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
-    if (objectValue["103"] != undefined) {
-      for (const item of objectValue["103"]) {
-        unpackedSpans.push(_TextSpan.fromValue(item, _session, _supergraph, _graph, _connection));
+    if (objectCson["103"] != undefined) {
+      for (const item of objectCson["103"]) {
+        unpackedSpans.push(_TextSpan.fromCson(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const isBoldValue = objectValue["150"];
+    const isBoldValue = objectCson["150"];
     const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
-    const isItalicValue = objectValue["151"];
+    const isItalicValue = objectCson["151"];
     const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
-    const isStrikethroughValue = objectValue["152"];
+    const isStrikethroughValue = objectCson["152"];
     const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
-    const isUnderlineValue = objectValue["153"];
+    const isUnderlineValue = objectCson["153"];
     const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
-    const isCodeValue = objectValue["154"];
+    const isCodeValue = objectCson["154"];
     const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     return new Text({
       spans: unpackedSpans,
@@ -649,19 +649,19 @@ export class Text extends StructFrozen {
       isStrikethrough: unpackedIsStrikethrough,
       isUnderline: unpackedIsUnderline,
       isCode: unpackedIsCode,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Text {
-    return Text.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Text.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TextProto {

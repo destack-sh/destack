@@ -447,180 +447,180 @@ export class Schedule extends Struct {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Schedule.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Schedule.__packCson__(this);
   }
 
-  static __packValue__(object: Schedule): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 700001;
-    objectValue["101"] = object.frequency;
-    objectValue["102"] = object.interval;
+  static __packCson__(object: Schedule): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 700001;
+    objectCson["101"] = object.frequency;
+    objectCson["102"] = object.interval;
     if (object.start != null) {
-      objectValue["110"] = object.start.toString({ timeZoneName: "never" });
+      objectCson["110"] = object.start.toString({ timeZoneName: "never" });
     }
     if (object.end != null) {
-      objectValue["111"] = object.end.toString({ timeZoneName: "never" });
+      objectCson["111"] = object.end.toString({ timeZoneName: "never" });
     }
     if (object.count != null) {
-      objectValue["112"] = object.count;
+      objectCson["112"] = object.count;
     }
     if (object.weekStart != null) {
-      objectValue["113"] = object.weekStart;
+      objectCson["113"] = object.weekStart;
     }
     if (object.bySetPos.length > 0) {
       const packedBySetPos: any[] = [];
       for (const item of object.bySetPos) {
         packedBySetPos.push(item);
       }
-      objectValue["114"] = packedBySetPos;
+      objectCson["114"] = packedBySetPos;
     }
     if (object.byMonth.length > 0) {
       const packedByMonth: any[] = [];
       for (const item of object.byMonth) {
         packedByMonth.push(item);
       }
-      objectValue["115"] = packedByMonth;
+      objectCson["115"] = packedByMonth;
     }
     if (object.byMonthDay.length > 0) {
       const packedByMonthDay: any[] = [];
       for (const item of object.byMonthDay) {
         packedByMonthDay.push(item);
       }
-      objectValue["116"] = packedByMonthDay;
+      objectCson["116"] = packedByMonthDay;
     }
     if (object.byYearDay.length > 0) {
       const packedByYearDay: any[] = [];
       for (const item of object.byYearDay) {
         packedByYearDay.push(item);
       }
-      objectValue["117"] = packedByYearDay;
+      objectCson["117"] = packedByYearDay;
     }
     if (object.byEaster.length > 0) {
       const packedByEaster: any[] = [];
       for (const item of object.byEaster) {
         packedByEaster.push(item);
       }
-      objectValue["118"] = packedByEaster;
+      objectCson["118"] = packedByEaster;
     }
     if (object.byWeekNo.length > 0) {
       const packedByWeekNo: any[] = [];
       for (const item of object.byWeekNo) {
         packedByWeekNo.push(item);
       }
-      objectValue["119"] = packedByWeekNo;
+      objectCson["119"] = packedByWeekNo;
     }
     if (object.byWeekDay.length > 0) {
       const packedByWeekDay: any[] = [];
       for (const item of object.byWeekDay) {
         packedByWeekDay.push(item);
       }
-      objectValue["120"] = packedByWeekDay;
+      objectCson["120"] = packedByWeekDay;
     }
     if (object.byHour.length > 0) {
       const packedByHour: any[] = [];
       for (const item of object.byHour) {
         packedByHour.push(item);
       }
-      objectValue["121"] = packedByHour;
+      objectCson["121"] = packedByHour;
     }
     if (object.byMinute.length > 0) {
       const packedByMinute: any[] = [];
       for (const item of object.byMinute) {
         packedByMinute.push(item);
       }
-      objectValue["122"] = packedByMinute;
+      objectCson["122"] = packedByMinute;
     }
     if (object.bySecond.length > 0) {
       const packedBySecond: any[] = [];
       for (const item of object.bySecond) {
         packedBySecond.push(item);
       }
-      objectValue["123"] = packedBySecond;
+      objectCson["123"] = packedBySecond;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Schedule {
-    const startValue = objectValue["110"];
+    const startValue = objectCson["110"];
     const unpackedStart =
       startValue != undefined ? Temporal.Instant.from(startValue).toZonedDateTimeISO("UTC") : null;
-    const endValue = objectValue["111"];
+    const endValue = objectCson["111"];
     const unpackedEnd =
       endValue != undefined ? Temporal.Instant.from(endValue).toZonedDateTimeISO("UTC") : null;
-    const countValue = objectValue["112"];
+    const countValue = objectCson["112"];
     const unpackedCount = countValue != undefined ? Number(countValue) : null;
-    const weekStartValue = objectValue["113"];
+    const weekStartValue = objectCson["113"];
     const unpackedWeekStart = weekStartValue != undefined ? Number(weekStartValue) : null;
     const unpackedBySetPos: any[] = [];
-    if (objectValue["114"] != undefined) {
-      for (const item of objectValue["114"]) {
+    if (objectCson["114"] != undefined) {
+      for (const item of objectCson["114"]) {
         unpackedBySetPos.push(Number(item));
       }
     }
     const unpackedByMonth: any[] = [];
-    if (objectValue["115"] != undefined) {
-      for (const item of objectValue["115"]) {
+    if (objectCson["115"] != undefined) {
+      for (const item of objectCson["115"]) {
         unpackedByMonth.push(Number(item));
       }
     }
     const unpackedByMonthDay: any[] = [];
-    if (objectValue["116"] != undefined) {
-      for (const item of objectValue["116"]) {
+    if (objectCson["116"] != undefined) {
+      for (const item of objectCson["116"]) {
         unpackedByMonthDay.push(Number(item));
       }
     }
     const unpackedByYearDay: any[] = [];
-    if (objectValue["117"] != undefined) {
-      for (const item of objectValue["117"]) {
+    if (objectCson["117"] != undefined) {
+      for (const item of objectCson["117"]) {
         unpackedByYearDay.push(Number(item));
       }
     }
     const unpackedByEaster: any[] = [];
-    if (objectValue["118"] != undefined) {
-      for (const item of objectValue["118"]) {
+    if (objectCson["118"] != undefined) {
+      for (const item of objectCson["118"]) {
         unpackedByEaster.push(Number(item));
       }
     }
     const unpackedByWeekNo: any[] = [];
-    if (objectValue["119"] != undefined) {
-      for (const item of objectValue["119"]) {
+    if (objectCson["119"] != undefined) {
+      for (const item of objectCson["119"]) {
         unpackedByWeekNo.push(Number(item));
       }
     }
     const unpackedByWeekDay: any[] = [];
-    if (objectValue["120"] != undefined) {
-      for (const item of objectValue["120"]) {
+    if (objectCson["120"] != undefined) {
+      for (const item of objectCson["120"]) {
         unpackedByWeekDay.push(Number(item));
       }
     }
     const unpackedByHour: any[] = [];
-    if (objectValue["121"] != undefined) {
-      for (const item of objectValue["121"]) {
+    if (objectCson["121"] != undefined) {
+      for (const item of objectCson["121"]) {
         unpackedByHour.push(Number(item));
       }
     }
     const unpackedByMinute: any[] = [];
-    if (objectValue["122"] != undefined) {
-      for (const item of objectValue["122"]) {
+    if (objectCson["122"] != undefined) {
+      for (const item of objectCson["122"]) {
         unpackedByMinute.push(Number(item));
       }
     }
     const unpackedBySecond: any[] = [];
-    if (objectValue["123"] != undefined) {
-      for (const item of objectValue["123"]) {
+    if (objectCson["123"] != undefined) {
+      for (const item of objectCson["123"]) {
         unpackedBySecond.push(Number(item));
       }
     }
     return new Schedule({
-      frequency: Number(objectValue["101"]),
-      interval: Number(objectValue["102"]),
+      frequency: Number(objectCson["101"]),
+      interval: Number(objectCson["102"]),
       start: unpackedStart,
       end: unpackedEnd,
       count: unpackedCount,
@@ -639,14 +639,14 @@ export class Schedule extends Struct {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Schedule {
-    return Schedule.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Schedule.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): ScheduleProto {
