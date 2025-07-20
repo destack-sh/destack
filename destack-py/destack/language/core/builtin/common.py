@@ -888,7 +888,6 @@ class UniverseCategory(Enum):
     SCENE = 1_700_000, "Scene", "Stage construction"
     VIEW = 1_800_000, "View", "View building"
     CANVAS = 1_900_000, "Canvas", "Drawing, painting and rendering"
-    # CANVAS->DRAW/PAINT?
     INTERACTION = 2_000_000, "Interaction", "Interaction design"
     STYLE = 2_100_000, "Style", "Style views"
     ANIMATION = 2_200_000, "Animation", "Motion design"

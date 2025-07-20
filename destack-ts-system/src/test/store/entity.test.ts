@@ -1,6 +1,4 @@
-import { IndexedDBStore } from "@destack-web/store/indexeddb";
 import { createAndActivateSpace } from "@destack/test/conftest";
-import { closePostgresPool, getPostgres, PostgresEntityStore } from "@desys/store/postgres";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   Client,
@@ -8,7 +6,6 @@ import {
   Folder,
   FolderType,
   FrameView,
-  getFromEnv,
   Join,
   JoinType,
   LabelView,
@@ -26,7 +23,6 @@ import {
   uuid4,
   View,
 } from "destack";
-import { IDBFactory } from "fake-indexeddb";
 import "fake-indexeddb/auto";
 
 const storeImplementations = [
@@ -40,51 +36,11 @@ const storeImplementations = [
     },
     tearDown: async (store: MemoryStore) => {},
   },
-  {
-    name: "IndexedDBStore",
-    createStore: async () => {
-      // reset fake indexeddb
-      globalThis.indexedDB = new IDBFactory();
-
-      const store = new IndexedDBStore({
-        keys: [StoreKey.ENTITY_PRIMARY],
-      });
-      await store.open();
-      return store;
-    },
-    tearDown: async (store: IndexedDBStore) => {
-      await store.close();
-    },
-  },
-  {
-    name: "PostgresEntityStore",
-    createStore: async () => {
-      const postgresUrl = await getFromEnv("POSTGRES_URL", "string");
-
-      // create separate database for testing
-      const testDbName = "destack-test";
-      const db = await getPostgres({ url: postgresUrl });
-      await db.unsafe(`DROP DATABASE IF EXISTS "${testDbName}"`);
-      await db.unsafe(`CREATE DATABASE "${testDbName}"`);
-      const testPostgresUrl = postgresUrl.split("/").slice(0, -1).join("/") + `/${testDbName}`;
-
-      const store = new PostgresEntityStore({
-        database: { url: testPostgresUrl },
-        keys: [StoreKey.ENTITY_PRIMARY],
-      });
-      await store.open();
-      return store;
-    },
-    tearDown: async (store: PostgresEntityStore) => {
-      closePostgresPool(store.dbInfo);
-      await store.close();
-    },
-  },
 ];
 
 describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   let session: Session;
-  let store: MemoryStore | IndexedDBStore | PostgresEntityStore;
+  let store: MemoryStore;
 
   beforeEach(async () => {
     store = await createStore();

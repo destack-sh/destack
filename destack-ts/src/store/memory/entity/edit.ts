@@ -122,8 +122,10 @@ function _executeCascade(options: {
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
   includeDeleted?: boolean | Array<string>;
+  branchId: string;
+  snapshotId: string;
 }): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
-  const { context, definition, nodePtrs, includeDeleted } = options;
+  const { context, definition, nodePtrs, includeDeleted, branchId, snapshotId } = options;
   const { cascadedNodePtrs, sourceIdByNodeId } = walkNode({
     context,
     definition,
@@ -131,7 +133,8 @@ function _executeCascade(options: {
     direction: EdgeDirection.CHILD,
     depth: MAX_RECURSION_DEPTH,
     includeDeleted,
-    snapshotPath: [],
+    branchId,
+    snapshotId,
   });
   return { cascadedNodePtrs, sourceIdByNodeId };
 }
@@ -156,7 +159,7 @@ function _executeEdit(options: {
       if (!edit.value) {
         throw new Error(`no value for ${edit.repr()}`);
       }
-      const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
+      const snapshotId = edit.snapshotPtr.id;
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       if (editType === EditType.UPSERT || !table.rows.has(nodeKey)) {
         const row = packEntityRow(edit.value);
@@ -184,7 +187,7 @@ function _executeEdit(options: {
   // update
   else if (editType === EditType.UPDATE) {
     for (const edit of edits) {
-      const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
+      const snapshotId = edit.snapshotPtr.id;
       if (!edit.propertyId) {
         throw new Error(`no propertyId for ${edit.repr()}`);
       }
@@ -213,7 +216,7 @@ function _executeEdit(options: {
       if (edit.value.type.scalarType !== ScalarType.NODE_REFERENCE) {
         throw new Error(`unexpected value: ${edit.repr()}`);
       }
-      const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
+      const snapshotId = edit.snapshotPtr.id;
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
       if (!row) {
@@ -261,7 +264,7 @@ function _executeEdit(options: {
       // restrict to nodes with same deleted_at
       includeDeleted = [];
       for (const nodePtr of nodesPtrs) {
-        const snapshotId = nodePtr.snapshotId || null;
+        const snapshotId = nodePtr.snapshotId;
         const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
         const row = table.rows.get(nodeKey);
         if (!row) {
@@ -280,6 +283,8 @@ function _executeEdit(options: {
       definition,
       nodePtrs: nodesPtrs,
       includeDeleted,
+      branchId: edits[0].branchPtr.id,
+      snapshotId: edits[0].snapshotPtr.id,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
@@ -291,7 +296,7 @@ function _executeEdit(options: {
       if (!edit) {
         throw new Error(`edit not found for ${nodePtr.repr()}`);
       }
-      const snapshotId = edit.snapshotPtr?.id || null;
+      const snapshotId = edit.snapshotPtr.id;
       const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
       if (!row) {
