@@ -51,10 +51,6 @@ import type {
   TransitionStyle,
   TransitionType,
 } from "@destack/language/animation/transition";
-import type { AnnotationShape } from "@destack/language/canvas/annotation";
-import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/arrow";
-import type { Line, LineShape } from "@destack/language/canvas/line";
-import type { Shape } from "@destack/language/canvas/shape";
 import type { Node, Struct } from "@destack/language/core";
 import type {
   CascadeAction,
@@ -120,8 +116,10 @@ import type {
 import type {
   IsActor,
   IsCustomizable,
+  IsDraggable,
   IsExtensible,
   IsFollowable,
+  IsInteractive,
   IsIrreversible,
   IsJoinable,
   IsOrdered,
@@ -130,9 +128,9 @@ import type {
   IsReactable,
   IsRunnable,
   IsScriptable,
+  IsSelectable,
   IsSourceable,
   IsStarable,
-  IsViewable,
 } from "@destack/language/core/builtin/trait";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
 import type {
@@ -206,13 +204,7 @@ import type {
   Type,
 } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
-import type {
-  File,
-  FileFormat,
-  FileRetentionMode,
-  FileSource,
-  FileType,
-} from "@destack/language/data/file";
+import type { File, FileFormat, FileRetentionMode, FileType } from "@destack/language/data/file";
 import type { Environment } from "@destack/language/deployment/environment";
 import type { LogEvent, LogLevel } from "@destack/language/deployment/log";
 import type {
@@ -229,6 +221,13 @@ import type {
   RunStopRequestedEvent,
 } from "@destack/language/deployment/run";
 import type { SpanEvent } from "@destack/language/deployment/span";
+import type { Arrow2D, ArrowHeadType, ArrowShape2D } from "@destack/language/geometry/arrow";
+import type { Ellipse2D, EllipseShape2D } from "@destack/language/geometry/ellipse";
+import type { Line2D, LineShape2D } from "@destack/language/geometry/line";
+import type { Path2D, PathShape2D } from "@destack/language/geometry/path";
+import type { Polygon2D, PolygonShape2D } from "@destack/language/geometry/polygon";
+import type { Rectangle2D, RectangleShape2D } from "@destack/language/geometry/rectangle";
+import type { Shape, Shape2D } from "@destack/language/geometry/shape";
 import type {
   Vector,
   Vector2,
@@ -431,12 +430,11 @@ import type {
   Position,
   PositionType,
 } from "@destack/language/view/common";
-import type { ContainerView } from "@destack/language/view/container";
 import type { ContentView } from "@destack/language/view/content";
 import type { FrameView } from "@destack/language/view/frame";
 import type { InputView } from "@destack/language/view/input";
-import type { InternalView } from "@destack/language/view/internal";
 import type { LabelView } from "@destack/language/view/label";
+import type { LayoutView } from "@destack/language/view/layout";
 import type { NumberInputView } from "@destack/language/view/number";
 import type { SliderInputView } from "@destack/language/view/slider";
 import type { SplitView } from "@destack/language/view/split";
@@ -507,22 +505,6 @@ export type NodeTypeMapping = {
   [NodeType.THEME]: Theme;
   [NodeType.TRANSITION_STYLE]: TransitionStyle;
   [NodeType.EFFECT_STYLE]: EffectStyle;
-  [NodeType.VIEW_EVENT]: ViewEvent;
-  [NodeType.VIEW]: View;
-  [NodeType.CONTAINER_VIEW]: ContainerView;
-  [NodeType.CONTENT_VIEW]: ContentView;
-  [NodeType.FRAME_VIEW]: FrameView;
-  [NodeType.INPUT_VIEW]: InputView;
-  [NodeType.INTERNAL_VIEW]: InternalView;
-  [NodeType.LABEL_VIEW]: LabelView;
-  [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
-  [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
-  [NodeType.SPLIT_VIEW]: SplitView;
-  [NodeType.TEXT_VIEW]: TextView;
-  [NodeType.SHAPE]: Shape;
-  [NodeType.ANNOTATION_SHAPE]: AnnotationShape;
-  [NodeType.ARROW_SHAPE]: ArrowShape;
-  [NodeType.LINE_SHAPE]: LineShape;
   [NodeType.FILE]: File;
   [NodeType.ENVIRONMENT]: Environment;
   [NodeType.LOG_EVENT]: LogEvent;
@@ -537,6 +519,25 @@ export type NodeTypeMapping = {
   [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
   [NodeType.RUN]: Run;
   [NodeType.SPAN_EVENT]: SpanEvent;
+  [NodeType.VIEW_EVENT]: ViewEvent;
+  [NodeType.VIEW]: View;
+  [NodeType.CONTENT_VIEW]: ContentView;
+  [NodeType.LAYOUT_VIEW]: LayoutView;
+  [NodeType.FRAME_VIEW]: FrameView;
+  [NodeType.INPUT_VIEW]: InputView;
+  [NodeType.LABEL_VIEW]: LabelView;
+  [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
+  [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
+  [NodeType.SPLIT_VIEW]: SplitView;
+  [NodeType.TEXT_VIEW]: TextView;
+  [NodeType.SHAPE]: Shape;
+  [NodeType.SHAPE2D]: Shape2D;
+  [NodeType.ARROW_SHAPE2D]: ArrowShape2D;
+  [NodeType.ELLIPSE_SHAPE2D]: EllipseShape2D;
+  [NodeType.LINE_SHAPE2D]: LineShape2D;
+  [NodeType.PATH_SHAPE2D]: PathShape2D;
+  [NodeType.POLYGON_SHAPE2D]: PolygonShape2D;
+  [NodeType.RECTANGLE_SHAPE2D]: RectangleShape2D;
   [NodeType.DATABASE]: Database;
   [NodeType.MACHINE]: Machine;
   [NodeType.INPUT_EVENT]: InputEvent;
@@ -636,7 +637,9 @@ export type TraitTypeMapping = {
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
   [TraitType.FOLLOWABLE]: IsFollowable;
-  [TraitType.VIEWABLE]: IsViewable;
+  [TraitType.INTERACTIVE]: IsInteractive;
+  [TraitType.DRAGGABLE]: IsDraggable;
+  [TraitType.SELECTABLE]: IsSelectable;
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.RUNNABLE]: IsRunnable;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
@@ -712,8 +715,12 @@ export type StructTypeMapping = {
   [StructType.AXIS3]: Axis3;
   [StructType.GRID]: Grid;
   [StructType.GRID_SPAN]: GridSpan;
-  [StructType.ARROW]: Arrow;
-  [StructType.LINE]: Line;
+  [StructType.ARROW2D]: Arrow2D;
+  [StructType.ELLIPSE2D]: Ellipse2D;
+  [StructType.LINE2D]: Line2D;
+  [StructType.PATH2D]: Path2D;
+  [StructType.POLYGON2D]: Polygon2D;
+  [StructType.RECTANGLE2D]: Rectangle2D;
   [StructType.VECTOR]: Vector;
   [StructType.VECTORF]: Vectorf;
   [StructType.VECTORI]: Vectori;
@@ -816,6 +823,11 @@ export type EnumTypeMapping = {
   [EnumType.REPEAT_TYPE]: RepeatType;
   [EnumType.TEXT_SPLIT_TYPE]: TextSplitType;
   [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehavior;
+  [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
+  [EnumType.FILE_TYPE]: FileType;
+  [EnumType.FILE_FORMAT]: FileFormat;
+  [EnumType.LOG_LEVEL]: LogLevel;
+  [EnumType.RUN_STATUS]: RunStatus;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;
   [EnumType.DIRECTION]: Direction;
@@ -825,12 +837,6 @@ export type EnumTypeMapping = {
   [EnumType.POSITION_TYPE]: PositionType;
   [EnumType.DIMENSION_TYPE]: DimensionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
-  [EnumType.FILE_SOURCE]: FileSource;
-  [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
-  [EnumType.FILE_TYPE]: FileType;
-  [EnumType.FILE_FORMAT]: FileFormat;
-  [EnumType.LOG_LEVEL]: LogLevel;
-  [EnumType.RUN_STATUS]: RunStatus;
   [EnumType.DATABASE_TYPE]: DatabaseType;
   [EnumType.MACHINE_TYPE]: MachineType;
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;

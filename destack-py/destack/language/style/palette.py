@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     IsExtensible,
-    IsOrdered,
     NodeType,
     builtin_node,
     builtin_property,
@@ -18,7 +17,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.PALETTE)
 class Palette(
     IsExtensible,
-    IsOrdered,
     Entity,
 ):
     """A Palette of Colors."""

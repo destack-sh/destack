@@ -28,7 +28,6 @@ import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import {
   EventStatusProto,
   PointerDownEventProto,
@@ -147,7 +146,7 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -345,10 +344,10 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -403,7 +402,7 @@ export class PointerDownEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -1325,10 +1324,10 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1383,7 +1382,7 @@ export class PointerUpEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -2299,10 +2298,10 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2357,7 +2356,7 @@ export class PointerMoveEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -3279,10 +3278,10 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -3337,7 +3336,7 @@ export class PointerEnterEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -4259,10 +4258,10 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -4317,7 +4316,7 @@ export class PointerOverEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -5239,10 +5238,10 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -5297,7 +5296,7 @@ export class PointerLeaveEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -6219,10 +6218,10 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -6277,7 +6276,7 @@ export class PointerLongPressEvent extends PointerEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;

@@ -5,7 +5,6 @@ import type {
   Icon,
   IsActor,
   IsExtensible,
-  IsOrdered,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -37,7 +36,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Palette of Colors.
  */
-export class Palette extends Entity implements IsExtensible, IsOrdered {
+export class Palette extends Entity implements IsExtensible {
   static metatype: NodeType = NodeType.PALETTE;
 
   /**
@@ -198,11 +197,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -287,7 +281,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
@@ -399,14 +392,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`Palette.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Palette";
@@ -515,7 +500,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -636,7 +620,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
@@ -718,7 +701,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
     return new Palette({
       icon: unpackedIcon,
       isExtensible: objectCson["90"],
-      orderKey: objectCson["31"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -802,7 +784,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
@@ -839,7 +820,6 @@ export class Palette extends Entity implements IsExtensible, IsOrdered {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible,
-      orderKey: objectProto.orderKey,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(

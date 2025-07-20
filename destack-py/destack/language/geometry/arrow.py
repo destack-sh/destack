@@ -12,7 +12,7 @@ from destack.language.core import (
     builtin_struct,
 )
 
-from .shape import Shape
+from .shape import Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Vector2
@@ -27,8 +27,8 @@ class ArrowHeadType(Enum):
     DOT = 3
 
 
-@builtin_struct(StructType.ARROW, frozen=True)
-class Arrow(StructFrozen):
+@builtin_struct(StructType.ARROW2D, frozen=True)
+class Arrow2D(StructFrozen):
     """An Arrow is a shape that represents an arrow."""
 
     start_type: ArrowHeadType = builtin_property(200)
@@ -37,8 +37,8 @@ class Arrow(StructFrozen):
     end: "Vector2" = builtin_property(211)
 
 
-@builtin_node(NodeType.ARROW_SHAPE)
-class ArrowShape(Shape):
+@builtin_node(NodeType.ARROW_SHAPE2D)
+class ArrowShape2D(Shape2D):
     """An ArrowShape is a shape that represents an arrow."""
 
     # content

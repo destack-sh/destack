@@ -1,12 +1,12 @@
 from destack.language.core import NodeType, builtin_node
 
-from .container import ContainerView
+from .layout import LayoutView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @builtin_node(NodeType.FRAME_VIEW)
-class FrameView(ContainerView):
+class FrameView(LayoutView):
     """
     A frame View is a bare ContainerView.
     """

@@ -9,11 +9,10 @@ import type {
   Space,
   Value,
 } from "@destack/language/core";
-import { Entity, Event, NodeType } from "@destack/language/core";
+import { Entity, Event, Node, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000000 ==== */
@@ -120,7 +119,7 @@ export abstract class InputEvent extends Event implements IsExtensible {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */

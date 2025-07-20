@@ -98,7 +98,6 @@ class EnumType(Enum):
 
     # data [400_000-500_000]
     FILE_RETENTION_MODE = 400_000
-    FILE_SOURCE = 400_001
     FILE_TYPE = 400_002
     FILE_FORMAT = 400_003
     TEXT_SPAN_TYPE = 400_004
@@ -107,7 +106,7 @@ class EnumType(Enum):
     # media [500_000-600_000]
     # ...
 
-    # locale [600_000-700_000]
+    # localization [600_000-700_000]
     # ...
 
     # logic [700_000-800_000]
@@ -150,6 +149,7 @@ class EnumType(Enum):
     NOTIFICATION_STATUS = 1_400_500
 
     # finance [1_500_000-1_600_000]
+    # ...
 
     # scene [1_700_000-1_800_000]
     WINDOW_TYPE = 1_700_000
@@ -159,7 +159,7 @@ class EnumType(Enum):
     # ...
 
     # canvas [1_900_000-2_000_000]
-    ARROW_HEAD_TYPE = 1_900_200
+    # ...
 
     # interaction [2_000_000-2_100_000]
     MODE_TYPE = 2_000_000
@@ -202,6 +202,17 @@ class EnumType(Enum):
     SPRING_TYPE = 2_200_001
     EFFECT_TYPE = 2_200_002
     REPEAT_TYPE = 2_200_003
+
+    # audio [2_300_000-2_400_000]
+    # ...
+
+    # geometry [2_400_000-2_500_000]
+    ARROW_HEAD_TYPE = 2_401_200
+    # physics [2_500_000-2_600_000]
+    # ...
+
+    # lighting [2_600_000-2_700_000]
+    # ...
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -282,7 +293,7 @@ class StructType(Enum):
     # media [500_000-600_000]
     # ...
 
-    # locale [600_000-700_000]
+    # localization [600_000-700_000]
     # ...
 
     # logic [700_000-800_000]
@@ -329,8 +340,7 @@ class StructType(Enum):
     AXIS3 = 1_800_009, "Axis3", None, "fas fa-vector-square"
 
     # canvas [1_900_000-2_000_000]
-    LINE = 1_900_100, "Line", None, "fas fa-line"
-    ARROW = 1_900_200, "Arrow", None, "fas fa-arrow-right"
+    # ...
 
     # interaction [2_000_000-2_100_000]
     # ...
@@ -365,6 +375,12 @@ class StructType(Enum):
     VECTOR2I = 2_400_021, None, None, "fas fa-vector-square"
     VECTOR3I = 2_400_022, None, None, "fas fa-vector-square"
     VECTOR4I = 2_400_023, None, None, "fas fa-vector-square"
+    LINE2D = 2_411_100, "Line", None, "fas fa-line"
+    ARROW2D = 2_411_200, "Arrow", None, "fas fa-arrow-right"
+    RECTANGLE2D = 2_411_300, "Rectangle", None, "fas fa-rectangle"
+    ELLIPSE2D = 2_411_400, "Ellipse", None, "fas fa-ellipse"
+    POLYGON2D = 2_411_500, "Polygon", None, "fas fa-polygon"
+    PATH2D = 2_411_600, "Path", None, "fas fa-path"
 
     # physics [2_500_000-2_600_000]
     # ...
@@ -410,7 +426,7 @@ class TraitType(Enum):
     # media [500_000-600_000]
     # ...
 
-    # locale [600_000-700_000]
+    # localization [600_000-700_000]
     # ...
 
     # logic [700_000-800_000]
@@ -450,13 +466,14 @@ class TraitType(Enum):
     # ...
 
     # view [1_800_000-1_900_000]
-    VIEWABLE = 1_800_000, "Viewable", "Can be presented visually", "fas fa-presentation"
     # ANIMATABLE/TWEENABLE, ...
 
     # canvas [1_900_000-2_000_000]
 
     # interaction [2_000_000-2_100_000]
-    # DRAGGABLE, SELECTABLE, ...
+    INTERACTIVE = 2_000_000, "Interactive", "Can be interacted with", "fas fa-mouse-pointer"
+    DRAGGABLE = 2_000_001, "Draggable", "Can be dragged", "fas fa-mouse-pointer"
+    SELECTABLE = 2_000_002, "Selectable", "Can be selected", "fas fa-mouse-pointer"
     # ...
 
     # style [2_100_000-2_200_000]
@@ -532,6 +549,7 @@ class NodeType(Enum):
     MEASUREMENT_EVENT = 50_200, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
+    # UNIVERSE, ...
     HANDLE = 100_200, "Handle", "Unique @handle", "fas fa-at"
     # user
     USER = 121_000, "User", None, "fas fa-user"
@@ -549,6 +567,7 @@ class NodeType(Enum):
     # DEPENDENCY, ...
     # GROUP, ...
     # spacetime
+    # VERSION, ...
     # HISTORY, REPLAY, ...
     # FORK, ...
     # LINK, PORTAL, ...
@@ -595,9 +614,9 @@ class NodeType(Enum):
     # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
     # TEXTURE, ...
 
-    # locale [600_000-700_000]
-    # LOCALE, STRING, TRANSLATION, ...
-    # LOCALE_VARIANT, GEO_VARIANT, ...
+    # localization [600_000-700_000]
+    # LOCALIZATION, STRING, TRANSLATION, ...
+    # LOCALIZATION_VARIANT, GEO_VARIANT, ...
 
     # logic [700_000-800_000]
     SCRIPT = 700_000, "Script", None, "fas fa-code"
@@ -615,8 +634,8 @@ class NodeType(Enum):
     EVENT_CURSOR = 712_100, "Event Cursor", None, "fas fa-cursor"
     SCREEN_CURSOR = 712_200, "Screen Cursor", None, "fas fa-cursor"
     # BREAKPOINT, ...
-    # ROOM, CHANNEL, ...
-    # QUEUE, ...
+    # ROOM, TOPIC, CHANNEL, ...
+    # QUEUE, TASK, ...
     # SEMAPHORE, LOCK/LATCH, ...
     # RATE_LIMIT, ...
     # STATE_MACHINE, STATE, STATE_TRANSITION, ...
@@ -626,6 +645,7 @@ class NodeType(Enum):
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
     # FIXTURE, MOCK, ...
     # LINT, WARNING, ERROR, ...
+    # DEPRECATION, ...
 
     # intelligence [900_000-1_000_000]
     # MODEL, FINETUNE, ...
@@ -641,8 +661,8 @@ class NodeType(Enum):
 
     # deployment [1_100_000-1_200_000]
     ENVIRONMENT = 1_100_000, "Environment", None, "fas fa-environment"
-    # VERSION, DEPLOYMENT, ...
-    # PREVIEW, DRAFT, RELEASE, ROLLOUT, ...
+    # RELEASE, DEPLOYMENT, ...
+    # PREVIEW, DRAFT, ROLLOUT, ...
     # TASK, TASK_GROUP/TASK_QUEUE, ...
     # JOB, ...
     RUN = 1_110_000, "Run", None, "fas fa-play"
@@ -721,7 +741,7 @@ class NodeType(Enum):
     # container views
     VIEW = 1_800_000, "View", "View in a Scene", "fas fa-eye"
     VIEW_EVENT = 1_800_001, "View Event", None, "fas fa-eye"
-    CONTAINER_VIEW = 1_800_100, "Container View", None, "fas fa-table"
+    LAYOUT_VIEW = 1_800_100, "Container View", None, "fas fa-table"
     FRAME_VIEW = 1_800_200, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 1_800_300, "Label View", "Label Container", "fas fa-font-case"
     SPLIT_VIEW = 1_800_400, "Split View", "Split Container", "fas fa-columns"
@@ -740,18 +760,11 @@ class NodeType(Enum):
     SLIDER_INPUT_VIEW = 1_810_200, "Slider Input View", "Slider Input", "fas fa-slider"
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
-    # NOTE :Architecture: node and internal views should probably be defined in user space?
-    # node/internal views
-    INTERNAL_VIEW = 1_815_000, "Internal View", None, "fas fa-eye"
-    # WIZARD_VIEW, ...
-    # CHART_VIEW, BAR_CHART_VIEW/..., ...
 
     # canvas [1_900_000-2_000_000]
-    SHAPE = 1_900_000, "Shape", None, "fas fa-shapes"
-    LINE_SHAPE = 1_900_100, "Line Shape", None, "fas fa-line"
-    ARROW_SHAPE = 1_900_200, "Arrow Shape", None, "fas fa-arrow-right"
-    ANNOTATION_SHAPE = 1_900_300, "Annotation Shape", None, "fas fa-comment"
     # RASTER/BITMAP, ...
+    # DAB, PAINT, BRUSH, ...
+    # CULLING, ...
 
     # interaction [2_000_000-2_100_000]
     INPUT_EVENT = 2_000_000, "Input Event", None, "fas fa-mouse-pointer"
@@ -823,21 +836,32 @@ class NodeType(Enum):
     # PARTICLE, EMITTER, ...
 
     # audio [2_300_000-2_400_000]
-    # ...
+    # SOUND_SOURCE, ...
 
     # geometry [2_400_000-2_500_000]
-    # SKELETON, ...
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
-    # SHAPE2D, ...
-    # AREA2D, ...
+    SHAPE = 2_410_000, "Shape", None, "fas fa-shapes"
+    SHAPE2D = 2_410_100, "Shape2D", None, "fas fa-shapes"
+    LINE_SHAPE2D = 2_411_100, "Line Shape2D", None, "fas fa-line"
+    ARROW_SHAPE2D = 2_411_200, "Arrow Shape2D", None, "fas fa-arrow-right"
+    RECTANGLE_SHAPE2D = 2_411_300, "Rectangle Shape2D", None, "fas fa-rectangle"
+    ELLIPSE_SHAPE2D = 2_411_400, "Ellipse Shape2D", None, "fas fa-ellipse"
+    POLYGON_SHAPE2D = 2_411_500, "Polygon Shape2D", None, "fas fa-polygon"
+    PATH_SHAPE2D = 2_411_600, "Path Shape2D", None, "fas fa-path"
 
     # physics [2_500_000-2_600_000]
-    # MESH, COLLISION, ...
-    # COLLIDER, RIGID_BODY, SOFT_BODY, ...
-    # synthesis?
+    # BODY, BODY2D, ...
+    # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
+    # RIGID_BODY, SOFT_BODY, ...
+    # COLLIDER, COLLISION_SHAPE, ...
+    # SKELETON, BONE, JOINT, ...
+    # synthesis/procedural generation?
     # GENERATOR, ...
 
     # lighting [2_600_000-2_700_000]
+    # LIGHT, LIGHT2D, ...
+    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
+    # OCCLUDER, ...
     # ...
 
 
@@ -851,19 +875,20 @@ class UniverseCategory(Enum):
     ACCESS = 300_000, "Access", "Access control"
     DATA = 400_000, "Data", "Core data"
     MEDIA = 500_000, "Media", "Media and streaming"
-    LOCALE = 600_000, "Locale", "Localization and internationalization"
+    LOCALIZATION = 600_000, "Localization", "Localization and internationalization"
     LOGIC = 700_000, "Logic", "Core logic"
     QUALITY = 800_000, "Quality", "Quality management"
     INTELLIGENCE = 900_000, "Intelligence", "Artificial intelligence"
     INFRASTRUCTURE = 1_000_000, "Infrastructure", "Devices, hardware and plumbing"
     DEPLOYMENT = 1_100_000, "Deployment", "Deployment and runtime"
     OBSERVABILITY = 1_200_000, "Observability", "Analytics about everything"
-    EXPERIENCE = 1_300_000, "Experience", "Experience management"
+    EXPERIENCE = 1_300_000, "Experience", "User experience"
     SOCIAL = 1_400_000, "Social", "Social interactions"
     FINANCE = 1_500_000, "Finance", "Financial operations"
-    SCENE = 1_700_000, "Scene", "Scene and viewport construction"
+    SCENE = 1_700_000, "Scene", "Stage construction"
     VIEW = 1_800_000, "View", "View building"
-    CANVAS = 1_900_000, "Canvas", "Drawing and painting"
+    CANVAS = 1_900_000, "Canvas", "Drawing, painting and rendering"
+    # CANVAS->DRAW/PAINT?
     INTERACTION = 2_000_000, "Interaction", "Interaction design"
     STYLE = 2_100_000, "Style", "Style views"
     ANIMATION = 2_200_000, "Animation", "Motion design"
@@ -871,6 +896,7 @@ class UniverseCategory(Enum):
     GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and surface modeling"
     PHYSICS = 2_500_000, "Physics", "Physics simulation"
     LIGHTING = 2_600_000, "Lighting", "Lighting and shadows"
+    # EDITOR/STUDIO?
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

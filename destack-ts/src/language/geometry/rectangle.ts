@@ -1,5 +1,4 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Shape } from "@destack/language/canvas/shape";
 import type {
   Branch,
   Graph,
@@ -25,7 +24,8 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import { Shape2D } from "@destack/language/geometry/shape";
+import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -33,51 +33,39 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
-import type {
-  Axis2,
-  Axis3,
-  Corners,
-  Dimension,
-  Grid,
-  GridSpan,
-  Insets,
-  Position,
-} from "@destack/language/view";
-import { Align, Direction, Distribute, Layout } from "@destack/language/view";
-import {
-  AlignProto,
-  DirectionProto,
-  DistributeProto,
-  LayoutProto,
-  LineProto,
-  LineShapeProto,
-  MaterializationProto,
-} from "@destack/proto";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view";
+import { MaterializationProto, Rectangle2DProto, RectangleShape2DProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1900100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2411300 ==== */
 /**
- * A Line is a list of points.
+ * A Rectangle is a rectangle.
  */
-export class Line extends StructFrozen {
-  static metatype: StructType = StructType.LINE;
+export class Rectangle2D extends StructFrozen {
+  static metatype: StructType = StructType.RECTANGLE2D;
   static __isFrozen__: boolean = true;
 
   /**
-   * Line.stroke
+   * Rectangle2D.stroke
    */
   readonly stroke: Stroke | null;
 
   /**
-   * Line.points
+   * Rectangle2D.width
    */
-  readonly points: readonly Vector2[];
+  readonly width: Vector2 | null;
+
+  /**
+   * Rectangle2D.height
+   */
+  readonly height: Vector2 | null;
 
   constructor(options: {
     stroke?: Stroke | null;
-    points?: readonly Vector2[];
+    width?: Vector2 | null;
+    height?: Vector2 | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -95,11 +83,10 @@ export class Line extends StructFrozen {
     // properties
     let _stroke = options.stroke ?? null;
     this.stroke = _stroke;
-    let _points = options.points ?? null;
-    if (_points === null) {
-      _points = [];
-    }
-    this.points = _points;
+    let _width = options.width ?? null;
+    this.width = _width;
+    let _height = options.height ?? null;
+    this.height = _height;
 
     // identity
     // @ts-expect-error(readonly)
@@ -122,13 +109,17 @@ export class Line extends StructFrozen {
     ) {
       return false;
     }
-    if (this.points.length != other.points.length) {
+    if (
+      (this.width == null) !== (other.width == null) ||
+      (this.width != null && !this.width.equals(other.width))
+    ) {
       return false;
     }
-    for (let i = 0; i < this.points.length; i++) {
-      if (!this.points[i].equals(other.points[i])) {
-        return false;
-      }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
     }
     return true;
   }
@@ -141,10 +132,10 @@ export class Line extends StructFrozen {
       }
       if (propertyReprs.length > 0) {
         // @ts-expect-error(readonly)
-        this._repr = `<Line ${propertyReprs.join(" ")}>`;
+        this._repr = `<Rectangle2D ${propertyReprs.join(" ")}>`;
       } else {
         // @ts-expect-error(readonly)
-        this._repr = `<Line>`;
+        this._repr = `<Rectangle2D>`;
       }
     }
     return this._repr;
@@ -160,10 +151,11 @@ export class Line extends StructFrozen {
     if (this.stroke != null) {
       h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
-    if (this.points && this.points.length > 0) {
-      for (const _item of this.points) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
+    if (this.width != null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height != null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -178,23 +170,22 @@ export class Line extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Line.__packCson__(this);
+      this._cson = Rectangle2D.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Line): { [key: string]: any } {
+  static __packCson__(object: Rectangle2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1900100;
+    objectCson["1"] = 2411300;
     if (object.stroke != null) {
       objectCson["200"] = object.stroke.toCson();
     }
-    if (object.points.length > 0) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toCson());
-      }
-      objectCson["210"] = packedPoints;
+    if (object.width != null) {
+      objectCson["210"] = object.width.toCson();
+    }
+    if (object.height != null) {
+      objectCson["220"] = object.height.toCson();
     }
     return objectCson;
   }
@@ -205,7 +196,7 @@ export class Line extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Line {
+  ): Rectangle2D {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const strokeValue = objectCson["200"];
@@ -213,15 +204,20 @@ export class Line extends StructFrozen {
       strokeValue != undefined
         ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedPoints: any[] = [];
-    if (objectCson["210"] != undefined) {
-      for (const item of objectCson["210"]) {
-        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
-      }
-    }
-    return new Line({
+    const widthValue = objectCson["210"];
+    const unpackedWidth =
+      widthValue != undefined
+        ? _Vector2.fromCson(widthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const heightValue = objectCson["220"];
+    const unpackedHeight =
+      heightValue != undefined
+        ? _Vector2.fromCson(heightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Rectangle2D({
       stroke: unpackedStroke,
-      points: unpackedPoints,
+      width: unpackedWidth,
+      height: unpackedHeight,
       _cson: objectCson,
       _supergraph,
     });
@@ -233,72 +229,72 @@ export class Line extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Line {
-    return Line.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Rectangle2D {
+    return Rectangle2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): LineProto {
+  toProto(): Rectangle2DProto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Line.__packProto__(this);
+      this._proto = Rectangle2D.__packProto__(this);
     }
-    return this._proto as LineProto;
+    return this._proto as Rectangle2DProto;
   }
 
-  static __packProto__(object: Line): LineProto {
-    const objectProto: Partial<LineProto> = { metatype: 1900100 };
+  static __packProto__(object: Rectangle2D): Rectangle2DProto {
+    const objectProto: Partial<Rectangle2DProto> = { metatype: 2411300 };
     if (object.stroke != null) {
       objectProto.stroke = object.stroke.toProto();
     }
-    if (object.points) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toProto());
-      }
-      objectProto.points = packedPoints;
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
     }
-    return objectProto as LineProto;
+    if (object.height != null) {
+      objectProto.height = object.height.toProto();
+    }
+    return objectProto as Rectangle2DProto;
   }
 
   static __unpackProto__(
-    objectProto: LineProto,
+    objectProto: Rectangle2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Line {
+  ): Rectangle2D {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedPoints: any[] = [];
-    if (objectProto.points) {
-      for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
-    return new Line({
+    return new Rectangle2D({
       stroke:
         objectProto.stroke != undefined
           ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
-      points: unpackedPoints,
+      width:
+        objectProto.width != undefined
+          ? _Vector2.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      height:
+        objectProto.height != undefined
+          ? _Vector2.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          : null,
       _proto: objectProto,
       _supergraph,
     });
   }
 
   static fromProto(
-    objectProto: LineProto,
+    objectProto: Rectangle2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Line {
-    return Line.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Rectangle2D {
+    return Rectangle2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Line {
+  static fromProtoString(packedProtoString: string): Rectangle2D {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LineProto.fromBinary(packedProtoBytes);
+    const packedProto = Rectangle2DProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -306,15 +302,15 @@ export class Line extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.LINE, Line);
-/* ==== DESTACK_GENERATED_END:STRUCT:1900100 ==== */
+registerStructClass(StructType.RECTANGLE2D, Rectangle2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2411300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1900100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2411300 ==== */
 /**
- * A LineShape is a shape that represents a line.
+ * A RectangleShape is a shape that represents a rectangle.
  */
-export class LineShape extends Shape {
-  static metatype: NodeType = NodeType.LINE_SHAPE;
+export class RectangleShape2D extends Shape2D {
+  static metatype: NodeType = NodeType.RECTANGLE_SHAPE2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -385,10 +381,10 @@ export class LineShape extends Shape {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): LineShape | null {
+  get precededBy(): RectangleShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as LineShape | null;
+      return this._supergraph.get(nodePtr.id) as RectangleShape2D | null;
     }
     return null;
   }
@@ -474,11 +470,6 @@ export class LineShape extends Shape {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -493,34 +484,6 @@ export class LineShape extends Shape {
     this._name = value;
   }
   _name: string;
-
-  /**
-   * The Script that defines this Node.
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  get key(): string | null {
-    return this._key;
-  }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
-    this._session.updateSetProperty(this, prop, value);
-    this._key = value;
-  }
-  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -572,6 +535,54 @@ export class LineShape extends Shape {
     this._position = value;
   }
   _position: Position | null;
+
+  /**
+   * View.scale
+   */
+  /**
+   * View.scale
+   */
+  get scale(): number | null {
+    return this._scale;
+  }
+  set scale(value: number | null) {
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scale = value;
+  }
+  _scale: number | null;
+
+  /**
+   * View.rotation
+   */
+  /**
+   * View.rotation
+   */
+  get rotation(): Axis3 | null {
+    return this._rotation;
+  }
+  set rotation(value: Axis3 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
+    this._rotation = value;
+  }
+  _rotation: Axis3 | null;
+
+  /**
+   * View.skew
+   */
+  /**
+   * View.skew
+   */
+  get skew(): Vector2 | null {
+    return this._skew;
+  }
+  set skew(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
+    this._skew = value;
+  }
+  _skew: Vector2 | null;
 
   /**
    * View.width
@@ -670,170 +681,10 @@ export class LineShape extends Shape {
   _maxHeight: Dimension | null;
 
   /**
-   * ContainerView.layout
+   * View.isVisible
    */
   /**
-   * ContainerView.layout
-   */
-  get layout(): Layout | null {
-    return this._layout;
-  }
-  set layout(value: Layout | null) {
-    const prop = (this.constructor as NodeClass).__properties__["layout"];
-    this._session.updateSetProperty(this, prop, value);
-    this._layout = value;
-  }
-  _layout: Layout | null;
-
-  /**
-   * ContainerView.direction
-   */
-  /**
-   * ContainerView.direction
-   */
-  get direction(): Direction | null {
-    return this._direction;
-  }
-  set direction(value: Direction | null) {
-    const prop = (this.constructor as NodeClass).__properties__["direction"];
-    this._session.updateSetProperty(this, prop, value);
-    this._direction = value;
-  }
-  _direction: Direction | null;
-
-  /**
-   * ContainerView.distribute
-   */
-  /**
-   * ContainerView.distribute
-   */
-  get distribute(): Distribute | null {
-    return this._distribute;
-  }
-  set distribute(value: Distribute | null) {
-    const prop = (this.constructor as NodeClass).__properties__["distribute"];
-    this._session.updateSetProperty(this, prop, value);
-    this._distribute = value;
-  }
-  _distribute: Distribute | null;
-
-  /**
-   * ContainerView.align
-   */
-  /**
-   * ContainerView.align
-   */
-  get align(): Align | null {
-    return this._align;
-  }
-  set align(value: Align | null) {
-    const prop = (this.constructor as NodeClass).__properties__["align"];
-    this._session.updateSetProperty(this, prop, value);
-    this._align = value;
-  }
-  _align: Align | null;
-
-  /**
-   * ContainerView.gap
-   */
-  /**
-   * ContainerView.gap
-   */
-  get gap(): Axis2 | null {
-    return this._gap;
-  }
-  set gap(value: Axis2 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["gap"];
-    this._session.updateSetProperty(this, prop, value);
-    this._gap = value;
-  }
-  _gap: Axis2 | null;
-
-  /**
-   * ContainerView.padding
-   */
-  /**
-   * ContainerView.padding
-   */
-  get padding(): Insets | null {
-    return this._padding;
-  }
-  set padding(value: Insets | null) {
-    const prop = (this.constructor as NodeClass).__properties__["padding"];
-    this._session.updateSetProperty(this, prop, value);
-    this._padding = value;
-  }
-  _padding: Insets | null;
-
-  /**
-   * ContainerView.grid
-   */
-  /**
-   * ContainerView.grid
-   */
-  get grid(): Grid | null {
-    return this._grid;
-  }
-  set grid(value: Grid | null) {
-    const prop = (this.constructor as NodeClass).__properties__["grid"];
-    this._session.updateSetProperty(this, prop, value);
-    this._grid = value;
-  }
-  _grid: Grid | null;
-
-  /**
-   * ContainerView.gridSpan
-   */
-  /**
-   * ContainerView.gridSpan
-   */
-  get gridSpan(): GridSpan | null {
-    return this._gridSpan;
-  }
-  set gridSpan(value: GridSpan | null) {
-    const prop = (this.constructor as NodeClass).__properties__["grid_span"];
-    this._session.updateSetProperty(this, prop, value);
-    this._gridSpan = value;
-  }
-  _gridSpan: GridSpan | null;
-
-  /**
-   * ContainerView.aspectRatio
-   */
-  /**
-   * ContainerView.aspectRatio
-   */
-  get aspectRatio(): number | null {
-    return this._aspectRatio;
-  }
-  set aspectRatio(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["aspect_ratio"];
-    this._session.updateSetProperty(this, prop, value);
-    this._aspectRatio = value;
-  }
-  _aspectRatio: number | null;
-
-  /**
-   * ContainerView.isWrap
-   */
-  /**
-   * ContainerView.isWrap
-   */
-  get isWrap(): boolean | null {
-    return this._isWrap;
-  }
-  set isWrap(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_wrap"];
-    this._session.updateSetProperty(this, prop, value);
-    this._isWrap = value;
-  }
-  _isWrap: boolean | null;
-
-  /**
-   * ContainerView.isVisible
-   */
-  /**
-   * ContainerView.isVisible
+   * View.isVisible
    */
   get isVisible(): boolean | null {
     return this._isVisible;
@@ -846,10 +697,10 @@ export class LineShape extends Shape {
   _isVisible: boolean | null;
 
   /**
-   * ContainerView.opacity
+   * View.opacity
    */
   /**
-   * ContainerView.opacity
+   * View.opacity
    */
   get opacity(): number | null {
     return this._opacity;
@@ -862,10 +713,10 @@ export class LineShape extends Shape {
   _opacity: number | null;
 
   /**
-   * ContainerView.fill
+   * View.fill
    */
   /**
-   * ContainerView.fill
+   * View.fill
    */
   get fill(): Fill | null {
     return this._fill;
@@ -878,58 +729,10 @@ export class LineShape extends Shape {
   _fill: Fill | null;
 
   /**
-   * ContainerView.rotation
+   * View.shadow
    */
   /**
-   * ContainerView.rotation
-   */
-  get rotation(): Axis3 | null {
-    return this._rotation;
-  }
-  set rotation(value: Axis3 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["rotation"];
-    this._session.updateSetProperty(this, prop, value);
-    this._rotation = value;
-  }
-  _rotation: Axis3 | null;
-
-  /**
-   * ContainerView.skew
-   */
-  /**
-   * ContainerView.skew
-   */
-  get skew(): Vector2 | null {
-    return this._skew;
-  }
-  set skew(value: Vector2 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["skew"];
-    this._session.updateSetProperty(this, prop, value);
-    this._skew = value;
-  }
-  _skew: Vector2 | null;
-
-  /**
-   * ContainerView.scale
-   */
-  /**
-   * ContainerView.scale
-   */
-  get scale(): number | null {
-    return this._scale;
-  }
-  set scale(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["scale"];
-    this._session.updateSetProperty(this, prop, value);
-    this._scale = value;
-  }
-  _scale: number | null;
-
-  /**
-   * ContainerView.shadow
-   */
-  /**
-   * ContainerView.shadow
+   * View.shadow
    */
   get shadow(): Shadow | null {
     return this._shadow;
@@ -942,10 +745,10 @@ export class LineShape extends Shape {
   _shadow: Shadow | null;
 
   /**
-   * ContainerView.border
+   * View.border
    */
   /**
-   * ContainerView.border
+   * View.border
    */
   get border(): Border | null {
     return this._border;
@@ -958,10 +761,10 @@ export class LineShape extends Shape {
   _border: Border | null;
 
   /**
-   * ContainerView.radius
+   * View.radius
    */
   /**
-   * ContainerView.radius
+   * View.radius
    */
   get radius(): Corners | null {
     return this._radius;
@@ -989,22 +792,6 @@ export class LineShape extends Shape {
   }
   _stroke: Stroke | null;
 
-  /**
-   * LineShape.points
-   */
-  /**
-   * LineShape.points
-   */
-  get points(): readonly Vector2[] {
-    return this._points;
-  }
-  set points(value: readonly Vector2[]) {
-    const prop = (this.constructor as NodeClass).__properties__["points"];
-    this._session.updateSetProperty(this, prop, value);
-    this._points = value;
-  }
-  _points: readonly Vector2[];
-
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -1013,7 +800,7 @@ export class LineShape extends Shape {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: LineShape | NodeReference | null;
+    precededBy?: RectangleShape2D | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -1023,40 +810,26 @@ export class LineShape extends Shape {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
-    source?: Script | NodeReference | null;
-    key?: string | null;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     position?: Position | null;
+    scale?: number | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2 | null;
     width?: Dimension | null;
     height?: Dimension | null;
     minWidth?: Dimension | null;
     minHeight?: Dimension | null;
     maxWidth?: Dimension | null;
     maxHeight?: Dimension | null;
-    layout?: Layout | null;
-    direction?: Direction | null;
-    distribute?: Distribute | null;
-    align?: Align | null;
-    gap?: Axis2 | null;
-    padding?: Insets | null;
-    grid?: Grid | null;
-    gridSpan?: GridSpan | null;
-    aspectRatio?: number | null;
-    isWrap?: boolean | null;
     isVisible?: boolean | null;
     opacity?: number | null;
     fill?: Fill | null;
-    rotation?: Axis3 | null;
-    skew?: Vector2 | null;
-    scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
     stroke?: Stroke | null;
-    points?: readonly Vector2[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1096,12 +869,12 @@ export class LineShape extends Shape {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for LineShape`);
+        throw new Error(`no active Space for RectangleShape2D`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`LineShape.space is required`);
+      throw new Error(`RectangleShape2D.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -1109,7 +882,7 @@ export class LineShape extends Shape {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`LineShape.materialization is required`);
+      throw new Error(`RectangleShape2D.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -1124,12 +897,12 @@ export class LineShape extends Shape {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for LineShape`);
+        throw new Error(`no active Branch for RectangleShape2D`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`LineShape.branch is required`);
+      throw new Error(`RectangleShape2D.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -1139,12 +912,12 @@ export class LineShape extends Shape {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for LineShape`);
+        throw new Error(`no active Snapshot for RectangleShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`LineShape.snapshot is required`);
+      throw new Error(`RectangleShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1164,29 +937,14 @@ export class LineShape extends Shape {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`LineShape.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "LineShape";
+      _name = "RectangleShape2D";
     }
     if (_name === null) {
-      throw new Error(`LineShape.name is required`);
+      throw new Error(`RectangleShape2D.name is required`);
     }
     this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1197,11 +955,17 @@ export class LineShape extends Shape {
       _isExtensible = false;
     }
     if (_isExtensible === null) {
-      throw new Error(`LineShape.isExtensible is required`);
+      throw new Error(`RectangleShape2D.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
     this._position = _position;
+    let _scale = options.scale ?? null;
+    this._scale = _scale;
+    let _rotation = options.rotation ?? null;
+    this._rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this._skew = _skew;
     let _width = options.width ?? null;
     this._width = _width;
     let _height = options.height ?? null;
@@ -1214,38 +978,12 @@ export class LineShape extends Shape {
     this._maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
     this._maxHeight = _maxHeight;
-    let _layout = options.layout ?? null;
-    this._layout = _layout;
-    let _direction = options.direction ?? null;
-    this._direction = _direction;
-    let _distribute = options.distribute ?? null;
-    this._distribute = _distribute;
-    let _align = options.align ?? null;
-    this._align = _align;
-    let _gap = options.gap ?? null;
-    this._gap = _gap;
-    let _padding = options.padding ?? null;
-    this._padding = _padding;
-    let _grid = options.grid ?? null;
-    this._grid = _grid;
-    let _gridSpan = options.gridSpan ?? null;
-    this._gridSpan = _gridSpan;
-    let _aspectRatio = options.aspectRatio ?? null;
-    this._aspectRatio = _aspectRatio;
-    let _isWrap = options.isWrap ?? null;
-    this._isWrap = _isWrap;
     let _isVisible = options.isVisible ?? null;
     this._isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
     this._opacity = _opacity;
     let _fill = options.fill ?? null;
     this._fill = _fill;
-    let _rotation = options.rotation ?? null;
-    this._rotation = _rotation;
-    let _skew = options.skew ?? null;
-    this._skew = _skew;
-    let _scale = options.scale ?? null;
-    this._scale = _scale;
     let _shadow = options.shadow ?? null;
     this._shadow = _shadow;
     let _border = options.border ?? null;
@@ -1254,11 +992,6 @@ export class LineShape extends Shape {
     this._radius = _radius;
     let _stroke = options.stroke ?? null;
     this._stroke = _stroke;
-    let _points = options.points ?? null;
-    if (_points === null) {
-      _points = [];
-    }
-    this._points = _points;
 
     // identity
     if (options.id == null) {
@@ -1278,7 +1011,7 @@ export class LineShape extends Shape {
         options.updatedEpoch == null
       ) {
         throw new Error(
-          `LineShape.createdAt and LineShape.updatedAt are required for existing Nodes`,
+          `RectangleShape2D.createdAt and RectangleShape2D.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -1304,82 +1037,22 @@ export class LineShape extends Shape {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this._points.length != other._points.length) {
-      return false;
-    }
-    for (let i = 0; i < this._points.length; i++) {
-      if (!this._points[i].equals(other._points[i])) {
-        return false;
-      }
-    }
     if (
       (this._stroke == null) !== (other._stroke == null) ||
       (this._stroke != null && !this._stroke.equals(other._stroke))
     ) {
       return false;
     }
-    if (!(this._layout === other._layout)) {
-      return false;
-    }
-    if (!(this._direction === other._direction)) {
-      return false;
-    }
-    if (!(this._distribute === other._distribute)) {
-      return false;
-    }
-    if (!(this._align === other._align)) {
-      return false;
-    }
     if (
-      (this._gap == null) !== (other._gap == null) ||
-      (this._gap != null && !this._gap.equals(other._gap))
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
     ) {
       return false;
     }
     if (
-      (this._padding == null) !== (other._padding == null) ||
-      (this._padding != null && !this._padding.equals(other._padding))
-    ) {
-      return false;
-    }
-    if (
-      (this._grid == null) !== (other._grid == null) ||
-      (this._grid != null && !this._grid.equals(other._grid))
-    ) {
-      return false;
-    }
-    if (
-      (this._gridSpan == null) !== (other._gridSpan == null) ||
-      (this._gridSpan != null && !this._gridSpan.equals(other._gridSpan))
-    ) {
-      return false;
-    }
-    if (
-      (this._aspectRatio == null) !== (other._aspectRatio == null) ||
-      (this._aspectRatio != null &&
-        !(
-          this._aspectRatio === other._aspectRatio ||
-          Math.abs(this._aspectRatio - other._aspectRatio) < 1e-10
-        ))
-    ) {
-      return false;
-    }
-    if (!(this._isWrap === other._isWrap)) {
-      return false;
-    }
-    if (!(this._isVisible === other._isVisible)) {
-      return false;
-    }
-    if (
-      (this._opacity == null) !== (other._opacity == null) ||
-      (this._opacity != null &&
-        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this._fill == null) !== (other._fill == null) ||
-      (this._fill != null && !this._fill.equals(other._fill))
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
     ) {
       return false;
     }
@@ -1392,37 +1065,6 @@ export class LineShape extends Shape {
     if (
       (this._skew == null) !== (other._skew == null) ||
       (this._skew != null && !this._skew.equals(other._skew))
-    ) {
-      return false;
-    }
-    if (
-      (this._scale == null) !== (other._scale == null) ||
-      (this._scale != null &&
-        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this._shadow == null) !== (other._shadow == null) ||
-      (this._shadow != null && !this._shadow.equals(other._shadow))
-    ) {
-      return false;
-    }
-    if (
-      (this._border == null) !== (other._border == null) ||
-      (this._border != null && !this._border.equals(other._border))
-    ) {
-      return false;
-    }
-    if (
-      (this._radius == null) !== (other._radius == null) ||
-      (this._radius != null && !this._radius.equals(other._radius))
-    ) {
-      return false;
-    }
-    if (
-      (this._position == null) !== (other._position == null) ||
-      (this._position != null && !this._position.equals(other._position))
     ) {
       return false;
     }
@@ -1462,13 +1104,41 @@ export class LineShape extends Shape {
     ) {
       return false;
     }
+    if (!(this._isVisible === other._isVisible)) {
+      return false;
+    }
+    if (
+      (this._opacity == null) !== (other._opacity == null) ||
+      (this._opacity != null &&
+        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this._fill == null) !== (other._fill == null) ||
+      (this._fill != null && !this._fill.equals(other._fill))
+    ) {
+      return false;
+    }
+    if (
+      (this._shadow == null) !== (other._shadow == null) ||
+      (this._shadow != null && !this._shadow.equals(other._shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this._border == null) !== (other._border == null) ||
+      (this._border != null && !this._border.equals(other._border))
+    ) {
+      return false;
+    }
+    if (
+      (this._radius == null) !== (other._radius == null) ||
+      (this._radius != null && !this._radius.equals(other._radius))
+    ) {
+      return false;
+    }
     if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
-      return false;
-    }
-    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1500,73 +1170,20 @@ export class LineShape extends Shape {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._points && this._points.length > 0) {
-      for (const _item of this._points) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     if (this._stroke != null) {
       h = (h * 31 + this._stroke.hash()) & 0xffffffff;
     }
-    if (this._layout != null) {
-      h = (h * 31 + this._layout) & 0xffffffff;
+    if (this._position != null) {
+      h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    if (this._direction != null) {
-      h = (h * 31 + this._direction) & 0xffffffff;
-    }
-    if (this._distribute != null) {
-      h = (h * 31 + this._distribute) & 0xffffffff;
-    }
-    if (this._align != null) {
-      h = (h * 31 + this._align) & 0xffffffff;
-    }
-    if (this._gap != null) {
-      h = (h * 31 + this._gap.hash()) & 0xffffffff;
-    }
-    if (this._padding != null) {
-      h = (h * 31 + this._padding.hash()) & 0xffffffff;
-    }
-    if (this._grid != null) {
-      h = (h * 31 + this._grid.hash()) & 0xffffffff;
-    }
-    if (this._gridSpan != null) {
-      h = (h * 31 + this._gridSpan.hash()) & 0xffffffff;
-    }
-    if (this._aspectRatio != null) {
-      h = (h * 31 + hashFloat(this._aspectRatio)) & 0xffffffff;
-    }
-    if (this._isWrap != null) {
-      h = (h * 31 + hashBool(this._isWrap)) & 0xffffffff;
-    }
-    if (this._isVisible != null) {
-      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
-    }
-    if (this._opacity != null) {
-      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
-    }
-    if (this._fill != null) {
-      h = (h * 31 + this._fill.hash()) & 0xffffffff;
+    if (this._scale != null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
     if (this._rotation != null) {
       h = (h * 31 + this._rotation.hash()) & 0xffffffff;
     }
     if (this._skew != null) {
       h = (h * 31 + this._skew.hash()) & 0xffffffff;
-    }
-    if (this._scale != null) {
-      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
-    }
-    if (this._shadow != null) {
-      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
-    }
-    if (this._border != null) {
-      h = (h * 31 + this._border.hash()) & 0xffffffff;
-    }
-    if (this._radius != null) {
-      h = (h * 31 + this._radius.hash()) & 0xffffffff;
-    }
-    if (this._position != null) {
-      h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
     if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
@@ -1586,13 +1203,25 @@ export class LineShape extends Shape {
     if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
+    if (this._isVisible != null) {
+      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
+    }
+    if (this._opacity != null) {
+      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
+    }
+    if (this._fill != null) {
+      h = (h * 31 + this._fill.hash()) & 0xffffffff;
+    }
+    if (this._shadow != null) {
+      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
+    }
+    if (this._border != null) {
+      h = (h * 31 + this._border.hash()) & 0xffffffff;
+    }
+    if (this._radius != null) {
+      h = (h * 31 + this._radius.hash()) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1611,11 +1240,10 @@ export class LineShape extends Shape {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -1634,7 +1262,7 @@ export class LineShape extends Shape {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.LINE_SHAPE,
+      type: NodeType.RECTANGLE_SHAPE2D,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
@@ -1670,16 +1298,16 @@ export class LineShape extends Shape {
       propertyReprs.push(`stroke=${this.stroke.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<LineShape "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<RectangleShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return LineShape.__packCson__(this);
+    return RectangleShape2D.__packCson__(this);
   }
 
-  static __packCson__(object: LineShape): { [key: string]: any } {
+  static __packCson__(object: RectangleShape2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1900100;
+    objectCson["1"] = 2411300;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1717,14 +1345,7 @@ export class LineShape extends Shape {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["70"] = object._key;
-    }
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
     }
@@ -1732,90 +1353,53 @@ export class LineShape extends Shape {
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
-    if (object._width != null) {
-      objectCson["111"] = object._width.toCson();
-    }
-    if (object._height != null) {
-      objectCson["112"] = object._height.toCson();
-    }
-    if (object._minWidth != null) {
-      objectCson["113"] = object._minWidth.toCson();
-    }
-    if (object._minHeight != null) {
-      objectCson["114"] = object._minHeight.toCson();
-    }
-    if (object._maxWidth != null) {
-      objectCson["115"] = object._maxWidth.toCson();
-    }
-    if (object._maxHeight != null) {
-      objectCson["116"] = object._maxHeight.toCson();
-    }
-    if (object._layout != null) {
-      objectCson["120"] = object._layout;
-    }
-    if (object._direction != null) {
-      objectCson["121"] = object._direction;
-    }
-    if (object._distribute != null) {
-      objectCson["122"] = object._distribute;
-    }
-    if (object._align != null) {
-      objectCson["123"] = object._align;
-    }
-    if (object._gap != null) {
-      objectCson["124"] = object._gap.toCson();
-    }
-    if (object._padding != null) {
-      objectCson["125"] = object._padding.toCson();
-    }
-    if (object._grid != null) {
-      objectCson["126"] = object._grid.toCson();
-    }
-    if (object._gridSpan != null) {
-      objectCson["127"] = object._gridSpan.toCson();
-    }
-    if (object._aspectRatio != null) {
-      objectCson["128"] = object._aspectRatio;
-    }
-    if (object._isWrap != null) {
-      objectCson["129"] = object._isWrap;
-    }
-    if (object._isVisible != null) {
-      objectCson["140"] = object._isVisible;
-    }
-    if (object._opacity != null) {
-      objectCson["141"] = object._opacity;
-    }
-    if (object._fill != null) {
-      objectCson["142"] = object._fill.toCson();
+    if (object._scale != null) {
+      objectCson["111"] = object._scale;
     }
     if (object._rotation != null) {
-      objectCson["143"] = object._rotation.toCson();
+      objectCson["112"] = object._rotation.toCson();
     }
     if (object._skew != null) {
-      objectCson["144"] = object._skew.toCson();
+      objectCson["113"] = object._skew.toCson();
     }
-    if (object._scale != null) {
-      objectCson["145"] = object._scale;
+    if (object._width != null) {
+      objectCson["120"] = object._width.toCson();
+    }
+    if (object._height != null) {
+      objectCson["121"] = object._height.toCson();
+    }
+    if (object._minWidth != null) {
+      objectCson["122"] = object._minWidth.toCson();
+    }
+    if (object._minHeight != null) {
+      objectCson["123"] = object._minHeight.toCson();
+    }
+    if (object._maxWidth != null) {
+      objectCson["124"] = object._maxWidth.toCson();
+    }
+    if (object._maxHeight != null) {
+      objectCson["125"] = object._maxHeight.toCson();
+    }
+    if (object._isVisible != null) {
+      objectCson["130"] = object._isVisible;
+    }
+    if (object._opacity != null) {
+      objectCson["131"] = object._opacity;
+    }
+    if (object._fill != null) {
+      objectCson["132"] = object._fill.toCson();
     }
     if (object._shadow != null) {
-      objectCson["146"] = object._shadow.toCson();
+      objectCson["136"] = object._shadow.toCson();
     }
     if (object._border != null) {
-      objectCson["147"] = object._border.toCson();
+      objectCson["137"] = object._border.toCson();
     }
     if (object._radius != null) {
-      objectCson["148"] = object._radius.toCson();
+      objectCson["138"] = object._radius.toCson();
     }
     if (object._stroke != null) {
       objectCson["180"] = object._stroke.toCson();
-    }
-    if (object._points.length > 0) {
-      const packedPoints: any[] = [];
-      for (const item of object._points) {
-        packedPoints.push(item.toCson());
-      }
-      objectCson["200"] = packedPoints;
     }
     return objectCson;
   }
@@ -1826,143 +1410,94 @@ export class LineShape extends Shape {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LineShape {
+  ): RectangleShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
-    const _GridSpan = STRUCT_CLASS_BY_TYPE[StructType.GRID_SPAN] as typeof GridSpan;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedPoints: any[] = [];
-    if (objectCson["200"] != undefined) {
-      for (const item of objectCson["200"]) {
-        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
-      }
-    }
     const strokeValue = objectCson["180"];
     const unpackedStroke =
       strokeValue != undefined
         ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const layoutValue = objectCson["120"];
-    const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
-    const directionValue = objectCson["121"];
-    const unpackedDirection = directionValue != undefined ? Number(directionValue) : null;
-    const distributeValue = objectCson["122"];
-    const unpackedDistribute = distributeValue != undefined ? Number(distributeValue) : null;
-    const alignValue = objectCson["123"];
-    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const gapValue = objectCson["124"];
-    const unpackedGap =
-      gapValue != undefined
-        ? _Axis2.fromCson(gapValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const paddingValue = objectCson["125"];
-    const unpackedPadding =
-      paddingValue != undefined
-        ? _Insets.fromCson(paddingValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const gridValue = objectCson["126"];
-    const unpackedGrid =
-      gridValue != undefined
-        ? _Grid.fromCson(gridValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const gridSpanValue = objectCson["127"];
-    const unpackedGridSpan =
-      gridSpanValue != undefined
-        ? _GridSpan.fromCson(gridSpanValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const aspectRatioValue = objectCson["128"];
-    const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const isWrapValue = objectCson["129"];
-    const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
-    const isVisibleValue = objectCson["140"];
-    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectCson["141"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectCson["142"];
-    const unpackedFill =
-      fillValue != undefined
-        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const rotationValue = objectCson["143"];
-    const unpackedRotation =
-      rotationValue != undefined
-        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const skewValue = objectCson["144"];
-    const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["145"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const shadowValue = objectCson["146"];
-    const unpackedShadow =
-      shadowValue != undefined
-        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const borderValue = objectCson["147"];
-    const unpackedBorder =
-      borderValue != undefined
-        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const radiusValue = objectCson["148"];
-    const unpackedRadius =
-      radiusValue != undefined
-        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
         : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectCson["111"];
+    const scaleValue = objectCson["111"];
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
+    const rotationValue = objectCson["112"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const skewValue = objectCson["113"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectCson["120"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectCson["112"];
+    const heightValue = objectCson["121"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectCson["113"];
+    const minWidthValue = objectCson["122"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectCson["114"];
+    const minHeightValue = objectCson["123"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectCson["115"];
+    const maxWidthValue = objectCson["124"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectCson["116"];
+    const maxHeightValue = objectCson["125"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+    const isVisibleValue = objectCson["130"];
+    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+    const opacityValue = objectCson["131"];
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+    const fillValue = objectCson["132"];
+    const unpackedFill =
+      fillValue != undefined
+        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
+    const shadowValue = objectCson["136"];
+    const unpackedShadow =
+      shadowValue != undefined
+        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const borderValue = objectCson["137"];
+    const unpackedBorder =
+      borderValue != undefined
+        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const radiusValue = objectCson["138"];
+    const unpackedRadius =
+      radiusValue != undefined
+        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2015,38 +1550,25 @@ export class LineShape extends Shape {
         );
       }
     }
-    return new LineShape({
-      points: unpackedPoints,
+    return new RectangleShape2D({
       stroke: unpackedStroke,
-      layout: unpackedLayout,
-      direction: unpackedDirection,
-      distribute: unpackedDistribute,
-      align: unpackedAlign,
-      gap: unpackedGap,
-      padding: unpackedPadding,
-      grid: unpackedGrid,
-      gridSpan: unpackedGridSpan,
-      aspectRatio: unpackedAspectRatio,
-      isWrap: unpackedIsWrap,
-      isVisible: unpackedIsVisible,
-      opacity: unpackedOpacity,
-      fill: unpackedFill,
+      position: unpackedPosition,
+      scale: unpackedScale,
       rotation: unpackedRotation,
       skew: unpackedSkew,
-      scale: unpackedScale,
-      shadow: unpackedShadow,
-      border: unpackedBorder,
-      radius: unpackedRadius,
-      position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
       minWidth: unpackedMinWidth,
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      isVisible: unpackedIsVisible,
+      opacity: unpackedOpacity,
+      fill: unpackedFill,
+      shadow: unpackedShadow,
+      border: unpackedBorder,
+      radius: unpackedRadius,
       isExtensible: objectCson["90"],
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -2068,9 +1590,8 @@ export class LineShape extends Shape {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectCson["50"],
-      id: String(objectCson["2"]),
       script: unpackedScriptPtr,
-      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
@@ -2085,16 +1606,16 @@ export class LineShape extends Shape {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LineShape {
-    return LineShape.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): RectangleShape2D {
+    return RectangleShape2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): LineShapeProto {
-    return LineShape.__packProto__(this);
+  toProto(): RectangleShape2DProto {
+    return RectangleShape2D.__packProto__(this);
   }
 
-  static __packProto__(object: LineShape): LineShapeProto {
-    const objectProto: Partial<LineShapeProto> = { metatype: 1900100 };
+  static __packProto__(object: RectangleShape2D): RectangleShape2DProto {
+    const objectProto: Partial<RectangleShape2DProto> = { metatype: 2411300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2131,20 +1652,22 @@ export class LineShape extends Shape {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     if (object._position != null) {
       objectProto.position = object._position.toProto();
+    }
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
+    }
+    if (object._rotation != null) {
+      objectProto.rotation = object._rotation.toProto();
+    }
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
     }
     if (object._width != null) {
       objectProto.width = object._width.toProto();
@@ -2164,36 +1687,6 @@ export class LineShape extends Shape {
     if (object._maxHeight != null) {
       objectProto.maxHeight = object._maxHeight.toProto();
     }
-    if (object._layout != null) {
-      objectProto.layout = Number(object._layout) as LayoutProto;
-    }
-    if (object._direction != null) {
-      objectProto.direction = Number(object._direction) as DirectionProto;
-    }
-    if (object._distribute != null) {
-      objectProto.distribute = Number(object._distribute) as DistributeProto;
-    }
-    if (object._align != null) {
-      objectProto.align = Number(object._align) as AlignProto;
-    }
-    if (object._gap != null) {
-      objectProto.gap = object._gap.toProto();
-    }
-    if (object._padding != null) {
-      objectProto.padding = object._padding.toProto();
-    }
-    if (object._grid != null) {
-      objectProto.grid = object._grid.toProto();
-    }
-    if (object._gridSpan != null) {
-      objectProto.gridSpan = object._gridSpan.toProto();
-    }
-    if (object._aspectRatio != null) {
-      objectProto.aspectRatio = object._aspectRatio;
-    }
-    if (object._isWrap != null) {
-      objectProto.isWrap = object._isWrap;
-    }
     if (object._isVisible != null) {
       objectProto.isVisible = object._isVisible;
     }
@@ -2202,15 +1695,6 @@ export class LineShape extends Shape {
     }
     if (object._fill != null) {
       objectProto.fill = object._fill.toProto();
-    }
-    if (object._rotation != null) {
-      objectProto.rotation = object._rotation.toProto();
-    }
-    if (object._skew != null) {
-      objectProto.skew = object._skew.toProto();
-    }
-    if (object._scale != null) {
-      objectProto.scale = object._scale;
     }
     if (object._shadow != null) {
       objectProto.shadow = object._shadow.toProto();
@@ -2224,44 +1708,27 @@ export class LineShape extends Shape {
     if (object._stroke != null) {
       objectProto.stroke = object._stroke.toProto();
     }
-    if (object._points) {
-      const packedPoints: any[] = [];
-      for (const item of object._points) {
-        packedPoints.push(item.toProto());
-      }
-      objectProto.points = packedPoints;
-    }
-    return objectProto as LineShapeProto;
+    return objectProto as RectangleShape2DProto;
   }
 
   static __unpackProto__(
-    objectProto: LineShapeProto,
+    objectProto: RectangleShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LineShape {
+  ): RectangleShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
-    const _GridSpan = STRUCT_CLASS_BY_TYPE[StructType.GRID_SPAN] as typeof GridSpan;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedPoints: any[] = [];
-    if (objectProto.points) {
-      for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2271,42 +1738,16 @@ export class LineShape extends Shape {
         );
       }
     }
-    return new LineShape({
-      points: unpackedPoints,
+    return new RectangleShape2D({
       stroke:
         objectProto.stroke != undefined
           ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
-      layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
-      direction:
-        objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
-      distribute:
-        objectProto.distribute != undefined ? (Number(objectProto.distribute) as Distribute) : null,
-      align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
-      gap:
-        objectProto.gap != undefined
-          ? _Axis2.fromProto(objectProto.gap!, _session, _supergraph, _graph, _connection)
+      position:
+        objectProto.position != undefined
+          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
-      padding:
-        objectProto.padding != undefined
-          ? _Insets.fromProto(objectProto.padding!, _session, _supergraph, _graph, _connection)
-          : null,
-      grid:
-        objectProto.grid != undefined
-          ? _Grid.fromProto(objectProto.grid!, _session, _supergraph, _graph, _connection)
-          : null,
-      gridSpan:
-        objectProto.gridSpan != undefined
-          ? _GridSpan.fromProto(objectProto.gridSpan!, _session, _supergraph, _graph, _connection)
-          : null,
-      aspectRatio: objectProto.aspectRatio != undefined ? objectProto.aspectRatio : null,
-      isWrap: objectProto.isWrap != undefined ? objectProto.isWrap : null,
-      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      fill:
-        objectProto.fill != undefined
-          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
-          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
       rotation:
         objectProto.rotation != undefined
           ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
@@ -2314,23 +1755,6 @@ export class LineShape extends Shape {
       skew:
         objectProto.skew != undefined
           ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
-      shadow:
-        objectProto.shadow != undefined
-          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
-          : null,
-      border:
-        objectProto.border != undefined
-          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
-          : null,
-      radius:
-        objectProto.radius != undefined
-          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
-          : null,
-      position:
-        objectProto.position != undefined
-          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
@@ -2356,18 +1780,25 @@ export class LineShape extends Shape {
         objectProto.maxHeight != undefined
           ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      isExtensible: objectProto.isExtensible,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      fill:
+        objectProto.fill != undefined
+          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
           : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
+      shadow:
+        objectProto.shadow != undefined
+          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          : null,
+      border:
+        objectProto.border != undefined
+          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          : null,
+      radius:
+        objectProto.radius != undefined
+          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2450,7 +1881,6 @@ export class LineShape extends Shape {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -2461,7 +1891,7 @@ export class LineShape extends Shape {
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -2477,18 +1907,24 @@ export class LineShape extends Shape {
   }
 
   static fromProto(
-    objectProto: LineShapeProto,
+    objectProto: RectangleShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LineShape {
-    return LineShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): RectangleShape2D {
+    return RectangleShape2D.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
-  static fromProtoString(packedProtoString: string): LineShape {
+  static fromProtoString(packedProtoString: string): RectangleShape2D {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LineShapeProto.fromBinary(packedProtoBytes);
+    const packedProto = RectangleShape2DProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -2496,5 +1932,5 @@ export class LineShape extends Shape {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.LINE_SHAPE, LineShape);
-/* ==== DESTACK_GENERATED_END:NODE:1900100 ==== */
+registerNodeClass(NodeType.RECTANGLE_SHAPE2D, RectangleShape2D);
+/* ==== DESTACK_GENERATED_END:NODE:2411300 ==== */

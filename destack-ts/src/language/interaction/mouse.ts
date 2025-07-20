@@ -33,7 +33,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import {
   DoubleClickEventProto,
   EventStatusProto,
@@ -166,7 +165,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -315,7 +314,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -518,10 +517,10 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -581,7 +580,7 @@ export class SingleClickEvent extends ClickEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -1518,10 +1517,10 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1581,7 +1580,7 @@ export class DoubleClickEvent extends ClickEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -2518,10 +2517,10 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2581,7 +2580,7 @@ export class TripleClickEvent extends ClickEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -3518,10 +3517,10 @@ export class WheelEvent extends MouseEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -3586,7 +3585,7 @@ export class WheelEvent extends MouseEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;

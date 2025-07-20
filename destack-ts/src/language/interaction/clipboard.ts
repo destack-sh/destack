@@ -27,7 +27,6 @@ import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import { CopyEventProto, CutEventProto, EventStatusProto, PasteEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
@@ -137,7 +136,7 @@ export abstract class ClipboardEvent extends InputEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -305,10 +304,10 @@ export class CopyEvent extends ClipboardEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -333,7 +332,7 @@ export class CopyEvent extends ClipboardEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1144,10 +1143,10 @@ export class CutEvent extends ClipboardEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1172,7 +1171,7 @@ export class CutEvent extends ClipboardEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1983,10 +1982,10 @@ export class PasteEvent extends ClipboardEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2011,7 +2010,7 @@ export class PasteEvent extends ClipboardEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;

@@ -3,8 +3,8 @@ import { renderStroke } from "@destack-web/shared/freehand/svg";
 import {
   Easing,
   Layer,
-  LineShape,
   NodeReference,
+  PathShape2D,
   PointerMoveEvent,
   Stroke,
   StrokeType,
@@ -25,9 +25,9 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   const session = useSession();
   const supergraph = useSupergraph();
   const layer = supergraph.getOrError(layerPtr.id) as Layer;
-  const lines = layer.getChildren(LineShape);
+  const lines = layer.getChildren(PathShape2D);
 
-  const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
+  const [currentLine, setCurrentLine] = useState<PathShape2D | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastMousePosition, setLastMousePosition] = useState<Vector2 | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -47,7 +47,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
     const point = getMousePosition(event);
     setIsDrawing(true);
     setLastMousePosition(point);
-    const line = new LineShape({ name: "LineShape", points: [point] });
+    const line = new PathShape2D({ name: "PathShape2D", points: [point] });
     setCurrentLine(line);
     layer.addChild(line);
     session.commit();

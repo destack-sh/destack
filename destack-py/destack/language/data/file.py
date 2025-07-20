@@ -45,13 +45,6 @@ MAX_FILE_SIZE = get_from_env(
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.FILE_SOURCE)
-class FileSource(Enum):
-    SPACE = 1
-    INLINE = 3
-    EXTERNAL = 10
-
-
 @builtin_enum(EnumType.FILE_RETENTION_MODE)
 class FileRetentionMode(Enum):
     AUTOMATIC = 1  # garbage collected if no references
@@ -452,7 +445,6 @@ class File(Resource):
     type: FileType = builtin_property(100, is_repr=True)
 
     # meta
-    source: FileSource = builtin_property(110, is_repr=True)
     mime_type: str | None = builtin_property(111, is_repr=True)
     format: FileFormat | None = builtin_property(112, is_repr=True)
     size: int | None = builtin_property(113, primitive_type=PrimitiveType.INT64, is_repr=True)

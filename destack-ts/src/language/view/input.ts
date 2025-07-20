@@ -8,9 +8,11 @@ import type {
   Value,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Dimension, Position } from "@destack/language/view/common";
+import type { Border, Fill, Shadow } from "@destack/language/style";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view/common";
 import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -118,11 +120,6 @@ export abstract class InputView extends View {
   abstract set customValues(value: { readonly [key: string]: Value });
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  declare readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -130,21 +127,6 @@ export abstract class InputView extends View {
    */
   abstract get name(): string;
   abstract set name(value: string);
-
-  /**
-   * The Script that defines this Node.
-   */
-  abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
 
   /**
    * The main / root Script of this Node.
@@ -170,6 +152,33 @@ export abstract class InputView extends View {
    */
   abstract get position(): Position | null;
   abstract set position(value: Position | null);
+
+  /**
+   * View.scale
+   */
+  /**
+   * View.scale
+   */
+  abstract get scale(): number | null;
+  abstract set scale(value: number | null);
+
+  /**
+   * View.rotation
+   */
+  /**
+   * View.rotation
+   */
+  abstract get rotation(): Axis3 | null;
+  abstract set rotation(value: Axis3 | null);
+
+  /**
+   * View.skew
+   */
+  /**
+   * View.skew
+   */
+  abstract get skew(): Vector2 | null;
+  abstract set skew(value: Vector2 | null);
 
   /**
    * View.width
@@ -226,22 +235,58 @@ export abstract class InputView extends View {
   abstract set maxHeight(value: Dimension | null);
 
   /**
-   * InputView.isVisible
+   * View.isVisible
    */
   /**
-   * InputView.isVisible
+   * View.isVisible
    */
   abstract get isVisible(): boolean | null;
   abstract set isVisible(value: boolean | null);
 
   /**
-   * InputView.opacity
+   * View.opacity
    */
   /**
-   * InputView.opacity
+   * View.opacity
    */
   abstract get opacity(): number | null;
   abstract set opacity(value: number | null);
+
+  /**
+   * View.fill
+   */
+  /**
+   * View.fill
+   */
+  abstract get fill(): Fill | null;
+  abstract set fill(value: Fill | null);
+
+  /**
+   * View.shadow
+   */
+  /**
+   * View.shadow
+   */
+  abstract get shadow(): Shadow | null;
+  abstract set shadow(value: Shadow | null);
+
+  /**
+   * View.border
+   */
+  /**
+   * View.border
+   */
+  abstract get border(): Border | null;
+  abstract set border(value: Border | null);
+
+  /**
+   * View.radius
+   */
+  /**
+   * View.radius
+   */
+  abstract get radius(): Corners | null;
+  abstract set radius(value: Corners | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

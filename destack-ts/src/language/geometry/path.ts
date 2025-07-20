@@ -21,25 +21,282 @@ import {
   Materialization,
   Node,
   NodeType,
+  StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import { Shape2D } from "@destack/language/geometry/shape";
+import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Border, Fill, Shadow } from "@destack/language/style";
-import type { Axis3, Corners, Dimension, Position } from "@destack/language/view/common";
-import { InputView } from "@destack/language/view/input";
-import { MaterializationProto, NumberInputViewProto } from "@destack/proto";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
+import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view";
+import { MaterializationProto, Path2DProto, PathShape2DProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1810100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2411600 ==== */
 /**
- * A general number input View.
+ * A Path is a path of multiple points.
  */
-export class NumberInputView extends InputView {
-  static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
+export class Path2D extends StructFrozen {
+  static metatype: StructType = StructType.PATH2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Path2D.stroke
+   */
+  readonly stroke: Stroke | null;
+
+  /**
+   * Path2D.points
+   */
+  readonly points: readonly Vector2[];
+
+  constructor(options: {
+    stroke?: Stroke | null;
+    points?: readonly Vector2[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _cson?: any | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
+    let _points = options.points ?? null;
+    if (_points === null) {
+      _points = [];
+    }
+    this.points = _points;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._cson = options._cson ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
+      return false;
+    }
+    if (this.points.length != other.points.length) {
+      return false;
+    }
+    for (let i = 0; i < this.points.length; i++) {
+      if (!this.points[i].equals(other.points[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.stroke != null) {
+        propertyReprs.push(`stroke=${this.stroke.repr()}`);
+      }
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
+        this._repr = `<Path2D ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly)
+        this._repr = `<Path2D>`;
+      }
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stroke != null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
+    if (this.points && this.points.length > 0) {
+      for (const _item of this.points) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
+      // @ts-expect-error(readonly)
+      this._cson = Path2D.__packCson__(this);
+    }
+    return this._cson;
+  }
+
+  static __packCson__(object: Path2D): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2411600;
+    if (object.stroke != null) {
+      objectCson["200"] = object.stroke.toCson();
+    }
+    if (object.points.length > 0) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toCson());
+      }
+      objectCson["210"] = packedPoints;
+    }
+    return objectCson;
+  }
+
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Path2D {
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const strokeValue = objectCson["200"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedPoints: any[] = [];
+    if (objectCson["210"] != undefined) {
+      for (const item of objectCson["210"]) {
+        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Path2D({
+      stroke: unpackedStroke,
+      points: unpackedPoints,
+      _cson: objectCson,
+      _supergraph,
+    });
+  }
+
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Path2D {
+    return Path2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Path2DProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Path2D.__packProto__(this);
+    }
+    return this._proto as Path2DProto;
+  }
+
+  static __packProto__(object: Path2D): Path2DProto {
+    const objectProto: Partial<Path2DProto> = { metatype: 2411600 };
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
+    if (object.points) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toProto());
+      }
+      objectProto.points = packedPoints;
+    }
+    return objectProto as Path2DProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Path2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Path2D {
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const unpackedPoints: any[] = [];
+    if (objectProto.points) {
+      for (const item of objectProto.points) {
+        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Path2D({
+      stroke:
+        objectProto.stroke != undefined
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
+      points: unpackedPoints,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Path2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Path2D {
+    return Path2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Path2D {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = Path2DProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.PATH2D, Path2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2411600 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2411600 ==== */
+/**
+ * A PathShape is a shape that represents a path of multiple points.
+ */
+export class PathShape2D extends Shape2D {
+  static metatype: NodeType = NodeType.PATH_SHAPE2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -110,10 +367,10 @@ export class NumberInputView extends InputView {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): NumberInputView | null {
+  get precededBy(): PathShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as NumberInputView | null;
+      return this._supergraph.get(nodePtr.id) as PathShape2D | null;
     }
     return null;
   }
@@ -506,36 +763,36 @@ export class NumberInputView extends InputView {
   _radius: Corners | null;
 
   /**
-   * NumberInputView.value
+   * Shape.stroke
    */
   /**
-   * NumberInputView.value
+   * Shape.stroke
    */
-  get value(): number | null {
-    return this._value;
+  get stroke(): Stroke | null {
+    return this._stroke;
   }
-  set value(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["value"];
+  set stroke(value: Stroke | null) {
+    const prop = (this.constructor as NodeClass).__properties__["stroke"];
     this._session.updateSetProperty(this, prop, value);
-    this._value = value;
+    this._stroke = value;
   }
-  _value: number | null;
+  _stroke: Stroke | null;
 
   /**
-   * NumberInputView.placeholder
+   * PathShape2D.points
    */
   /**
-   * NumberInputView.placeholder
+   * PathShape2D.points
    */
-  get placeholder(): string | null {
-    return this._placeholder;
+  get points(): readonly Vector2[] {
+    return this._points;
   }
-  set placeholder(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["placeholder"];
+  set points(value: readonly Vector2[]) {
+    const prop = (this.constructor as NodeClass).__properties__["points"];
     this._session.updateSetProperty(this, prop, value);
-    this._placeholder = value;
+    this._points = value;
   }
-  _placeholder: string | null;
+  _points: readonly Vector2[];
 
   constructor(options: {
     id?: string;
@@ -545,7 +802,7 @@ export class NumberInputView extends InputView {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: NumberInputView | NodeReference | null;
+    precededBy?: PathShape2D | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -574,8 +831,8 @@ export class NumberInputView extends InputView {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    value?: number | null;
-    placeholder?: string | null;
+    stroke?: Stroke | null;
+    points?: readonly Vector2[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -615,12 +872,12 @@ export class NumberInputView extends InputView {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for NumberInputView`);
+        throw new Error(`no active Space for PathShape2D`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`NumberInputView.space is required`);
+      throw new Error(`PathShape2D.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -628,7 +885,7 @@ export class NumberInputView extends InputView {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`NumberInputView.materialization is required`);
+      throw new Error(`PathShape2D.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -643,12 +900,12 @@ export class NumberInputView extends InputView {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for NumberInputView`);
+        throw new Error(`no active Branch for PathShape2D`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`NumberInputView.branch is required`);
+      throw new Error(`PathShape2D.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -658,12 +915,12 @@ export class NumberInputView extends InputView {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for NumberInputView`);
+        throw new Error(`no active Snapshot for PathShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`NumberInputView.snapshot is required`);
+      throw new Error(`PathShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -685,10 +942,10 @@ export class NumberInputView extends InputView {
     this._customValues = _customValues;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "NumberInputView";
+      _name = "PathShape2D";
     }
     if (_name === null) {
-      throw new Error(`NumberInputView.name is required`);
+      throw new Error(`PathShape2D.name is required`);
     }
     this._name = _name;
     let _script = options.script ?? null;
@@ -701,7 +958,7 @@ export class NumberInputView extends InputView {
       _isExtensible = false;
     }
     if (_isExtensible === null) {
-      throw new Error(`NumberInputView.isExtensible is required`);
+      throw new Error(`PathShape2D.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
@@ -736,10 +993,13 @@ export class NumberInputView extends InputView {
     this._border = _border;
     let _radius = options.radius ?? null;
     this._radius = _radius;
-    let _value = options.value ?? null;
-    this._value = _value;
-    let _placeholder = options.placeholder ?? null;
-    this._placeholder = _placeholder;
+    let _stroke = options.stroke ?? null;
+    this._stroke = _stroke;
+    let _points = options.points ?? null;
+    if (_points === null) {
+      _points = [];
+    }
+    this._points = _points;
 
     // identity
     if (options.id == null) {
@@ -759,7 +1019,7 @@ export class NumberInputView extends InputView {
         options.updatedEpoch == null
       ) {
         throw new Error(
-          `NumberInputView.createdAt and NumberInputView.updatedAt are required for existing Nodes`,
+          `PathShape2D.createdAt and PathShape2D.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -785,14 +1045,18 @@ export class NumberInputView extends InputView {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._value == null) !== (other._value == null) ||
-      (this._value != null &&
-        !(this._value === other._value || Math.abs(this._value - other._value) < 1e-10))
-    ) {
+    if (this._points.length != other._points.length) {
       return false;
     }
-    if (!(this._placeholder === other._placeholder)) {
+    for (let i = 0; i < this._points.length; i++) {
+      if (!this._points[i].equals(other._points[i])) {
+        return false;
+      }
+    }
+    if (
+      (this._stroke == null) !== (other._stroke == null) ||
+      (this._stroke != null && !this._stroke.equals(other._stroke))
+    ) {
       return false;
     }
     if (
@@ -922,11 +1186,13 @@ export class NumberInputView extends InputView {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._value != null) {
-      h = (h * 31 + hashFloat(this._value)) & 0xffffffff;
+    if (this._points && this._points.length > 0) {
+      for (const _item of this._points) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
     }
-    if (this._placeholder != null) {
-      h = (h * 31 + hashString(this._placeholder)) & 0xffffffff;
+    if (this._stroke != null) {
+      h = (h * 31 + this._stroke.hash()) & 0xffffffff;
     }
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
@@ -1017,7 +1283,7 @@ export class NumberInputView extends InputView {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.NUMBER_INPUT_VIEW,
+      type: NodeType.PATH_SHAPE2D,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
@@ -1049,17 +1315,20 @@ export class NumberInputView extends InputView {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.stroke != null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<NumberInputView "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<PathShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return NumberInputView.__packCson__(this);
+    return PathShape2D.__packCson__(this);
   }
 
-  static __packCson__(object: NumberInputView): { [key: string]: any } {
+  static __packCson__(object: PathShape2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1810100;
+    objectCson["1"] = 2411600;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1150,11 +1419,15 @@ export class NumberInputView extends InputView {
     if (object._radius != null) {
       objectCson["138"] = object._radius.toCson();
     }
-    if (object._value != null) {
-      objectCson["250"] = object._value;
+    if (object._stroke != null) {
+      objectCson["180"] = object._stroke.toCson();
     }
-    if (object._placeholder != null) {
-      objectCson["251"] = object._placeholder;
+    if (object._points.length > 0) {
+      const packedPoints: any[] = [];
+      for (const item of object._points) {
+        packedPoints.push(item.toCson());
+      }
+      objectCson["200"] = packedPoints;
     }
     return objectCson;
   }
@@ -1165,7 +1438,7 @@ export class NumberInputView extends InputView {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
+  ): PathShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
@@ -1175,11 +1448,19 @@ export class NumberInputView extends InputView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const valueValue = objectCson["250"];
-    const unpackedValue = valueValue != undefined ? valueValue : null;
-    const placeholderValue = objectCson["251"];
-    const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
+    const unpackedPoints: any[] = [];
+    if (objectCson["200"] != undefined) {
+      for (const item of objectCson["200"]) {
+        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const strokeValue = objectCson["180"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
@@ -1303,9 +1584,9 @@ export class NumberInputView extends InputView {
         );
       }
     }
-    return new NumberInputView({
-      value: unpackedValue,
-      placeholder: unpackedPlaceholder,
+    return new PathShape2D({
+      points: unpackedPoints,
+      stroke: unpackedStroke,
       position: unpackedPosition,
       scale: unpackedScale,
       rotation: unpackedRotation,
@@ -1360,16 +1641,16 @@ export class NumberInputView extends InputView {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
-    return NumberInputView.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): PathShape2D {
+    return PathShape2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): NumberInputViewProto {
-    return NumberInputView.__packProto__(this);
+  toProto(): PathShape2DProto {
+    return PathShape2D.__packProto__(this);
   }
 
-  static __packProto__(object: NumberInputView): NumberInputViewProto {
-    const objectProto: Partial<NumberInputViewProto> = { metatype: 1810100 };
+  static __packProto__(object: PathShape2D): PathShape2DProto {
+    const objectProto: Partial<PathShape2DProto> = { metatype: 2411600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1459,22 +1740,26 @@ export class NumberInputView extends InputView {
     if (object._radius != null) {
       objectProto.radius = object._radius.toProto();
     }
-    if (object._value != null) {
-      objectProto.value = object._value;
+    if (object._stroke != null) {
+      objectProto.stroke = object._stroke.toProto();
     }
-    if (object._placeholder != null) {
-      objectProto.placeholder = object._placeholder;
+    if (object._points) {
+      const packedPoints: any[] = [];
+      for (const item of object._points) {
+        packedPoints.push(item.toProto());
+      }
+      objectProto.points = packedPoints;
     }
-    return objectProto as NumberInputViewProto;
+    return objectProto as PathShape2DProto;
   }
 
   static __unpackProto__(
-    objectProto: NumberInputViewProto,
+    objectProto: PathShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
+  ): PathShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
@@ -1484,7 +1769,14 @@ export class NumberInputView extends InputView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const unpackedPoints: any[] = [];
+    if (objectProto.points) {
+      for (const item of objectProto.points) {
+        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1494,9 +1786,12 @@ export class NumberInputView extends InputView {
         );
       }
     }
-    return new NumberInputView({
-      value: objectProto.value != undefined ? objectProto.value : null,
-      placeholder: objectProto.placeholder != undefined ? objectProto.placeholder : null,
+    return new PathShape2D({
+      points: unpackedPoints,
+      stroke:
+        objectProto.stroke != undefined
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1661,18 +1956,18 @@ export class NumberInputView extends InputView {
   }
 
   static fromProto(
-    objectProto: NumberInputViewProto,
+    objectProto: PathShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
-    return NumberInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): PathShape2D {
+    return PathShape2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): NumberInputView {
+  static fromProtoString(packedProtoString: string): PathShape2D {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = NumberInputViewProto.fromBinary(packedProtoBytes);
+    const packedProto = PathShape2DProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1680,5 +1975,5 @@ export class NumberInputView extends InputView {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);
-/* ==== DESTACK_GENERATED_END:NODE:1810100 ==== */
+registerNodeClass(NodeType.PATH_SHAPE2D, PathShape2D);
+/* ==== DESTACK_GENERATED_END:NODE:2411600 ==== */

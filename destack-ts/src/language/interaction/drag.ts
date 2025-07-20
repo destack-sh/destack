@@ -28,7 +28,6 @@ import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import {
   DragEndEventProto,
   DragEnterEventProto,
@@ -146,7 +145,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): View | null;
+  abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -319,10 +318,10 @@ export class DragStartEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -352,7 +351,7 @@ export class DragStartEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1186,10 +1185,10 @@ export class DragEndEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1219,7 +1218,7 @@ export class DragEndEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2053,10 +2052,10 @@ export class DragOverEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2086,7 +2085,7 @@ export class DragOverEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2920,10 +2919,10 @@ export class DragEnterEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2953,7 +2952,7 @@ export class DragEnterEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -3787,10 +3786,10 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -3820,7 +3819,7 @@ export class DragLeaveEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -4654,10 +4653,10 @@ export class DropEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): View | null {
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -4687,7 +4686,7 @@ export class DropEvent extends DragEvent {
     status?: EventStatus;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    node?: View | NodeReference | null;
+    node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;

@@ -24,13 +24,13 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Fill, Font } from "@destack/language/style";
-import type { Dimension, Position } from "@destack/language/view/common";
-import { Align } from "@destack/language/view/common";
+import type { Border, Fill, Font, Shadow } from "@destack/language/style";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view/common";
 import { ContentView } from "@destack/language/view/content";
-import { AlignProto, MaterializationProto, TextViewProto } from "@destack/proto";
+import { MaterializationProto, TextViewProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -200,11 +200,6 @@ export class TextView extends ContentView {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -219,34 +214,6 @@ export class TextView extends ContentView {
     this._name = value;
   }
   _name: string;
-
-  /**
-   * The Script that defines this Node.
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  get key(): string | null {
-    return this._key;
-  }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
-    this._session.updateSetProperty(this, prop, value);
-    this._key = value;
-  }
-  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -298,6 +265,54 @@ export class TextView extends ContentView {
     this._position = value;
   }
   _position: Position | null;
+
+  /**
+   * View.scale
+   */
+  /**
+   * View.scale
+   */
+  get scale(): number | null {
+    return this._scale;
+  }
+  set scale(value: number | null) {
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scale = value;
+  }
+  _scale: number | null;
+
+  /**
+   * View.rotation
+   */
+  /**
+   * View.rotation
+   */
+  get rotation(): Axis3 | null {
+    return this._rotation;
+  }
+  set rotation(value: Axis3 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
+    this._rotation = value;
+  }
+  _rotation: Axis3 | null;
+
+  /**
+   * View.skew
+   */
+  /**
+   * View.skew
+   */
+  get skew(): Vector2 | null {
+    return this._skew;
+  }
+  set skew(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
+    this._skew = value;
+  }
+  _skew: Vector2 | null;
 
   /**
    * View.width
@@ -396,26 +411,10 @@ export class TextView extends ContentView {
   _maxHeight: Dimension | null;
 
   /**
-   * ContentView.align
+   * View.isVisible
    */
   /**
-   * ContentView.align
-   */
-  get align(): Align | null {
-    return this._align;
-  }
-  set align(value: Align | null) {
-    const prop = (this.constructor as NodeClass).__properties__["align"];
-    this._session.updateSetProperty(this, prop, value);
-    this._align = value;
-  }
-  _align: Align | null;
-
-  /**
-   * ContentView.isVisible
-   */
-  /**
-   * ContentView.isVisible
+   * View.isVisible
    */
   get isVisible(): boolean | null {
     return this._isVisible;
@@ -428,10 +427,10 @@ export class TextView extends ContentView {
   _isVisible: boolean | null;
 
   /**
-   * ContentView.opacity
+   * View.opacity
    */
   /**
-   * ContentView.opacity
+   * View.opacity
    */
   get opacity(): number | null {
     return this._opacity;
@@ -442,6 +441,70 @@ export class TextView extends ContentView {
     this._opacity = value;
   }
   _opacity: number | null;
+
+  /**
+   * View.fill
+   */
+  /**
+   * View.fill
+   */
+  get fill(): Fill | null {
+    return this._fill;
+  }
+  set fill(value: Fill | null) {
+    const prop = (this.constructor as NodeClass).__properties__["fill"];
+    this._session.updateSetProperty(this, prop, value);
+    this._fill = value;
+  }
+  _fill: Fill | null;
+
+  /**
+   * View.shadow
+   */
+  /**
+   * View.shadow
+   */
+  get shadow(): Shadow | null {
+    return this._shadow;
+  }
+  set shadow(value: Shadow | null) {
+    const prop = (this.constructor as NodeClass).__properties__["shadow"];
+    this._session.updateSetProperty(this, prop, value);
+    this._shadow = value;
+  }
+  _shadow: Shadow | null;
+
+  /**
+   * View.border
+   */
+  /**
+   * View.border
+   */
+  get border(): Border | null {
+    return this._border;
+  }
+  set border(value: Border | null) {
+    const prop = (this.constructor as NodeClass).__properties__["border"];
+    this._session.updateSetProperty(this, prop, value);
+    this._border = value;
+  }
+  _border: Border | null;
+
+  /**
+   * View.radius
+   */
+  /**
+   * View.radius
+   */
+  get radius(): Corners | null {
+    return this._radius;
+  }
+  set radius(value: Corners | null) {
+    const prop = (this.constructor as NodeClass).__properties__["radius"];
+    this._session.updateSetProperty(this, prop, value);
+    this._radius = value;
+  }
+  _radius: Corners | null;
 
   /**
    * TextView.font
@@ -509,22 +572,25 @@ export class TextView extends ContentView {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
-    source?: Script | NodeReference | null;
-    key?: string | null;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     position?: Position | null;
+    scale?: number | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2 | null;
     width?: Dimension | null;
     height?: Dimension | null;
     minWidth?: Dimension | null;
     minHeight?: Dimension | null;
     maxWidth?: Dimension | null;
     maxHeight?: Dimension | null;
-    align?: Align | null;
     isVisible?: boolean | null;
     opacity?: number | null;
+    fill?: Fill | null;
+    shadow?: Shadow | null;
+    border?: Border | null;
+    radius?: Corners | null;
     font?: Font | null;
     color?: Fill | null;
     text?: Text | null;
@@ -635,14 +701,6 @@ export class TextView extends ContentView {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`TextView.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "TextView";
@@ -651,13 +709,6 @@ export class TextView extends ContentView {
       throw new Error(`TextView.name is required`);
     }
     this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -673,6 +724,12 @@ export class TextView extends ContentView {
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
     this._position = _position;
+    let _scale = options.scale ?? null;
+    this._scale = _scale;
+    let _rotation = options.rotation ?? null;
+    this._rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this._skew = _skew;
     let _width = options.width ?? null;
     this._width = _width;
     let _height = options.height ?? null;
@@ -685,12 +742,18 @@ export class TextView extends ContentView {
     this._maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
     this._maxHeight = _maxHeight;
-    let _align = options.align ?? null;
-    this._align = _align;
     let _isVisible = options.isVisible ?? null;
     this._isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
     this._opacity = _opacity;
+    let _fill = options.fill ?? null;
+    this._fill = _fill;
+    let _shadow = options.shadow ?? null;
+    this._shadow = _shadow;
+    let _border = options.border ?? null;
+    this._border = _border;
+    let _radius = options.radius ?? null;
+    this._radius = _radius;
     let _font = options.font ?? null;
     this._font = _font;
     let _color = options.color ?? null;
@@ -760,22 +823,28 @@ export class TextView extends ContentView {
     ) {
       return false;
     }
-    if (!(this._align === other._align)) {
-      return false;
-    }
-    if (!(this._isVisible === other._isVisible)) {
-      return false;
-    }
     if (
-      (this._opacity == null) !== (other._opacity == null) ||
-      (this._opacity != null &&
-        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
     ) {
       return false;
     }
     if (
-      (this._position == null) !== (other._position == null) ||
-      (this._position != null && !this._position.equals(other._position))
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
     ) {
       return false;
     }
@@ -815,13 +884,41 @@ export class TextView extends ContentView {
     ) {
       return false;
     }
+    if (!(this._isVisible === other._isVisible)) {
+      return false;
+    }
+    if (
+      (this._opacity == null) !== (other._opacity == null) ||
+      (this._opacity != null &&
+        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this._fill == null) !== (other._fill == null) ||
+      (this._fill != null && !this._fill.equals(other._fill))
+    ) {
+      return false;
+    }
+    if (
+      (this._shadow == null) !== (other._shadow == null) ||
+      (this._shadow != null && !this._shadow.equals(other._shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this._border == null) !== (other._border == null) ||
+      (this._border != null && !this._border.equals(other._border))
+    ) {
+      return false;
+    }
+    if (
+      (this._radius == null) !== (other._radius == null) ||
+      (this._radius != null && !this._radius.equals(other._radius))
+    ) {
+      return false;
+    }
     if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
-      return false;
-    }
-    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -862,17 +959,17 @@ export class TextView extends ContentView {
     if (this._color != null) {
       h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this._align != null) {
-      h = (h * 31 + this._align) & 0xffffffff;
-    }
-    if (this._isVisible != null) {
-      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
-    }
-    if (this._opacity != null) {
-      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
-    }
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
+    }
+    if (this._scale != null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
+    }
+    if (this._rotation != null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
+    }
+    if (this._skew != null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
     if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
@@ -892,13 +989,25 @@ export class TextView extends ContentView {
     if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
+    if (this._isVisible != null) {
+      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
+    }
+    if (this._opacity != null) {
+      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
+    }
+    if (this._fill != null) {
+      h = (h * 31 + this._fill.hash()) & 0xffffffff;
+    }
+    if (this._shadow != null) {
+      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
+    }
+    if (this._border != null) {
+      h = (h * 31 + this._border.hash()) & 0xffffffff;
+    }
+    if (this._radius != null) {
+      h = (h * 31 + this._radius.hash()) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -917,11 +1026,10 @@ export class TextView extends ContentView {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -1020,14 +1128,7 @@ export class TextView extends ContentView {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["70"] = object._key;
-    }
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
     }
@@ -1035,32 +1136,50 @@ export class TextView extends ContentView {
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
+    if (object._scale != null) {
+      objectCson["111"] = object._scale;
+    }
+    if (object._rotation != null) {
+      objectCson["112"] = object._rotation.toCson();
+    }
+    if (object._skew != null) {
+      objectCson["113"] = object._skew.toCson();
+    }
     if (object._width != null) {
-      objectCson["111"] = object._width.toCson();
+      objectCson["120"] = object._width.toCson();
     }
     if (object._height != null) {
-      objectCson["112"] = object._height.toCson();
+      objectCson["121"] = object._height.toCson();
     }
     if (object._minWidth != null) {
-      objectCson["113"] = object._minWidth.toCson();
+      objectCson["122"] = object._minWidth.toCson();
     }
     if (object._minHeight != null) {
-      objectCson["114"] = object._minHeight.toCson();
+      objectCson["123"] = object._minHeight.toCson();
     }
     if (object._maxWidth != null) {
-      objectCson["115"] = object._maxWidth.toCson();
+      objectCson["124"] = object._maxWidth.toCson();
     }
     if (object._maxHeight != null) {
-      objectCson["116"] = object._maxHeight.toCson();
-    }
-    if (object._align != null) {
-      objectCson["150"] = object._align;
+      objectCson["125"] = object._maxHeight.toCson();
     }
     if (object._isVisible != null) {
-      objectCson["160"] = object._isVisible;
+      objectCson["130"] = object._isVisible;
     }
     if (object._opacity != null) {
-      objectCson["161"] = object._opacity;
+      objectCson["131"] = object._opacity;
+    }
+    if (object._fill != null) {
+      objectCson["132"] = object._fill.toCson();
+    }
+    if (object._shadow != null) {
+      objectCson["136"] = object._shadow.toCson();
+    }
+    if (object._border != null) {
+      objectCson["137"] = object._border.toCson();
+    }
+    if (object._radius != null) {
+      objectCson["138"] = object._radius.toCson();
     }
     if (object._font != null) {
       objectCson["201"] = object._font.toCson();
@@ -1086,8 +1205,13 @@ export class TextView extends ContentView {
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Font = STRUCT_CLASS_BY_TYPE[StructType.FONT] as typeof Font;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const textValue = objectCson["250"];
     const unpackedText =
       textValue != undefined
@@ -1103,54 +1227,77 @@ export class TextView extends ContentView {
       colorValue != undefined
         ? _Fill.fromCson(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const alignValue = objectCson["150"];
-    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const isVisibleValue = objectCson["160"];
-    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectCson["161"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectCson["111"];
+    const scaleValue = objectCson["111"];
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
+    const rotationValue = objectCson["112"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const skewValue = objectCson["113"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectCson["120"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectCson["112"];
+    const heightValue = objectCson["121"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectCson["113"];
+    const minWidthValue = objectCson["122"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectCson["114"];
+    const minHeightValue = objectCson["123"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectCson["115"];
+    const maxWidthValue = objectCson["124"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectCson["116"];
+    const maxHeightValue = objectCson["125"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+    const isVisibleValue = objectCson["130"];
+    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+    const opacityValue = objectCson["131"];
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+    const fillValue = objectCson["132"];
+    const unpackedFill =
+      fillValue != undefined
+        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
+    const shadowValue = objectCson["136"];
+    const unpackedShadow =
+      shadowValue != undefined
+        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const borderValue = objectCson["137"];
+    const unpackedBorder =
+      borderValue != undefined
+        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const radiusValue = objectCson["138"];
+    const unpackedRadius =
+      radiusValue != undefined
+        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1207,19 +1354,23 @@ export class TextView extends ContentView {
       text: unpackedText,
       font: unpackedFont,
       color: unpackedColor,
-      align: unpackedAlign,
-      isVisible: unpackedIsVisible,
-      opacity: unpackedOpacity,
       position: unpackedPosition,
+      scale: unpackedScale,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
       width: unpackedWidth,
       height: unpackedHeight,
       minWidth: unpackedMinWidth,
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      isVisible: unpackedIsVisible,
+      opacity: unpackedOpacity,
+      fill: unpackedFill,
+      shadow: unpackedShadow,
+      border: unpackedBorder,
+      radius: unpackedRadius,
       isExtensible: objectCson["90"],
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1241,9 +1392,8 @@ export class TextView extends ContentView {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectCson["50"],
-      id: String(objectCson["2"]),
       script: unpackedScriptPtr,
-      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
@@ -1304,20 +1454,22 @@ export class TextView extends ContentView {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     if (object._position != null) {
       objectProto.position = object._position.toProto();
+    }
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
+    }
+    if (object._rotation != null) {
+      objectProto.rotation = object._rotation.toProto();
+    }
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
     }
     if (object._width != null) {
       objectProto.width = object._width.toProto();
@@ -1337,14 +1489,23 @@ export class TextView extends ContentView {
     if (object._maxHeight != null) {
       objectProto.maxHeight = object._maxHeight.toProto();
     }
-    if (object._align != null) {
-      objectProto.align = Number(object._align) as AlignProto;
-    }
     if (object._isVisible != null) {
       objectProto.isVisible = object._isVisible;
     }
     if (object._opacity != null) {
       objectProto.opacity = object._opacity;
+    }
+    if (object._fill != null) {
+      objectProto.fill = object._fill.toProto();
+    }
+    if (object._shadow != null) {
+      objectProto.shadow = object._shadow.toProto();
+    }
+    if (object._border != null) {
+      objectProto.border = object._border.toProto();
+    }
+    if (object._radius != null) {
+      objectProto.radius = object._radius.toProto();
     }
     if (object._font != null) {
       objectProto.font = object._font.toProto();
@@ -1370,8 +1531,13 @@ export class TextView extends ContentView {
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Font = STRUCT_CLASS_BY_TYPE[StructType.FONT] as typeof Font;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1394,12 +1560,18 @@ export class TextView extends ContentView {
         objectProto.color != undefined
           ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
-      align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
-      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      rotation:
+        objectProto.rotation != undefined
+          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
@@ -1425,18 +1597,25 @@ export class TextView extends ContentView {
         objectProto.maxHeight != undefined
           ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      isExtensible: objectProto.isExtensible,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      fill:
+        objectProto.fill != undefined
+          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
           : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
+      shadow:
+        objectProto.shadow != undefined
+          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          : null,
+      border:
+        objectProto.border != undefined
+          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          : null,
+      radius:
+        objectProto.radius != undefined
+          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1519,7 +1698,6 @@ export class TextView extends ContentView {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1530,7 +1708,7 @@ export class TextView extends ContentView {
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

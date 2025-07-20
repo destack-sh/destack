@@ -4,6 +4,7 @@ import type {
   CustomEvent,
   Graph,
   IsActor,
+  IsExtensible,
   IsJoinable,
   NodeClass,
   NodeReference,
@@ -12,6 +13,7 @@ import type {
   Snapshot,
   Space,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -26,6 +28,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -43,7 +46,7 @@ import {
   MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:300500 ==== */
@@ -3153,7 +3156,7 @@ registerNodeClass(NodeType.ENTITLEMENT_EXPIRED_EVENT, EntitlementExpiredEvent);
 /**
  * A Entitlement to some Actor.
  */
-export class Entitlement extends Entity {
+export class Entitlement extends Entity implements IsExtensible {
   static metatype: NodeType = NodeType.ENTITLEMENT;
 
   /**
@@ -3298,6 +3301,22 @@ export class Entitlement extends Entity {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
    * Entity.name
    */
   /**
@@ -3312,6 +3331,41 @@ export class Entitlement extends Entity {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * Entitlement.type
@@ -3388,7 +3442,10 @@ export class Entitlement extends Entity {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     name?: string;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     type: EntitlementType;
     expiresAt?: Temporal.ZonedDateTime | null;
     target: (Entity & IsActor) | NodeReference;
@@ -3494,6 +3551,11 @@ export class Entitlement extends Entity {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Entitlement";
@@ -3502,6 +3564,19 @@ export class Entitlement extends Entity {
       throw new Error(`Entitlement.name is required`);
     }
     this._name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`Entitlement.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Entitlement.type is required`);
@@ -3571,14 +3646,31 @@ export class Entitlement extends Entity {
     if (!(this._targetPtr.id === other._targetPtr.id)) {
       return false;
     }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -3594,6 +3686,7 @@ export class Entitlement extends Entity {
       h = (h * 31 + hashString(this._expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -3609,8 +3702,17 @@ export class Entitlement extends Entity {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -3627,6 +3729,7 @@ export class Entitlement extends Entity {
       spaceId: this.spacePtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3694,7 +3797,18 @@ export class Entitlement extends Entity {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["30"] = packedCustomValues;
+    }
     objectCson["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectCson["80"] = object._scriptPtr.toCson();
+    }
+    objectCson["90"] = object.isExtensible;
     objectCson["100"] = object._type;
     if (object._expiresAt != null) {
       objectCson["110"] = object._expiresAt.toString({ timeZoneName: "never" });
@@ -3710,6 +3824,7 @@ export class Entitlement extends Entity {
     _graph?: any | null,
     _connection?: any | null,
   ): Entitlement {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
@@ -3751,6 +3866,23 @@ export class Entitlement extends Entity {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const scriptPtrValue = objectCson["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new Entitlement({
       parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
@@ -3762,6 +3894,7 @@ export class Entitlement extends Entity {
         _graph,
         _connection,
       ),
+      isExtensible: objectCson["90"],
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -3782,8 +3915,10 @@ export class Entitlement extends Entity {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectCson["50"],
+      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3836,7 +3971,17 @@ export class Entitlement extends Entity {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as EntitlementTypeProto;
     if (object._expiresAt != null) {
       objectProto.expiresAt = packProtoTimestamp(object._expiresAt);
@@ -3852,7 +3997,17 @@ export class Entitlement extends Entity {
     _graph?: any | null,
     _connection?: any | null,
   ): Entitlement {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Entitlement({
       parent:
         objectProto.parentPtr != undefined
@@ -3874,6 +4029,7 @@ export class Entitlement extends Entity {
         _graph,
         _connection,
       ),
+      isExtensible: objectProto.isExtensible,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
         objectProto.definitionPtr != undefined
@@ -3946,6 +4102,16 @@ export class Entitlement extends Entity {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3954,6 +4120,7 @@ export class Entitlement extends Entity {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
