@@ -25,6 +25,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Axis2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -34,7 +35,6 @@ import {
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import { Style } from "@destack/language/style/style";
-import type { Axis2 } from "@destack/language/view";
 import {
   MaterializationProto,
   ShadowPositionProto,
@@ -350,8 +350,8 @@ export class Shadow extends StructFrozen {
     _connection?: any | null,
   ): Shadow {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
@@ -438,8 +438,8 @@ export class Shadow extends StructFrozen {
     _connection?: any | null,
   ): Shadow {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     return new Shadow({
       type: Number(objectProto.type) as ShadowType,
       style:
@@ -1301,8 +1301,8 @@ export class ShadowStyle extends Style {
   ): ShadowStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const colorValue = objectCson["200"];
     const unpackedColor =
       colorValue != undefined
@@ -1497,8 +1497,8 @@ export class ShadowStyle extends Style {
   ): ShadowStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {

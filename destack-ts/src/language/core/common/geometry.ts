@@ -1,27 +1,22 @@
-import type {
-  Branch,
-  IsActor,
-  Materialization,
-  NodeReference,
-  Snapshot,
-  Space,
-  Value,
-} from "@destack/language/core";
-import { Entity, Entity2D, Entity3D, NodeType } from "@destack/language/core";
-import type { Quaternion } from "@destack/language/geometry/quaternion";
-import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
-import type { Vector2, Vector3 } from "@destack/language/geometry/vector";
+import { NodeType } from "@destack/language/core/builtin/common";
+import type { Materialization } from "@destack/language/core/builtin/entity";
+import { Entity } from "@destack/language/core/builtin/entity";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { IsActor, IsExtensible } from "@destack/language/core/builtin/trait";
+import type { Space } from "@destack/language/core/common/space";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
+import type { Value } from "@destack/language/core/common/value";
+import type { Anchor, Offset2, Quaternion, Vector2, Vector3 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Stroke } from "@destack/language/style";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:2410000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:15000 ==== */
 /**
- * A Shape2D represents 2-dimensional geometric Shapes.
+ * An Entity in 2D space.
  */
-export abstract class Shape2D extends Entity2D {
-  static metatype: NodeType = NodeType.SHAPE2D;
+export abstract class Entity2D extends Entity implements IsExtensible {
+  static metatype: NodeType = NodeType.ENTITY2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -62,7 +57,7 @@ export abstract class Shape2D extends Entity2D {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  abstract get precededBy(): Shape2D | null;
+  abstract get precededBy(): Entity2D | null;
   declare readonly precededByPtr: NodeReference | null;
 
   /**
@@ -207,28 +202,19 @@ export abstract class Shape2D extends Entity2D {
   abstract get anchor(): Anchor | null;
   abstract set anchor(value: Anchor | null);
 
-  /**
-   * Shape2D.stroke
-   */
-  /**
-   * Shape2D.stroke
-   */
-  abstract get stroke(): Stroke | null;
-  abstract set stroke(value: Stroke | null);
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.SHAPE2D, Shape2D);
-/* ==== DESTACK_GENERATED_END:NODE:2410000 ==== */
+registerNodeClass(NodeType.ENTITY2D, Entity2D);
+/* ==== DESTACK_GENERATED_END:NODE:15000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2415000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:15100 ==== */
 /**
- * A Shape3D represents 3-dimensional geometric Shapes.
+ * An Entity in 3D space.
  */
-export abstract class Shape3D extends Entity3D {
-  static metatype: NodeType = NodeType.SHAPE3D;
+export abstract class Entity3D extends Entity implements IsExtensible {
+  static metatype: NodeType = NodeType.ENTITY3D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -269,7 +255,7 @@ export abstract class Shape3D extends Entity3D {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  abstract get precededBy(): Shape3D | null;
+  abstract get precededBy(): Entity3D | null;
   declare readonly precededByPtr: NodeReference | null;
 
   /**
@@ -396,18 +382,9 @@ export abstract class Shape3D extends Entity3D {
   abstract get origin(): Vector3 | null;
   abstract set origin(value: Vector3 | null);
 
-  /**
-   * Shape3D.stroke
-   */
-  /**
-   * Shape3D.stroke
-   */
-  abstract get stroke(): Stroke | null;
-  abstract set stroke(value: Stroke | null);
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.SHAPE3D, Shape3D);
-/* ==== DESTACK_GENERATED_END:NODE:2415000 ==== */
+registerNodeClass(NodeType.ENTITY3D, Entity3D);
+/* ==== DESTACK_GENERATED_END:NODE:15100 ==== */

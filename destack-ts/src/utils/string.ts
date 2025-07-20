@@ -66,7 +66,7 @@ export function toCasing(name: string, casing: Casing, allowWhitespace: boolean 
     // ignore non-alphanumeric characters and capitalize the next character
     name = name.replace(/[^a-zA-Z0-9]/g, " ");
     // split on existing uppercase characters and spaces
-    name = name.split(/(?<=[a-z])(?=[A-Z0-9])/g).join(" ");
+    name = name.split(/(?<=[a-z])(?=[A-Z])/g).join(" ");
     name = stripAlphaNum(name);
     // title case each word
     name = name.replace(/\b\w/g, (char) => char.toUpperCase());
@@ -82,7 +82,7 @@ export function toCasing(name: string, casing: Casing, allowWhitespace: boolean 
     // ignore non-alphanumeric characters and capitalize the next character
     name = name.replace(/[^a-zA-Z0-9]/g, " ");
     // split on existing uppercase characters and spaces
-    name = name.split(/(?<=[a-z])(?=[A-Z0-9])/g).join(" ");
+    name = name.split(/(?<=[a-z])(?=[A-Z])/g).join(" ");
     name = stripAlphaNum(name).toUpperCase().replace(/ /g, "_");
     if (allowWhitespace) {
       name = name.replace(/_/g, " ").trim();

@@ -25,22 +25,12 @@ class BreakoutGame(IsStarable, Record):
 
 
 # ===============================================
-# breakout/Game [Entity]
-# ===============================================
-
-
-@entity
-class BreakoutGameObject(Record):
-    parent: BreakoutGame
-
-
-# ===============================================
 # breakout/Player [Entity]
 # ===============================================
 
 
 @entity
-class BreakoutPlayer(BreakoutGameObject):
+class BreakoutPlayer(Entity2D):
     pass
 
 
@@ -50,7 +40,7 @@ class BreakoutPlayer(BreakoutGameObject):
 
 
 @entity
-class BreakoutPaddle(BreakoutGameObject):
+class BreakoutPaddle(Entity2D):
     pass
 
 
@@ -60,7 +50,7 @@ class BreakoutPaddle(BreakoutGameObject):
 
 
 @entity
-class BreakoutBrick(BreakoutGameObject):
+class BreakoutBrick(Entity2D):
     pass
 
 
@@ -70,7 +60,7 @@ class BreakoutBrick(BreakoutGameObject):
 
 
 @entity
-class BreakoutBall(BreakoutGameObject):
+class BreakoutBall(Entity2D):
     pass
 
 
@@ -80,5 +70,5 @@ class BreakoutBall(BreakoutGameObject):
 
 
 @entity
-class BreakoutWall(BreakoutGameObject):
+class BreakoutWall(Entity2D):
     pass

@@ -144,6 +144,7 @@ import type {
   TraitDefinition,
 } from "@destack/language/core/common/definition";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
+import type { Entity2D, Entity3D } from "@destack/language/core/common/geometry";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
 import type {
   Constraint,
@@ -226,18 +227,33 @@ import type { Ellipse2D, EllipseShape2D } from "@destack/language/geometry/ellip
 import type { Line2D, LineShape2D } from "@destack/language/geometry/line";
 import type { Path2D, PathShape2D } from "@destack/language/geometry/path";
 import type { Polygon2D, PolygonShape2D } from "@destack/language/geometry/polygon";
+import type { Quaternion } from "@destack/language/geometry/quaternion";
 import type { Rectangle2D, RectangleShape2D } from "@destack/language/geometry/rectangle";
-import type { Shape, Shape2D } from "@destack/language/geometry/shape";
 import type {
-  Vector,
+  Align,
+  Anchor,
+  Axis2,
+  Axis3,
+  Corner2,
+  Direction,
+  Distribute,
+  Grid2,
+  GridSpan2,
+  Inset2,
+  Layout,
+  Length,
+  LengthType,
+  Offset2,
+  Overflow,
+} from "@destack/language/geometry/relative";
+import type { Shape2D, Shape3D } from "@destack/language/geometry/shape";
+import type {
   Vector2,
   Vector2i,
   Vector3,
   Vector3i,
   Vector4,
   Vector4i,
-  Vectorf,
-  Vectori,
 } from "@destack/language/geometry/vector";
 import type {
   Database,
@@ -327,7 +343,6 @@ import type {
 import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type { Scene, SceneEvent } from "@destack/language/scene/scene";
 import type { Stage } from "@destack/language/scene/stage";
-import type { Window, WindowType } from "@destack/language/scene/window";
 import type {
   Follow,
   FollowAddedEvent,
@@ -411,25 +426,6 @@ import type { Handle } from "@destack/language/universe/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
 import type { Team } from "@destack/language/universe/team";
 import type { User, UserStatus } from "@destack/language/universe/user";
-import type {
-  Align,
-  Axis2,
-  Axis3,
-  Corners,
-  Dimension,
-  DimensionType,
-  Direction,
-  Distribute,
-  Grid,
-  GridSpan,
-  Insets,
-  Layout,
-  Length,
-  LengthUnit,
-  Overflow,
-  Position,
-  PositionType,
-} from "@destack/language/view/common";
 import type { ContentView } from "@destack/language/view/content";
 import type { FrameView } from "@destack/language/view/frame";
 import type { InputView } from "@destack/language/view/input";
@@ -457,6 +453,8 @@ export type NodeTypeMapping = {
   [NodeType.ACTION]: Action;
   [NodeType.CUSTOM_ENUM]: CustomEnum;
   [NodeType.CUSTOM_OPTION]: CustomOption;
+  [NodeType.ENTITY2D]: Entity2D;
+  [NodeType.ENTITY3D]: Entity3D;
   [NodeType.INDEX]: Index;
   [NodeType.CONSTRAINT]: Constraint;
   [NodeType.MIGRATION]: Migration;
@@ -519,19 +517,8 @@ export type NodeTypeMapping = {
   [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
   [NodeType.RUN]: Run;
   [NodeType.SPAN_EVENT]: SpanEvent;
-  [NodeType.VIEW_EVENT]: ViewEvent;
-  [NodeType.VIEW]: View;
-  [NodeType.CONTENT_VIEW]: ContentView;
-  [NodeType.LAYOUT_VIEW]: LayoutView;
-  [NodeType.FRAME_VIEW]: FrameView;
-  [NodeType.INPUT_VIEW]: InputView;
-  [NodeType.LABEL_VIEW]: LabelView;
-  [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
-  [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
-  [NodeType.SPLIT_VIEW]: SplitView;
-  [NodeType.TEXT_VIEW]: TextView;
-  [NodeType.SHAPE]: Shape;
   [NodeType.SHAPE2D]: Shape2D;
+  [NodeType.SHAPE3D]: Shape3D;
   [NodeType.ARROW_SHAPE2D]: ArrowShape2D;
   [NodeType.ELLIPSE_SHAPE2D]: EllipseShape2D;
   [NodeType.LINE_SHAPE2D]: LineShape2D;
@@ -597,10 +584,20 @@ export type NodeTypeMapping = {
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
   [NodeType.HISTOGRAM_MEASUREMENT_EVENT]: HistogramMeasurementEvent;
   [NodeType.LAYER]: Layer;
+  [NodeType.VIEW_EVENT]: ViewEvent;
+  [NodeType.VIEW]: View;
+  [NodeType.CONTENT_VIEW]: ContentView;
+  [NodeType.LAYOUT_VIEW]: LayoutView;
+  [NodeType.FRAME_VIEW]: FrameView;
+  [NodeType.INPUT_VIEW]: InputView;
+  [NodeType.LABEL_VIEW]: LabelView;
+  [NodeType.NUMBER_INPUT_VIEW]: NumberInputView;
+  [NodeType.SLIDER_INPUT_VIEW]: SliderInputView;
+  [NodeType.SPLIT_VIEW]: SplitView;
+  [NodeType.TEXT_VIEW]: TextView;
   [NodeType.SCENE_EVENT]: SceneEvent;
   [NodeType.SCENE]: Scene;
   [NodeType.STAGE]: Stage;
-  [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
   [NodeType.FOLLOW_EVENT]: FollowEvent;
   [NodeType.FOLLOW_ADDED_EVENT]: FollowAddedEvent;
@@ -706,30 +703,27 @@ export type StructTypeMapping = {
   [StructType.STROKE_PATH]: StrokePath;
   [StructType.TRANSITION]: Transition;
   [StructType.EFFECT]: Effect;
-  [StructType.LENGTH]: Length;
-  [StructType.POSITION]: Position;
-  [StructType.DIMENSION]: Dimension;
-  [StructType.INSETS]: Insets;
-  [StructType.CORNERS]: Corners;
-  [StructType.AXIS2]: Axis2;
-  [StructType.AXIS3]: Axis3;
-  [StructType.GRID]: Grid;
-  [StructType.GRID_SPAN]: GridSpan;
   [StructType.ARROW2D]: Arrow2D;
   [StructType.ELLIPSE2D]: Ellipse2D;
   [StructType.LINE2D]: Line2D;
   [StructType.PATH2D]: Path2D;
   [StructType.POLYGON2D]: Polygon2D;
-  [StructType.RECTANGLE2D]: Rectangle2D;
-  [StructType.VECTOR]: Vector;
-  [StructType.VECTORF]: Vectorf;
-  [StructType.VECTORI]: Vectori;
   [StructType.VECTOR2]: Vector2;
   [StructType.VECTOR3]: Vector3;
   [StructType.VECTOR4]: Vector4;
   [StructType.VECTOR2I]: Vector2i;
   [StructType.VECTOR3I]: Vector3i;
   [StructType.VECTOR4I]: Vector4i;
+  [StructType.QUATERNION]: Quaternion;
+  [StructType.RECTANGLE2D]: Rectangle2D;
+  [StructType.LENGTH]: Length;
+  [StructType.OFFSET2]: Offset2;
+  [StructType.INSET2]: Inset2;
+  [StructType.CORNER2]: Corner2;
+  [StructType.AXIS2]: Axis2;
+  [StructType.AXIS3]: Axis3;
+  [StructType.GRID2]: Grid2;
+  [StructType.GRID_SPAN2]: GridSpan2;
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.SCHEDULE]: Schedule;
 };
@@ -828,15 +822,14 @@ export type EnumTypeMapping = {
   [EnumType.FILE_FORMAT]: FileFormat;
   [EnumType.LOG_LEVEL]: LogLevel;
   [EnumType.RUN_STATUS]: RunStatus;
+  [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;
   [EnumType.DIRECTION]: Direction;
   [EnumType.DISTRIBUTE]: Distribute;
   [EnumType.ALIGN]: Align;
-  [EnumType.LENGTH_UNIT]: LengthUnit;
-  [EnumType.POSITION_TYPE]: PositionType;
-  [EnumType.DIMENSION_TYPE]: DimensionType;
-  [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
+  [EnumType.ANCHOR]: Anchor;
+  [EnumType.LENGTH_TYPE]: LengthType;
   [EnumType.DATABASE_TYPE]: DatabaseType;
   [EnumType.MACHINE_TYPE]: MachineType;
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
@@ -849,7 +842,6 @@ export type EnumTypeMapping = {
   [EnumType.TIMER_TYPE]: TimerType;
   [EnumType.TRIGGER_TYPE]: TriggerType;
   [EnumType.LAYER_TYPE]: LayerType;
-  [EnumType.WINDOW_TYPE]: WindowType;
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus;
   [EnumType.FOLDER_TYPE]: FolderType;
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;

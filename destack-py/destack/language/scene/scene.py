@@ -37,7 +37,7 @@ class Scene(
     IsExtensible,
     Entity,
 ):
-    """A Scene is a container for an interaction point."""
+    """A Scene contains some interactive part of a Stage."""
 
     root_view: Optional["LayoutView"] = builtin_property(
         200, description="The root view of the Scene."

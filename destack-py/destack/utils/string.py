@@ -60,7 +60,7 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
         # ignore non-alphanumeric characters and capitalize the next character
         name = regex.sub(r"[^a-zA-Z0-9]", " ", name)
         # split on existing uppercase characters and spaces
-        name = " ".join(regex.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
+        name = " ".join(regex.split(r"(?<=[a-z])(?=[A-Z])", name))
         name = _strip_alpha_num(name).title()
         name = name.replace("_", " ").strip() if allow_whitespace else name.replace(" ", "")
         if casing == Casing.LOWER_CAMEL:
@@ -70,7 +70,7 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
         # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character
         name = regex.sub(r"[^a-zA-Z0-9]", " ", name)
         # split on existing uppercase characters and spaces
-        name = " ".join(regex.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
+        name = " ".join(regex.split(r"(?<=[a-z])(?=[A-Z])", name))
         name = _strip_alpha_num(name).upper().replace(" ", "_")
         if allow_whitespace:
             name = name.replace("_", " ").strip()

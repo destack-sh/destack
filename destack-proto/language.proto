@@ -19,12 +19,21 @@ enum AggregationTypeProto {
   AGGREGATION_TYPE_AVERAGE = 6;
 }
 
-// The alignment of a View.
+// The alignment of elements.
 enum AlignProto {
   ALIGN_UNSPECIFIED = 0;
   ALIGN_START = 1;
   ALIGN_CENTER = 2;
   ALIGN_END = 3;
+}
+
+// The position of elements.
+enum AnchorProto {
+  ANCHOR_UNSPECIFIED = 0;
+  ANCHOR_RELATIVE = 1;
+  ANCHOR_ABSOLUTE = 2;
+  ANCHOR_FIXED = 3;
+  ANCHOR_STICKY = 4;
 }
 
 enum ArrowHeadTypeProto {
@@ -194,21 +203,14 @@ enum DayOfWeekProto {
   DAY_OF_WEEK_SUNDAY = 7;
 }
 
-enum DimensionTypeProto {
-  DIMENSION_TYPE_UNSPECIFIED = 0;
-  DIMENSION_TYPE_FIXED = 2;
-  DIMENSION_TYPE_FIT = 3;
-  DIMENSION_TYPE_FILL = 4;
-}
-
-// The direction of a View.
+// The direction of elements.
 enum DirectionProto {
   DIRECTION_UNSPECIFIED = 0;
   DIRECTION_HORIZONTAL = 1;
   DIRECTION_VERTICAL = 2;
 }
 
-// The distribution of a View's children.
+// The distribution of elements.
 enum DistributeProto {
   DISTRIBUTE_UNSPECIFIED = 0;
   DISTRIBUTE_START = 1;
@@ -383,8 +385,7 @@ enum EnumTypeProto {
   ENUM_TYPE_RUN_STATUS = 1110000;
   ENUM_TYPE_LOG_LEVEL = 1110300;
   ENUM_TYPE_NOTIFICATION_STATUS = 1400500;
-  ENUM_TYPE_WINDOW_TYPE = 1700000;
-  ENUM_TYPE_LAYER_TYPE = 1700200;
+  ENUM_TYPE_LAYER_TYPE = 1700300;
   ENUM_TYPE_MODE_TYPE = 2000000;
   ENUM_TYPE_TOOL_TYPE = 2000001;
   ENUM_TYPE_MOUSE_BUTTON = 2000010;
@@ -406,14 +407,6 @@ enum EnumTypeProto {
   ENUM_TYPE_SHADOW_POSITION = 2100208;
   ENUM_TYPE_GRADIENT_TYPE = 2100209;
   ENUM_TYPE_STROKE_TYPE = 2100213;
-  ENUM_TYPE_POSITION_TYPE = 2100214;
-  ENUM_TYPE_LENGTH_UNIT = 2100215;
-  ENUM_TYPE_LAYOUT = 2100216;
-  ENUM_TYPE_DISTRIBUTE = 2100217;
-  ENUM_TYPE_ALIGN = 2100218;
-  ENUM_TYPE_DIRECTION = 2100219;
-  ENUM_TYPE_OVERFLOW = 2100220;
-  ENUM_TYPE_DIMENSION_TYPE = 2100221;
   ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223;
   ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224;
   ENUM_TYPE_EASING = 2100225;
@@ -421,6 +414,13 @@ enum EnumTypeProto {
   ENUM_TYPE_SPRING_TYPE = 2200001;
   ENUM_TYPE_EFFECT_TYPE = 2200002;
   ENUM_TYPE_REPEAT_TYPE = 2200003;
+  ENUM_TYPE_ANCHOR = 2400000;
+  ENUM_TYPE_LENGTH_TYPE = 2400001;
+  ENUM_TYPE_LAYOUT = 2400002;
+  ENUM_TYPE_DISTRIBUTE = 2400003;
+  ENUM_TYPE_ALIGN = 2400004;
+  ENUM_TYPE_DIRECTION = 2400005;
+  ENUM_TYPE_OVERFLOW = 2400006;
   ENUM_TYPE_ARROW_HEAD_TYPE = 2401200;
 }
 
@@ -684,7 +684,7 @@ enum LayerTypeProto {
   LAYER_TYPE_SHAPE = 2;
 }
 
-// The layout of a View.
+// The layout of elements.
 enum LayoutProto {
   LAYOUT_UNSPECIFIED = 0;
   LAYOUT_STACK = 1;
@@ -692,12 +692,14 @@ enum LayoutProto {
 }
 
 // The unit of a length value.
-enum LengthUnitProto {
-  LENGTH_UNIT_UNSPECIFIED = 0;
-  LENGTH_UNIT_PIXEL = 1;
-  LENGTH_UNIT_REM = 2;
-  LENGTH_UNIT_PERCENT = 3;
-  LENGTH_UNIT_FR = 4;
+enum LengthTypeProto {
+  LENGTH_TYPE_UNSPECIFIED = 0;
+  LENGTH_TYPE_PIXEL = 1;
+  LENGTH_TYPE_REM = 2;
+  LENGTH_TYPE_PERCENT = 3;
+  LENGTH_TYPE_FR = 4;
+  LENGTH_TYPE_FIT = 10;
+  LENGTH_TYPE_FILL = 11;
 }
 
 enum LogLevelProto {
@@ -814,6 +816,8 @@ enum NodeTypeProto {
   NODE_TYPE_VARIANT = 12500;
   NODE_TYPE_TAG = 12600;
   NODE_TYPE_TAGGING = 12700;
+  NODE_TYPE_ENTITY2D = 15000;
+  NODE_TYPE_ENTITY3D = 15100;
   NODE_TYPE_CUSTOM_EVENT = 20000;
   NODE_TYPE_CUSTOM_STRUCT = 20100;
   NODE_TYPE_CUSTOM_ENUM = 20200;
@@ -917,7 +921,6 @@ enum NodeTypeProto {
   NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 1400505;
   NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506;
   NODE_TYPE_STAGE = 1700000;
-  NODE_TYPE_WINDOW = 1700100;
   NODE_TYPE_SCENE = 1700200;
   NODE_TYPE_SCENE_EVENT = 1700201;
   NODE_TYPE_LAYER = 1700300;
@@ -977,14 +980,14 @@ enum NodeTypeProto {
   NODE_TYPE_TRANSITION_STYLE = 2100900;
   NODE_TYPE_EFFECT_STYLE = 2101000;
   NODE_TYPE_STROKE_STYLE = 2101100;
-  NODE_TYPE_SHAPE = 2410000;
-  NODE_TYPE_SHAPE2D = 2410100;
-  NODE_TYPE_LINE_SHAPE2D = 2411100;
-  NODE_TYPE_ARROW_SHAPE2D = 2411200;
-  NODE_TYPE_RECTANGLE_SHAPE2D = 2411300;
-  NODE_TYPE_ELLIPSE_SHAPE2D = 2411400;
-  NODE_TYPE_POLYGON_SHAPE2D = 2411500;
-  NODE_TYPE_PATH_SHAPE2D = 2411600;
+  NODE_TYPE_SHAPE2D = 2410000;
+  NODE_TYPE_LINE_SHAPE2D = 2410100;
+  NODE_TYPE_ARROW_SHAPE2D = 2410200;
+  NODE_TYPE_RECTANGLE_SHAPE2D = 2410300;
+  NODE_TYPE_ELLIPSE_SHAPE2D = 2410400;
+  NODE_TYPE_POLYGON_SHAPE2D = 2410500;
+  NODE_TYPE_PATH_SHAPE2D = 2410600;
+  NODE_TYPE_SHAPE3D = 2415000;
 }
 
 // A Status of a Notification.
@@ -1037,7 +1040,7 @@ enum OrganizationStatusProto {
   ORGANIZATION_STATUS_ACTIVE = 10;
 }
 
-// The overflow behavior of a View.
+// The overflow behavior of elements.
 enum OverflowProto {
   OVERFLOW_UNSPECIFIED = 0;
   OVERFLOW_HIDDEN = 2;
@@ -1050,15 +1053,6 @@ enum PlatformTypeProto {
   PLATFORM_TYPE_SYSTEM = 1;
   PLATFORM_TYPE_RUNTIME = 2;
   PLATFORM_TYPE_WEB = 10;
-}
-
-// The position type of a View.
-enum PositionTypeProto {
-  POSITION_TYPE_UNSPECIFIED = 0;
-  POSITION_TYPE_RELATIVE = 1;
-  POSITION_TYPE_ABSOLUTE = 2;
-  POSITION_TYPE_FIXED = 3;
-  POSITION_TYPE_STICKY = 4;
 }
 
 // A fundamental scalar data type.
@@ -1387,15 +1381,6 @@ enum StructTypeProto {
   STRUCT_TYPE_ICON = 400031;
   STRUCT_TYPE_SCHEDULE = 700001;
   STRUCT_TYPE_DATABASE_INFO = 1000001;
-  STRUCT_TYPE_LENGTH = 1800001;
-  STRUCT_TYPE_POSITION = 1800002;
-  STRUCT_TYPE_DIMENSION = 1800003;
-  STRUCT_TYPE_GRID = 1800004;
-  STRUCT_TYPE_GRID_SPAN = 1800005;
-  STRUCT_TYPE_INSETS = 1800006;
-  STRUCT_TYPE_CORNERS = 1800007;
-  STRUCT_TYPE_AXIS2 = 1800008;
-  STRUCT_TYPE_AXIS3 = 1800009;
   STRUCT_TYPE_COLOR = 2100300;
   STRUCT_TYPE_FILL = 2100400;
   STRUCT_TYPE_FONT = 2100500;
@@ -1409,21 +1394,27 @@ enum StructTypeProto {
   STRUCT_TYPE_STROKE_POINT = 2101103;
   STRUCT_TYPE_TRANSITION = 2200000;
   STRUCT_TYPE_EFFECT = 2200100;
-  STRUCT_TYPE_VECTOR = 2400000;
-  STRUCT_TYPE_VECTORF = 2400010;
-  STRUCT_TYPE_VECTOR2 = 2400011;
-  STRUCT_TYPE_VECTOR3 = 2400012;
-  STRUCT_TYPE_VECTOR4 = 2400013;
-  STRUCT_TYPE_VECTORI = 2400020;
-  STRUCT_TYPE_VECTOR2I = 2400021;
-  STRUCT_TYPE_VECTOR3I = 2400022;
-  STRUCT_TYPE_VECTOR4I = 2400023;
+  STRUCT_TYPE_VECTOR2 = 2400000;
+  STRUCT_TYPE_VECTOR2I = 2400001;
+  STRUCT_TYPE_VECTOR3 = 2400002;
+  STRUCT_TYPE_VECTOR3I = 2400003;
+  STRUCT_TYPE_VECTOR4 = 2400004;
+  STRUCT_TYPE_VECTOR4I = 2400005;
+  STRUCT_TYPE_QUATERNION = 2400010;
+  STRUCT_TYPE_OFFSET2 = 2400020;
+  STRUCT_TYPE_GRID2 = 2400021;
+  STRUCT_TYPE_GRID_SPAN2 = 2400022;
+  STRUCT_TYPE_INSET2 = 2400023;
+  STRUCT_TYPE_CORNER2 = 2400024;
+  STRUCT_TYPE_AXIS2 = 2400025;
+  STRUCT_TYPE_AXIS3 = 2400026;
   STRUCT_TYPE_LINE2D = 2411100;
   STRUCT_TYPE_ARROW2D = 2411200;
   STRUCT_TYPE_RECTANGLE2D = 2411300;
   STRUCT_TYPE_ELLIPSE2D = 2411400;
   STRUCT_TYPE_POLYGON2D = 2411500;
   STRUCT_TYPE_PATH2D = 2411600;
+  STRUCT_TYPE_LENGTH = 1800001;
 }
 
 enum TenancyProto {
@@ -1552,7 +1543,7 @@ enum UniverseCategoryProto {
   UNIVERSE_CATEGORY_FINANCE = 1500000;
   UNIVERSE_CATEGORY_SCENE = 1700000;
   UNIVERSE_CATEGORY_VIEW = 1800000;
-  UNIVERSE_CATEGORY_CANVAS = 1900000;
+  UNIVERSE_CATEGORY_DRAWING = 1900000;
   UNIVERSE_CATEGORY_INTERACTION = 2000000;
   UNIVERSE_CATEGORY_STYLE = 2100000;
   UNIVERSE_CATEGORY_ANIMATION = 2200000;
@@ -1560,6 +1551,7 @@ enum UniverseCategoryProto {
   UNIVERSE_CATEGORY_GEOMETRY = 2400000;
   UNIVERSE_CATEGORY_PHYSICS = 2500000;
   UNIVERSE_CATEGORY_LIGHTING = 2600000;
+  UNIVERSE_CATEGORY_EDITOR = 3000000;
 }
 
 enum UserStatusProto {
@@ -1581,13 +1573,6 @@ enum ValueFactoryProto {
   VALUE_FACTORY_BRANCH = 32;
   VALUE_FACTORY_SNAPSHOT = 33;
   VALUE_FACTORY_NAME = 40;
-}
-
-enum WindowTypeProto {
-  WINDOW_TYPE_UNSPECIFIED = 0;
-  WINDOW_TYPE_BROWSER = 10;
-  WINDOW_TYPE_DESKTOP = 20;
-  WINDOW_TYPE_MOBILE = 30;
 }
 
 // An implementation of a unit of work, usually expressed with Code or some tool.
@@ -1672,22 +1657,13 @@ message ArrowShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
   ArrowHeadTypeProto start_type = 200;
   Vector2Proto start = 201;
@@ -1697,14 +1673,14 @@ message ArrowShape2DProto {
 
 message Axis2Proto {
   StructTypeProto metatype = 1;
-  optional double base = 101;
+  double base = 101;
   optional double x = 102;
   optional double y = 103;
 }
 
 message Axis3Proto {
   StructTypeProto metatype = 1;
-  optional double base = 101;
+  double base = 101;
   optional double x = 102;
   optional double y = 103;
   optional double z = 104;
@@ -1714,7 +1690,7 @@ message BorderProto {
   StructTypeProto metatype = 1;
   BorderTypeProto type = 100;
   optional ColorProto color = 101;
-  optional InsetsProto width = 102;
+  optional Inset2Proto width = 102;
   optional NodeReferenceProto style_ptr = 103;
 }
 
@@ -1743,7 +1719,7 @@ message BorderStyleProto {
   bool is_extensible = 90;
   BorderTypeProto type = 100;
   optional ColorProto color = 200;
-  optional InsetsProto width = 201;
+  optional Inset2Proto width = 201;
   optional NodeReferenceProto style_ptr = 202;
 }
 
@@ -1993,22 +1969,25 @@ message ContentViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
 }
 
 // A CopyEvent is a ClipboardEvent when a copy is performed.
@@ -2035,9 +2014,9 @@ message CopyEventProto {
   optional NodeReferenceProto node_ptr = 101;
 }
 
-message CornersProto {
+message Corner2Proto {
   StructTypeProto metatype = 1;
-  optional int64 base = 101 [jstype = JS_NUMBER];
+  int64 base = 101 [jstype = JS_NUMBER];
   optional int64 top_left = 102 [jstype = JS_NUMBER];
   optional int64 top_right = 103 [jstype = JS_NUMBER];
   optional int64 bottom_left = 104 [jstype = JS_NUMBER];
@@ -2354,13 +2333,6 @@ message DatumMutableProto {
   StructTypeProto metatype = 1;
   NodeReferenceProto definition_ptr = 6;
   map<string, ValueProto> custom_values = 26;
-}
-
-message DimensionProto {
-  StructTypeProto metatype = 1;
-  DimensionTypeProto type = 100;
-  LengthUnitProto unit = 101;
-  double value = 102;
 }
 
 // A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time.
@@ -2686,22 +2658,13 @@ message EllipseShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
 }
 
@@ -2869,6 +2832,68 @@ message EntityProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   string name = 50;
+}
+
+// An Entity in 2D space.
+message Entity2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+}
+
+// An Entity in 3D space.
+message Entity3DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional Vector3Proto position = 110;
+  optional Vector3Proto scale = 111;
+  optional QuaternionProto rotation = 112;
+  optional Vector3Proto skew = 113;
+  optional Vector3Proto origin = 114;
 }
 
 message EnumDefinitionProto {
@@ -3305,30 +3330,33 @@ message FrameViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
   optional AlignProto align = 153;
   optional Axis2Proto gap = 154;
-  optional InsetsProto padding = 155;
-  optional GridProto grid = 156;
-  optional GridSpanProto grid_span = 157;
+  optional Inset2Proto padding = 155;
+  optional Grid2Proto grid = 156;
+  optional GridSpan2Proto grid_span = 157;
   optional double aspect_ratio = 158;
   optional bool is_wrap = 159;
 }
@@ -3432,16 +3460,16 @@ message GradientStyleProto {
   optional GradientProto dark = 105;
 }
 
-message GridProto {
+message Grid2Proto {
   StructTypeProto metatype = 1;
   int64 columns = 101 [jstype = JS_NUMBER];
   int64 rows = 102 [jstype = JS_NUMBER];
-  optional DimensionProto column_width = 103;
-  optional DimensionProto column_min_width = 104;
-  optional DimensionProto row_height = 105;
+  optional LengthProto column_width = 103;
+  optional LengthProto column_min_width = 104;
+  optional LengthProto row_height = 105;
 }
 
-message GridSpanProto {
+message GridSpan2Proto {
   StructTypeProto metatype = 1;
   int64 columns = 101 [jstype = JS_NUMBER];
   int64 rows = 102 [jstype = JS_NUMBER];
@@ -3616,27 +3644,30 @@ message InputViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
 }
 
-message InsetsProto {
+message Inset2Proto {
   StructTypeProto metatype = 1;
-  optional int64 base = 101 [jstype = JS_NUMBER];
+  int64 base = 101 [jstype = JS_NUMBER];
   optional int64 top = 102 [jstype = JS_NUMBER];
   optional int64 left = 103 [jstype = JS_NUMBER];
   optional int64 right = 104 [jstype = JS_NUMBER];
@@ -3951,30 +3982,33 @@ message LabelViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
   optional AlignProto align = 153;
   optional Axis2Proto gap = 154;
-  optional InsetsProto padding = 155;
-  optional GridProto grid = 156;
-  optional GridSpanProto grid_span = 157;
+  optional Inset2Proto padding = 155;
+  optional Grid2Proto grid = 156;
+  optional GridSpan2Proto grid_span = 157;
   optional double aspect_ratio = 158;
   optional bool is_wrap = 159;
 }
@@ -4007,10 +4041,6 @@ message LayerProto {
   optional IconProto icon = 102;
   optional bool is_visible = 140;
   optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
 }
 
 // A Layout View defines how its children Views are laid out.
@@ -4036,37 +4066,40 @@ message LayoutViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
   optional AlignProto align = 153;
   optional Axis2Proto gap = 154;
-  optional InsetsProto padding = 155;
-  optional GridProto grid = 156;
-  optional GridSpanProto grid_span = 157;
+  optional Inset2Proto padding = 155;
+  optional Grid2Proto grid = 156;
+  optional GridSpan2Proto grid_span = 157;
   optional double aspect_ratio = 158;
   optional bool is_wrap = 159;
 }
 
 message LengthProto {
   StructTypeProto metatype = 1;
-  LengthUnitProto unit = 101;
+  LengthTypeProto unit = 101;
   double value = 102;
 }
 
@@ -4100,22 +4133,13 @@ message LineShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
   Vector2Proto start = 200;
   Vector2Proto end = 210;
@@ -4728,22 +4752,25 @@ message NumberInputViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional double value = 250;
   optional string placeholder = 251;
 }
@@ -4755,6 +4782,15 @@ message ObjectDefinitionReferenceProto {
   optional TraitTypeProto trait_type = 102;
   optional StructTypeProto struct_type = 103;
   optional NodeReferenceProto definition_ptr = 105;
+}
+
+message Offset2Proto {
+  StructTypeProto metatype = 1;
+  AnchorProto type = 100;
+  optional LengthProto top = 101;
+  optional LengthProto left = 102;
+  optional LengthProto width = 103;
+  optional LengthProto height = 104;
 }
 
 message OptionDefinitionProto {
@@ -4872,22 +4908,13 @@ message PathShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
   repeated Vector2Proto points = 200;
 }
@@ -5194,33 +5221,15 @@ message PolygonShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
   repeated Vector2Proto points = 210;
-}
-
-message PositionProto {
-  StructTypeProto metatype = 1;
-  PositionTypeProto type = 100;
-  optional LengthProto top = 101;
-  optional LengthProto left = 102;
-  optional LengthProto width = 103;
-  optional LengthProto height = 104;
 }
 
 message PropertyDefinitionProto {
@@ -5268,6 +5277,14 @@ message PropertyReferenceProto {
   optional StructTypeProto struct_type = 103;
   optional int64 id = 105 [jstype = JS_NUMBER];
   optional NodeReferenceProto custom_property_ptr = 106;
+}
+
+message QuaternionProto {
+  StructTypeProto metatype = 1;
+  double x = 101;
+  double y = 102;
+  double z = 103;
+  double w = 104;
 }
 
 message QueryProto {
@@ -5464,23 +5481,16 @@ message RectangleShape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
   optional StrokeProto stroke = 180;
+  optional Vector2Proto width = 210;
+  optional Vector2Proto height = 220;
 }
 
 // A Resource represents an external asset outside of Destack.
@@ -5990,7 +6000,7 @@ message SanctionRevokedEventProto {
   NodeReferenceProto target_ptr = 110;
 }
 
-// A Scene is a container for an interaction point.
+// A Scene contains some interactive part of a Stage.
 message SceneProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6191,49 +6201,7 @@ message ShadowStyleProto {
   optional double diffusion = 205;
 }
 
-// A Shape is a View representing geometric Shapes.
-message ShapeProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto definition_ptr = 11;
-  NodeReferenceProto branch_ptr = 12;
-  NodeReferenceProto snapshot_ptr = 13;
-  optional NodeReferenceProto preceded_by_ptr = 14;
-  optional NodeReferenceProto instance_ptr = 15;
-  google.protobuf.Timestamp created_at = 20;
-  int64 created_epoch = 21 [jstype = JS_NUMBER];
-  optional NodeReferenceProto created_by_ptr = 22;
-  google.protobuf.Timestamp updated_at = 23;
-  int64 updated_epoch = 24 [jstype = JS_NUMBER];
-  optional NodeReferenceProto updated_by_ptr = 25;
-  optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
-  optional StrokeProto stroke = 180;
-}
-
-// A Shape2D represents 2-dimensional Shapes.
+// A Shape2D represents 2-dimensional geometric Shapes.
 message Shape2DProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6256,22 +6224,44 @@ message Shape2DProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
-  optional bool is_visible = 130;
-  optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional StrokeProto stroke = 180;
+}
+
+// A Shape3D represents 3-dimensional geometric Shapes.
+message Shape3DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional Vector3Proto position = 110;
+  optional Vector3Proto scale = 111;
+  optional QuaternionProto rotation = 112;
+  optional Vector3Proto skew = 113;
+  optional Vector3Proto origin = 114;
   optional StrokeProto stroke = 180;
 }
 
@@ -6353,22 +6343,25 @@ message SliderInputViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional double value = 250;
   optional double min_value = 251;
   optional double max_value = 252;
@@ -6488,30 +6481,33 @@ message SplitViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
   optional AlignProto align = 153;
   optional Axis2Proto gap = 154;
-  optional InsetsProto padding = 155;
-  optional GridProto grid = 156;
-  optional GridSpanProto grid_span = 157;
+  optional Inset2Proto padding = 155;
+  optional Grid2Proto grid = 156;
+  optional GridSpan2Proto grid_span = 157;
   optional double aspect_ratio = 158;
   optional bool is_wrap = 159;
 }
@@ -6883,22 +6879,25 @@ message TextViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
   optional FontProto font = 201;
   optional FillProto color = 202;
   optional TextProto text = 250;
@@ -7320,10 +7319,6 @@ message VariantProto {
   optional IconProto icon = 102;
 }
 
-message VectorProto {
-  StructTypeProto metatype = 1;
-}
-
 message Vector2Proto {
   StructTypeProto metatype = 1;
   double x = 101;
@@ -7366,15 +7361,7 @@ message Vector4iProto {
   int64 w = 104 [jstype = JS_NUMBER];
 }
 
-message VectorfProto {
-  StructTypeProto metatype = 1;
-}
-
-message VectoriProto {
-  StructTypeProto metatype = 1;
-}
-
-// A View is a graphical interface.
+// A View is a 2D user interface element.
 message ViewProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -7397,22 +7384,25 @@ message ViewProto {
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional double scale = 111;
-  optional Axis3Proto rotation = 112;
-  optional Vector2Proto skew = 113;
-  optional DimensionProto width = 120;
-  optional DimensionProto height = 121;
-  optional DimensionProto min_width = 122;
-  optional DimensionProto min_height = 123;
-  optional DimensionProto max_width = 124;
-  optional DimensionProto max_height = 125;
+  optional Vector2Proto position = 110;
+  optional Offset2Proto offset = 111;
+  optional Vector2Proto scale = 112;
+  optional Vector2Proto rotation = 113;
+  optional Vector2Proto skew = 114;
+  optional Vector2Proto origin = 115;
+  optional AnchorProto anchor = 116;
+  optional LengthProto width = 120;
+  optional LengthProto height = 121;
+  optional LengthProto min_width = 122;
+  optional LengthProto min_height = 123;
+  optional LengthProto max_width = 124;
+  optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
   optional FillProto fill = 132;
   optional ShadowProto shadow = 136;
   optional BorderProto border = 137;
-  optional CornersProto radius = 138;
+  optional Corner2Proto radius = 138;
 }
 
 // A Event regarding a View.
@@ -7466,33 +7456,6 @@ message WheelEventProto {
   bool meta_key = 123;
   MouseButtonProto button = 130;
   Vector2Proto delta = 140;
-}
-
-// A Window for someone to interact with a Space.
-message WindowProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto definition_ptr = 11;
-  NodeReferenceProto branch_ptr = 12;
-  NodeReferenceProto snapshot_ptr = 13;
-  optional NodeReferenceProto preceded_by_ptr = 14;
-  optional NodeReferenceProto instance_ptr = 15;
-  google.protobuf.Timestamp created_at = 20;
-  int64 created_epoch = 21 [jstype = JS_NUMBER];
-  optional NodeReferenceProto created_by_ptr = 22;
-  google.protobuf.Timestamp updated_at = 23;
-  int64 updated_epoch = 24 [jstype = JS_NUMBER];
-  optional NodeReferenceProto updated_by_ptr = 25;
-  optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  WindowTypeProto type = 100;
 }
 
 message SomeNodeProto {
@@ -7559,18 +7522,12 @@ message SomeNodeProto {
     RunFailedEventProto run_failed_event = 1110008;
     RunCompletedEventProto run_completed_event = 1110009;
     SpanEventProto span_event = 1110010;
-    FrameViewProto frame_view = 1800200;
-    LabelViewProto label_view = 1800300;
-    NumberInputViewProto number_input_view = 1810100;
-    SliderInputViewProto slider_input_view = 1810200;
-    SplitViewProto split_view = 1800400;
-    TextViewProto text_view = 1805100;
-    ArrowShape2DProto arrow_shape2d = 2411200;
-    EllipseShape2DProto ellipse_shape2d = 2411400;
-    LineShape2DProto line_shape2d = 2411100;
-    PathShape2DProto path_shape2d = 2411600;
-    PolygonShape2DProto polygon_shape2d = 2411500;
-    RectangleShape2DProto rectangle_shape2d = 2411300;
+    ArrowShape2DProto arrow_shape2d = 2410200;
+    EllipseShape2DProto ellipse_shape2d = 2410400;
+    LineShape2DProto line_shape2d = 2410100;
+    PathShape2DProto path_shape2d = 2410600;
+    PolygonShape2DProto polygon_shape2d = 2410500;
+    RectangleShape2DProto rectangle_shape2d = 2410300;
     DatabaseProto database = 1000000;
     MachineProto machine = 1001000;
     CopyEventProto copy_event = 2000501;
@@ -7616,9 +7573,14 @@ message SomeNodeProto {
     HistogramMetricProto histogram_metric = 1200200;
     HistogramMeasurementEventProto histogram_measurement_event = 1200201;
     LayerProto layer = 1700300;
+    FrameViewProto frame_view = 1800200;
+    LabelViewProto label_view = 1800300;
+    NumberInputViewProto number_input_view = 1810100;
+    SliderInputViewProto slider_input_view = 1810200;
+    SplitViewProto split_view = 1800400;
+    TextViewProto text_view = 1805100;
     SceneProto scene = 1700200;
     StageProto stage = 1700000;
-    WindowProto window = 1700100;
     FollowProto follow = 1400200;
     FollowEventProto follow_event = 1400201;
     FollowAddedEventProto follow_added_event = 1400202;
@@ -7683,18 +7645,12 @@ message SomeEntityProto {
     EffectStyleProto effect_style = 2101000;
     FileProto file = 480000;
     EnvironmentProto environment = 1100000;
-    FrameViewProto frame_view = 1800200;
-    LabelViewProto label_view = 1800300;
-    NumberInputViewProto number_input_view = 1810100;
-    SliderInputViewProto slider_input_view = 1810200;
-    SplitViewProto split_view = 1800400;
-    TextViewProto text_view = 1805100;
-    ArrowShape2DProto arrow_shape2d = 2411200;
-    EllipseShape2DProto ellipse_shape2d = 2411400;
-    LineShape2DProto line_shape2d = 2411100;
-    PathShape2DProto path_shape2d = 2411600;
-    PolygonShape2DProto polygon_shape2d = 2411500;
-    RectangleShape2DProto rectangle_shape2d = 2411300;
+    ArrowShape2DProto arrow_shape2d = 2410200;
+    EllipseShape2DProto ellipse_shape2d = 2410400;
+    LineShape2DProto line_shape2d = 2410100;
+    PathShape2DProto path_shape2d = 2410600;
+    PolygonShape2DProto polygon_shape2d = 2410500;
+    RectangleShape2DProto rectangle_shape2d = 2410300;
     DatabaseProto database = 1000000;
     MachineProto machine = 1001000;
     EventCursorProto event_cursor = 712100;
@@ -7707,9 +7663,14 @@ message SomeEntityProto {
     CounterMetricProto counter_metric = 1200100;
     HistogramMetricProto histogram_metric = 1200200;
     LayerProto layer = 1700300;
+    FrameViewProto frame_view = 1800200;
+    LabelViewProto label_view = 1800300;
+    NumberInputViewProto number_input_view = 1810100;
+    SliderInputViewProto slider_input_view = 1810200;
+    SplitViewProto split_view = 1800400;
+    TextViewProto text_view = 1805100;
     SceneProto scene = 1700200;
     StageProto stage = 1700000;
-    WindowProto window = 1700100;
     FollowProto follow = 1400200;
     NotificationProto notification = 1400500;
     ReactionProto reaction = 1400000;

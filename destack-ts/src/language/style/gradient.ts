@@ -25,6 +25,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Axis2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -34,7 +35,6 @@ import {
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import { Style } from "@destack/language/style/style";
-import type { Axis2 } from "@destack/language/view";
 import {
   GradientProto,
   GradientStopProto,
@@ -500,8 +500,8 @@ export class Gradient extends StructFrozen {
     _connection?: any | null,
   ): Gradient {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
@@ -581,8 +581,8 @@ export class Gradient extends StructFrozen {
     _connection?: any | null,
   ): Gradient {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const unpackedStops: any[] = [];
     if (objectProto.stops) {
       for (const item of objectProto.stops) {
@@ -1392,9 +1392,9 @@ export class GradientStyle extends Style {
   ): GradientStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const angleValue = objectCson["102"];
     const unpackedAngle = angleValue != undefined ? angleValue : null;
     const unpackedStops: any[] = [];
@@ -1591,9 +1591,9 @@ export class GradientStyle extends Style {
   ): GradientStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
+    const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const unpackedStops: any[] = [];
     if (objectProto.stops) {
       for (const item of objectProto.stops) {

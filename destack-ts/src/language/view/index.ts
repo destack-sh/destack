@@ -1,4 +1,3 @@
-export * from "@destack/language/view/common";
 export * from "@destack/language/view/content";
 export * from "@destack/language/view/frame";
 export * from "@destack/language/view/input";

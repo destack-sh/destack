@@ -25,6 +25,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Length } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -34,7 +35,6 @@ import {
 } from "@destack/language/registry";
 import type { Fill } from "@destack/language/style/fill";
 import { Style } from "@destack/language/style/style";
-import type { Length } from "@destack/language/view";
 import {
   FontProto,
   FontSizeProto,
