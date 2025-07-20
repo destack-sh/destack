@@ -6,13 +6,12 @@ from destack.language.core import (
     IsExtensible,
     IsOrdered,
     IsOwnable,
-    IsViewable,
     NodeType,
     builtin_node,
     builtin_property,
 )
 
-from ..view import ContainerView
+from ..view import LayoutView
 
 if TYPE_CHECKING:
     from destack.language import Icon
@@ -33,7 +32,6 @@ class SceneEvent(Event["Scene"]):
     expected_ancestor_types=(NodeType.STAGE,),
 )
 class Scene(
-    IsViewable,
     IsOwnable,
     IsOrdered,
     IsExtensible,
@@ -41,7 +39,7 @@ class Scene(
 ):
     """A Scene is a container for an interaction point."""
 
-    root_view: Optional["ContainerView"] = builtin_property(
+    root_view: Optional["LayoutView"] = builtin_property(
         200, description="The root view of the Scene."
     )
     icon: "Icon | None" = builtin_property(102)

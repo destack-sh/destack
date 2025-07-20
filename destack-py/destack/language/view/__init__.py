@@ -17,12 +17,11 @@ from .common import (
     Position,
     PositionType,
 )
-from .container import ContainerView
 from .content import ContentView
 from .frame import FrameView
 from .input import InputView
-from .internal import InternalView
 from .label import LabelView
+from .layout import LayoutView
 from .number import NumberInputView
 from .slider import SliderInputView
 from .split import SplitView
@@ -33,7 +32,6 @@ __all__ = [
     "Align",
     "Axis2",
     "Axis3",
-    "ContainerView",
     "ContentView",
     "Corners",
     "Dimension",
@@ -45,9 +43,9 @@ __all__ = [
     "GridSpan",
     "InputView",
     "Insets",
-    "InternalView",
     "LabelView",
     "Layout",
+    "LayoutView",
     "Length",
     "LengthUnit",
     "NumberInputView",

@@ -2,7 +2,6 @@ import type {
   Branch,
   IsActor,
   IsExtensible,
-  IsOrdered,
   Materialization,
   NodeReference,
   Snapshot,
@@ -18,7 +17,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Style defines a base visual appearance in some context.
  */
-export abstract class Style extends Entity implements IsOrdered, IsExtensible {
+export abstract class Style extends Entity implements IsExtensible {
   static metatype: NodeType = NodeType.STYLE;
 
   /**
@@ -116,11 +115,6 @@ export abstract class Style extends Entity implements IsOrdered, IsExtensible {
    */
   abstract get customValues(): { readonly [key: string]: Value };
   abstract set customValues(value: { readonly [key: string]: Value });
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  declare readonly orderKey: string;
 
   /**
    * Entity.name

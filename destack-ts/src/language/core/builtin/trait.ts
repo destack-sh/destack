@@ -181,25 +181,6 @@ export const IsFollowable = new IsFollowable$Type(TraitType.FOLLOWABLE);
 registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
 /* ==== DESTACK_GENERATED_END:TRAIT:1400034 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:1800000 ==== */
-/**
- * An Entity that can be presented visually.
- */
-export interface IsViewable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be presented visually.
- */
-class IsViewable$Type extends TraitClass<IsViewable, TraitType.VIEWABLE> {}
-
-export const IsViewable = new IsViewable$Type(TraitType.VIEWABLE);
-registerTraitClass(TraitType.VIEWABLE, IsViewable);
-/* ==== DESTACK_GENERATED_END:TRAIT:1800000 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:700003 ==== */
 /**
  * An Entity that can be defined in a Script.
@@ -371,3 +352,60 @@ class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSI
 export const IsIrreversible = new IsIrreversible$Type(TraitType.IRREVERSIBLE);
 registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
 /* ==== DESTACK_GENERATED_END:TRAIT:10300 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:2000000 ==== */
+/**
+ * An Entity that can be interacted with.
+ */
+export interface IsInteractive {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that can be interacted with.
+ */
+class IsInteractive$Type extends TraitClass<IsInteractive, TraitType.INTERACTIVE> {}
+
+export const IsInteractive = new IsInteractive$Type(TraitType.INTERACTIVE);
+registerTraitClass(TraitType.INTERACTIVE, IsInteractive);
+/* ==== DESTACK_GENERATED_END:TRAIT:2000000 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:2000001 ==== */
+/**
+ * An Entity that can be dragged.
+ */
+export interface IsDraggable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that can be dragged.
+ */
+class IsDraggable$Type extends TraitClass<IsDraggable, TraitType.DRAGGABLE> {}
+
+export const IsDraggable = new IsDraggable$Type(TraitType.DRAGGABLE);
+registerTraitClass(TraitType.DRAGGABLE, IsDraggable);
+/* ==== DESTACK_GENERATED_END:TRAIT:2000001 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:2000002 ==== */
+/**
+ * An Entity that can be selected.
+ */
+export interface IsSelectable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that can be selected.
+ */
+class IsSelectable$Type extends TraitClass<IsSelectable, TraitType.SELECTABLE> {}
+
+export const IsSelectable = new IsSelectable$Type(TraitType.SELECTABLE);
+registerTraitClass(TraitType.SELECTABLE, IsSelectable);
+/* ==== DESTACK_GENERATED_END:TRAIT:2000002 ==== */

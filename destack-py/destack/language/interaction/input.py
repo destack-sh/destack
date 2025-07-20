@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Event,
     IsExtensible,
+    IsInteractive,
     NodeType,
     builtin_node,
     builtin_property,
@@ -22,5 +23,5 @@ if TYPE_CHECKING:
 class InputEvent[NodeT: View = View](IsExtensible, Event[NodeT]):
     """An InputEvent is an Event that corresponds to some direct user input."""
 
-    node: Optional["View"] = builtin_property(101)
+    node: Optional["IsInteractive"] = builtin_property(101)
     # is_handled?

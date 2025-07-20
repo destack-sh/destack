@@ -1,12 +1,12 @@
 from destack.language.core import NodeType, builtin_node
 
-from .container import ContainerView
+from .layout import LayoutView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @builtin_node(NodeType.SPLIT_VIEW)
-class SplitView(ContainerView):
+class SplitView(LayoutView):
     """A split container View."""
 
     pass

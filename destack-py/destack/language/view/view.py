@@ -4,8 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IsExtensible,
-    IsSourceable,
-    IsViewable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -13,8 +11,14 @@ from destack.language.core import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        Axis3,
+        Border,
+        Corners,
         Dimension,
+        Fill,
         Position,
+        Shadow,
+        Vector2,
         View,
     )
 
@@ -46,18 +50,29 @@ class ViewEvent(Event["View"]):
     ),
 )
 class View(
-    IsViewable,
     IsExtensible,
-    IsSourceable,
     Entity,
 ):
     """A View is a graphical interface."""
 
-    # sizing
+    # transform
     position: Optional["Position"] = builtin_property(110)
-    width: Optional["Dimension"] = builtin_property(111)
-    height: Optional["Dimension"] = builtin_property(112)
-    min_width: Optional["Dimension"] = builtin_property(113)
-    min_height: Optional["Dimension"] = builtin_property(114)
-    max_width: Optional["Dimension"] = builtin_property(115)
-    max_height: Optional["Dimension"] = builtin_property(116)
+    scale: Optional[float] = builtin_property(111)
+    rotation: Optional["Axis3"] = builtin_property(112)
+    skew: Optional["Vector2"] = builtin_property(113)
+
+    # size
+    width: Optional["Dimension"] = builtin_property(120)
+    height: Optional["Dimension"] = builtin_property(121)
+    min_width: Optional["Dimension"] = builtin_property(122)
+    min_height: Optional["Dimension"] = builtin_property(123)
+    max_width: Optional["Dimension"] = builtin_property(124)
+    max_height: Optional["Dimension"] = builtin_property(125)
+
+    # appearance
+    is_visible: Optional[bool] = builtin_property(130)
+    opacity: Optional[float] = builtin_property(131)
+    fill: Optional["Fill"] = builtin_property(132)
+    shadow: Optional["Shadow"] = builtin_property(136)
+    border: Optional["Border"] = builtin_property(137)
+    radius: Optional["Corners"] = builtin_property(138)

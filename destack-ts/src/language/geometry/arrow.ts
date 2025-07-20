@@ -17,27 +17,285 @@ import {
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
+  EnumType,
   Event,
   Materialization,
   Node,
   NodeType,
+  StructFrozen,
   StructType,
 } from "@destack/language/core";
+import { Shape2D } from "@destack/language/geometry/shape";
+import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Dimension, Position } from "@destack/language/view/common";
-import { View } from "@destack/language/view/view";
-import { InternalViewProto, MaterializationProto } from "@destack/proto";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
+import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view";
+import {
+  Arrow2DProto,
+  ArrowHeadTypeProto,
+  ArrowShape2DProto,
+  MaterializationProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashString } from "@destack/utils/hash";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1815000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2401200 ==== */
 /**
- * A content View.
+ * ArrowHeadType
  */
-export class InternalView extends View {
-  static metatype: NodeType = NodeType.INTERNAL_VIEW;
+export enum ArrowHeadType {
+  ARROW = 1,
+  TRIANGLE = 2,
+  DOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
+/* ==== DESTACK_GENERATED_END:ENUM:2401200 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2411200 ==== */
+/**
+ * An Arrow is a shape that represents an arrow.
+ */
+export class Arrow2D extends StructFrozen {
+  static metatype: StructType = StructType.ARROW2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Arrow2D.startType
+   */
+  readonly startType: ArrowHeadType;
+
+  /**
+   * Arrow2D.start
+   */
+  readonly start: Vector2;
+
+  /**
+   * Arrow2D.endType
+   */
+  readonly endType: ArrowHeadType;
+
+  /**
+   * Arrow2D.end
+   */
+  readonly end: Vector2;
+
+  constructor(options: {
+    startType: ArrowHeadType;
+    start: Vector2;
+    endType: ArrowHeadType;
+    end: Vector2;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _cson?: any | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _startType = options.startType;
+    if (_startType === null) {
+      throw new Error(`Arrow2D.startType is required`);
+    }
+    this.startType = _startType;
+    let _start = options.start;
+    if (_start === null) {
+      throw new Error(`Arrow2D.start is required`);
+    }
+    this.start = _start;
+    let _endType = options.endType;
+    if (_endType === null) {
+      throw new Error(`Arrow2D.endType is required`);
+    }
+    this.endType = _endType;
+    let _end = options.end;
+    if (_end === null) {
+      throw new Error(`Arrow2D.end is required`);
+    }
+    this.end = _end;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._cson = options._cson ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.startType === other.startType)) {
+      return false;
+    }
+    if (!this.start.equals(other.start)) {
+      return false;
+    }
+    if (!(this.endType === other.endType)) {
+      return false;
+    }
+    if (!this.end.equals(other.end)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Arrow2D>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.startType) & 0xffffffff;
+    h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.endType) & 0xffffffff;
+    h = (h * 31 + this.end.hash()) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
+      // @ts-expect-error(readonly)
+      this._cson = Arrow2D.__packCson__(this);
+    }
+    return this._cson;
+  }
+
+  static __packCson__(object: Arrow2D): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2411200;
+    objectCson["200"] = object.startType;
+    objectCson["201"] = object.start.toCson();
+    objectCson["210"] = object.endType;
+    objectCson["211"] = object.end.toCson();
+    return objectCson;
+  }
+
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow2D {
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    return new Arrow2D({
+      startType: Number(objectCson["200"]),
+      start: _Vector2.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
+      endType: Number(objectCson["210"]),
+      end: _Vector2.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
+      _cson: objectCson,
+      _supergraph,
+    });
+  }
+
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow2D {
+    return Arrow2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Arrow2DProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Arrow2D.__packProto__(this);
+    }
+    return this._proto as Arrow2DProto;
+  }
+
+  static __packProto__(object: Arrow2D): Arrow2DProto {
+    const objectProto: Partial<Arrow2DProto> = { metatype: 2411200 };
+    objectProto.startType = Number(object.startType) as ArrowHeadTypeProto;
+    objectProto.start = object.start.toProto();
+    objectProto.endType = Number(object.endType) as ArrowHeadTypeProto;
+    objectProto.end = object.end.toProto();
+    return objectProto as Arrow2DProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Arrow2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow2D {
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    return new Arrow2D({
+      startType: Number(objectProto.startType) as ArrowHeadType,
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      endType: Number(objectProto.endType) as ArrowHeadType,
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Arrow2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Arrow2D {
+    return Arrow2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Arrow2D {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = Arrow2DProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.ARROW2D, Arrow2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2411200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2411200 ==== */
+/**
+ * An ArrowShape is a shape that represents an arrow.
+ */
+export class ArrowShape2D extends Shape2D {
+  static metatype: NodeType = NodeType.ARROW_SHAPE2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -108,10 +366,10 @@ export class InternalView extends View {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): InternalView | null {
+  get precededBy(): ArrowShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as InternalView | null;
+      return this._supergraph.get(nodePtr.id) as ArrowShape2D | null;
     }
     return null;
   }
@@ -197,11 +455,6 @@ export class InternalView extends View {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -216,34 +469,6 @@ export class InternalView extends View {
     this._name = value;
   }
   _name: string;
-
-  /**
-   * The Script that defines this Node.
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  get key(): string | null {
-    return this._key;
-  }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
-    this._session.updateSetProperty(this, prop, value);
-    this._key = value;
-  }
-  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -295,6 +520,54 @@ export class InternalView extends View {
     this._position = value;
   }
   _position: Position | null;
+
+  /**
+   * View.scale
+   */
+  /**
+   * View.scale
+   */
+  get scale(): number | null {
+    return this._scale;
+  }
+  set scale(value: number | null) {
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scale = value;
+  }
+  _scale: number | null;
+
+  /**
+   * View.rotation
+   */
+  /**
+   * View.rotation
+   */
+  get rotation(): Axis3 | null {
+    return this._rotation;
+  }
+  set rotation(value: Axis3 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
+    this._rotation = value;
+  }
+  _rotation: Axis3 | null;
+
+  /**
+   * View.skew
+   */
+  /**
+   * View.skew
+   */
+  get skew(): Vector2 | null {
+    return this._skew;
+  }
+  set skew(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
+    this._skew = value;
+  }
+  _skew: Vector2 | null;
 
   /**
    * View.width
@@ -392,6 +665,182 @@ export class InternalView extends View {
   }
   _maxHeight: Dimension | null;
 
+  /**
+   * View.isVisible
+   */
+  /**
+   * View.isVisible
+   */
+  get isVisible(): boolean | null {
+    return this._isVisible;
+  }
+  set isVisible(value: boolean | null) {
+    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
+    this._session.updateSetProperty(this, prop, value);
+    this._isVisible = value;
+  }
+  _isVisible: boolean | null;
+
+  /**
+   * View.opacity
+   */
+  /**
+   * View.opacity
+   */
+  get opacity(): number | null {
+    return this._opacity;
+  }
+  set opacity(value: number | null) {
+    const prop = (this.constructor as NodeClass).__properties__["opacity"];
+    this._session.updateSetProperty(this, prop, value);
+    this._opacity = value;
+  }
+  _opacity: number | null;
+
+  /**
+   * View.fill
+   */
+  /**
+   * View.fill
+   */
+  get fill(): Fill | null {
+    return this._fill;
+  }
+  set fill(value: Fill | null) {
+    const prop = (this.constructor as NodeClass).__properties__["fill"];
+    this._session.updateSetProperty(this, prop, value);
+    this._fill = value;
+  }
+  _fill: Fill | null;
+
+  /**
+   * View.shadow
+   */
+  /**
+   * View.shadow
+   */
+  get shadow(): Shadow | null {
+    return this._shadow;
+  }
+  set shadow(value: Shadow | null) {
+    const prop = (this.constructor as NodeClass).__properties__["shadow"];
+    this._session.updateSetProperty(this, prop, value);
+    this._shadow = value;
+  }
+  _shadow: Shadow | null;
+
+  /**
+   * View.border
+   */
+  /**
+   * View.border
+   */
+  get border(): Border | null {
+    return this._border;
+  }
+  set border(value: Border | null) {
+    const prop = (this.constructor as NodeClass).__properties__["border"];
+    this._session.updateSetProperty(this, prop, value);
+    this._border = value;
+  }
+  _border: Border | null;
+
+  /**
+   * View.radius
+   */
+  /**
+   * View.radius
+   */
+  get radius(): Corners | null {
+    return this._radius;
+  }
+  set radius(value: Corners | null) {
+    const prop = (this.constructor as NodeClass).__properties__["radius"];
+    this._session.updateSetProperty(this, prop, value);
+    this._radius = value;
+  }
+  _radius: Corners | null;
+
+  /**
+   * Shape.stroke
+   */
+  /**
+   * Shape.stroke
+   */
+  get stroke(): Stroke | null {
+    return this._stroke;
+  }
+  set stroke(value: Stroke | null) {
+    const prop = (this.constructor as NodeClass).__properties__["stroke"];
+    this._session.updateSetProperty(this, prop, value);
+    this._stroke = value;
+  }
+  _stroke: Stroke | null;
+
+  /**
+   * ArrowShape2D.startType
+   */
+  /**
+   * ArrowShape2D.startType
+   */
+  get startType(): ArrowHeadType {
+    return this._startType;
+  }
+  set startType(value: ArrowHeadType) {
+    const prop = (this.constructor as NodeClass).__properties__["start_type"];
+    this._session.updateSetProperty(this, prop, value);
+    this._startType = value;
+  }
+  _startType: ArrowHeadType;
+
+  /**
+   * ArrowShape2D.start
+   */
+  /**
+   * ArrowShape2D.start
+   */
+  get start(): Vector2 {
+    return this._start;
+  }
+  set start(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["start"];
+    this._session.updateSetProperty(this, prop, value);
+    this._start = value;
+  }
+  _start: Vector2;
+
+  /**
+   * ArrowShape2D.endType
+   */
+  /**
+   * ArrowShape2D.endType
+   */
+  get endType(): ArrowHeadType {
+    return this._endType;
+  }
+  set endType(value: ArrowHeadType) {
+    const prop = (this.constructor as NodeClass).__properties__["end_type"];
+    this._session.updateSetProperty(this, prop, value);
+    this._endType = value;
+  }
+  _endType: ArrowHeadType;
+
+  /**
+   * ArrowShape2D.end
+   */
+  /**
+   * ArrowShape2D.end
+   */
+  get end(): Vector2 {
+    return this._end;
+  }
+  set end(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["end"];
+    this._session.updateSetProperty(this, prop, value);
+    this._end = value;
+  }
+  _end: Vector2;
+
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -400,7 +849,7 @@ export class InternalView extends View {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: InternalView | NodeReference | null;
+    precededBy?: ArrowShape2D | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -410,19 +859,30 @@ export class InternalView extends View {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
-    source?: Script | NodeReference | null;
-    key?: string | null;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     position?: Position | null;
+    scale?: number | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2 | null;
     width?: Dimension | null;
     height?: Dimension | null;
     minWidth?: Dimension | null;
     minHeight?: Dimension | null;
     maxWidth?: Dimension | null;
     maxHeight?: Dimension | null;
+    isVisible?: boolean | null;
+    opacity?: number | null;
+    fill?: Fill | null;
+    shadow?: Shadow | null;
+    border?: Border | null;
+    radius?: Corners | null;
+    stroke?: Stroke | null;
+    startType: ArrowHeadType;
+    start: Vector2;
+    endType: ArrowHeadType;
+    end: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -462,12 +922,12 @@ export class InternalView extends View {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for InternalView`);
+        throw new Error(`no active Space for ArrowShape2D`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`InternalView.space is required`);
+      throw new Error(`ArrowShape2D.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -475,7 +935,7 @@ export class InternalView extends View {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`InternalView.materialization is required`);
+      throw new Error(`ArrowShape2D.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -490,12 +950,12 @@ export class InternalView extends View {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for InternalView`);
+        throw new Error(`no active Branch for ArrowShape2D`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`InternalView.branch is required`);
+      throw new Error(`ArrowShape2D.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -505,12 +965,12 @@ export class InternalView extends View {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for InternalView`);
+        throw new Error(`no active Snapshot for ArrowShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`InternalView.snapshot is required`);
+      throw new Error(`ArrowShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -530,29 +990,14 @@ export class InternalView extends View {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`InternalView.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "InternalView";
+      _name = "ArrowShape2D";
     }
     if (_name === null) {
-      throw new Error(`InternalView.name is required`);
+      throw new Error(`ArrowShape2D.name is required`);
     }
     this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -563,11 +1008,17 @@ export class InternalView extends View {
       _isExtensible = false;
     }
     if (_isExtensible === null) {
-      throw new Error(`InternalView.isExtensible is required`);
+      throw new Error(`ArrowShape2D.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
     this._position = _position;
+    let _scale = options.scale ?? null;
+    this._scale = _scale;
+    let _rotation = options.rotation ?? null;
+    this._rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this._skew = _skew;
     let _width = options.width ?? null;
     this._width = _width;
     let _height = options.height ?? null;
@@ -580,6 +1031,40 @@ export class InternalView extends View {
     this._maxWidth = _maxWidth;
     let _maxHeight = options.maxHeight ?? null;
     this._maxHeight = _maxHeight;
+    let _isVisible = options.isVisible ?? null;
+    this._isVisible = _isVisible;
+    let _opacity = options.opacity ?? null;
+    this._opacity = _opacity;
+    let _fill = options.fill ?? null;
+    this._fill = _fill;
+    let _shadow = options.shadow ?? null;
+    this._shadow = _shadow;
+    let _border = options.border ?? null;
+    this._border = _border;
+    let _radius = options.radius ?? null;
+    this._radius = _radius;
+    let _stroke = options.stroke ?? null;
+    this._stroke = _stroke;
+    let _startType = options.startType;
+    if (_startType === null) {
+      throw new Error(`ArrowShape2D.startType is required`);
+    }
+    this._startType = _startType;
+    let _start = options.start;
+    if (_start === null) {
+      throw new Error(`ArrowShape2D.start is required`);
+    }
+    this._start = _start;
+    let _endType = options.endType;
+    if (_endType === null) {
+      throw new Error(`ArrowShape2D.endType is required`);
+    }
+    this._endType = _endType;
+    let _end = options.end;
+    if (_end === null) {
+      throw new Error(`ArrowShape2D.end is required`);
+    }
+    this._end = _end;
 
     // identity
     if (options.id == null) {
@@ -599,7 +1084,7 @@ export class InternalView extends View {
         options.updatedEpoch == null
       ) {
         throw new Error(
-          `InternalView.createdAt and InternalView.updatedAt are required for existing Nodes`,
+          `ArrowShape2D.createdAt and ArrowShape2D.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -625,9 +1110,46 @@ export class InternalView extends View {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this._startType === other._startType)) {
+      return false;
+    }
+    if (!this._start.equals(other._start)) {
+      return false;
+    }
+    if (!(this._endType === other._endType)) {
+      return false;
+    }
+    if (!this._end.equals(other._end)) {
+      return false;
+    }
+    if (
+      (this._stroke == null) !== (other._stroke == null) ||
+      (this._stroke != null && !this._stroke.equals(other._stroke))
+    ) {
+      return false;
+    }
     if (
       (this._position == null) !== (other._position == null) ||
       (this._position != null && !this._position.equals(other._position))
+    ) {
+      return false;
+    }
+    if (
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
     ) {
       return false;
     }
@@ -667,13 +1189,41 @@ export class InternalView extends View {
     ) {
       return false;
     }
+    if (!(this._isVisible === other._isVisible)) {
+      return false;
+    }
+    if (
+      (this._opacity == null) !== (other._opacity == null) ||
+      (this._opacity != null &&
+        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this._fill == null) !== (other._fill == null) ||
+      (this._fill != null && !this._fill.equals(other._fill))
+    ) {
+      return false;
+    }
+    if (
+      (this._shadow == null) !== (other._shadow == null) ||
+      (this._shadow != null && !this._shadow.equals(other._shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this._border == null) !== (other._border == null) ||
+      (this._border != null && !this._border.equals(other._border))
+    ) {
+      return false;
+    }
+    if (
+      (this._radius == null) !== (other._radius == null) ||
+      (this._radius != null && !this._radius.equals(other._radius))
+    ) {
+      return false;
+    }
     if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
-      return false;
-    }
-    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -705,8 +1255,24 @@ export class InternalView extends View {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this._startType) & 0xffffffff;
+    h = (h * 31 + this._start.hash()) & 0xffffffff;
+    h = (h * 31 + this._endType) & 0xffffffff;
+    h = (h * 31 + this._end.hash()) & 0xffffffff;
+    if (this._stroke != null) {
+      h = (h * 31 + this._stroke.hash()) & 0xffffffff;
+    }
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
+    }
+    if (this._scale != null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
+    }
+    if (this._rotation != null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
+    }
+    if (this._skew != null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
     if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
@@ -726,13 +1292,25 @@ export class InternalView extends View {
     if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
+    if (this._isVisible != null) {
+      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
+    }
+    if (this._opacity != null) {
+      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
+    }
+    if (this._fill != null) {
+      h = (h * 31 + this._fill.hash()) & 0xffffffff;
+    }
+    if (this._shadow != null) {
+      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
+    }
+    if (this._border != null) {
+      h = (h * 31 + this._border.hash()) & 0xffffffff;
+    }
+    if (this._radius != null) {
+      h = (h * 31 + this._radius.hash()) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -751,11 +1329,10 @@ export class InternalView extends View {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -774,7 +1351,7 @@ export class InternalView extends View {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.INTERNAL_VIEW,
+      type: NodeType.ARROW_SHAPE2D,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
@@ -806,17 +1383,20 @@ export class InternalView extends View {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.stroke != null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<InternalView "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<ArrowShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return InternalView.__packCson__(this);
+    return ArrowShape2D.__packCson__(this);
   }
 
-  static __packCson__(object: InternalView): { [key: string]: any } {
+  static __packCson__(object: ArrowShape2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1815000;
+    objectCson["1"] = 2411200;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -854,14 +1434,7 @@ export class InternalView extends View {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["70"] = object._key;
-    }
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
     }
@@ -869,24 +1442,58 @@ export class InternalView extends View {
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
+    if (object._scale != null) {
+      objectCson["111"] = object._scale;
+    }
+    if (object._rotation != null) {
+      objectCson["112"] = object._rotation.toCson();
+    }
+    if (object._skew != null) {
+      objectCson["113"] = object._skew.toCson();
+    }
     if (object._width != null) {
-      objectCson["111"] = object._width.toCson();
+      objectCson["120"] = object._width.toCson();
     }
     if (object._height != null) {
-      objectCson["112"] = object._height.toCson();
+      objectCson["121"] = object._height.toCson();
     }
     if (object._minWidth != null) {
-      objectCson["113"] = object._minWidth.toCson();
+      objectCson["122"] = object._minWidth.toCson();
     }
     if (object._minHeight != null) {
-      objectCson["114"] = object._minHeight.toCson();
+      objectCson["123"] = object._minHeight.toCson();
     }
     if (object._maxWidth != null) {
-      objectCson["115"] = object._maxWidth.toCson();
+      objectCson["124"] = object._maxWidth.toCson();
     }
     if (object._maxHeight != null) {
-      objectCson["116"] = object._maxHeight.toCson();
+      objectCson["125"] = object._maxHeight.toCson();
     }
+    if (object._isVisible != null) {
+      objectCson["130"] = object._isVisible;
+    }
+    if (object._opacity != null) {
+      objectCson["131"] = object._opacity;
+    }
+    if (object._fill != null) {
+      objectCson["132"] = object._fill.toCson();
+    }
+    if (object._shadow != null) {
+      objectCson["136"] = object._shadow.toCson();
+    }
+    if (object._border != null) {
+      objectCson["137"] = object._border.toCson();
+    }
+    if (object._radius != null) {
+      objectCson["138"] = object._radius.toCson();
+    }
+    if (object._stroke != null) {
+      objectCson["180"] = object._stroke.toCson();
+    }
+    objectCson["200"] = object._startType;
+    objectCson["201"] = object._start.toCson();
+    objectCson["210"] = object._endType;
+    objectCson["211"] = object._end.toCson();
     return objectCson;
   }
 
@@ -896,53 +1503,94 @@ export class InternalView extends View {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): InternalView {
+  ): ArrowShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const strokeValue = objectCson["180"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
         ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectCson["111"];
+    const scaleValue = objectCson["111"];
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
+    const rotationValue = objectCson["112"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const skewValue = objectCson["113"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectCson["120"];
     const unpackedWidth =
       widthValue != undefined
         ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectCson["112"];
+    const heightValue = objectCson["121"];
     const unpackedHeight =
       heightValue != undefined
         ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minWidthValue = objectCson["113"];
+    const minWidthValue = objectCson["122"];
     const unpackedMinWidth =
       minWidthValue != undefined
         ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const minHeightValue = objectCson["114"];
+    const minHeightValue = objectCson["123"];
     const unpackedMinHeight =
       minHeightValue != undefined
         ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxWidthValue = objectCson["115"];
+    const maxWidthValue = objectCson["124"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
         ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
-    const maxHeightValue = objectCson["116"];
+    const maxHeightValue = objectCson["125"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
         ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+    const isVisibleValue = objectCson["130"];
+    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+    const opacityValue = objectCson["131"];
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+    const fillValue = objectCson["132"];
+    const unpackedFill =
+      fillValue != undefined
+        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
+    const shadowValue = objectCson["136"];
+    const unpackedShadow =
+      shadowValue != undefined
+        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const borderValue = objectCson["137"];
+    const unpackedBorder =
+      borderValue != undefined
+        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const radiusValue = objectCson["138"];
+    const unpackedRadius =
+      radiusValue != undefined
+        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -995,17 +1643,29 @@ export class InternalView extends View {
         );
       }
     }
-    return new InternalView({
+    return new ArrowShape2D({
+      startType: Number(objectCson["200"]),
+      start: _Vector2.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
+      endType: Number(objectCson["210"]),
+      end: _Vector2.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
+      stroke: unpackedStroke,
       position: unpackedPosition,
+      scale: unpackedScale,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
       width: unpackedWidth,
       height: unpackedHeight,
       minWidth: unpackedMinWidth,
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      isVisible: unpackedIsVisible,
+      opacity: unpackedOpacity,
+      fill: unpackedFill,
+      shadow: unpackedShadow,
+      border: unpackedBorder,
+      radius: unpackedRadius,
       isExtensible: objectCson["90"],
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1027,9 +1687,8 @@ export class InternalView extends View {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectCson["50"],
-      id: String(objectCson["2"]),
       script: unpackedScriptPtr,
-      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
@@ -1044,16 +1703,16 @@ export class InternalView extends View {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): InternalView {
-    return InternalView.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): ArrowShape2D {
+    return ArrowShape2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): InternalViewProto {
-    return InternalView.__packProto__(this);
+  toProto(): ArrowShape2DProto {
+    return ArrowShape2D.__packProto__(this);
   }
 
-  static __packProto__(object: InternalView): InternalViewProto {
-    const objectProto: Partial<InternalViewProto> = { metatype: 1815000 };
+  static __packProto__(object: ArrowShape2D): ArrowShape2DProto {
+    const objectProto: Partial<ArrowShape2DProto> = { metatype: 2411200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1090,20 +1749,22 @@ export class InternalView extends View {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     if (object._position != null) {
       objectProto.position = object._position.toProto();
+    }
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
+    }
+    if (object._rotation != null) {
+      objectProto.rotation = object._rotation.toProto();
+    }
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
     }
     if (object._width != null) {
       objectProto.width = object._width.toProto();
@@ -1123,20 +1784,52 @@ export class InternalView extends View {
     if (object._maxHeight != null) {
       objectProto.maxHeight = object._maxHeight.toProto();
     }
-    return objectProto as InternalViewProto;
+    if (object._isVisible != null) {
+      objectProto.isVisible = object._isVisible;
+    }
+    if (object._opacity != null) {
+      objectProto.opacity = object._opacity;
+    }
+    if (object._fill != null) {
+      objectProto.fill = object._fill.toProto();
+    }
+    if (object._shadow != null) {
+      objectProto.shadow = object._shadow.toProto();
+    }
+    if (object._border != null) {
+      objectProto.border = object._border.toProto();
+    }
+    if (object._radius != null) {
+      objectProto.radius = object._radius.toProto();
+    }
+    if (object._stroke != null) {
+      objectProto.stroke = object._stroke.toProto();
+    }
+    objectProto.startType = Number(object._startType) as ArrowHeadTypeProto;
+    objectProto.start = object._start.toProto();
+    objectProto.endType = Number(object._endType) as ArrowHeadTypeProto;
+    objectProto.end = object._end.toProto();
+    return objectProto as ArrowShape2DProto;
   }
 
   static __unpackProto__(
-    objectProto: InternalViewProto,
+    objectProto: ArrowShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): InternalView {
+  ): ArrowShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
+    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1146,10 +1839,27 @@ export class InternalView extends View {
         );
       }
     }
-    return new InternalView({
+    return new ArrowShape2D({
+      startType: Number(objectProto.startType) as ArrowHeadType,
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      endType: Number(objectProto.endType) as ArrowHeadType,
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      stroke:
+        objectProto.stroke != undefined
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      rotation:
+        objectProto.rotation != undefined
+          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
@@ -1175,18 +1885,25 @@ export class InternalView extends View {
         objectProto.maxHeight != undefined
           ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      isExtensible: objectProto.isExtensible,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      fill:
+        objectProto.fill != undefined
+          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
           : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
+      shadow:
+        objectProto.shadow != undefined
+          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          : null,
+      border:
+        objectProto.border != undefined
+          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          : null,
+      radius:
+        objectProto.radius != undefined
+          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1269,7 +1986,6 @@ export class InternalView extends View {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1280,7 +1996,7 @@ export class InternalView extends View {
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -1296,18 +2012,18 @@ export class InternalView extends View {
   }
 
   static fromProto(
-    objectProto: InternalViewProto,
+    objectProto: ArrowShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): InternalView {
-    return InternalView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): ArrowShape2D {
+    return ArrowShape2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): InternalView {
+  static fromProtoString(packedProtoString: string): ArrowShape2D {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = InternalViewProto.fromBinary(packedProtoBytes);
+    const packedProto = ArrowShape2DProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1315,5 +2031,5 @@ export class InternalView extends View {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.INTERNAL_VIEW, InternalView);
-/* ==== DESTACK_GENERATED_END:NODE:1815000 ==== */
+registerNodeClass(NodeType.ARROW_SHAPE2D, ArrowShape2D);
+/* ==== DESTACK_GENERATED_END:NODE:2411200 ==== */

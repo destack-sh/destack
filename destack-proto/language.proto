@@ -360,7 +360,6 @@ enum EnumTypeProto {
   ENUM_TYPE_SANCTION_TYPE = 300400;
   ENUM_TYPE_ENTITLEMENT_TYPE = 300500;
   ENUM_TYPE_FILE_RETENTION_MODE = 400000;
-  ENUM_TYPE_FILE_SOURCE = 400001;
   ENUM_TYPE_FILE_TYPE = 400002;
   ENUM_TYPE_FILE_FORMAT = 400003;
   ENUM_TYPE_TEXT_SPAN_TYPE = 400004;
@@ -386,7 +385,6 @@ enum EnumTypeProto {
   ENUM_TYPE_NOTIFICATION_STATUS = 1400500;
   ENUM_TYPE_WINDOW_TYPE = 1700000;
   ENUM_TYPE_LAYER_TYPE = 1700200;
-  ENUM_TYPE_ARROW_HEAD_TYPE = 1900200;
   ENUM_TYPE_MODE_TYPE = 2000000;
   ENUM_TYPE_TOOL_TYPE = 2000001;
   ENUM_TYPE_MOUSE_BUTTON = 2000010;
@@ -423,6 +421,7 @@ enum EnumTypeProto {
   ENUM_TYPE_SPRING_TYPE = 2200001;
   ENUM_TYPE_EFFECT_TYPE = 2200002;
   ENUM_TYPE_REPEAT_TYPE = 2200003;
+  ENUM_TYPE_ARROW_HEAD_TYPE = 2401200;
 }
 
 enum EnvironmentTypeProto {
@@ -550,13 +549,6 @@ enum FileRetentionModeProto {
   FILE_RETENTION_MODE_AUTOMATIC = 1;
   FILE_RETENTION_MODE_MANUAL = 2;
   FILE_RETENTION_MODE_TIMED = 3;
-}
-
-enum FileSourceProto {
-  FILE_SOURCE_UNSPECIFIED = 0;
-  FILE_SOURCE_SPACE = 1;
-  FILE_SOURCE_INLINE = 3;
-  FILE_SOURCE_EXTERNAL = 10;
 }
 
 enum FileTypeProto {
@@ -812,7 +804,7 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_SPACE = 10000;
+  NODE_TYPE_SPACE = 10100;
   NODE_TYPE_BRANCH = 11000;
   NODE_TYPE_SNAPSHOT = 11100;
   NODE_TYPE_RECORD = 12000;
@@ -931,7 +923,7 @@ enum NodeTypeProto {
   NODE_TYPE_LAYER = 1700300;
   NODE_TYPE_VIEW = 1800000;
   NODE_TYPE_VIEW_EVENT = 1800001;
-  NODE_TYPE_CONTAINER_VIEW = 1800100;
+  NODE_TYPE_LAYOUT_VIEW = 1800100;
   NODE_TYPE_FRAME_VIEW = 1800200;
   NODE_TYPE_LABEL_VIEW = 1800300;
   NODE_TYPE_SPLIT_VIEW = 1800400;
@@ -940,11 +932,6 @@ enum NodeTypeProto {
   NODE_TYPE_INPUT_VIEW = 1810000;
   NODE_TYPE_NUMBER_INPUT_VIEW = 1810100;
   NODE_TYPE_SLIDER_INPUT_VIEW = 1810200;
-  NODE_TYPE_INTERNAL_VIEW = 1815000;
-  NODE_TYPE_SHAPE = 1900000;
-  NODE_TYPE_LINE_SHAPE = 1900100;
-  NODE_TYPE_ARROW_SHAPE = 1900200;
-  NODE_TYPE_ANNOTATION_SHAPE = 1900300;
   NODE_TYPE_INPUT_EVENT = 2000000;
   NODE_TYPE_POINTER_EVENT = 2000100;
   NODE_TYPE_POINTER_DOWN_EVENT = 2000101;
@@ -990,6 +977,14 @@ enum NodeTypeProto {
   NODE_TYPE_TRANSITION_STYLE = 2100900;
   NODE_TYPE_EFFECT_STYLE = 2101000;
   NODE_TYPE_STROKE_STYLE = 2101100;
+  NODE_TYPE_SHAPE = 2410000;
+  NODE_TYPE_SHAPE2D = 2410100;
+  NODE_TYPE_LINE_SHAPE2D = 2411100;
+  NODE_TYPE_ARROW_SHAPE2D = 2411200;
+  NODE_TYPE_RECTANGLE_SHAPE2D = 2411300;
+  NODE_TYPE_ELLIPSE_SHAPE2D = 2411400;
+  NODE_TYPE_POLYGON_SHAPE2D = 2411500;
+  NODE_TYPE_PATH_SHAPE2D = 2411600;
 }
 
 // A Status of a Notification.
@@ -1401,8 +1396,6 @@ enum StructTypeProto {
   STRUCT_TYPE_CORNERS = 1800007;
   STRUCT_TYPE_AXIS2 = 1800008;
   STRUCT_TYPE_AXIS3 = 1800009;
-  STRUCT_TYPE_LINE = 1900100;
-  STRUCT_TYPE_ARROW = 1900200;
   STRUCT_TYPE_COLOR = 2100300;
   STRUCT_TYPE_FILL = 2100400;
   STRUCT_TYPE_FONT = 2100500;
@@ -1425,6 +1418,12 @@ enum StructTypeProto {
   STRUCT_TYPE_VECTOR2I = 2400021;
   STRUCT_TYPE_VECTOR3I = 2400022;
   STRUCT_TYPE_VECTOR4I = 2400023;
+  STRUCT_TYPE_LINE2D = 2411100;
+  STRUCT_TYPE_ARROW2D = 2411200;
+  STRUCT_TYPE_RECTANGLE2D = 2411300;
+  STRUCT_TYPE_ELLIPSE2D = 2411400;
+  STRUCT_TYPE_POLYGON2D = 2411500;
+  STRUCT_TYPE_PATH2D = 2411600;
 }
 
 enum TenancyProto {
@@ -1507,7 +1506,9 @@ enum TraitTypeProto {
   TRAIT_TYPE_STARABLE = 1400030;
   TRAIT_TYPE_REACTABLE = 1400032;
   TRAIT_TYPE_FOLLOWABLE = 1400034;
-  TRAIT_TYPE_VIEWABLE = 1800000;
+  TRAIT_TYPE_INTERACTIVE = 2000000;
+  TRAIT_TYPE_DRAGGABLE = 2000001;
+  TRAIT_TYPE_SELECTABLE = 2000002;
 }
 
 // Built-in transition types.
@@ -1539,7 +1540,7 @@ enum UniverseCategoryProto {
   UNIVERSE_CATEGORY_ACCESS = 300000;
   UNIVERSE_CATEGORY_DATA = 400000;
   UNIVERSE_CATEGORY_MEDIA = 500000;
-  UNIVERSE_CATEGORY_LOCALE = 600000;
+  UNIVERSE_CATEGORY_LOCALIZATION = 600000;
   UNIVERSE_CATEGORY_LOGIC = 700000;
   UNIVERSE_CATEGORY_QUALITY = 800000;
   UNIVERSE_CATEGORY_INTELLIGENCE = 900000;
@@ -1640,63 +1641,7 @@ message AggregationProto {
   optional ExpressionProto expression = 101;
 }
 
-// An AnnotationShape is a shape that represents an annotation.
-message AnnotationShapeProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto definition_ptr = 11;
-  NodeReferenceProto branch_ptr = 12;
-  NodeReferenceProto snapshot_ptr = 13;
-  optional NodeReferenceProto preceded_by_ptr = 14;
-  optional NodeReferenceProto instance_ptr = 15;
-  google.protobuf.Timestamp created_at = 20;
-  int64 created_epoch = 21 [jstype = JS_NUMBER];
-  optional NodeReferenceProto created_by_ptr = 22;
-  google.protobuf.Timestamp updated_at = 23;
-  int64 updated_epoch = 24 [jstype = JS_NUMBER];
-  optional NodeReferenceProto updated_by_ptr = 25;
-  optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
-  optional StrokeProto stroke = 180;
-  optional TextProto text = 250;
-}
-
-message ArrowProto {
+message Arrow2DProto {
   StructTypeProto metatype = 1;
   ArrowHeadTypeProto start_type = 200;
   Vector2Proto start = 201;
@@ -1705,7 +1650,7 @@ message ArrowProto {
 }
 
 // An ArrowShape is a shape that represents an arrow.
-message ArrowShapeProto {
+message ArrowShape2DProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -1724,38 +1669,25 @@ message ArrowShapeProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional StrokeProto stroke = 180;
   ArrowHeadTypeProto start_type = 200;
   Vector2Proto start = 201;
@@ -1806,7 +1738,6 @@ message BorderStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -1976,7 +1907,6 @@ message ColorStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -2040,61 +1970,6 @@ message ConstraintDefinitionProto {
   repeated PropertyReferenceProto properties = 105;
 }
 
-// A container View contains other Views.
-// Containers can be laid out as stacks or grids.
-message ContainerViewProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto definition_ptr = 11;
-  NodeReferenceProto branch_ptr = 12;
-  NodeReferenceProto snapshot_ptr = 13;
-  optional NodeReferenceProto preceded_by_ptr = 14;
-  optional NodeReferenceProto instance_ptr = 15;
-  google.protobuf.Timestamp created_at = 20;
-  int64 created_epoch = 21 [jstype = JS_NUMBER];
-  optional NodeReferenceProto created_by_ptr = 22;
-  google.protobuf.Timestamp updated_at = 23;
-  int64 updated_epoch = 24 [jstype = JS_NUMBER];
-  optional NodeReferenceProto updated_by_ptr = 25;
-  optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
-}
-
 // A content View.
 message ContentViewProto {
   NodeTypeProto metatype = 1;
@@ -2115,22 +1990,25 @@ message ContentViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional AlignProto align = 150;
-  optional bool is_visible = 160;
-  optional double opacity = 161;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
 }
 
 // A CopyEvent is a ClipboardEvent when a copy is performed.
@@ -2760,7 +2638,6 @@ message EffectStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -2779,6 +2656,53 @@ message EffectStyleProto {
   optional TextSplitTypeProto split = 211;
   optional OffscreenBehaviorProto offscreen = 212;
   optional TransitionProto transition = 213;
+}
+
+message Ellipse2DProto {
+  StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 200;
+}
+
+// A EllipseShape is a shape that represents a ellipse.
+message EllipseShape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional StrokeProto stroke = 180;
 }
 
 // A Entitlement to some Actor.
@@ -2800,7 +2724,10 @@ message EntitlementProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   EntitlementTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -3061,7 +2988,6 @@ message FileProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   FileTypeProto type = 100;
-  FileSourceProto source = 110;
   optional string mime_type = 111;
   optional FileFormatProto format = 112;
   optional int64 size = 113 [jstype = JS_NUMBER];
@@ -3111,7 +3037,6 @@ message FillStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -3343,7 +3268,6 @@ message FontStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -3378,38 +3302,35 @@ message FrameViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional LayoutProto layout = 150;
+  optional DirectionProto direction = 151;
+  optional DistributeProto distribute = 152;
+  optional AlignProto align = 153;
+  optional Axis2Proto gap = 154;
+  optional InsetsProto padding = 155;
+  optional GridProto grid = 156;
+  optional GridSpanProto grid_span = 157;
+  optional double aspect_ratio = 158;
+  optional bool is_wrap = 159;
 }
 
 message FunctionProto {
@@ -3501,7 +3422,6 @@ message GradientStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -3693,21 +3613,25 @@ message InputViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional bool is_visible = 160;
-  optional double opacity = 161;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
 }
 
 message InsetsProto {
@@ -3717,41 +3641,6 @@ message InsetsProto {
   optional int64 left = 103 [jstype = JS_NUMBER];
   optional int64 right = 104 [jstype = JS_NUMBER];
   optional int64 bottom = 105 [jstype = JS_NUMBER];
-}
-
-// A content View.
-message InternalViewProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto definition_ptr = 11;
-  NodeReferenceProto branch_ptr = 12;
-  NodeReferenceProto snapshot_ptr = 13;
-  optional NodeReferenceProto preceded_by_ptr = 14;
-  optional NodeReferenceProto instance_ptr = 15;
-  google.protobuf.Timestamp created_at = 20;
-  int64 created_epoch = 21 [jstype = JS_NUMBER];
-  optional NodeReferenceProto created_by_ptr = 22;
-  google.protobuf.Timestamp updated_at = 23;
-  int64 updated_epoch = 24 [jstype = JS_NUMBER];
-  optional NodeReferenceProto updated_by_ptr = 25;
-  optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
 }
 
 // An Invite to a Joinable.
@@ -4059,38 +3948,35 @@ message LabelViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional LayoutProto layout = 150;
+  optional DirectionProto direction = 151;
+  optional DistributeProto distribute = 152;
+  optional AlignProto align = 153;
+  optional Axis2Proto gap = 154;
+  optional InsetsProto padding = 155;
+  optional GridProto grid = 156;
+  optional GridSpanProto grid_span = 157;
+  optional double aspect_ratio = 158;
+  optional bool is_wrap = 159;
 }
 
 // A Layer is a container for Views.
@@ -4127,20 +4013,8 @@ message LayerProto {
   optional double scale = 145;
 }
 
-message LengthProto {
-  StructTypeProto metatype = 1;
-  LengthUnitProto unit = 101;
-  double value = 102;
-}
-
-message LineProto {
-  StructTypeProto metatype = 1;
-  optional StrokeProto stroke = 200;
-  repeated Vector2Proto points = 210;
-}
-
-// A LineShape is a shape that represents a line.
-message LineShapeProto {
+// A Layout View defines how its children Views are laid out.
+message LayoutViewProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -4159,40 +4033,92 @@ message LineShapeProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional LayoutProto layout = 150;
+  optional DirectionProto direction = 151;
+  optional DistributeProto distribute = 152;
+  optional AlignProto align = 153;
+  optional Axis2Proto gap = 154;
+  optional InsetsProto padding = 155;
+  optional GridProto grid = 156;
+  optional GridSpanProto grid_span = 157;
+  optional double aspect_ratio = 158;
+  optional bool is_wrap = 159;
+}
+
+message LengthProto {
+  StructTypeProto metatype = 1;
+  LengthUnitProto unit = 101;
+  double value = 102;
+}
+
+message Line2DProto {
+  StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 200;
+  Vector2Proto start = 210;
+  Vector2Proto end = 220;
+}
+
+// A LineShape is a shape that represents a line between two points.
+message LineShape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional StrokeProto stroke = 180;
-  repeated Vector2Proto points = 200;
+  Vector2Proto start = 200;
+  Vector2Proto end = 210;
 }
 
 // A Log message.
@@ -4799,21 +4725,25 @@ message NumberInputViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional bool is_visible = 160;
-  optional double opacity = 161;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional double value = 250;
   optional string placeholder = 251;
 }
@@ -4883,7 +4813,6 @@ message PaletteProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -4912,6 +4841,55 @@ message PasteEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
+}
+
+message Path2DProto {
+  StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 200;
+  repeated Vector2Proto points = 210;
+}
+
+// A PathShape is a shape that represents a path of multiple points.
+message PathShape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional StrokeProto stroke = 180;
+  repeated Vector2Proto points = 200;
 }
 
 // A Permission for something.
@@ -5187,6 +5165,55 @@ message PointerUpEventProto {
   bool meta_key = 123;
 }
 
+message Polygon2DProto {
+  StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 200;
+  repeated Vector2Proto points = 210;
+}
+
+// A PolygonShape is a shape that represents a polygon.
+message PolygonShape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional StrokeProto stroke = 180;
+  repeated Vector2Proto points = 210;
+}
+
 message PositionProto {
   StructTypeProto metatype = 1;
   PositionTypeProto type = 100;
@@ -5407,6 +5434,55 @@ message RecordProto {
   bool is_extensible = 90;
 }
 
+message Rectangle2DProto {
+  StructTypeProto metatype = 1;
+  optional StrokeProto stroke = 200;
+  optional Vector2Proto width = 210;
+  optional Vector2Proto height = 220;
+}
+
+// A RectangleShape is a shape that represents a rectangle.
+message RectangleShape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional StrokeProto stroke = 180;
+}
+
 // A Resource represents an external asset outside of Destack.
 // The lifecycle of a Resource may be managed by some Provisioner (Service).
 message ResourceProto {
@@ -5455,7 +5531,6 @@ message RoleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -5801,7 +5876,10 @@ message SanctionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   SanctionTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -6101,7 +6179,6 @@ message ShadowStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -6114,7 +6191,7 @@ message ShadowStyleProto {
   optional double diffusion = 205;
 }
 
-// A Shape is a View representing a Shape.
+// A Shape is a View representing geometric Shapes.
 message ShapeProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6134,38 +6211,67 @@ message ShapeProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional StrokeProto stroke = 180;
+}
+
+// A Shape2D represents 2-dimensional Shapes.
+message Shape2DProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
+  optional PositionProto position = 110;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional StrokeProto stroke = 180;
 }
 
@@ -6244,21 +6350,25 @@ message SliderInputViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional bool is_visible = 160;
-  optional double opacity = 161;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional double value = 250;
   optional double min_value = 251;
   optional double max_value = 252;
@@ -6375,38 +6485,35 @@ message SplitViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2Proto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
+  optional LayoutProto layout = 150;
+  optional DirectionProto direction = 151;
+  optional DistributeProto distribute = 152;
+  optional AlignProto align = 153;
+  optional Axis2Proto gap = 154;
+  optional InsetsProto padding = 155;
+  optional GridProto grid = 156;
+  optional GridSpanProto grid_span = 157;
+  optional double aspect_ratio = 158;
+  optional bool is_wrap = 159;
 }
 
 // A Stage for someone to interact with a Space.
@@ -6582,7 +6689,6 @@ message StrokeStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -6648,7 +6754,6 @@ message StyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -6775,22 +6880,25 @@ message TextViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional AlignProto align = 150;
-  optional bool is_visible = 160;
-  optional double opacity = 161;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
   optional FontProto font = 201;
   optional FillProto color = 202;
   optional TextProto text = 250;
@@ -6816,7 +6924,6 @@ message ThemeProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -7030,7 +7137,6 @@ message TransitionStyleProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
@@ -7288,19 +7394,25 @@ message ViewProto {
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
+  optional double scale = 111;
+  optional Axis3Proto rotation = 112;
+  optional Vector2Proto skew = 113;
+  optional DimensionProto width = 120;
+  optional DimensionProto height = 121;
+  optional DimensionProto min_width = 122;
+  optional DimensionProto min_height = 123;
+  optional DimensionProto max_width = 124;
+  optional DimensionProto max_height = 125;
+  optional bool is_visible = 130;
+  optional double opacity = 131;
+  optional FillProto fill = 132;
+  optional ShadowProto shadow = 136;
+  optional BorderProto border = 137;
+  optional CornersProto radius = 138;
 }
 
 // A Event regarding a View.
@@ -7399,7 +7511,7 @@ message SomeNodeProto {
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 40000;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 10000;
+    SpaceProto space = 10100;
     CustomStructProto custom_struct = 20100;
     BranchProto branch = 11000;
     SnapshotProto snapshot = 11100;
@@ -7435,16 +7547,6 @@ message SomeNodeProto {
     ThemeProto theme = 2100000;
     TransitionStyleProto transition_style = 2100900;
     EffectStyleProto effect_style = 2101000;
-    FrameViewProto frame_view = 1800200;
-    InternalViewProto internal_view = 1815000;
-    LabelViewProto label_view = 1800300;
-    NumberInputViewProto number_input_view = 1810100;
-    SliderInputViewProto slider_input_view = 1810200;
-    SplitViewProto split_view = 1800400;
-    TextViewProto text_view = 1805100;
-    AnnotationShapeProto annotation_shape = 1900300;
-    ArrowShapeProto arrow_shape = 1900200;
-    LineShapeProto line_shape = 1900100;
     FileProto file = 480000;
     EnvironmentProto environment = 1100000;
     LogEventProto log_event = 1110011;
@@ -7457,6 +7559,18 @@ message SomeNodeProto {
     RunFailedEventProto run_failed_event = 1110008;
     RunCompletedEventProto run_completed_event = 1110009;
     SpanEventProto span_event = 1110010;
+    FrameViewProto frame_view = 1800200;
+    LabelViewProto label_view = 1800300;
+    NumberInputViewProto number_input_view = 1810100;
+    SliderInputViewProto slider_input_view = 1810200;
+    SplitViewProto split_view = 1800400;
+    TextViewProto text_view = 1805100;
+    ArrowShape2DProto arrow_shape2d = 2411200;
+    EllipseShape2DProto ellipse_shape2d = 2411400;
+    LineShape2DProto line_shape2d = 2411100;
+    PathShape2DProto path_shape2d = 2411600;
+    PolygonShape2DProto polygon_shape2d = 2411500;
+    RectangleShape2DProto rectangle_shape2d = 2411300;
     DatabaseProto database = 1000000;
     MachineProto machine = 1001000;
     CopyEventProto copy_event = 2000501;
@@ -7547,7 +7661,7 @@ message SomeEntityProto {
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 40000;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 10000;
+    SpaceProto space = 10100;
     CustomStructProto custom_struct = 20100;
     BranchProto branch = 11000;
     SnapshotProto snapshot = 11100;
@@ -7567,18 +7681,20 @@ message SomeEntityProto {
     ThemeProto theme = 2100000;
     TransitionStyleProto transition_style = 2100900;
     EffectStyleProto effect_style = 2101000;
+    FileProto file = 480000;
+    EnvironmentProto environment = 1100000;
     FrameViewProto frame_view = 1800200;
-    InternalViewProto internal_view = 1815000;
     LabelViewProto label_view = 1800300;
     NumberInputViewProto number_input_view = 1810100;
     SliderInputViewProto slider_input_view = 1810200;
     SplitViewProto split_view = 1800400;
     TextViewProto text_view = 1805100;
-    AnnotationShapeProto annotation_shape = 1900300;
-    ArrowShapeProto arrow_shape = 1900200;
-    LineShapeProto line_shape = 1900100;
-    FileProto file = 480000;
-    EnvironmentProto environment = 1100000;
+    ArrowShape2DProto arrow_shape2d = 2411200;
+    EllipseShape2DProto ellipse_shape2d = 2411400;
+    LineShape2DProto line_shape2d = 2411100;
+    PathShape2DProto path_shape2d = 2411600;
+    PolygonShape2DProto polygon_shape2d = 2411500;
+    RectangleShape2DProto rectangle_shape2d = 2411300;
     DatabaseProto database = 1000000;
     MachineProto machine = 1001000;
     EventCursorProto event_cursor = 712100;

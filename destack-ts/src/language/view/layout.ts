@@ -11,7 +11,7 @@ import { Entity, NodeType } from "@destack/language/core";
 import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Border, Fill, Shadow } from "@destack/language/style";
 import type {
   Align,
   Axis2,
@@ -25,16 +25,16 @@ import type {
   Insets,
   Layout,
   Position,
-} from "@destack/language/view";
-import { ContainerView } from "@destack/language/view";
+} from "@destack/language/view/common";
+import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1900000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1800100 ==== */
 /**
- * A Shape is a View representing a Shape.
+ * A Layout View defines how its children Views are laid out.
  */
-export abstract class Shape extends ContainerView {
-  static metatype: NodeType = NodeType.SHAPE;
+export abstract class LayoutView extends View {
+  static metatype: NodeType = NodeType.LAYOUT_VIEW;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -75,7 +75,7 @@ export abstract class Shape extends ContainerView {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  abstract get precededBy(): Shape | null;
+  abstract get precededBy(): LayoutView | null;
   declare readonly precededByPtr: NodeReference | null;
 
   /**
@@ -133,11 +133,6 @@ export abstract class Shape extends ContainerView {
   abstract set customValues(value: { readonly [key: string]: Value });
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  declare readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -145,21 +140,6 @@ export abstract class Shape extends ContainerView {
    */
   abstract get name(): string;
   abstract set name(value: string);
-
-  /**
-   * The Script that defines this Node.
-   */
-  abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
 
   /**
    * The main / root Script of this Node.
@@ -185,6 +165,33 @@ export abstract class Shape extends ContainerView {
    */
   abstract get position(): Position | null;
   abstract set position(value: Position | null);
+
+  /**
+   * View.scale
+   */
+  /**
+   * View.scale
+   */
+  abstract get scale(): number | null;
+  abstract set scale(value: number | null);
+
+  /**
+   * View.rotation
+   */
+  /**
+   * View.rotation
+   */
+  abstract get rotation(): Axis3 | null;
+  abstract set rotation(value: Axis3 | null);
+
+  /**
+   * View.skew
+   */
+  /**
+   * View.skew
+   */
+  abstract get skew(): Vector2 | null;
+  abstract set skew(value: Vector2 | null);
 
   /**
    * View.width
@@ -241,188 +248,152 @@ export abstract class Shape extends ContainerView {
   abstract set maxHeight(value: Dimension | null);
 
   /**
-   * ContainerView.layout
+   * View.isVisible
    */
   /**
-   * ContainerView.layout
-   */
-  abstract get layout(): Layout | null;
-  abstract set layout(value: Layout | null);
-
-  /**
-   * ContainerView.direction
-   */
-  /**
-   * ContainerView.direction
-   */
-  abstract get direction(): Direction | null;
-  abstract set direction(value: Direction | null);
-
-  /**
-   * ContainerView.distribute
-   */
-  /**
-   * ContainerView.distribute
-   */
-  abstract get distribute(): Distribute | null;
-  abstract set distribute(value: Distribute | null);
-
-  /**
-   * ContainerView.align
-   */
-  /**
-   * ContainerView.align
-   */
-  abstract get align(): Align | null;
-  abstract set align(value: Align | null);
-
-  /**
-   * ContainerView.gap
-   */
-  /**
-   * ContainerView.gap
-   */
-  abstract get gap(): Axis2 | null;
-  abstract set gap(value: Axis2 | null);
-
-  /**
-   * ContainerView.padding
-   */
-  /**
-   * ContainerView.padding
-   */
-  abstract get padding(): Insets | null;
-  abstract set padding(value: Insets | null);
-
-  /**
-   * ContainerView.grid
-   */
-  /**
-   * ContainerView.grid
-   */
-  abstract get grid(): Grid | null;
-  abstract set grid(value: Grid | null);
-
-  /**
-   * ContainerView.gridSpan
-   */
-  /**
-   * ContainerView.gridSpan
-   */
-  abstract get gridSpan(): GridSpan | null;
-  abstract set gridSpan(value: GridSpan | null);
-
-  /**
-   * ContainerView.aspectRatio
-   */
-  /**
-   * ContainerView.aspectRatio
-   */
-  abstract get aspectRatio(): number | null;
-  abstract set aspectRatio(value: number | null);
-
-  /**
-   * ContainerView.isWrap
-   */
-  /**
-   * ContainerView.isWrap
-   */
-  abstract get isWrap(): boolean | null;
-  abstract set isWrap(value: boolean | null);
-
-  /**
-   * ContainerView.isVisible
-   */
-  /**
-   * ContainerView.isVisible
+   * View.isVisible
    */
   abstract get isVisible(): boolean | null;
   abstract set isVisible(value: boolean | null);
 
   /**
-   * ContainerView.opacity
+   * View.opacity
    */
   /**
-   * ContainerView.opacity
+   * View.opacity
    */
   abstract get opacity(): number | null;
   abstract set opacity(value: number | null);
 
   /**
-   * ContainerView.fill
+   * View.fill
    */
   /**
-   * ContainerView.fill
+   * View.fill
    */
   abstract get fill(): Fill | null;
   abstract set fill(value: Fill | null);
 
   /**
-   * ContainerView.rotation
+   * View.shadow
    */
   /**
-   * ContainerView.rotation
-   */
-  abstract get rotation(): Axis3 | null;
-  abstract set rotation(value: Axis3 | null);
-
-  /**
-   * ContainerView.skew
-   */
-  /**
-   * ContainerView.skew
-   */
-  abstract get skew(): Vector2 | null;
-  abstract set skew(value: Vector2 | null);
-
-  /**
-   * ContainerView.scale
-   */
-  /**
-   * ContainerView.scale
-   */
-  abstract get scale(): number | null;
-  abstract set scale(value: number | null);
-
-  /**
-   * ContainerView.shadow
-   */
-  /**
-   * ContainerView.shadow
+   * View.shadow
    */
   abstract get shadow(): Shadow | null;
   abstract set shadow(value: Shadow | null);
 
   /**
-   * ContainerView.border
+   * View.border
    */
   /**
-   * ContainerView.border
+   * View.border
    */
   abstract get border(): Border | null;
   abstract set border(value: Border | null);
 
   /**
-   * ContainerView.radius
+   * View.radius
    */
   /**
-   * ContainerView.radius
+   * View.radius
    */
   abstract get radius(): Corners | null;
   abstract set radius(value: Corners | null);
 
   /**
-   * Shape.stroke
+   * LayoutView.layout
    */
   /**
-   * Shape.stroke
+   * LayoutView.layout
    */
-  abstract get stroke(): Stroke | null;
-  abstract set stroke(value: Stroke | null);
+  abstract get layout(): Layout | null;
+  abstract set layout(value: Layout | null);
+
+  /**
+   * LayoutView.direction
+   */
+  /**
+   * LayoutView.direction
+   */
+  abstract get direction(): Direction | null;
+  abstract set direction(value: Direction | null);
+
+  /**
+   * LayoutView.distribute
+   */
+  /**
+   * LayoutView.distribute
+   */
+  abstract get distribute(): Distribute | null;
+  abstract set distribute(value: Distribute | null);
+
+  /**
+   * LayoutView.align
+   */
+  /**
+   * LayoutView.align
+   */
+  abstract get align(): Align | null;
+  abstract set align(value: Align | null);
+
+  /**
+   * LayoutView.gap
+   */
+  /**
+   * LayoutView.gap
+   */
+  abstract get gap(): Axis2 | null;
+  abstract set gap(value: Axis2 | null);
+
+  /**
+   * LayoutView.padding
+   */
+  /**
+   * LayoutView.padding
+   */
+  abstract get padding(): Insets | null;
+  abstract set padding(value: Insets | null);
+
+  /**
+   * LayoutView.grid
+   */
+  /**
+   * LayoutView.grid
+   */
+  abstract get grid(): Grid | null;
+  abstract set grid(value: Grid | null);
+
+  /**
+   * LayoutView.gridSpan
+   */
+  /**
+   * LayoutView.gridSpan
+   */
+  abstract get gridSpan(): GridSpan | null;
+  abstract set gridSpan(value: GridSpan | null);
+
+  /**
+   * LayoutView.aspectRatio
+   */
+  /**
+   * LayoutView.aspectRatio
+   */
+  abstract get aspectRatio(): number | null;
+  abstract set aspectRatio(value: number | null);
+
+  /**
+   * LayoutView.isWrap
+   */
+  /**
+   * LayoutView.isWrap
+   */
+  abstract get isWrap(): boolean | null;
+  abstract set isWrap(value: boolean | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.SHAPE, Shape);
-/* ==== DESTACK_GENERATED_END:NODE:1900000 ==== */
+registerNodeClass(NodeType.LAYOUT_VIEW, LayoutView);
+/* ==== DESTACK_GENERATED_END:NODE:1800100 ==== */

@@ -9,7 +9,6 @@ import type {
   IsExtensible,
   IsOrdered,
   IsOwnable,
-  IsViewable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -33,7 +32,7 @@ import {
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { ContainerView } from "@destack/language/view";
+import type { LayoutView } from "@destack/language/view";
 import { MaterializationProto, SceneProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -141,7 +140,7 @@ registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
 /**
  * A Scene is a container for an interaction point.
  */
-export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, IsExtensible {
+export class Scene extends Entity implements IsOwnable, IsOrdered, IsExtensible {
   static metatype: NodeType = NodeType.SCENE;
 
   /**
@@ -406,14 +405,14 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   /**
    * The root view of the Scene.
    */
-  get rootView(): ContainerView | null {
+  get rootView(): LayoutView | null {
     const nodePtr: NodeReference | null = this.rootViewPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as ContainerView | null;
+      return this._supergraph.get(nodePtr.id) as LayoutView | null;
     }
     return null;
   }
-  set rootView(node: ContainerView | null) {
+  set rootView(node: LayoutView | null) {
     if (node === null) {
       this.rootViewPtr = null;
     } else {
@@ -457,7 +456,7 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     icon?: Icon | null;
-    rootView?: ContainerView | NodeReference | null;
+    rootView?: LayoutView | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;

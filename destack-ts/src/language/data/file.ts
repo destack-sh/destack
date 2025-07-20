@@ -40,7 +40,6 @@ import {
 import {
   FileFormatProto,
   FileProto,
-  FileSourceProto,
   FileTypeProto,
   MaterializationProto,
   ResourceStatusProto,
@@ -53,22 +52,6 @@ import {
 } from "@destack/utils";
 import { hashBool, hashBytes, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:400001 ==== */
-/**
- * FileSource
- */
-export enum FileSource {
-  SPACE = 1,
-  INLINE = 3,
-  EXTERNAL = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FILE_SOURCE, FileSource);
-/* ==== DESTACK_GENERATED_END:ENUM:400001 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:400000 ==== */
 /**
@@ -486,22 +469,6 @@ export class File extends Resource {
   _type: FileType;
 
   /**
-   * File.source
-   */
-  /**
-   * File.source
-   */
-  get source(): FileSource {
-    return this._source;
-  }
-  set source(value: FileSource) {
-    const prop = (this.constructor as NodeClass).__properties__["source"];
-    this._session.updateSetProperty(this, prop, value);
-    this._source = value;
-  }
-  _source: FileSource;
-
-  /**
    * File.mimeType
    */
   /**
@@ -781,7 +748,6 @@ export class File extends Resource {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type: FileType;
-    source: FileSource;
     mimeType?: string | null;
     format?: FileFormat | null;
     size?: number | null;
@@ -944,11 +910,6 @@ export class File extends Resource {
       throw new Error(`File.type is required`);
     }
     this._type = _type;
-    let _source = options.source;
-    if (_source === null) {
-      throw new Error(`File.source is required`);
-    }
-    this._source = _source;
     let _mimeType = options.mimeType ?? null;
     this._mimeType = _mimeType;
     let _format = options.format ?? null;
@@ -1025,9 +986,6 @@ export class File extends Resource {
       return false;
     }
     if (!(this._type === other._type)) {
-      return false;
-    }
-    if (!(this._source === other._source)) {
       return false;
     }
     if (!(this._mimeType === other._mimeType)) {
@@ -1127,7 +1085,6 @@ export class File extends Resource {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + this._source) & 0xffffffff;
     if (this._mimeType != null) {
       h = (h * 31 + hashString(this._mimeType)) & 0xffffffff;
     }
@@ -1251,7 +1208,6 @@ export class File extends Resource {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FileType[this.type]}`);
-    propertyReprs.push(`source=${FileSource[this.source]}`);
     if (this.mimeType != null) {
       propertyReprs.push(`mimeType=${`"${this.mimeType}"`}`);
     }
@@ -1325,7 +1281,6 @@ export class File extends Resource {
     }
     objectCson["90"] = object.isExtensible;
     objectCson["100"] = object._type;
-    objectCson["110"] = object._source;
     if (object._mimeType != null) {
       objectCson["111"] = object._mimeType;
     }
@@ -1481,7 +1436,6 @@ export class File extends Resource {
     return new File({
       parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
-      source: Number(objectCson["110"]),
       mimeType: unpackedMimeType,
       format: unpackedFormat,
       size: unpackedSize,
@@ -1593,7 +1547,6 @@ export class File extends Resource {
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as FileTypeProto;
-    objectProto.source = Number(object._source) as FileSourceProto;
     if (object._mimeType != null) {
       objectProto.mimeType = object._mimeType;
     }
@@ -1675,7 +1628,6 @@ export class File extends Resource {
             )
           : null,
       type: Number(objectProto.type) as FileType,
-      source: Number(objectProto.source) as FileSource,
       mimeType: objectProto.mimeType != undefined ? objectProto.mimeType : null,
       format: objectProto.format != undefined ? (Number(objectProto.format) as FileFormat) : null,
       size: objectProto.size != undefined ? Number(objectProto.size) : null,

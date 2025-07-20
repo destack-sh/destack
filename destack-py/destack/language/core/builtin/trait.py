@@ -242,9 +242,23 @@ class IsFollowable(Trait):
     pass
 
 
-@builtin_trait(TraitType.VIEWABLE)
-class IsViewable(Trait):
-    """An Entity that can be presented visually."""
+@builtin_trait(TraitType.INTERACTIVE, is_extensible=True)
+class IsInteractive(Trait):
+    """An Entity that can be interacted with."""
+
+    pass
+
+
+@builtin_trait(TraitType.DRAGGABLE, is_extensible=True)
+class IsDraggable(Trait):
+    """An Entity that can be dragged."""
+
+    pass
+
+
+@builtin_trait(TraitType.SELECTABLE, is_extensible=True)
+class IsSelectable(Trait):
+    """An Entity that can be selected."""
 
     pass
 
@@ -304,6 +318,7 @@ class IsExtensible(IsScriptable):
         is_readonly=True,
         description="Whether this Node is extensible (whether it can be instanced).",
     )
+    # base_type?
     # traits?
     # is_trait? is_abstract?
     # is_locked/is_final?

@@ -50,7 +50,91 @@ export enum SpaceStatus {
 registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:100000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
+/** Create a new Space with a root Branch and Snapshot. */
+export function createSpace(options: {
+  session: Session;
+  id?: string;
+  name?: string;
+  slug?: string;
+}): {
+  space: Space;
+  branch: Branch;
+  snapshot: Snapshot;
+} {
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
+  const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
+
+  const { session, id, name, slug } = options;
+  const epoch = session.epoch;
+  const now = Temporal.Now.zonedDateTimeISO("UTC");
+
+  const spaceId = id ?? uuid4();
+  const spacePtr = new _NodeReference({
+    type: NodeType.SPACE,
+    id: spaceId,
+    spaceId,
+  });
+
+  const branchId = uuid4();
+  const branchPtr = new _NodeReference({
+    type: NodeType.BRANCH,
+    id: branchId,
+    spaceId,
+  });
+
+  const snapshotId = uuid4();
+  const snapshotPtr = new _NodeReference({
+    type: NodeType.SNAPSHOT,
+    id: snapshotId,
+    spaceId,
+    branchId,
+  });
+
+  const branch = new _Branch({
+    id: branchId,
+    name: "Main",
+    space: spacePtr,
+    createdEpoch: epoch,
+    createdAt: now,
+    updatedEpoch: epoch,
+    updatedAt: now,
+    type: BranchType.ROOT,
+    branch: branchPtr,
+    snapshot: snapshotPtr,
+  });
+  session.create(branch);
+  const snapshot = new _Snapshot({
+    id: snapshotId,
+    name: "Root",
+    space: spacePtr,
+    createdEpoch: epoch,
+    createdAt: now,
+    updatedEpoch: epoch,
+    updatedAt: now,
+    type: SnapshotType.FULL,
+    branch: branchPtr,
+  });
+  session.create(snapshot);
+  const space = new Space({
+    id: spaceId,
+    name: name ?? "Space",
+    slug: slug ?? "space",
+    status: SpaceStatus.ACTIVE,
+    region: Region.ZURICH,
+    branch: branchPtr,
+    snapshot: snapshotPtr,
+    createdEpoch: epoch,
+    createdAt: now,
+    updatedEpoch: epoch,
+    updatedAt: now,
+  });
+  session.create(space);
+
+  return { space, branch, snapshot };
+}
+
+/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
 /**
  * A Space is the home of your personal software studio.
  */
@@ -857,7 +941,7 @@ export class Space
 
   static __packCson__(object: Space): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 10000;
+    objectCson["1"] = 10100;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1067,7 +1151,7 @@ export class Space
   }
 
   static __packProto__(object: Space): SpaceProto {
-    const objectProto: Partial<SpaceProto> = { metatype: 10000 };
+    const objectProto: Partial<SpaceProto> = { metatype: 10100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1333,88 +1417,4 @@ export class Space
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPACE, Space);
-/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
-
-/** Create a new Space with a root Branch and Snapshot. */
-export function createSpace(options: {
-  session: Session;
-  id?: string;
-  name?: string;
-  slug?: string;
-}): {
-  space: Space;
-  branch: Branch;
-  snapshot: Snapshot;
-} {
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
-  const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
-
-  const { session, id, name, slug } = options;
-  const epoch = session.epoch;
-  const now = Temporal.Now.zonedDateTimeISO("UTC");
-
-  const spaceId = id ?? uuid4();
-  const spacePtr = new _NodeReference({
-    type: NodeType.SPACE,
-    id: spaceId,
-    spaceId,
-  });
-
-  const branchId = uuid4();
-  const branchPtr = new _NodeReference({
-    type: NodeType.BRANCH,
-    id: branchId,
-    spaceId,
-  });
-
-  const snapshotId = uuid4();
-  const snapshotPtr = new _NodeReference({
-    type: NodeType.SNAPSHOT,
-    id: snapshotId,
-    spaceId,
-    branchId,
-  });
-
-  const branch = new _Branch({
-    id: branchId,
-    name: "Main",
-    space: spacePtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-    type: BranchType.ROOT,
-    branch: branchPtr,
-    snapshot: snapshotPtr,
-  });
-  session.create(branch);
-  const snapshot = new _Snapshot({
-    id: snapshotId,
-    name: "Root",
-    space: spacePtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-    type: SnapshotType.FULL,
-    branch: branchPtr,
-  });
-  session.create(snapshot);
-  const space = new Space({
-    id: spaceId,
-    name: name ?? "Space",
-    slug: slug ?? "space",
-    status: SpaceStatus.ACTIVE,
-    region: Region.ZURICH,
-    branch: branchPtr,
-    snapshot: snapshotPtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-  });
-  session.create(space);
-
-  return { space, branch, snapshot };
-}
+/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */

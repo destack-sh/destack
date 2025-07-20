@@ -7,7 +7,6 @@ import type {
   IsActor,
   IsExtensible,
   IsJoinable,
-  IsOrdered,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -1627,7 +1626,7 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
 /**
  * A Role for Actors to take.
  */
-export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
+export class Role extends Entity implements IsActor, IsExtensible {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
@@ -1788,11 +1787,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -1893,7 +1887,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
@@ -2006,14 +1999,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`Role.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Role";
@@ -2133,7 +2118,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -2253,7 +2237,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
@@ -2337,7 +2320,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
       parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
       icon: unpackedIcon,
-      orderKey: objectCson["31"],
       isExtensible: objectCson["90"],
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -2421,7 +2403,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
@@ -2469,7 +2450,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      orderKey: objectProto.orderKey,
       isExtensible: objectProto.isExtensible,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:

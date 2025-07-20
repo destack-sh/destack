@@ -7,7 +7,6 @@ from destack.language.core import (
     IsOrdered,
     IsOwnable,
     IsScriptable,
-    IsViewable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -40,7 +39,6 @@ class LayerType(Enum):
     expected_descendant_types=(NodeType.VIEW,),
 )
 class Layer(
-    IsViewable,
     IsOwnable,
     IsOrdered,
     IsScriptable,

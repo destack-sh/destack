@@ -21,25 +21,268 @@ import {
   Materialization,
   Node,
   NodeType,
+  StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import { Shape2D } from "@destack/language/geometry/shape";
+import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Border, Fill, Shadow } from "@destack/language/style";
-import type { Axis3, Corners, Dimension, Position } from "@destack/language/view/common";
-import { InputView } from "@destack/language/view/input";
-import { MaterializationProto, NumberInputViewProto } from "@destack/proto";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
+import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type { Axis3, Corners, Dimension, Position } from "@destack/language/view";
+import { Line2DProto, LineShape2DProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1810100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2411100 ==== */
 /**
- * A general number input View.
+ * A Line is a line between two points.
  */
-export class NumberInputView extends InputView {
-  static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
+export class Line2D extends StructFrozen {
+  static metatype: StructType = StructType.LINE2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Line2D.stroke
+   */
+  readonly stroke: Stroke | null;
+
+  /**
+   * Line2D.start
+   */
+  readonly start: Vector2;
+
+  /**
+   * Line2D.end
+   */
+  readonly end: Vector2;
+
+  constructor(options: {
+    stroke?: Stroke | null;
+    start: Vector2;
+    end: Vector2;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _cson?: any | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
+    let _start = options.start;
+    if (_start === null) {
+      throw new Error(`Line2D.start is required`);
+    }
+    this.start = _start;
+    let _end = options.end;
+    if (_end === null) {
+      throw new Error(`Line2D.end is required`);
+    }
+    this.end = _end;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._cson = options._cson ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
+      return false;
+    }
+    if (!this.start.equals(other.start)) {
+      return false;
+    }
+    if (!this.end.equals(other.end)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.stroke != null) {
+        propertyReprs.push(`stroke=${this.stroke.repr()}`);
+      }
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
+        this._repr = `<Line2D ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly)
+        this._repr = `<Line2D>`;
+      }
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stroke != null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.end.hash()) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
+      // @ts-expect-error(readonly)
+      this._cson = Line2D.__packCson__(this);
+    }
+    return this._cson;
+  }
+
+  static __packCson__(object: Line2D): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2411100;
+    if (object.stroke != null) {
+      objectCson["200"] = object.stroke.toCson();
+    }
+    objectCson["210"] = object.start.toCson();
+    objectCson["220"] = object.end.toCson();
+    return objectCson;
+  }
+
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line2D {
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const strokeValue = objectCson["200"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Line2D({
+      stroke: unpackedStroke,
+      start: _Vector2.fromCson(objectCson["210"], _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["220"], _session, _supergraph, _graph, _connection),
+      _cson: objectCson,
+      _supergraph,
+    });
+  }
+
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line2D {
+    return Line2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Line2DProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Line2D.__packProto__(this);
+    }
+    return this._proto as Line2DProto;
+  }
+
+  static __packProto__(object: Line2D): Line2DProto {
+    const objectProto: Partial<Line2DProto> = { metatype: 2411100 };
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
+    objectProto.start = object.start.toProto();
+    objectProto.end = object.end.toProto();
+    return objectProto as Line2DProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Line2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line2D {
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    return new Line2D({
+      stroke:
+        objectProto.stroke != undefined
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Line2DProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line2D {
+    return Line2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Line2D {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = Line2DProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.LINE2D, Line2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2411100 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:2411100 ==== */
+/**
+ * A LineShape is a shape that represents a line between two points.
+ */
+export class LineShape2D extends Shape2D {
+  static metatype: NodeType = NodeType.LINE_SHAPE2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -110,10 +353,10 @@ export class NumberInputView extends InputView {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): NumberInputView | null {
+  get precededBy(): LineShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as NumberInputView | null;
+      return this._supergraph.get(nodePtr.id) as LineShape2D | null;
     }
     return null;
   }
@@ -506,36 +749,52 @@ export class NumberInputView extends InputView {
   _radius: Corners | null;
 
   /**
-   * NumberInputView.value
+   * Shape.stroke
    */
   /**
-   * NumberInputView.value
+   * Shape.stroke
    */
-  get value(): number | null {
-    return this._value;
+  get stroke(): Stroke | null {
+    return this._stroke;
   }
-  set value(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["value"];
+  set stroke(value: Stroke | null) {
+    const prop = (this.constructor as NodeClass).__properties__["stroke"];
     this._session.updateSetProperty(this, prop, value);
-    this._value = value;
+    this._stroke = value;
   }
-  _value: number | null;
+  _stroke: Stroke | null;
 
   /**
-   * NumberInputView.placeholder
+   * LineShape2D.start
    */
   /**
-   * NumberInputView.placeholder
+   * LineShape2D.start
    */
-  get placeholder(): string | null {
-    return this._placeholder;
+  get start(): Vector2 {
+    return this._start;
   }
-  set placeholder(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["placeholder"];
+  set start(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["start"];
     this._session.updateSetProperty(this, prop, value);
-    this._placeholder = value;
+    this._start = value;
   }
-  _placeholder: string | null;
+  _start: Vector2;
+
+  /**
+   * LineShape2D.end
+   */
+  /**
+   * LineShape2D.end
+   */
+  get end(): Vector2 {
+    return this._end;
+  }
+  set end(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["end"];
+    this._session.updateSetProperty(this, prop, value);
+    this._end = value;
+  }
+  _end: Vector2;
 
   constructor(options: {
     id?: string;
@@ -545,7 +804,7 @@ export class NumberInputView extends InputView {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: NumberInputView | NodeReference | null;
+    precededBy?: LineShape2D | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -574,8 +833,9 @@ export class NumberInputView extends InputView {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    value?: number | null;
-    placeholder?: string | null;
+    stroke?: Stroke | null;
+    start: Vector2;
+    end: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -615,12 +875,12 @@ export class NumberInputView extends InputView {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for NumberInputView`);
+        throw new Error(`no active Space for LineShape2D`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`NumberInputView.space is required`);
+      throw new Error(`LineShape2D.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -628,7 +888,7 @@ export class NumberInputView extends InputView {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`NumberInputView.materialization is required`);
+      throw new Error(`LineShape2D.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -643,12 +903,12 @@ export class NumberInputView extends InputView {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for NumberInputView`);
+        throw new Error(`no active Branch for LineShape2D`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`NumberInputView.branch is required`);
+      throw new Error(`LineShape2D.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -658,12 +918,12 @@ export class NumberInputView extends InputView {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for NumberInputView`);
+        throw new Error(`no active Snapshot for LineShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`NumberInputView.snapshot is required`);
+      throw new Error(`LineShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -685,10 +945,10 @@ export class NumberInputView extends InputView {
     this._customValues = _customValues;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "NumberInputView";
+      _name = "LineShape2D";
     }
     if (_name === null) {
-      throw new Error(`NumberInputView.name is required`);
+      throw new Error(`LineShape2D.name is required`);
     }
     this._name = _name;
     let _script = options.script ?? null;
@@ -701,7 +961,7 @@ export class NumberInputView extends InputView {
       _isExtensible = false;
     }
     if (_isExtensible === null) {
-      throw new Error(`NumberInputView.isExtensible is required`);
+      throw new Error(`LineShape2D.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
@@ -736,10 +996,18 @@ export class NumberInputView extends InputView {
     this._border = _border;
     let _radius = options.radius ?? null;
     this._radius = _radius;
-    let _value = options.value ?? null;
-    this._value = _value;
-    let _placeholder = options.placeholder ?? null;
-    this._placeholder = _placeholder;
+    let _stroke = options.stroke ?? null;
+    this._stroke = _stroke;
+    let _start = options.start;
+    if (_start === null) {
+      throw new Error(`LineShape2D.start is required`);
+    }
+    this._start = _start;
+    let _end = options.end;
+    if (_end === null) {
+      throw new Error(`LineShape2D.end is required`);
+    }
+    this._end = _end;
 
     // identity
     if (options.id == null) {
@@ -759,7 +1027,7 @@ export class NumberInputView extends InputView {
         options.updatedEpoch == null
       ) {
         throw new Error(
-          `NumberInputView.createdAt and NumberInputView.updatedAt are required for existing Nodes`,
+          `LineShape2D.createdAt and LineShape2D.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -785,14 +1053,16 @@ export class NumberInputView extends InputView {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._value == null) !== (other._value == null) ||
-      (this._value != null &&
-        !(this._value === other._value || Math.abs(this._value - other._value) < 1e-10))
-    ) {
+    if (!this._start.equals(other._start)) {
       return false;
     }
-    if (!(this._placeholder === other._placeholder)) {
+    if (!this._end.equals(other._end)) {
+      return false;
+    }
+    if (
+      (this._stroke == null) !== (other._stroke == null) ||
+      (this._stroke != null && !this._stroke.equals(other._stroke))
+    ) {
       return false;
     }
     if (
@@ -922,11 +1192,10 @@ export class NumberInputView extends InputView {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._value != null) {
-      h = (h * 31 + hashFloat(this._value)) & 0xffffffff;
-    }
-    if (this._placeholder != null) {
-      h = (h * 31 + hashString(this._placeholder)) & 0xffffffff;
+    h = (h * 31 + this._start.hash()) & 0xffffffff;
+    h = (h * 31 + this._end.hash()) & 0xffffffff;
+    if (this._stroke != null) {
+      h = (h * 31 + this._stroke.hash()) & 0xffffffff;
     }
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
@@ -1017,7 +1286,7 @@ export class NumberInputView extends InputView {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.NUMBER_INPUT_VIEW,
+      type: NodeType.LINE_SHAPE2D,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
@@ -1049,17 +1318,20 @@ export class NumberInputView extends InputView {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.stroke != null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<NumberInputView "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<LineShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return NumberInputView.__packCson__(this);
+    return LineShape2D.__packCson__(this);
   }
 
-  static __packCson__(object: NumberInputView): { [key: string]: any } {
+  static __packCson__(object: LineShape2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1810100;
+    objectCson["1"] = 2411100;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1150,12 +1422,11 @@ export class NumberInputView extends InputView {
     if (object._radius != null) {
       objectCson["138"] = object._radius.toCson();
     }
-    if (object._value != null) {
-      objectCson["250"] = object._value;
+    if (object._stroke != null) {
+      objectCson["180"] = object._stroke.toCson();
     }
-    if (object._placeholder != null) {
-      objectCson["251"] = object._placeholder;
-    }
+    objectCson["200"] = object._start.toCson();
+    objectCson["210"] = object._end.toCson();
     return objectCson;
   }
 
@@ -1165,7 +1436,7 @@ export class NumberInputView extends InputView {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
+  ): LineShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
@@ -1175,11 +1446,13 @@ export class NumberInputView extends InputView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const valueValue = objectCson["250"];
-    const unpackedValue = valueValue != undefined ? valueValue : null;
-    const placeholderValue = objectCson["251"];
-    const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
+    const strokeValue = objectCson["180"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
@@ -1303,9 +1576,10 @@ export class NumberInputView extends InputView {
         );
       }
     }
-    return new NumberInputView({
-      value: unpackedValue,
-      placeholder: unpackedPlaceholder,
+    return new LineShape2D({
+      start: _Vector2.fromCson(objectCson["200"], _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["210"], _session, _supergraph, _graph, _connection),
+      stroke: unpackedStroke,
       position: unpackedPosition,
       scale: unpackedScale,
       rotation: unpackedRotation,
@@ -1360,16 +1634,16 @@ export class NumberInputView extends InputView {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
-    return NumberInputView.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): LineShape2D {
+    return LineShape2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): NumberInputViewProto {
-    return NumberInputView.__packProto__(this);
+  toProto(): LineShape2DProto {
+    return LineShape2D.__packProto__(this);
   }
 
-  static __packProto__(object: NumberInputView): NumberInputViewProto {
-    const objectProto: Partial<NumberInputViewProto> = { metatype: 1810100 };
+  static __packProto__(object: LineShape2D): LineShape2DProto {
+    const objectProto: Partial<LineShape2DProto> = { metatype: 2411100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1459,22 +1733,21 @@ export class NumberInputView extends InputView {
     if (object._radius != null) {
       objectProto.radius = object._radius.toProto();
     }
-    if (object._value != null) {
-      objectProto.value = object._value;
+    if (object._stroke != null) {
+      objectProto.stroke = object._stroke.toProto();
     }
-    if (object._placeholder != null) {
-      objectProto.placeholder = object._placeholder;
-    }
-    return objectProto as NumberInputViewProto;
+    objectProto.start = object._start.toProto();
+    objectProto.end = object._end.toProto();
+    return objectProto as LineShape2DProto;
   }
 
   static __unpackProto__(
-    objectProto: NumberInputViewProto,
+    objectProto: LineShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
+  ): LineShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
@@ -1484,6 +1757,7 @@ export class NumberInputView extends InputView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
@@ -1494,9 +1768,13 @@ export class NumberInputView extends InputView {
         );
       }
     }
-    return new NumberInputView({
-      value: objectProto.value != undefined ? objectProto.value : null,
-      placeholder: objectProto.placeholder != undefined ? objectProto.placeholder : null,
+    return new LineShape2D({
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      stroke:
+        objectProto.stroke != undefined
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1661,18 +1939,18 @@ export class NumberInputView extends InputView {
   }
 
   static fromProto(
-    objectProto: NumberInputViewProto,
+    objectProto: LineShape2DProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): NumberInputView {
-    return NumberInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): LineShape2D {
+    return LineShape2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): NumberInputView {
+  static fromProtoString(packedProtoString: string): LineShape2D {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = NumberInputViewProto.fromBinary(packedProtoBytes);
+    const packedProto = LineShape2DProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1680,5 +1958,5 @@ export class NumberInputView extends InputView {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);
-/* ==== DESTACK_GENERATED_END:NODE:1810100 ==== */
+registerNodeClass(NodeType.LINE_SHAPE2D, LineShape2D);
+/* ==== DESTACK_GENERATED_END:NODE:2411100 ==== */

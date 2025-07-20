@@ -802,11 +802,6 @@ export class GradientStyle extends Style {
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -955,7 +950,6 @@ export class GradientStyle extends Style {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
@@ -1071,14 +1065,6 @@ export class GradientStyle extends Style {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`GradientStyle.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "GradientStyle";
@@ -1194,19 +1180,19 @@ export class GradientStyle extends Style {
     ) {
       return false;
     }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -1241,6 +1227,7 @@ export class GradientStyle extends Style {
     if (this._dark != null) {
       h = (h * 31 + this._dark.hash()) & 0xffffffff;
     }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1259,13 +1246,11 @@ export class GradientStyle extends Style {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -1373,7 +1358,6 @@ export class GradientStyle extends Style {
       }
       objectCson["30"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
     objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
       objectCson["80"] = object._scriptPtr.toCson();
@@ -1489,6 +1473,7 @@ export class GradientStyle extends Style {
       stops: unpackedStops,
       centerAnchor: unpackedCenterAnchor,
       dark: unpackedDark,
+      isExtensible: objectCson["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1510,11 +1495,9 @@ export class GradientStyle extends Style {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectCson["50"],
-      orderKey: objectCson["31"],
-      isExtensible: objectCson["90"],
+      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      script: unpackedScriptPtr,
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1574,7 +1557,6 @@ export class GradientStyle extends Style {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
@@ -1641,6 +1623,7 @@ export class GradientStyle extends Style {
         objectProto.dark != undefined
           ? _Gradient.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
           : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1723,16 +1706,6 @@ export class GradientStyle extends Style {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      isExtensible: objectProto.isExtensible,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1743,6 +1716,14 @@ export class GradientStyle extends Style {
               _connection,
             )
           : null,
+      id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       customValues: unpackedCustomValues,
       _session,
       _graph,

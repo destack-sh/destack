@@ -8,9 +8,8 @@ from destack.language.core import (
     builtin_property,
     builtin_struct,
 )
-from destack.proto import LineProto
 
-from .shape import Shape
+from .shape import Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Stroke, Vector2
@@ -18,19 +17,16 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-# nocheckin: consolidate geometry stuff? (into geometry category)
-
-
-@builtin_struct(StructType.LINE, frozen=True)
-class Line(StructFrozen[LineProto]):
-    """A Line is a list of points."""
+@builtin_struct(StructType.POLYGON2D, frozen=True)
+class Polygon2D(StructFrozen):
+    """A Polygon is a list of points."""
 
     stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)
     points: list["Vector2"] = builtin_property(210)
 
 
-@builtin_node(NodeType.LINE_SHAPE)
-class LineShape(Shape):
-    """A LineShape is a shape that represents a line."""
+@builtin_node(NodeType.POLYGON_SHAPE2D)
+class PolygonShape2D(Shape2D):
+    """A PolygonShape is a shape that represents a polygon."""
 
-    points: list["Vector2"] = builtin_property(200)
+    points: list["Vector2"] = builtin_property(210)

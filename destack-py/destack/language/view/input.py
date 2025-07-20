@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from destack.language.core import NodeType, builtin_node, builtin_property
+from destack.language.core import NodeType, builtin_node
 
 from .view import View
 
@@ -14,6 +14,4 @@ if TYPE_CHECKING:
 class InputView(View):
     """An input View."""
 
-    # appearance
-    is_visible: Optional[bool] = builtin_property(160)
-    opacity: Optional[float] = builtin_property(161)
+    pass
