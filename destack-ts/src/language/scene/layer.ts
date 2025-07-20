@@ -28,34 +28,16 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Fill } from "@destack/language/style";
-import type { Axis3 } from "@destack/language/view";
 import { LayerProto, LayerTypeProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:1700200 ==== */
-/**
- * LayerType
- */
-export enum LayerType {
-  GENERAL = 1,
-  SHAPE = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LAYER_TYPE, LayerType);
-/* ==== DESTACK_GENERATED_END:ENUM:1700200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1700300 ==== */
 /**
@@ -366,70 +348,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
   }
   _opacity: number | null;
 
-  /**
-   * Layer.fill
-   */
-  /**
-   * Layer.fill
-   */
-  get fill(): Fill | null {
-    return this._fill;
-  }
-  set fill(value: Fill | null) {
-    const prop = (this.constructor as NodeClass).__properties__["fill"];
-    this._session.updateSetProperty(this, prop, value);
-    this._fill = value;
-  }
-  _fill: Fill | null;
-
-  /**
-   * Layer.rotation
-   */
-  /**
-   * Layer.rotation
-   */
-  get rotation(): Axis3 | null {
-    return this._rotation;
-  }
-  set rotation(value: Axis3 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["rotation"];
-    this._session.updateSetProperty(this, prop, value);
-    this._rotation = value;
-  }
-  _rotation: Axis3 | null;
-
-  /**
-   * Layer.skew
-   */
-  /**
-   * Layer.skew
-   */
-  get skew(): Vector2 | null {
-    return this._skew;
-  }
-  set skew(value: Vector2 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["skew"];
-    this._session.updateSetProperty(this, prop, value);
-    this._skew = value;
-  }
-  _skew: Vector2 | null;
-
-  /**
-   * Layer.scale
-   */
-  /**
-   * Layer.scale
-   */
-  get scale(): number | null {
-    return this._scale;
-  }
-  set scale(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["scale"];
-    this._session.updateSetProperty(this, prop, value);
-    this._scale = value;
-  }
-  _scale: number | null;
-
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -456,10 +374,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     icon?: Icon | null;
     isVisible?: boolean | null;
     opacity?: number | null;
-    fill?: Fill | null;
-    rotation?: Axis3 | null;
-    skew?: Vector2 | null;
-    scale?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -607,14 +521,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     this._isVisible = _isVisible;
     let _opacity = options.opacity ?? null;
     this._opacity = _opacity;
-    let _fill = options.fill ?? null;
-    this._fill = _fill;
-    let _rotation = options.rotation ?? null;
-    this._rotation = _rotation;
-    let _skew = options.skew ?? null;
-    this._skew = _skew;
-    let _scale = options.scale ?? null;
-    this._scale = _scale;
 
     // identity
     if (options.id == null) {
@@ -677,31 +583,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     ) {
       return false;
     }
-    if (
-      (this._fill == null) !== (other._fill == null) ||
-      (this._fill != null && !this._fill.equals(other._fill))
-    ) {
-      return false;
-    }
-    if (
-      (this._rotation == null) !== (other._rotation == null) ||
-      (this._rotation != null && !this._rotation.equals(other._rotation))
-    ) {
-      return false;
-    }
-    if (
-      (this._skew == null) !== (other._skew == null) ||
-      (this._skew != null && !this._skew.equals(other._skew))
-    ) {
-      return false;
-    }
-    if (
-      (this._scale == null) !== (other._scale == null) ||
-      (this._scale != null &&
-        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
-    ) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -743,18 +624,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     }
     if (this._opacity != null) {
       h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
-    }
-    if (this._fill != null) {
-      h = (h * 31 + this._fill.hash()) & 0xffffffff;
-    }
-    if (this._rotation != null) {
-      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
-    }
-    if (this._skew != null) {
-      h = (h * 31 + this._skew.hash()) & 0xffffffff;
-    }
-    if (this._scale != null) {
-      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -900,18 +769,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     if (object._opacity != null) {
       objectCson["141"] = object._opacity;
     }
-    if (object._fill != null) {
-      objectCson["142"] = object._fill.toCson();
-    }
-    if (object._rotation != null) {
-      objectCson["143"] = object._rotation.toCson();
-    }
-    if (object._skew != null) {
-      objectCson["144"] = object._skew.toCson();
-    }
-    if (object._scale != null) {
-      objectCson["145"] = object._scale;
-    }
     return objectCson;
   }
 
@@ -925,9 +782,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -937,23 +791,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
     const opacityValue = objectCson["141"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectCson["142"];
-    const unpackedFill =
-      fillValue != undefined
-        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const rotationValue = objectCson["143"];
-    const unpackedRotation =
-      rotationValue != undefined
-        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const skewValue = objectCson["144"];
-    const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["145"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const ownedByPtrValue = objectCson["32"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -1016,10 +853,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
       icon: unpackedIcon,
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
-      fill: unpackedFill,
-      rotation: unpackedRotation,
-      skew: unpackedSkew,
-      scale: unpackedScale,
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectCson["31"],
       script: unpackedScriptPtr,
@@ -1123,18 +956,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     if (object._opacity != null) {
       objectProto.opacity = object._opacity;
     }
-    if (object._fill != null) {
-      objectProto.fill = object._fill.toProto();
-    }
-    if (object._rotation != null) {
-      objectProto.rotation = object._rotation.toProto();
-    }
-    if (object._skew != null) {
-      objectProto.skew = object._skew.toProto();
-    }
-    if (object._scale != null) {
-      objectProto.scale = object._scale;
-    }
     return objectProto as LayerProto;
   }
 
@@ -1148,9 +969,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1168,19 +986,6 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
           : null,
       isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      fill:
-        objectProto.fill != undefined
-          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
-          : null,
-      rotation:
-        objectProto.rotation != undefined
-          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1321,3 +1126,18 @@ export class Layer extends Entity implements IsOwnable, IsOrdered, IsScriptable 
 }
 registerNodeClass(NodeType.LAYER, Layer);
 /* ==== DESTACK_GENERATED_END:NODE:1700300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:1700300 ==== */
+/**
+ * LayerType
+ */
+export enum LayerType {
+  GENERAL = 1,
+  SHAPE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.LAYER_TYPE, LayerType);
+/* ==== DESTACK_GENERATED_END:ENUM:1700300 ==== */

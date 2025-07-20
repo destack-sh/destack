@@ -138,7 +138,7 @@ registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:1700200 ==== */
 /**
- * A Scene is a container for an interaction point.
+ * A Scene contains some interactive part of a Stage.
  */
 export class Scene extends Entity implements IsOwnable, IsOrdered, IsExtensible {
   static metatype: NodeType = NodeType.SCENE;

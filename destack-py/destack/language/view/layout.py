@@ -10,9 +10,9 @@ if TYPE_CHECKING:
         Axis2,
         Direction,
         Distribute,
-        Grid,
-        GridSpan,
-        Insets,
+        Grid2,
+        GridSpan2,
+        Inset2,
         Layout,
     )
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 )
 class LayoutView(View):
     """
-    A Layout View defines how its children Views are laid out.
+    A Layout View defines how its children  are laid out.
     """
 
     # layout
@@ -35,8 +35,8 @@ class LayoutView(View):
     distribute: Optional["Distribute"] = builtin_property(152)
     align: Optional["Align"] = builtin_property(153)
     gap: Optional["Axis2"] = builtin_property(154)
-    padding: Optional["Insets"] = builtin_property(155)
-    grid: Optional["Grid"] = builtin_property(156)
-    grid_span: Optional["GridSpan"] = builtin_property(157)
+    padding: Optional["Inset2"] = builtin_property(155)
+    grid: Optional["Grid2"] = builtin_property(156)
+    grid_span: Optional["GridSpan2"] = builtin_property(157)
     aspect_ratio: Optional[float] = builtin_property(158)
     is_wrap: Optional[bool] = builtin_property(159)

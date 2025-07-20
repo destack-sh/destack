@@ -30,4 +30,5 @@ class Rectangle2D(StructFrozen):
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 
-    pass
+    width: Optional["Vector2"] = builtin_property(210)
+    height: Optional["Vector2"] = builtin_property(220)

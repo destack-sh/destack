@@ -24,6 +24,8 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Offset2 } from "@destack/language/geometry/relative";
+import { Anchor } from "@destack/language/geometry/relative";
 import { Shape2D } from "@destack/language/geometry/shape";
 import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
@@ -32,11 +34,15 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
-import type { Axis3, Corners, Dimension, Position } from "@destack/language/view";
-import { Ellipse2DProto, EllipseShape2DProto, MaterializationProto } from "@destack/proto";
+import type { Stroke } from "@destack/language/style";
+import {
+  AnchorProto,
+  Ellipse2DProto,
+  EllipseShape2DProto,
+  MaterializationProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2411400 ==== */
@@ -237,7 +243,7 @@ export class Ellipse2D extends StructFrozen {
 registerStructClass(StructType.ELLIPSE2D, Ellipse2D);
 /* ==== DESTACK_GENERATED_END:STRUCT:2411400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2411400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2410400 ==== */
 /**
  * A EllipseShape is a shape that represents a ellipse.
  */
@@ -453,58 +459,74 @@ export class EllipseShape2D extends Shape2D {
   readonly isExtensible: boolean;
 
   /**
-   * View.position
+   * Entity2D.position
    */
   /**
-   * View.position
+   * Entity2D.position
    */
-  get position(): Position | null {
+  get position(): Vector2 | null {
     return this._position;
   }
-  set position(value: Position | null) {
+  set position(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["position"];
     this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
-  _position: Position | null;
+  _position: Vector2 | null;
 
   /**
-   * View.scale
+   * Entity2D.offset
    */
   /**
-   * View.scale
+   * Entity2D.offset
    */
-  get scale(): number | null {
+  get offset(): Offset2 | null {
+    return this._offset;
+  }
+  set offset(value: Offset2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["offset"];
+    this._session.updateSetProperty(this, prop, value);
+    this._offset = value;
+  }
+  _offset: Offset2 | null;
+
+  /**
+   * Entity2D.scale
+   */
+  /**
+   * Entity2D.scale
+   */
+  get scale(): Vector2 | null {
     return this._scale;
   }
-  set scale(value: number | null) {
+  set scale(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["scale"];
     this._session.updateSetProperty(this, prop, value);
     this._scale = value;
   }
-  _scale: number | null;
+  _scale: Vector2 | null;
 
   /**
-   * View.rotation
+   * Entity2D.rotation
    */
   /**
-   * View.rotation
+   * Entity2D.rotation
    */
-  get rotation(): Axis3 | null {
+  get rotation(): Vector2 | null {
     return this._rotation;
   }
-  set rotation(value: Axis3 | null) {
+  set rotation(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["rotation"];
     this._session.updateSetProperty(this, prop, value);
     this._rotation = value;
   }
-  _rotation: Axis3 | null;
+  _rotation: Vector2 | null;
 
   /**
-   * View.skew
+   * Entity2D.skew
    */
   /**
-   * View.skew
+   * Entity2D.skew
    */
   get skew(): Vector2 | null {
     return this._skew;
@@ -517,202 +539,42 @@ export class EllipseShape2D extends Shape2D {
   _skew: Vector2 | null;
 
   /**
-   * View.width
+   * Entity2D.origin
    */
   /**
-   * View.width
+   * Entity2D.origin
    */
-  get width(): Dimension | null {
-    return this._width;
+  get origin(): Vector2 | null {
+    return this._origin;
   }
-  set width(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["width"];
+  set origin(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["origin"];
     this._session.updateSetProperty(this, prop, value);
-    this._width = value;
+    this._origin = value;
   }
-  _width: Dimension | null;
+  _origin: Vector2 | null;
 
   /**
-   * View.height
+   * Entity2D.anchor
    */
   /**
-   * View.height
+   * Entity2D.anchor
    */
-  get height(): Dimension | null {
-    return this._height;
+  get anchor(): Anchor | null {
+    return this._anchor;
   }
-  set height(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["height"];
+  set anchor(value: Anchor | null) {
+    const prop = (this.constructor as NodeClass).__properties__["anchor"];
     this._session.updateSetProperty(this, prop, value);
-    this._height = value;
+    this._anchor = value;
   }
-  _height: Dimension | null;
+  _anchor: Anchor | null;
 
   /**
-   * View.minWidth
+   * Shape2D.stroke
    */
   /**
-   * View.minWidth
-   */
-  get minWidth(): Dimension | null {
-    return this._minWidth;
-  }
-  set minWidth(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["min_width"];
-    this._session.updateSetProperty(this, prop, value);
-    this._minWidth = value;
-  }
-  _minWidth: Dimension | null;
-
-  /**
-   * View.minHeight
-   */
-  /**
-   * View.minHeight
-   */
-  get minHeight(): Dimension | null {
-    return this._minHeight;
-  }
-  set minHeight(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["min_height"];
-    this._session.updateSetProperty(this, prop, value);
-    this._minHeight = value;
-  }
-  _minHeight: Dimension | null;
-
-  /**
-   * View.maxWidth
-   */
-  /**
-   * View.maxWidth
-   */
-  get maxWidth(): Dimension | null {
-    return this._maxWidth;
-  }
-  set maxWidth(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["max_width"];
-    this._session.updateSetProperty(this, prop, value);
-    this._maxWidth = value;
-  }
-  _maxWidth: Dimension | null;
-
-  /**
-   * View.maxHeight
-   */
-  /**
-   * View.maxHeight
-   */
-  get maxHeight(): Dimension | null {
-    return this._maxHeight;
-  }
-  set maxHeight(value: Dimension | null) {
-    const prop = (this.constructor as NodeClass).__properties__["max_height"];
-    this._session.updateSetProperty(this, prop, value);
-    this._maxHeight = value;
-  }
-  _maxHeight: Dimension | null;
-
-  /**
-   * View.isVisible
-   */
-  /**
-   * View.isVisible
-   */
-  get isVisible(): boolean | null {
-    return this._isVisible;
-  }
-  set isVisible(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
-    this._session.updateSetProperty(this, prop, value);
-    this._isVisible = value;
-  }
-  _isVisible: boolean | null;
-
-  /**
-   * View.opacity
-   */
-  /**
-   * View.opacity
-   */
-  get opacity(): number | null {
-    return this._opacity;
-  }
-  set opacity(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["opacity"];
-    this._session.updateSetProperty(this, prop, value);
-    this._opacity = value;
-  }
-  _opacity: number | null;
-
-  /**
-   * View.fill
-   */
-  /**
-   * View.fill
-   */
-  get fill(): Fill | null {
-    return this._fill;
-  }
-  set fill(value: Fill | null) {
-    const prop = (this.constructor as NodeClass).__properties__["fill"];
-    this._session.updateSetProperty(this, prop, value);
-    this._fill = value;
-  }
-  _fill: Fill | null;
-
-  /**
-   * View.shadow
-   */
-  /**
-   * View.shadow
-   */
-  get shadow(): Shadow | null {
-    return this._shadow;
-  }
-  set shadow(value: Shadow | null) {
-    const prop = (this.constructor as NodeClass).__properties__["shadow"];
-    this._session.updateSetProperty(this, prop, value);
-    this._shadow = value;
-  }
-  _shadow: Shadow | null;
-
-  /**
-   * View.border
-   */
-  /**
-   * View.border
-   */
-  get border(): Border | null {
-    return this._border;
-  }
-  set border(value: Border | null) {
-    const prop = (this.constructor as NodeClass).__properties__["border"];
-    this._session.updateSetProperty(this, prop, value);
-    this._border = value;
-  }
-  _border: Border | null;
-
-  /**
-   * View.radius
-   */
-  /**
-   * View.radius
-   */
-  get radius(): Corners | null {
-    return this._radius;
-  }
-  set radius(value: Corners | null) {
-    const prop = (this.constructor as NodeClass).__properties__["radius"];
-    this._session.updateSetProperty(this, prop, value);
-    this._radius = value;
-  }
-  _radius: Corners | null;
-
-  /**
-   * Shape.stroke
-   */
-  /**
-   * Shape.stroke
+   * Shape2D.stroke
    */
   get stroke(): Stroke | null {
     return this._stroke;
@@ -745,22 +607,13 @@ export class EllipseShape2D extends Shape2D {
     name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    position?: Position | null;
-    scale?: number | null;
-    rotation?: Axis3 | null;
+    position?: Vector2 | null;
+    offset?: Offset2 | null;
+    scale?: Vector2 | null;
+    rotation?: Vector2 | null;
     skew?: Vector2 | null;
-    width?: Dimension | null;
-    height?: Dimension | null;
-    minWidth?: Dimension | null;
-    minHeight?: Dimension | null;
-    maxWidth?: Dimension | null;
-    maxHeight?: Dimension | null;
-    isVisible?: boolean | null;
-    opacity?: number | null;
-    fill?: Fill | null;
-    shadow?: Shadow | null;
-    border?: Border | null;
-    radius?: Corners | null;
+    origin?: Vector2 | null;
+    anchor?: Anchor | null;
     stroke?: Stroke | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -892,36 +745,18 @@ export class EllipseShape2D extends Shape2D {
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
     this._position = _position;
+    let _offset = options.offset ?? null;
+    this._offset = _offset;
     let _scale = options.scale ?? null;
     this._scale = _scale;
     let _rotation = options.rotation ?? null;
     this._rotation = _rotation;
     let _skew = options.skew ?? null;
     this._skew = _skew;
-    let _width = options.width ?? null;
-    this._width = _width;
-    let _height = options.height ?? null;
-    this._height = _height;
-    let _minWidth = options.minWidth ?? null;
-    this._minWidth = _minWidth;
-    let _minHeight = options.minHeight ?? null;
-    this._minHeight = _minHeight;
-    let _maxWidth = options.maxWidth ?? null;
-    this._maxWidth = _maxWidth;
-    let _maxHeight = options.maxHeight ?? null;
-    this._maxHeight = _maxHeight;
-    let _isVisible = options.isVisible ?? null;
-    this._isVisible = _isVisible;
-    let _opacity = options.opacity ?? null;
-    this._opacity = _opacity;
-    let _fill = options.fill ?? null;
-    this._fill = _fill;
-    let _shadow = options.shadow ?? null;
-    this._shadow = _shadow;
-    let _border = options.border ?? null;
-    this._border = _border;
-    let _radius = options.radius ?? null;
-    this._radius = _radius;
+    let _origin = options.origin ?? null;
+    this._origin = _origin;
+    let _anchor = options.anchor ?? null;
+    this._anchor = _anchor;
     let _stroke = options.stroke ?? null;
     this._stroke = _stroke;
 
@@ -982,9 +817,14 @@ export class EllipseShape2D extends Shape2D {
       return false;
     }
     if (
+      (this._offset == null) !== (other._offset == null) ||
+      (this._offset != null && !this._offset.equals(other._offset))
+    ) {
+      return false;
+    }
+    if (
       (this._scale == null) !== (other._scale == null) ||
-      (this._scale != null &&
-        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
+      (this._scale != null && !this._scale.equals(other._scale))
     ) {
       return false;
     }
@@ -1001,73 +841,12 @@ export class EllipseShape2D extends Shape2D {
       return false;
     }
     if (
-      (this._width == null) !== (other._width == null) ||
-      (this._width != null && !this._width.equals(other._width))
+      (this._origin == null) !== (other._origin == null) ||
+      (this._origin != null && !this._origin.equals(other._origin))
     ) {
       return false;
     }
-    if (
-      (this._height == null) !== (other._height == null) ||
-      (this._height != null && !this._height.equals(other._height))
-    ) {
-      return false;
-    }
-    if (
-      (this._minWidth == null) !== (other._minWidth == null) ||
-      (this._minWidth != null && !this._minWidth.equals(other._minWidth))
-    ) {
-      return false;
-    }
-    if (
-      (this._minHeight == null) !== (other._minHeight == null) ||
-      (this._minHeight != null && !this._minHeight.equals(other._minHeight))
-    ) {
-      return false;
-    }
-    if (
-      (this._maxWidth == null) !== (other._maxWidth == null) ||
-      (this._maxWidth != null && !this._maxWidth.equals(other._maxWidth))
-    ) {
-      return false;
-    }
-    if (
-      (this._maxHeight == null) !== (other._maxHeight == null) ||
-      (this._maxHeight != null && !this._maxHeight.equals(other._maxHeight))
-    ) {
-      return false;
-    }
-    if (!(this._isVisible === other._isVisible)) {
-      return false;
-    }
-    if (
-      (this._opacity == null) !== (other._opacity == null) ||
-      (this._opacity != null &&
-        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this._fill == null) !== (other._fill == null) ||
-      (this._fill != null && !this._fill.equals(other._fill))
-    ) {
-      return false;
-    }
-    if (
-      (this._shadow == null) !== (other._shadow == null) ||
-      (this._shadow != null && !this._shadow.equals(other._shadow))
-    ) {
-      return false;
-    }
-    if (
-      (this._border == null) !== (other._border == null) ||
-      (this._border != null && !this._border.equals(other._border))
-    ) {
-      return false;
-    }
-    if (
-      (this._radius == null) !== (other._radius == null) ||
-      (this._radius != null && !this._radius.equals(other._radius))
-    ) {
+    if (!(this._anchor === other._anchor)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
@@ -1108,8 +887,11 @@ export class EllipseShape2D extends Shape2D {
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
+    if (this._offset != null) {
+      h = (h * 31 + this._offset.hash()) & 0xffffffff;
+    }
     if (this._scale != null) {
-      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
+      h = (h * 31 + this._scale.hash()) & 0xffffffff;
     }
     if (this._rotation != null) {
       h = (h * 31 + this._rotation.hash()) & 0xffffffff;
@@ -1117,41 +899,11 @@ export class EllipseShape2D extends Shape2D {
     if (this._skew != null) {
       h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
-    if (this._width != null) {
-      h = (h * 31 + this._width.hash()) & 0xffffffff;
+    if (this._origin != null) {
+      h = (h * 31 + this._origin.hash()) & 0xffffffff;
     }
-    if (this._height != null) {
-      h = (h * 31 + this._height.hash()) & 0xffffffff;
-    }
-    if (this._minWidth != null) {
-      h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
-    }
-    if (this._minHeight != null) {
-      h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
-    }
-    if (this._maxWidth != null) {
-      h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
-    }
-    if (this._maxHeight != null) {
-      h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
-    }
-    if (this._isVisible != null) {
-      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
-    }
-    if (this._opacity != null) {
-      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
-    }
-    if (this._fill != null) {
-      h = (h * 31 + this._fill.hash()) & 0xffffffff;
-    }
-    if (this._shadow != null) {
-      h = (h * 31 + this._shadow.hash()) & 0xffffffff;
-    }
-    if (this._border != null) {
-      h = (h * 31 + this._border.hash()) & 0xffffffff;
-    }
-    if (this._radius != null) {
-      h = (h * 31 + this._radius.hash()) & 0xffffffff;
+    if (this._anchor != null) {
+      h = (h * 31 + this._anchor) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
@@ -1239,7 +991,7 @@ export class EllipseShape2D extends Shape2D {
 
   static __packCson__(object: EllipseShape2D): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2411400;
+    objectCson["1"] = 2410400;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1285,50 +1037,23 @@ export class EllipseShape2D extends Shape2D {
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
+    if (object._offset != null) {
+      objectCson["111"] = object._offset.toCson();
+    }
     if (object._scale != null) {
-      objectCson["111"] = object._scale;
+      objectCson["112"] = object._scale.toCson();
     }
     if (object._rotation != null) {
-      objectCson["112"] = object._rotation.toCson();
+      objectCson["113"] = object._rotation.toCson();
     }
     if (object._skew != null) {
-      objectCson["113"] = object._skew.toCson();
+      objectCson["114"] = object._skew.toCson();
     }
-    if (object._width != null) {
-      objectCson["120"] = object._width.toCson();
+    if (object._origin != null) {
+      objectCson["115"] = object._origin.toCson();
     }
-    if (object._height != null) {
-      objectCson["121"] = object._height.toCson();
-    }
-    if (object._minWidth != null) {
-      objectCson["122"] = object._minWidth.toCson();
-    }
-    if (object._minHeight != null) {
-      objectCson["123"] = object._minHeight.toCson();
-    }
-    if (object._maxWidth != null) {
-      objectCson["124"] = object._maxWidth.toCson();
-    }
-    if (object._maxHeight != null) {
-      objectCson["125"] = object._maxHeight.toCson();
-    }
-    if (object._isVisible != null) {
-      objectCson["130"] = object._isVisible;
-    }
-    if (object._opacity != null) {
-      objectCson["131"] = object._opacity;
-    }
-    if (object._fill != null) {
-      objectCson["132"] = object._fill.toCson();
-    }
-    if (object._shadow != null) {
-      objectCson["136"] = object._shadow.toCson();
-    }
-    if (object._border != null) {
-      objectCson["137"] = object._border.toCson();
-    }
-    if (object._radius != null) {
-      objectCson["138"] = object._radius.toCson();
+    if (object._anchor != null) {
+      objectCson["116"] = object._anchor;
     }
     if (object._stroke != null) {
       objectCson["180"] = object._stroke.toCson();
@@ -1345,15 +1070,9 @@ export class EllipseShape2D extends Shape2D {
   ): EllipseShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
-    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
     const strokeValue = objectCson["180"];
     const unpackedStroke =
       strokeValue != undefined
@@ -1362,74 +1081,35 @@ export class EllipseShape2D extends Shape2D {
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
-        ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(positionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectCson["111"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotationValue = objectCson["112"];
+    const offsetValue = objectCson["111"];
+    const unpackedOffset =
+      offsetValue != undefined
+        ? _Offset2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scaleValue = objectCson["112"];
+    const unpackedScale =
+      scaleValue != undefined
+        ? _Vector2.fromCson(scaleValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const rotationValue = objectCson["113"];
     const unpackedRotation =
       rotationValue != undefined
-        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectCson["113"];
+    const skewValue = objectCson["114"];
     const unpackedSkew =
       skewValue != undefined
         ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const widthValue = objectCson["120"];
-    const unpackedWidth =
-      widthValue != undefined
-        ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
+    const originValue = objectCson["115"];
+    const unpackedOrigin =
+      originValue != undefined
+        ? _Vector2.fromCson(originValue, _session, _supergraph, _graph, _connection)
         : null;
-    const heightValue = objectCson["121"];
-    const unpackedHeight =
-      heightValue != undefined
-        ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const minWidthValue = objectCson["122"];
-    const unpackedMinWidth =
-      minWidthValue != undefined
-        ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const minHeightValue = objectCson["123"];
-    const unpackedMinHeight =
-      minHeightValue != undefined
-        ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const maxWidthValue = objectCson["124"];
-    const unpackedMaxWidth =
-      maxWidthValue != undefined
-        ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const maxHeightValue = objectCson["125"];
-    const unpackedMaxHeight =
-      maxHeightValue != undefined
-        ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const isVisibleValue = objectCson["130"];
-    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectCson["131"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectCson["132"];
-    const unpackedFill =
-      fillValue != undefined
-        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const shadowValue = objectCson["136"];
-    const unpackedShadow =
-      shadowValue != undefined
-        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const borderValue = objectCson["137"];
-    const unpackedBorder =
-      borderValue != undefined
-        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const radiusValue = objectCson["138"];
-    const unpackedRadius =
-      radiusValue != undefined
-        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
-        : null;
+    const anchorValue = objectCson["116"];
+    const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1485,21 +1165,12 @@ export class EllipseShape2D extends Shape2D {
     return new EllipseShape2D({
       stroke: unpackedStroke,
       position: unpackedPosition,
+      offset: unpackedOffset,
       scale: unpackedScale,
       rotation: unpackedRotation,
       skew: unpackedSkew,
-      width: unpackedWidth,
-      height: unpackedHeight,
-      minWidth: unpackedMinWidth,
-      minHeight: unpackedMinHeight,
-      maxWidth: unpackedMaxWidth,
-      maxHeight: unpackedMaxHeight,
-      isVisible: unpackedIsVisible,
-      opacity: unpackedOpacity,
-      fill: unpackedFill,
-      shadow: unpackedShadow,
-      border: unpackedBorder,
-      radius: unpackedRadius,
+      origin: unpackedOrigin,
+      anchor: unpackedAnchor,
       isExtensible: objectCson["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
@@ -1547,7 +1218,7 @@ export class EllipseShape2D extends Shape2D {
   }
 
   static __packProto__(object: EllipseShape2D): EllipseShape2DProto {
-    const objectProto: Partial<EllipseShape2DProto> = { metatype: 2411400 };
+    const objectProto: Partial<EllipseShape2DProto> = { metatype: 2410400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1592,8 +1263,11 @@ export class EllipseShape2D extends Shape2D {
     if (object._position != null) {
       objectProto.position = object._position.toProto();
     }
+    if (object._offset != null) {
+      objectProto.offset = object._offset.toProto();
+    }
     if (object._scale != null) {
-      objectProto.scale = object._scale;
+      objectProto.scale = object._scale.toProto();
     }
     if (object._rotation != null) {
       objectProto.rotation = object._rotation.toProto();
@@ -1601,41 +1275,11 @@ export class EllipseShape2D extends Shape2D {
     if (object._skew != null) {
       objectProto.skew = object._skew.toProto();
     }
-    if (object._width != null) {
-      objectProto.width = object._width.toProto();
+    if (object._origin != null) {
+      objectProto.origin = object._origin.toProto();
     }
-    if (object._height != null) {
-      objectProto.height = object._height.toProto();
-    }
-    if (object._minWidth != null) {
-      objectProto.minWidth = object._minWidth.toProto();
-    }
-    if (object._minHeight != null) {
-      objectProto.minHeight = object._minHeight.toProto();
-    }
-    if (object._maxWidth != null) {
-      objectProto.maxWidth = object._maxWidth.toProto();
-    }
-    if (object._maxHeight != null) {
-      objectProto.maxHeight = object._maxHeight.toProto();
-    }
-    if (object._isVisible != null) {
-      objectProto.isVisible = object._isVisible;
-    }
-    if (object._opacity != null) {
-      objectProto.opacity = object._opacity;
-    }
-    if (object._fill != null) {
-      objectProto.fill = object._fill.toProto();
-    }
-    if (object._shadow != null) {
-      objectProto.shadow = object._shadow.toProto();
-    }
-    if (object._border != null) {
-      objectProto.border = object._border.toProto();
-    }
-    if (object._radius != null) {
-      objectProto.radius = object._radius.toProto();
+    if (object._anchor != null) {
+      objectProto.anchor = Number(object._anchor) as AnchorProto;
     }
     if (object._stroke != null) {
       objectProto.stroke = object._stroke.toProto();
@@ -1652,15 +1296,9 @@ export class EllipseShape2D extends Shape2D {
   ): EllipseShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
-    const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1677,59 +1315,29 @@ export class EllipseShape2D extends Shape2D {
           : null,
       position:
         objectProto.position != undefined
-          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      offset:
+        objectProto.offset != undefined
+          ? _Offset2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale:
+        objectProto.scale != undefined
+          ? _Vector2.fromProto(objectProto.scale!, _session, _supergraph, _graph, _connection)
+          : null,
       rotation:
         objectProto.rotation != undefined
-          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
           : null,
       skew:
         objectProto.skew != undefined
           ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
-      width:
-        objectProto.width != undefined
-          ? _Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+      origin:
+        objectProto.origin != undefined
+          ? _Vector2.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
           : null,
-      height:
-        objectProto.height != undefined
-          ? _Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
-          : null,
-      minWidth:
-        objectProto.minWidth != undefined
-          ? _Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
-          : null,
-      minHeight:
-        objectProto.minHeight != undefined
-          ? _Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
-          : null,
-      maxWidth:
-        objectProto.maxWidth != undefined
-          ? _Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
-          : null,
-      maxHeight:
-        objectProto.maxHeight != undefined
-          ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
-          : null,
-      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      fill:
-        objectProto.fill != undefined
-          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
-          : null,
-      shadow:
-        objectProto.shadow != undefined
-          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
-          : null,
-      border:
-        objectProto.border != undefined
-          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
-          : null,
-      radius:
-        objectProto.radius != undefined
-          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
-          : null,
+      anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
       isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
@@ -1859,4 +1467,4 @@ export class EllipseShape2D extends Shape2D {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ELLIPSE_SHAPE2D, EllipseShape2D);
-/* ==== DESTACK_GENERATED_END:NODE:2411400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2410400 ==== */

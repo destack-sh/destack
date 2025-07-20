@@ -3,6 +3,8 @@ export * from "@destack/language/geometry/ellipse";
 export * from "@destack/language/geometry/line";
 export * from "@destack/language/geometry/path";
 export * from "@destack/language/geometry/polygon";
+export * from "@destack/language/geometry/quaternion";
 export * from "@destack/language/geometry/rectangle";
+export * from "@destack/language/geometry/relative";
 export * from "@destack/language/geometry/shape";
 export * from "@destack/language/geometry/vector";

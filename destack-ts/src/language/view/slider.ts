@@ -23,13 +23,13 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import type { Corner2, Length, Offset2, Vector2 } from "@destack/language/geometry";
+import { Anchor } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
-import type { Axis3, Corners, Dimension, Position } from "@destack/language/view/common";
 import { InputView } from "@destack/language/view/input";
-import { MaterializationProto, SliderInputViewProto } from "@destack/proto";
+import { AnchorProto, MaterializationProto, SliderInputViewProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -250,58 +250,74 @@ export class SliderInputView extends InputView {
   readonly isExtensible: boolean;
 
   /**
-   * View.position
+   * Entity2D.position
    */
   /**
-   * View.position
+   * Entity2D.position
    */
-  get position(): Position | null {
+  get position(): Vector2 | null {
     return this._position;
   }
-  set position(value: Position | null) {
+  set position(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["position"];
     this._session.updateSetProperty(this, prop, value);
     this._position = value;
   }
-  _position: Position | null;
+  _position: Vector2 | null;
 
   /**
-   * View.scale
+   * Entity2D.offset
    */
   /**
-   * View.scale
+   * Entity2D.offset
    */
-  get scale(): number | null {
+  get offset(): Offset2 | null {
+    return this._offset;
+  }
+  set offset(value: Offset2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["offset"];
+    this._session.updateSetProperty(this, prop, value);
+    this._offset = value;
+  }
+  _offset: Offset2 | null;
+
+  /**
+   * Entity2D.scale
+   */
+  /**
+   * Entity2D.scale
+   */
+  get scale(): Vector2 | null {
     return this._scale;
   }
-  set scale(value: number | null) {
+  set scale(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["scale"];
     this._session.updateSetProperty(this, prop, value);
     this._scale = value;
   }
-  _scale: number | null;
+  _scale: Vector2 | null;
 
   /**
-   * View.rotation
+   * Entity2D.rotation
    */
   /**
-   * View.rotation
+   * Entity2D.rotation
    */
-  get rotation(): Axis3 | null {
+  get rotation(): Vector2 | null {
     return this._rotation;
   }
-  set rotation(value: Axis3 | null) {
+  set rotation(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["rotation"];
     this._session.updateSetProperty(this, prop, value);
     this._rotation = value;
   }
-  _rotation: Axis3 | null;
+  _rotation: Vector2 | null;
 
   /**
-   * View.skew
+   * Entity2D.skew
    */
   /**
-   * View.skew
+   * Entity2D.skew
    */
   get skew(): Vector2 | null {
     return this._skew;
@@ -314,20 +330,52 @@ export class SliderInputView extends InputView {
   _skew: Vector2 | null;
 
   /**
+   * Entity2D.origin
+   */
+  /**
+   * Entity2D.origin
+   */
+  get origin(): Vector2 | null {
+    return this._origin;
+  }
+  set origin(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["origin"];
+    this._session.updateSetProperty(this, prop, value);
+    this._origin = value;
+  }
+  _origin: Vector2 | null;
+
+  /**
+   * Entity2D.anchor
+   */
+  /**
+   * Entity2D.anchor
+   */
+  get anchor(): Anchor | null {
+    return this._anchor;
+  }
+  set anchor(value: Anchor | null) {
+    const prop = (this.constructor as NodeClass).__properties__["anchor"];
+    this._session.updateSetProperty(this, prop, value);
+    this._anchor = value;
+  }
+  _anchor: Anchor | null;
+
+  /**
    * View.width
    */
   /**
    * View.width
    */
-  get width(): Dimension | null {
+  get width(): Length | null {
     return this._width;
   }
-  set width(value: Dimension | null) {
+  set width(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["width"];
     this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
-  _width: Dimension | null;
+  _width: Length | null;
 
   /**
    * View.height
@@ -335,15 +383,15 @@ export class SliderInputView extends InputView {
   /**
    * View.height
    */
-  get height(): Dimension | null {
+  get height(): Length | null {
     return this._height;
   }
-  set height(value: Dimension | null) {
+  set height(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["height"];
     this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
-  _height: Dimension | null;
+  _height: Length | null;
 
   /**
    * View.minWidth
@@ -351,15 +399,15 @@ export class SliderInputView extends InputView {
   /**
    * View.minWidth
    */
-  get minWidth(): Dimension | null {
+  get minWidth(): Length | null {
     return this._minWidth;
   }
-  set minWidth(value: Dimension | null) {
+  set minWidth(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["min_width"];
     this._session.updateSetProperty(this, prop, value);
     this._minWidth = value;
   }
-  _minWidth: Dimension | null;
+  _minWidth: Length | null;
 
   /**
    * View.minHeight
@@ -367,15 +415,15 @@ export class SliderInputView extends InputView {
   /**
    * View.minHeight
    */
-  get minHeight(): Dimension | null {
+  get minHeight(): Length | null {
     return this._minHeight;
   }
-  set minHeight(value: Dimension | null) {
+  set minHeight(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["min_height"];
     this._session.updateSetProperty(this, prop, value);
     this._minHeight = value;
   }
-  _minHeight: Dimension | null;
+  _minHeight: Length | null;
 
   /**
    * View.maxWidth
@@ -383,15 +431,15 @@ export class SliderInputView extends InputView {
   /**
    * View.maxWidth
    */
-  get maxWidth(): Dimension | null {
+  get maxWidth(): Length | null {
     return this._maxWidth;
   }
-  set maxWidth(value: Dimension | null) {
+  set maxWidth(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["max_width"];
     this._session.updateSetProperty(this, prop, value);
     this._maxWidth = value;
   }
-  _maxWidth: Dimension | null;
+  _maxWidth: Length | null;
 
   /**
    * View.maxHeight
@@ -399,15 +447,15 @@ export class SliderInputView extends InputView {
   /**
    * View.maxHeight
    */
-  get maxHeight(): Dimension | null {
+  get maxHeight(): Length | null {
     return this._maxHeight;
   }
-  set maxHeight(value: Dimension | null) {
+  set maxHeight(value: Length | null) {
     const prop = (this.constructor as NodeClass).__properties__["max_height"];
     this._session.updateSetProperty(this, prop, value);
     this._maxHeight = value;
   }
-  _maxHeight: Dimension | null;
+  _maxHeight: Length | null;
 
   /**
    * View.isVisible
@@ -495,15 +543,15 @@ export class SliderInputView extends InputView {
   /**
    * View.radius
    */
-  get radius(): Corners | null {
+  get radius(): Corner2 | null {
     return this._radius;
   }
-  set radius(value: Corners | null) {
+  set radius(value: Corner2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["radius"];
     this._session.updateSetProperty(this, prop, value);
     this._radius = value;
   }
-  _radius: Corners | null;
+  _radius: Corner2 | null;
 
   /**
    * SliderInputView.value
@@ -590,22 +638,25 @@ export class SliderInputView extends InputView {
     name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    position?: Position | null;
-    scale?: number | null;
-    rotation?: Axis3 | null;
+    position?: Vector2 | null;
+    offset?: Offset2 | null;
+    scale?: Vector2 | null;
+    rotation?: Vector2 | null;
     skew?: Vector2 | null;
-    width?: Dimension | null;
-    height?: Dimension | null;
-    minWidth?: Dimension | null;
-    minHeight?: Dimension | null;
-    maxWidth?: Dimension | null;
-    maxHeight?: Dimension | null;
+    origin?: Vector2 | null;
+    anchor?: Anchor | null;
+    width?: Length | null;
+    height?: Length | null;
+    minWidth?: Length | null;
+    minHeight?: Length | null;
+    maxWidth?: Length | null;
+    maxHeight?: Length | null;
     isVisible?: boolean | null;
     opacity?: number | null;
     fill?: Fill | null;
     shadow?: Shadow | null;
     border?: Border | null;
-    radius?: Corners | null;
+    radius?: Corner2 | null;
     value?: number | null;
     minValue?: number | null;
     maxValue?: number | null;
@@ -740,12 +791,18 @@ export class SliderInputView extends InputView {
     this.isExtensible = _isExtensible;
     let _position = options.position ?? null;
     this._position = _position;
+    let _offset = options.offset ?? null;
+    this._offset = _offset;
     let _scale = options.scale ?? null;
     this._scale = _scale;
     let _rotation = options.rotation ?? null;
     this._rotation = _rotation;
     let _skew = options.skew ?? null;
     this._skew = _skew;
+    let _origin = options.origin ?? null;
+    this._origin = _origin;
+    let _anchor = options.anchor ?? null;
+    this._anchor = _anchor;
     let _width = options.width ?? null;
     this._width = _width;
     let _height = options.height ?? null;
@@ -852,31 +909,6 @@ export class SliderInputView extends InputView {
       return false;
     }
     if (
-      (this._position == null) !== (other._position == null) ||
-      (this._position != null && !this._position.equals(other._position))
-    ) {
-      return false;
-    }
-    if (
-      (this._scale == null) !== (other._scale == null) ||
-      (this._scale != null &&
-        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this._rotation == null) !== (other._rotation == null) ||
-      (this._rotation != null && !this._rotation.equals(other._rotation))
-    ) {
-      return false;
-    }
-    if (
-      (this._skew == null) !== (other._skew == null) ||
-      (this._skew != null && !this._skew.equals(other._skew))
-    ) {
-      return false;
-    }
-    if (
       (this._width == null) !== (other._width == null) ||
       (this._width != null && !this._width.equals(other._width))
     ) {
@@ -946,6 +978,45 @@ export class SliderInputView extends InputView {
     ) {
       return false;
     }
+    if (
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
+    ) {
+      return false;
+    }
+    if (
+      (this._offset == null) !== (other._offset == null) ||
+      (this._offset != null && !this._offset.equals(other._offset))
+    ) {
+      return false;
+    }
+    if (
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null && !this._scale.equals(other._scale))
+    ) {
+      return false;
+    }
+    if (
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
+    ) {
+      return false;
+    }
+    if (
+      (this._origin == null) !== (other._origin == null) ||
+      (this._origin != null && !this._origin.equals(other._origin))
+    ) {
+      return false;
+    }
+    if (!(this._anchor === other._anchor)) {
+      return false;
+    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -990,18 +1061,6 @@ export class SliderInputView extends InputView {
     if (this._step != null) {
       h = (h * 31 + hashFloat(this._step)) & 0xffffffff;
     }
-    if (this._position != null) {
-      h = (h * 31 + this._position.hash()) & 0xffffffff;
-    }
-    if (this._scale != null) {
-      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
-    }
-    if (this._rotation != null) {
-      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
-    }
-    if (this._skew != null) {
-      h = (h * 31 + this._skew.hash()) & 0xffffffff;
-    }
     if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
@@ -1037,6 +1096,27 @@ export class SliderInputView extends InputView {
     }
     if (this._radius != null) {
       h = (h * 31 + this._radius.hash()) & 0xffffffff;
+    }
+    if (this._position != null) {
+      h = (h * 31 + this._position.hash()) & 0xffffffff;
+    }
+    if (this._offset != null) {
+      h = (h * 31 + this._offset.hash()) & 0xffffffff;
+    }
+    if (this._scale != null) {
+      h = (h * 31 + this._scale.hash()) & 0xffffffff;
+    }
+    if (this._rotation != null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
+    }
+    if (this._skew != null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
+    }
+    if (this._origin != null) {
+      h = (h * 31 + this._origin.hash()) & 0xffffffff;
+    }
+    if (this._anchor != null) {
+      h = (h * 31 + this._anchor) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
@@ -1167,14 +1247,23 @@ export class SliderInputView extends InputView {
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
+    if (object._offset != null) {
+      objectCson["111"] = object._offset.toCson();
+    }
     if (object._scale != null) {
-      objectCson["111"] = object._scale;
+      objectCson["112"] = object._scale.toCson();
     }
     if (object._rotation != null) {
-      objectCson["112"] = object._rotation.toCson();
+      objectCson["113"] = object._rotation.toCson();
     }
     if (object._skew != null) {
-      objectCson["113"] = object._skew.toCson();
+      objectCson["114"] = object._skew.toCson();
+    }
+    if (object._origin != null) {
+      objectCson["115"] = object._origin.toCson();
+    }
+    if (object._anchor != null) {
+      objectCson["116"] = object._anchor;
     }
     if (object._width != null) {
       objectCson["120"] = object._width.toCson();
@@ -1236,14 +1325,13 @@ export class SliderInputView extends InputView {
   ): SliderInputView {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
+    const _Corner2 = STRUCT_CLASS_BY_TYPE[StructType.CORNER2] as typeof Corner2;
     const valueValue = objectCson["250"];
     const unpackedValue = valueValue != undefined ? valueValue : null;
     const minValueValue = objectCson["251"];
@@ -1252,52 +1340,35 @@ export class SliderInputView extends InputView {
     const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
     const stepValue = objectCson["253"];
     const unpackedStep = stepValue != undefined ? stepValue : null;
-    const positionValue = objectCson["110"];
-    const unpackedPosition =
-      positionValue != undefined
-        ? _Position.fromCson(positionValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["111"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotationValue = objectCson["112"];
-    const unpackedRotation =
-      rotationValue != undefined
-        ? _Axis3.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const skewValue = objectCson["113"];
-    const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
     const widthValue = objectCson["120"];
     const unpackedWidth =
       widthValue != undefined
-        ? _Dimension.fromCson(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const heightValue = objectCson["121"];
     const unpackedHeight =
       heightValue != undefined
-        ? _Dimension.fromCson(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
     const minWidthValue = objectCson["122"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? _Dimension.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectCson["123"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? _Dimension.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectCson["124"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? _Dimension.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectCson["125"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? _Dimension.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const isVisibleValue = objectCson["130"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
@@ -1321,8 +1392,40 @@ export class SliderInputView extends InputView {
     const radiusValue = objectCson["138"];
     const unpackedRadius =
       radiusValue != undefined
-        ? _Corners.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
+        ? _Corner2.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
         : null;
+    const positionValue = objectCson["110"];
+    const unpackedPosition =
+      positionValue != undefined
+        ? _Vector2.fromCson(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const offsetValue = objectCson["111"];
+    const unpackedOffset =
+      offsetValue != undefined
+        ? _Offset2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scaleValue = objectCson["112"];
+    const unpackedScale =
+      scaleValue != undefined
+        ? _Vector2.fromCson(scaleValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const rotationValue = objectCson["113"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? _Vector2.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const skewValue = objectCson["114"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const originValue = objectCson["115"];
+    const unpackedOrigin =
+      originValue != undefined
+        ? _Vector2.fromCson(originValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const anchorValue = objectCson["116"];
+    const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1380,10 +1483,6 @@ export class SliderInputView extends InputView {
       minValue: unpackedMinValue,
       maxValue: unpackedMaxValue,
       step: unpackedStep,
-      position: unpackedPosition,
-      scale: unpackedScale,
-      rotation: unpackedRotation,
-      skew: unpackedSkew,
       width: unpackedWidth,
       height: unpackedHeight,
       minWidth: unpackedMinWidth,
@@ -1396,6 +1495,13 @@ export class SliderInputView extends InputView {
       shadow: unpackedShadow,
       border: unpackedBorder,
       radius: unpackedRadius,
+      position: unpackedPosition,
+      offset: unpackedOffset,
+      scale: unpackedScale,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
+      origin: unpackedOrigin,
+      anchor: unpackedAnchor,
       isExtensible: objectCson["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
@@ -1488,14 +1594,23 @@ export class SliderInputView extends InputView {
     if (object._position != null) {
       objectProto.position = object._position.toProto();
     }
+    if (object._offset != null) {
+      objectProto.offset = object._offset.toProto();
+    }
     if (object._scale != null) {
-      objectProto.scale = object._scale;
+      objectProto.scale = object._scale.toProto();
     }
     if (object._rotation != null) {
       objectProto.rotation = object._rotation.toProto();
     }
     if (object._skew != null) {
       objectProto.skew = object._skew.toProto();
+    }
+    if (object._origin != null) {
+      objectProto.origin = object._origin.toProto();
+    }
+    if (object._anchor != null) {
+      objectProto.anchor = Number(object._anchor) as AnchorProto;
     }
     if (object._width != null) {
       objectProto.width = object._width.toProto();
@@ -1557,14 +1672,13 @@ export class SliderInputView extends InputView {
   ): SliderInputView {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const _Corners = STRUCT_CLASS_BY_TYPE[StructType.CORNERS] as typeof Corners;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
+    const _Corner2 = STRUCT_CLASS_BY_TYPE[StructType.CORNER2] as typeof Corner2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1579,42 +1693,29 @@ export class SliderInputView extends InputView {
       minValue: objectProto.minValue != undefined ? objectProto.minValue : null,
       maxValue: objectProto.maxValue != undefined ? objectProto.maxValue : null,
       step: objectProto.step != undefined ? objectProto.step : null,
-      position:
-        objectProto.position != undefined
-          ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
-      rotation:
-        objectProto.rotation != undefined
-          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
-          : null,
       width:
         objectProto.width != undefined
-          ? _Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? _Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? _Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? _Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
           : null,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? _Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
       isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
@@ -1632,8 +1733,33 @@ export class SliderInputView extends InputView {
           : null,
       radius:
         objectProto.radius != undefined
-          ? _Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          ? _Corner2.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
           : null,
+      position:
+        objectProto.position != undefined
+          ? _Vector2.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          : null,
+      offset:
+        objectProto.offset != undefined
+          ? _Offset2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale:
+        objectProto.scale != undefined
+          ? _Vector2.fromProto(objectProto.scale!, _session, _supergraph, _graph, _connection)
+          : null,
+      rotation:
+        objectProto.rotation != undefined
+          ? _Vector2.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      origin:
+        objectProto.origin != undefined
+          ? _Vector2.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          : null,
+      anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
       isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined

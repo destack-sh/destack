@@ -6,23 +6,21 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import {
+  AnchorProto,
   Axis2Proto,
   Axis3Proto,
-  CornersProto,
-  DimensionProto,
-  DimensionTypeProto,
-  GridProto,
-  GridSpanProto,
-  InsetsProto,
+  Corner2Proto,
+  Grid2Proto,
+  GridSpan2Proto,
+  Inset2Proto,
   LengthProto,
-  LengthUnitProto,
-  PositionProto,
-  PositionTypeProto,
+  LengthTypeProto,
+  Offset2Proto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100216 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400002 ==== */
 /**
  * Layout
  */
@@ -35,9 +33,9 @@ export enum Layout {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LAYOUT, Layout);
-/* ==== DESTACK_GENERATED_END:ENUM:2100216 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2400002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100220 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400006 ==== */
 /**
  * Overflow
  */
@@ -51,9 +49,9 @@ export enum Overflow {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OVERFLOW, Overflow);
-/* ==== DESTACK_GENERATED_END:ENUM:2100220 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2400006 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100219 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400005 ==== */
 /**
  * Direction
  */
@@ -66,9 +64,9 @@ export enum Direction {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DIRECTION, Direction);
-/* ==== DESTACK_GENERATED_END:ENUM:2100219 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2400005 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100217 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400003 ==== */
 /**
  * Distribute
  */
@@ -85,9 +83,9 @@ export enum Distribute {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DISTRIBUTE, Distribute);
-/* ==== DESTACK_GENERATED_END:ENUM:2100217 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2400003 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100218 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400004 ==== */
 /**
  * Align
  */
@@ -101,30 +99,13 @@ export enum Align {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ALIGN, Align);
-/* ==== DESTACK_GENERATED_END:ENUM:2100218 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2400004 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100215 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400000 ==== */
 /**
- * LengthUnit
+ * Anchor
  */
-export enum LengthUnit {
-  PIXEL = 1,
-  REM = 2,
-  PERCENT = 3,
-  FR = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
-/* ==== DESTACK_GENERATED_END:ENUM:2100215 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:2100214 ==== */
-/**
- * PositionType
- */
-export enum PositionType {
+export enum Anchor {
   RELATIVE = 1,
   ABSOLUTE = 2,
   FIXED = 3,
@@ -134,28 +115,31 @@ export enum PositionType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.POSITION_TYPE, PositionType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100214 ==== */
+registerEnumClass(EnumType.ANCHOR, Anchor);
+/* ==== DESTACK_GENERATED_END:ENUM:2400000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100221 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2400001 ==== */
 /**
- * DimensionType
+ * LengthType
  */
-export enum DimensionType {
-  FIXED = 2,
-  FIT = 3,
-  FILL = 4,
+export enum LengthType {
+  PIXEL = 1,
+  REM = 2,
+  PERCENT = 3,
+  FR = 4,
+  FIT = 10,
+  FILL = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100221 ==== */
+registerEnumClass(EnumType.LENGTH_TYPE, LengthType);
+/* ==== DESTACK_GENERATED_END:ENUM:2400001 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:1800001 ==== */
 /**
- * A length value.
+ * An absolute or relative length value.
  */
 export class Length extends StructFrozen {
   static metatype: StructType = StructType.LENGTH;
@@ -164,7 +148,7 @@ export class Length extends StructFrozen {
   /**
    * Length.unit
    */
-  readonly unit: LengthUnit;
+  readonly unit: LengthType;
 
   /**
    * Length.value
@@ -172,7 +156,7 @@ export class Length extends StructFrozen {
   readonly value: number;
 
   constructor(options: {
-    unit: LengthUnit;
+    unit: LengthType;
     value: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -227,7 +211,7 @@ export class Length extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`unit=${LengthUnit[this.unit]}`);
+      propertyReprs.push(`unit=${LengthType[this.unit]}`);
       propertyReprs.push(`value=${this.value}`);
       // @ts-expect-error(readonly)
       this._repr = `<Length ${propertyReprs.join(" ")}>`;
@@ -305,7 +289,7 @@ export class Length extends StructFrozen {
 
   static __packProto__(object: Length): LengthProto {
     const objectProto: Partial<LengthProto> = { metatype: 1800001 };
-    objectProto.unit = Number(object.unit) as LengthUnitProto;
+    objectProto.unit = Number(object.unit) as LengthTypeProto;
     objectProto.value = object.value;
     return objectProto as LengthProto;
   }
@@ -318,7 +302,7 @@ export class Length extends StructFrozen {
     _connection?: any | null,
   ): Length {
     return new Length({
-      unit: Number(objectProto.unit) as LengthUnit,
+      unit: Number(objectProto.unit) as LengthType,
       value: objectProto.value,
       _proto: objectProto,
       _supergraph,
@@ -348,41 +332,41 @@ export class Length extends StructFrozen {
 registerStructClass(StructType.LENGTH, Length);
 /* ==== DESTACK_GENERATED_END:STRUCT:1800001 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800002 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400020 ==== */
 /**
- * A position value.
+ * A 2-dimensional position value (relative or absolute).
  */
-export class Position extends StructFrozen {
-  static metatype: StructType = StructType.POSITION;
+export class Offset2 extends StructFrozen {
+  static metatype: StructType = StructType.OFFSET2;
   static __isFrozen__: boolean = true;
 
   /**
-   * Position.type
+   * Offset2.type
    */
-  readonly type: PositionType;
+  readonly type: Anchor;
 
   /**
-   * Position.top
+   * Offset2.top
    */
   readonly top: Length | null;
 
   /**
-   * Position.left
+   * Offset2.left
    */
   readonly left: Length | null;
 
   /**
-   * Position.width
+   * Offset2.width
    */
   readonly width: Length | null;
 
   /**
-   * Position.height
+   * Offset2.height
    */
   readonly height: Length | null;
 
   constructor(options: {
-    type: PositionType;
+    type: Anchor;
     top?: Length | null;
     left?: Length | null;
     width?: Length | null;
@@ -404,7 +388,7 @@ export class Position extends StructFrozen {
     // properties
     let _type = options.type;
     if (_type === null) {
-      throw new Error(`Position.type is required`);
+      throw new Error(`Offset2.type is required`);
     }
     this.type = _type;
     let _top = options.top ?? null;
@@ -464,7 +448,7 @@ export class Position extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${PositionType[this.type]}`);
+      propertyReprs.push(`type=${Anchor[this.type]}`);
       if (this.top != null) {
         propertyReprs.push(`top=${this.top.repr()}`);
       }
@@ -478,7 +462,7 @@ export class Position extends StructFrozen {
         propertyReprs.push(`height=${this.height.repr()}`);
       }
       // @ts-expect-error(readonly)
-      this._repr = `<Position ${propertyReprs.join(" ")}>`;
+      this._repr = `<Offset2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -516,14 +500,14 @@ export class Position extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Position.__packCson__(this);
+      this._cson = Offset2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Position): { [key: string]: any } {
+  static __packCson__(object: Offset2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800002;
+    objectCson["1"] = 2400020;
     objectCson["100"] = object.type;
     if (object.top != null) {
       objectCson["101"] = object.top.toCson();
@@ -546,7 +530,7 @@ export class Position extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Position {
+  ): Offset2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const topValue = objectCson["101"];
     const unpackedTop =
@@ -568,7 +552,7 @@ export class Position extends StructFrozen {
       heightValue != undefined
         ? _Length.fromCson(heightValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new Position({
+    return new Offset2({
       type: Number(objectCson["100"]),
       top: unpackedTop,
       left: unpackedLeft,
@@ -585,21 +569,21 @@ export class Position extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Position {
-    return Position.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Offset2 {
+    return Offset2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): PositionProto {
+  toProto(): Offset2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Position.__packProto__(this);
+      this._proto = Offset2.__packProto__(this);
     }
-    return this._proto as PositionProto;
+    return this._proto as Offset2Proto;
   }
 
-  static __packProto__(object: Position): PositionProto {
-    const objectProto: Partial<PositionProto> = { metatype: 1800002 };
-    objectProto.type = Number(object.type) as PositionTypeProto;
+  static __packProto__(object: Offset2): Offset2Proto {
+    const objectProto: Partial<Offset2Proto> = { metatype: 2400020 };
+    objectProto.type = Number(object.type) as AnchorProto;
     if (object.top != null) {
       objectProto.top = object.top.toProto();
     }
@@ -612,19 +596,19 @@ export class Position extends StructFrozen {
     if (object.height != null) {
       objectProto.height = object.height.toProto();
     }
-    return objectProto as PositionProto;
+    return objectProto as Offset2Proto;
   }
 
   static __unpackProto__(
-    objectProto: PositionProto,
+    objectProto: Offset2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Position {
+  ): Offset2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    return new Position({
-      type: Number(objectProto.type) as PositionType,
+    return new Offset2({
+      type: Number(objectProto.type) as Anchor,
       top:
         objectProto.top != undefined
           ? _Length.fromProto(objectProto.top!, _session, _supergraph, _graph, _connection)
@@ -647,18 +631,18 @@ export class Position extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: PositionProto,
+    objectProto: Offset2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Position {
-    return Position.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Offset2 {
+    return Offset2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Position {
+  static fromProtoString(packedProtoString: string): Offset2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PositionProto.fromBinary(packedProtoBytes);
+    const packedProto = Offset2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -666,259 +650,44 @@ export class Position extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.POSITION, Position);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800002 ==== */
+registerStructClass(StructType.OFFSET2, Offset2);
+/* ==== DESTACK_GENERATED_END:STRUCT:2400020 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800003 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400023 ==== */
 /**
- * A dimension value (like Length but can fit or fill container).
+ * A 2-dimensional insets value (base + side overrides).
  */
-export class Dimension extends StructFrozen {
-  static metatype: StructType = StructType.DIMENSION;
+export class Inset2 extends StructFrozen {
+  static metatype: StructType = StructType.INSET2;
   static __isFrozen__: boolean = true;
 
   /**
-   * Dimension.type
+   * Inset2.base
    */
-  readonly type: DimensionType;
+  readonly base: number;
 
   /**
-   * Dimension.unit
-   */
-  readonly unit: LengthUnit;
-
-  /**
-   * Dimension.value
-   */
-  readonly value: number;
-
-  constructor(options: {
-    type: DimensionType;
-    unit: LengthUnit;
-    value: number;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Dimension.type is required`);
-    }
-    this.type = _type;
-    let _unit = options.unit;
-    if (_unit === null) {
-      throw new Error(`Dimension.unit is required`);
-    }
-    this.unit = _unit;
-    let _value = options.value;
-    if (_value === null) {
-      throw new Error(`Dimension.value is required`);
-    }
-    this.value = _value;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.unit === other.unit)) {
-      return false;
-    }
-    if (!(this.value === other.value || Math.abs(this.value - other.value) < 1e-10)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${DimensionType[this.type]}`);
-      propertyReprs.push(`unit=${LengthUnit[this.unit]}`);
-      propertyReprs.push(`value=${this.value}`);
-      // @ts-expect-error(readonly)
-      this._repr = `<Dimension ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + this.unit) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Dimension.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Dimension): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800003;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.unit;
-    objectCson["102"] = object.value;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Dimension {
-    return new Dimension({
-      type: Number(objectCson["100"]),
-      unit: Number(objectCson["101"]),
-      value: objectCson["102"],
-      _cson: objectCson,
-      _supergraph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Dimension {
-    return Dimension.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): DimensionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Dimension.__packProto__(this);
-    }
-    return this._proto as DimensionProto;
-  }
-
-  static __packProto__(object: Dimension): DimensionProto {
-    const objectProto: Partial<DimensionProto> = { metatype: 1800003 };
-    objectProto.type = Number(object.type) as DimensionTypeProto;
-    objectProto.unit = Number(object.unit) as LengthUnitProto;
-    objectProto.value = object.value;
-    return objectProto as DimensionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: DimensionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Dimension {
-    return new Dimension({
-      type: Number(objectProto.type) as DimensionType,
-      unit: Number(objectProto.unit) as LengthUnit,
-      value: objectProto.value,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: DimensionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Dimension {
-    return Dimension.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Dimension {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = DimensionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.DIMENSION, Dimension);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800003 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:1800006 ==== */
-/**
- * An insets value (base + side overrides).
- */
-export class Insets extends StructFrozen {
-  static metatype: StructType = StructType.INSETS;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Insets.base
-   */
-  readonly base: number | null;
-
-  /**
-   * Insets.top
+   * Inset2.top
    */
   readonly top: number | null;
 
   /**
-   * Insets.left
+   * Inset2.left
    */
   readonly left: number | null;
 
   /**
-   * Insets.right
+   * Inset2.right
    */
   readonly right: number | null;
 
   /**
-   * Insets.bottom
+   * Inset2.bottom
    */
   readonly bottom: number | null;
 
   constructor(options: {
-    base?: number | null;
+    base?: number;
     top?: number | null;
     left?: number | null;
     right?: number | null;
@@ -939,6 +708,12 @@ export class Insets extends StructFrozen {
 
     // properties
     let _base = options.base ?? null;
+    if (_base === null) {
+      _base = 0;
+    }
+    if (_base === null) {
+      throw new Error(`Inset2.base is required`);
+    }
     this.base = _base;
     let _top = options.top ?? null;
     this.top = _top;
@@ -985,9 +760,7 @@ export class Insets extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base != null) {
-        propertyReprs.push(`base=${this.base}`);
-      }
+      propertyReprs.push(`base=${this.base}`);
       if (this.top != null) {
         propertyReprs.push(`top=${this.top}`);
       }
@@ -1000,13 +773,8 @@ export class Insets extends StructFrozen {
       if (this.bottom != null) {
         propertyReprs.push(`bottom=${this.bottom}`);
       }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Insets ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Insets>`;
-      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Inset2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -1018,9 +786,7 @@ export class Insets extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base != null) {
-      h = (h * 31 + hashInt(this.base)) & 0xffffffff;
-    }
+    h = (h * 31 + hashInt(this.base)) & 0xffffffff;
     if (this.top != null) {
       h = (h * 31 + hashInt(this.top)) & 0xffffffff;
     }
@@ -1046,17 +812,15 @@ export class Insets extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Insets.__packCson__(this);
+      this._cson = Inset2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Insets): { [key: string]: any } {
+  static __packCson__(object: Inset2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800006;
-    if (object.base != null) {
-      objectCson["101"] = object.base;
-    }
+    objectCson["1"] = 2400023;
+    objectCson["101"] = object.base;
     if (object.top != null) {
       objectCson["102"] = object.top;
     }
@@ -1078,9 +842,7 @@ export class Insets extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Insets {
-    const baseValue = objectCson["101"];
-    const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
+  ): Inset2 {
     const topValue = objectCson["102"];
     const unpackedTop = topValue != undefined ? Number(topValue) : null;
     const leftValue = objectCson["103"];
@@ -1089,8 +851,8 @@ export class Insets extends StructFrozen {
     const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
     const bottomValue = objectCson["105"];
     const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
-    return new Insets({
-      base: unpackedBase,
+    return new Inset2({
+      base: Number(objectCson["101"]),
       top: unpackedTop,
       left: unpackedLeft,
       right: unpackedRight,
@@ -1106,23 +868,21 @@ export class Insets extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Insets {
-    return Insets.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Inset2 {
+    return Inset2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): InsetsProto {
+  toProto(): Inset2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Insets.__packProto__(this);
+      this._proto = Inset2.__packProto__(this);
     }
-    return this._proto as InsetsProto;
+    return this._proto as Inset2Proto;
   }
 
-  static __packProto__(object: Insets): InsetsProto {
-    const objectProto: Partial<InsetsProto> = { metatype: 1800006 };
-    if (object.base != null) {
-      objectProto.base = object.base;
-    }
+  static __packProto__(object: Inset2): Inset2Proto {
+    const objectProto: Partial<Inset2Proto> = { metatype: 2400023 };
+    objectProto.base = object.base;
     if (object.top != null) {
       objectProto.top = object.top;
     }
@@ -1135,18 +895,18 @@ export class Insets extends StructFrozen {
     if (object.bottom != null) {
       objectProto.bottom = object.bottom;
     }
-    return objectProto as InsetsProto;
+    return objectProto as Inset2Proto;
   }
 
   static __unpackProto__(
-    objectProto: InsetsProto,
+    objectProto: Inset2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Insets {
-    return new Insets({
-      base: objectProto.base != undefined ? Number(objectProto.base) : null,
+  ): Inset2 {
+    return new Inset2({
+      base: Number(objectProto.base),
       top: objectProto.top != undefined ? Number(objectProto.top) : null,
       left: objectProto.left != undefined ? Number(objectProto.left) : null,
       right: objectProto.right != undefined ? Number(objectProto.right) : null,
@@ -1157,18 +917,18 @@ export class Insets extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: InsetsProto,
+    objectProto: Inset2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Insets {
-    return Insets.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Inset2 {
+    return Inset2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Insets {
+  static fromProtoString(packedProtoString: string): Inset2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = InsetsProto.fromBinary(packedProtoBytes);
+    const packedProto = Inset2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1176,44 +936,44 @@ export class Insets extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.INSETS, Insets);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800006 ==== */
+registerStructClass(StructType.INSET2, Inset2);
+/* ==== DESTACK_GENERATED_END:STRUCT:2400023 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800007 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400024 ==== */
 /**
- * A corners value (base + corner overrides).
+ * A 2-dimensional corners value (base + corner overrides).
  */
-export class Corners extends StructFrozen {
-  static metatype: StructType = StructType.CORNERS;
+export class Corner2 extends StructFrozen {
+  static metatype: StructType = StructType.CORNER2;
   static __isFrozen__: boolean = true;
 
   /**
-   * Corners.base
+   * Corner2.base
    */
-  readonly base: number | null;
+  readonly base: number;
 
   /**
-   * Corners.topLeft
+   * Corner2.topLeft
    */
   readonly topLeft: number | null;
 
   /**
-   * Corners.topRight
+   * Corner2.topRight
    */
   readonly topRight: number | null;
 
   /**
-   * Corners.bottomLeft
+   * Corner2.bottomLeft
    */
   readonly bottomLeft: number | null;
 
   /**
-   * Corners.bottomRight
+   * Corner2.bottomRight
    */
   readonly bottomRight: number | null;
 
   constructor(options: {
-    base?: number | null;
+    base?: number;
     topLeft?: number | null;
     topRight?: number | null;
     bottomLeft?: number | null;
@@ -1234,6 +994,12 @@ export class Corners extends StructFrozen {
 
     // properties
     let _base = options.base ?? null;
+    if (_base === null) {
+      _base = 0;
+    }
+    if (_base === null) {
+      throw new Error(`Corner2.base is required`);
+    }
     this.base = _base;
     let _topLeft = options.topLeft ?? null;
     this.topLeft = _topLeft;
@@ -1280,9 +1046,7 @@ export class Corners extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base != null) {
-        propertyReprs.push(`base=${this.base}`);
-      }
+      propertyReprs.push(`base=${this.base}`);
       if (this.topLeft != null) {
         propertyReprs.push(`topLeft=${this.topLeft}`);
       }
@@ -1295,13 +1059,8 @@ export class Corners extends StructFrozen {
       if (this.bottomRight != null) {
         propertyReprs.push(`bottomRight=${this.bottomRight}`);
       }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Corners ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Corners>`;
-      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Corner2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -1313,9 +1072,7 @@ export class Corners extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base != null) {
-      h = (h * 31 + hashInt(this.base)) & 0xffffffff;
-    }
+    h = (h * 31 + hashInt(this.base)) & 0xffffffff;
     if (this.topLeft != null) {
       h = (h * 31 + hashInt(this.topLeft)) & 0xffffffff;
     }
@@ -1341,17 +1098,15 @@ export class Corners extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Corners.__packCson__(this);
+      this._cson = Corner2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Corners): { [key: string]: any } {
+  static __packCson__(object: Corner2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800007;
-    if (object.base != null) {
-      objectCson["101"] = object.base;
-    }
+    objectCson["1"] = 2400024;
+    objectCson["101"] = object.base;
     if (object.topLeft != null) {
       objectCson["102"] = object.topLeft;
     }
@@ -1373,9 +1128,7 @@ export class Corners extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Corners {
-    const baseValue = objectCson["101"];
-    const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
+  ): Corner2 {
     const topLeftValue = objectCson["102"];
     const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
     const topRightValue = objectCson["103"];
@@ -1384,8 +1137,8 @@ export class Corners extends StructFrozen {
     const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
     const bottomRightValue = objectCson["105"];
     const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
-    return new Corners({
-      base: unpackedBase,
+    return new Corner2({
+      base: Number(objectCson["101"]),
       topLeft: unpackedTopLeft,
       topRight: unpackedTopRight,
       bottomLeft: unpackedBottomLeft,
@@ -1401,23 +1154,21 @@ export class Corners extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Corners {
-    return Corners.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Corner2 {
+    return Corner2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CornersProto {
+  toProto(): Corner2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Corners.__packProto__(this);
+      this._proto = Corner2.__packProto__(this);
     }
-    return this._proto as CornersProto;
+    return this._proto as Corner2Proto;
   }
 
-  static __packProto__(object: Corners): CornersProto {
-    const objectProto: Partial<CornersProto> = { metatype: 1800007 };
-    if (object.base != null) {
-      objectProto.base = object.base;
-    }
+  static __packProto__(object: Corner2): Corner2Proto {
+    const objectProto: Partial<Corner2Proto> = { metatype: 2400024 };
+    objectProto.base = object.base;
     if (object.topLeft != null) {
       objectProto.topLeft = object.topLeft;
     }
@@ -1430,18 +1181,18 @@ export class Corners extends StructFrozen {
     if (object.bottomRight != null) {
       objectProto.bottomRight = object.bottomRight;
     }
-    return objectProto as CornersProto;
+    return objectProto as Corner2Proto;
   }
 
   static __unpackProto__(
-    objectProto: CornersProto,
+    objectProto: Corner2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Corners {
-    return new Corners({
-      base: objectProto.base != undefined ? Number(objectProto.base) : null,
+  ): Corner2 {
+    return new Corner2({
+      base: Number(objectProto.base),
       topLeft: objectProto.topLeft != undefined ? Number(objectProto.topLeft) : null,
       topRight: objectProto.topRight != undefined ? Number(objectProto.topRight) : null,
       bottomLeft: objectProto.bottomLeft != undefined ? Number(objectProto.bottomLeft) : null,
@@ -1452,18 +1203,18 @@ export class Corners extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: CornersProto,
+    objectProto: Corner2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Corners {
-    return Corners.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Corner2 {
+    return Corner2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Corners {
+  static fromProtoString(packedProtoString: string): Corner2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CornersProto.fromBinary(packedProtoBytes);
+    const packedProto = Corner2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1471,12 +1222,12 @@ export class Corners extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.CORNERS, Corners);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800007 ==== */
+registerStructClass(StructType.CORNER2, Corner2);
+/* ==== DESTACK_GENERATED_END:STRUCT:2400024 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800008 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400025 ==== */
 /**
- * A gap value (base + x/y overrides).
+ * A 2-dimensional axis value (base + x/y overrides).
  */
 export class Axis2 extends StructFrozen {
   static metatype: StructType = StructType.AXIS2;
@@ -1485,7 +1236,7 @@ export class Axis2 extends StructFrozen {
   /**
    * Axis2.base
    */
-  readonly base: number | null;
+  readonly base: number;
 
   /**
    * Axis2.x
@@ -1498,7 +1249,7 @@ export class Axis2 extends StructFrozen {
   readonly y: number | null;
 
   constructor(options: {
-    base?: number | null;
+    base?: number;
     x?: number | null;
     y?: number | null;
     _session?: Session | null;
@@ -1517,6 +1268,12 @@ export class Axis2 extends StructFrozen {
 
     // properties
     let _base = options.base ?? null;
+    if (_base === null) {
+      _base = 0;
+    }
+    if (_base === null) {
+      throw new Error(`Axis2.base is required`);
+    }
     this.base = _base;
     let _x = options.x ?? null;
     this.x = _x;
@@ -1538,10 +1295,7 @@ export class Axis2 extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.base == null) !== (other.base == null) ||
-      (this.base != null && !(this.base === other.base || Math.abs(this.base - other.base) < 1e-10))
-    ) {
+    if (!(this.base === other.base || Math.abs(this.base - other.base) < 1e-10)) {
       return false;
     }
     if (
@@ -1562,22 +1316,15 @@ export class Axis2 extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base != null) {
-        propertyReprs.push(`base=${this.base}`);
-      }
+      propertyReprs.push(`base=${this.base}`);
       if (this.x != null) {
         propertyReprs.push(`x=${this.x}`);
       }
       if (this.y != null) {
         propertyReprs.push(`y=${this.y}`);
       }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Axis2 ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Axis2>`;
-      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Axis2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -1589,9 +1336,7 @@ export class Axis2 extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base != null) {
-      h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
-    }
+    h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
     if (this.x != null) {
       h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
     }
@@ -1618,10 +1363,8 @@ export class Axis2 extends StructFrozen {
 
   static __packCson__(object: Axis2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800008;
-    if (object.base != null) {
-      objectCson["101"] = object.base;
-    }
+    objectCson["1"] = 2400025;
+    objectCson["101"] = object.base;
     if (object.x != null) {
       objectCson["102"] = object.x;
     }
@@ -1638,14 +1381,12 @@ export class Axis2 extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Axis2 {
-    const baseValue = objectCson["101"];
-    const unpackedBase = baseValue != undefined ? baseValue : null;
     const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
     const yValue = objectCson["103"];
     const unpackedY = yValue != undefined ? yValue : null;
     return new Axis2({
-      base: unpackedBase,
+      base: objectCson["101"],
       x: unpackedX,
       y: unpackedY,
       _cson: objectCson,
@@ -1672,10 +1413,8 @@ export class Axis2 extends StructFrozen {
   }
 
   static __packProto__(object: Axis2): Axis2Proto {
-    const objectProto: Partial<Axis2Proto> = { metatype: 1800008 };
-    if (object.base != null) {
-      objectProto.base = object.base;
-    }
+    const objectProto: Partial<Axis2Proto> = { metatype: 2400025 };
+    objectProto.base = object.base;
     if (object.x != null) {
       objectProto.x = object.x;
     }
@@ -1693,7 +1432,7 @@ export class Axis2 extends StructFrozen {
     _connection?: any | null,
   ): Axis2 {
     return new Axis2({
-      base: objectProto.base != undefined ? objectProto.base : null,
+      base: objectProto.base,
       x: objectProto.x != undefined ? objectProto.x : null,
       y: objectProto.y != undefined ? objectProto.y : null,
       _proto: objectProto,
@@ -1722,11 +1461,11 @@ export class Axis2 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS2, Axis2);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800008 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400025 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800009 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400026 ==== */
 /**
- * A rotation value (base + x/y/z overrides).
+ * A 3-dimensional axis value (base + x/y/z overrides).
  */
 export class Axis3 extends StructFrozen {
   static metatype: StructType = StructType.AXIS3;
@@ -1735,7 +1474,7 @@ export class Axis3 extends StructFrozen {
   /**
    * Axis3.base
    */
-  readonly base: number | null;
+  readonly base: number;
 
   /**
    * Axis3.x
@@ -1753,7 +1492,7 @@ export class Axis3 extends StructFrozen {
   readonly z: number | null;
 
   constructor(options: {
-    base?: number | null;
+    base?: number;
     x?: number | null;
     y?: number | null;
     z?: number | null;
@@ -1773,6 +1512,12 @@ export class Axis3 extends StructFrozen {
 
     // properties
     let _base = options.base ?? null;
+    if (_base === null) {
+      _base = 0;
+    }
+    if (_base === null) {
+      throw new Error(`Axis3.base is required`);
+    }
     this.base = _base;
     let _x = options.x ?? null;
     this.x = _x;
@@ -1796,10 +1541,7 @@ export class Axis3 extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.base == null) !== (other.base == null) ||
-      (this.base != null && !(this.base === other.base || Math.abs(this.base - other.base) < 1e-10))
-    ) {
+    if (!(this.base === other.base || Math.abs(this.base - other.base) < 1e-10)) {
       return false;
     }
     if (
@@ -1826,9 +1568,7 @@ export class Axis3 extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base != null) {
-        propertyReprs.push(`base=${this.base}`);
-      }
+      propertyReprs.push(`base=${this.base}`);
       if (this.x != null) {
         propertyReprs.push(`x=${this.x}`);
       }
@@ -1838,13 +1578,8 @@ export class Axis3 extends StructFrozen {
       if (this.z != null) {
         propertyReprs.push(`z=${this.z}`);
       }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Axis3 ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Axis3>`;
-      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Axis3 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -1856,9 +1591,7 @@ export class Axis3 extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base != null) {
-      h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
-    }
+    h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
     if (this.x != null) {
       h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
     }
@@ -1888,10 +1621,8 @@ export class Axis3 extends StructFrozen {
 
   static __packCson__(object: Axis3): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800009;
-    if (object.base != null) {
-      objectCson["101"] = object.base;
-    }
+    objectCson["1"] = 2400026;
+    objectCson["101"] = object.base;
     if (object.x != null) {
       objectCson["102"] = object.x;
     }
@@ -1911,8 +1642,6 @@ export class Axis3 extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Axis3 {
-    const baseValue = objectCson["101"];
-    const unpackedBase = baseValue != undefined ? baseValue : null;
     const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
     const yValue = objectCson["103"];
@@ -1920,7 +1649,7 @@ export class Axis3 extends StructFrozen {
     const zValue = objectCson["104"];
     const unpackedZ = zValue != undefined ? zValue : null;
     return new Axis3({
-      base: unpackedBase,
+      base: objectCson["101"],
       x: unpackedX,
       y: unpackedY,
       z: unpackedZ,
@@ -1948,10 +1677,8 @@ export class Axis3 extends StructFrozen {
   }
 
   static __packProto__(object: Axis3): Axis3Proto {
-    const objectProto: Partial<Axis3Proto> = { metatype: 1800009 };
-    if (object.base != null) {
-      objectProto.base = object.base;
-    }
+    const objectProto: Partial<Axis3Proto> = { metatype: 2400026 };
+    objectProto.base = object.base;
     if (object.x != null) {
       objectProto.x = object.x;
     }
@@ -1972,7 +1699,7 @@ export class Axis3 extends StructFrozen {
     _connection?: any | null,
   ): Axis3 {
     return new Axis3({
-      base: objectProto.base != undefined ? objectProto.base : null,
+      base: objectProto.base,
       x: objectProto.x != undefined ? objectProto.x : null,
       y: objectProto.y != undefined ? objectProto.y : null,
       z: objectProto.z != undefined ? objectProto.z : null,
@@ -2002,47 +1729,47 @@ export class Axis3 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS3, Axis3);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800009 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400026 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800004 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400021 ==== */
 /**
- * A grid configuration value.
+ * A 2-dimensional grid configuration value.
  */
-export class Grid extends StructFrozen {
-  static metatype: StructType = StructType.GRID;
+export class Grid2 extends StructFrozen {
+  static metatype: StructType = StructType.GRID2;
   static __isFrozen__: boolean = true;
 
   /**
-   * Grid.columns
+   * Grid2.columns
    */
   readonly columns: number;
 
   /**
-   * Grid.rows
+   * Grid2.rows
    */
   readonly rows: number;
 
   /**
-   * Grid.columnWidth
+   * Grid2.columnWidth
    */
-  readonly columnWidth: Dimension | null;
+  readonly columnWidth: Length | null;
 
   /**
-   * Grid.columnMinWidth
+   * Grid2.columnMinWidth
    */
-  readonly columnMinWidth: Dimension | null;
+  readonly columnMinWidth: Length | null;
 
   /**
-   * Grid.rowHeight
+   * Grid2.rowHeight
    */
-  readonly rowHeight: Dimension | null;
+  readonly rowHeight: Length | null;
 
   constructor(options: {
     columns: number;
     rows: number;
-    columnWidth?: Dimension | null;
-    columnMinWidth?: Dimension | null;
-    rowHeight?: Dimension | null;
+    columnWidth?: Length | null;
+    columnMinWidth?: Length | null;
+    rowHeight?: Length | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2060,12 +1787,12 @@ export class Grid extends StructFrozen {
     // properties
     let _columns = options.columns;
     if (_columns === null) {
-      throw new Error(`Grid.columns is required`);
+      throw new Error(`Grid2.columns is required`);
     }
     this.columns = _columns;
     let _rows = options.rows;
     if (_rows === null) {
-      throw new Error(`Grid.rows is required`);
+      throw new Error(`Grid2.rows is required`);
     }
     this.rows = _rows;
     let _columnWidth = options.columnWidth ?? null;
@@ -2132,7 +1859,7 @@ export class Grid extends StructFrozen {
         propertyReprs.push(`rowHeight=${this.rowHeight.repr()}`);
       }
       // @ts-expect-error(readonly)
-      this._repr = `<Grid ${propertyReprs.join(" ")}>`;
+      this._repr = `<Grid2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -2168,14 +1895,14 @@ export class Grid extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Grid.__packCson__(this);
+      this._cson = Grid2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Grid): { [key: string]: any } {
+  static __packCson__(object: Grid2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800004;
+    objectCson["1"] = 2400021;
     objectCson["101"] = object.columns;
     objectCson["102"] = object.rows;
     if (object.columnWidth != null) {
@@ -2196,24 +1923,24 @@ export class Grid extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Grid {
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
+  ): Grid2 {
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const columnWidthValue = objectCson["103"];
     const unpackedColumnWidth =
       columnWidthValue != undefined
-        ? _Dimension.fromCson(columnWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(columnWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const columnMinWidthValue = objectCson["104"];
     const unpackedColumnMinWidth =
       columnMinWidthValue != undefined
-        ? _Dimension.fromCson(columnMinWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(columnMinWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const rowHeightValue = objectCson["105"];
     const unpackedRowHeight =
       rowHeightValue != undefined
-        ? _Dimension.fromCson(rowHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(rowHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new Grid({
+    return new Grid2({
       columns: Number(objectCson["101"]),
       rows: Number(objectCson["102"]),
       columnWidth: unpackedColumnWidth,
@@ -2230,20 +1957,20 @@ export class Grid extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Grid {
-    return Grid.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Grid2 {
+    return Grid2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): GridProto {
+  toProto(): Grid2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Grid.__packProto__(this);
+      this._proto = Grid2.__packProto__(this);
     }
-    return this._proto as GridProto;
+    return this._proto as Grid2Proto;
   }
 
-  static __packProto__(object: Grid): GridProto {
-    const objectProto: Partial<GridProto> = { metatype: 1800004 };
+  static __packProto__(object: Grid2): Grid2Proto {
+    const objectProto: Partial<Grid2Proto> = { metatype: 2400021 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
     if (object.columnWidth != null) {
@@ -2255,33 +1982,27 @@ export class Grid extends StructFrozen {
     if (object.rowHeight != null) {
       objectProto.rowHeight = object.rowHeight.toProto();
     }
-    return objectProto as GridProto;
+    return objectProto as Grid2Proto;
   }
 
   static __unpackProto__(
-    objectProto: GridProto,
+    objectProto: Grid2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Grid {
-    const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    return new Grid({
+  ): Grid2 {
+    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
+    return new Grid2({
       columns: Number(objectProto.columns),
       rows: Number(objectProto.rows),
       columnWidth:
         objectProto.columnWidth != undefined
-          ? _Dimension.fromProto(
-              objectProto.columnWidth!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _Length.fromProto(objectProto.columnWidth!, _session, _supergraph, _graph, _connection)
           : null,
       columnMinWidth:
         objectProto.columnMinWidth != undefined
-          ? _Dimension.fromProto(
+          ? _Length.fromProto(
               objectProto.columnMinWidth!,
               _session,
               _supergraph,
@@ -2291,7 +2012,7 @@ export class Grid extends StructFrozen {
           : null,
       rowHeight:
         objectProto.rowHeight != undefined
-          ? _Dimension.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -2299,18 +2020,18 @@ export class Grid extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: GridProto,
+    objectProto: Grid2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Grid {
-    return Grid.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Grid2 {
+    return Grid2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Grid {
+  static fromProtoString(packedProtoString: string): Grid2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = GridProto.fromBinary(packedProtoBytes);
+    const packedProto = Grid2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -2318,24 +2039,24 @@ export class Grid extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.GRID, Grid);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800004 ==== */
+registerStructClass(StructType.GRID2, Grid2);
+/* ==== DESTACK_GENERATED_END:STRUCT:2400021 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:1800005 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400022 ==== */
 /**
- * A grid span value.
+ * A 2-dimensional grid span value.
  */
-export class GridSpan extends StructFrozen {
-  static metatype: StructType = StructType.GRID_SPAN;
+export class GridSpan2 extends StructFrozen {
+  static metatype: StructType = StructType.GRID_SPAN2;
   static __isFrozen__: boolean = true;
 
   /**
-   * GridSpan.columns
+   * GridSpan2.columns
    */
   readonly columns: number;
 
   /**
-   * GridSpan.rows
+   * GridSpan2.rows
    */
   readonly rows: number;
 
@@ -2359,12 +2080,12 @@ export class GridSpan extends StructFrozen {
     // properties
     let _columns = options.columns;
     if (_columns === null) {
-      throw new Error(`GridSpan.columns is required`);
+      throw new Error(`GridSpan2.columns is required`);
     }
     this.columns = _columns;
     let _rows = options.rows;
     if (_rows === null) {
-      throw new Error(`GridSpan.rows is required`);
+      throw new Error(`GridSpan2.rows is required`);
     }
     this.rows = _rows;
 
@@ -2398,7 +2119,7 @@ export class GridSpan extends StructFrozen {
       propertyReprs.push(`columns=${this.columns}`);
       propertyReprs.push(`rows=${this.rows}`);
       // @ts-expect-error(readonly)
-      this._repr = `<GridSpan ${propertyReprs.join(" ")}>`;
+      this._repr = `<GridSpan2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -2425,14 +2146,14 @@ export class GridSpan extends StructFrozen {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = GridSpan.__packCson__(this);
+      this._cson = GridSpan2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: GridSpan): { [key: string]: any } {
+  static __packCson__(object: GridSpan2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800005;
+    objectCson["1"] = 2400022;
     objectCson["101"] = object.columns;
     objectCson["102"] = object.rows;
     return objectCson;
@@ -2444,8 +2165,8 @@ export class GridSpan extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): GridSpan {
-    return new GridSpan({
+  ): GridSpan2 {
+    return new GridSpan2({
       columns: Number(objectCson["101"]),
       rows: Number(objectCson["102"]),
       _cson: objectCson,
@@ -2459,33 +2180,33 @@ export class GridSpan extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): GridSpan {
-    return GridSpan.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): GridSpan2 {
+    return GridSpan2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): GridSpanProto {
+  toProto(): GridSpan2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = GridSpan.__packProto__(this);
+      this._proto = GridSpan2.__packProto__(this);
     }
-    return this._proto as GridSpanProto;
+    return this._proto as GridSpan2Proto;
   }
 
-  static __packProto__(object: GridSpan): GridSpanProto {
-    const objectProto: Partial<GridSpanProto> = { metatype: 1800005 };
+  static __packProto__(object: GridSpan2): GridSpan2Proto {
+    const objectProto: Partial<GridSpan2Proto> = { metatype: 2400022 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
-    return objectProto as GridSpanProto;
+    return objectProto as GridSpan2Proto;
   }
 
   static __unpackProto__(
-    objectProto: GridSpanProto,
+    objectProto: GridSpan2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): GridSpan {
-    return new GridSpan({
+  ): GridSpan2 {
+    return new GridSpan2({
       columns: Number(objectProto.columns),
       rows: Number(objectProto.rows),
       _proto: objectProto,
@@ -2494,18 +2215,18 @@ export class GridSpan extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: GridSpanProto,
+    objectProto: GridSpan2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): GridSpan {
-    return GridSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): GridSpan2 {
+    return GridSpan2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): GridSpan {
+  static fromProtoString(packedProtoString: string): GridSpan2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = GridSpanProto.fromBinary(packedProtoBytes);
+    const packedProto = GridSpan2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -2513,5 +2234,5 @@ export class GridSpan extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.GRID_SPAN, GridSpan);
-/* ==== DESTACK_GENERATED_END:STRUCT:1800005 ==== */
+registerStructClass(StructType.GRID_SPAN2, GridSpan2);
+/* ==== DESTACK_GENERATED_END:STRUCT:2400022 ==== */

@@ -152,13 +152,12 @@ class EnumType(Enum):
     # ...
 
     # scene [1_700_000-1_800_000]
-    WINDOW_TYPE = 1_700_000
-    LAYER_TYPE = 1_700_200
+    LAYER_TYPE = 1_700_300
 
     # view [1_800_000-1_900_000]
     # ...
 
-    # canvas [1_900_000-2_000_000]
+    # drawing [1_900_000-2_000_000]
     # ...
 
     # interaction [2_000_000-2_100_000]
@@ -185,14 +184,6 @@ class EnumType(Enum):
     SHADOW_POSITION = 2_100_208
     GRADIENT_TYPE = 2_100_209
     STROKE_TYPE = 2_100_213
-    POSITION_TYPE = 2_100_214
-    LENGTH_UNIT = 2_100_215
-    LAYOUT = 2_100_216
-    DISTRIBUTE = 2_100_217
-    ALIGN = 2_100_218
-    DIRECTION = 2_100_219
-    OVERFLOW = 2_100_220
-    DIMENSION_TYPE = 2_100_221
     TEXT_SPLIT_TYPE = 2_100_223
     OFFSCREEN_BEHAVIOR = 2_100_224
     EASING = 2_100_225
@@ -207,6 +198,13 @@ class EnumType(Enum):
     # ...
 
     # geometry [2_400_000-2_500_000]
+    ANCHOR = 2_400_000
+    LENGTH_TYPE = 2_400_001
+    LAYOUT = 2_400_002
+    DISTRIBUTE = 2_400_003
+    ALIGN = 2_400_004
+    DIRECTION = 2_400_005
+    OVERFLOW = 2_400_006
     ARROW_HEAD_TYPE = 2_401_200
     # physics [2_500_000-2_600_000]
     # ...
@@ -329,17 +327,9 @@ class StructType(Enum):
     # ...
 
     # view [1_800_000-1_900_000]
-    LENGTH = 1_800_001, "Length", None, "fas fa-ruler"
-    POSITION = 1_800_002, "Position", None, "fas fa-location-crosshair"
-    DIMENSION = 1_800_003, "Dimension", None, "fas fa-ruler"
-    GRID = 1_800_004, "Grid", None, "fas fa-grid-2"
-    GRID_SPAN = 1_800_005, "Grid Span", None, "fas fa-grid-2"
-    INSETS = 1_800_006, "Insets", None, "fas fa-corner"
-    CORNERS = 1_800_007, "Corners", None, "fas fa-corner"
-    AXIS2 = 1_800_008, "Axis2", None, "fas fa-vector-square"
-    AXIS3 = 1_800_009, "Axis3", None, "fas fa-vector-square"
+    # ...
 
-    # canvas [1_900_000-2_000_000]
+    # drawing [1_900_000-2_000_000]
     # ...
 
     # interaction [2_000_000-2_100_000]
@@ -366,21 +356,27 @@ class StructType(Enum):
     # ...
 
     # geometry [2_400_000-2_500_000]
-    VECTOR = 2_400_000, None, None, "fas fa-vector-square"
-    VECTORF = 2_400_010
-    VECTOR2 = 2_400_011, None, None, "fas fa-vector-square"
-    VECTOR3 = 2_400_012, None, None, "fas fa-vector-square"
-    VECTOR4 = 2_400_013, None, None, "fas fa-vector-square"
-    VECTORI = 2_400_020
-    VECTOR2I = 2_400_021, None, None, "fas fa-vector-square"
-    VECTOR3I = 2_400_022, None, None, "fas fa-vector-square"
-    VECTOR4I = 2_400_023, None, None, "fas fa-vector-square"
+    VECTOR2 = 2_400_000, None, None, "fas fa-vector-square"
+    VECTOR2I = 2_400_001, None, None, "fas fa-vector-square"
+    VECTOR3 = 2_400_002, None, None, "fas fa-vector-square"
+    VECTOR3I = 2_400_003, None, None, "fas fa-vector-square"
+    VECTOR4 = 2_400_004, None, None, "fas fa-vector-square"
+    VECTOR4I = 2_400_005, None, None, "fas fa-vector-square"
+    QUATERNION = 2_400_010, None, None, "fas fa-vector-square"
+    OFFSET2 = 2_400_020, "Position", None, "fas fa-location-crosshair"
+    GRID2 = 2_400_021, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN2 = 2_400_022, "Grid Span", None, "fas fa-grid-2"
+    INSET2 = 2_400_023, "Insets", None, "fas fa-corner"
+    CORNER2 = 2_400_024, "Corners", None, "fas fa-corner"
+    AXIS2 = 2_400_025, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 2_400_026, "Axis3", None, "fas fa-vector-square"
     LINE2D = 2_411_100, "Line", None, "fas fa-line"
     ARROW2D = 2_411_200, "Arrow", None, "fas fa-arrow-right"
     RECTANGLE2D = 2_411_300, "Rectangle", None, "fas fa-rectangle"
     ELLIPSE2D = 2_411_400, "Ellipse", None, "fas fa-ellipse"
     POLYGON2D = 2_411_500, "Polygon", None, "fas fa-polygon"
     PATH2D = 2_411_600, "Path", None, "fas fa-path"
+    LENGTH = 1_800_001, "Length", None, "fas fa-ruler"
 
     # physics [2_500_000-2_600_000]
     # ...
@@ -468,7 +464,7 @@ class TraitType(Enum):
     # view [1_800_000-1_900_000]
     # ANIMATABLE/TWEENABLE, ...
 
-    # canvas [1_900_000-2_000_000]
+    # drawing [1_900_000-2_000_000]
 
     # interaction [2_000_000-2_100_000]
     INTERACTIVE = 2_000_000, "Interactive", "Can be interacted with", "fas fa-mouse-pointer"
@@ -518,6 +514,9 @@ class NodeType(Enum):
     TAGGING = 12_700, "Tagging", None, "fas fa-tag"
     # TRAIT?
     # SLOT, LINK, ...
+    # geometry
+    ENTITY2D = 15_000, "Entity2D", "2D Entity", "fas fa-shapes"
+    ENTITY3D = 15_100, "Entity3D", "3D Entity", "fas fa-shapes"
     # TIMELINE, TRACK, (KEY)FRAME, ...
     # custom
     CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
@@ -728,14 +727,14 @@ class NodeType(Enum):
 
     # scene [1_700_000-1_800_000]
     STAGE = 1_700_000, "Stage", None, "fas fa-masks-theater"
-    WINDOW = 1_700_100, "Window", None, "fas fa-galaxy"
     SCENE = 1_700_200, "Scene", "Scene of an Application", "fas fa-masks-theater"
     SCENE_EVENT = 1_700_201, "Scene Event", None, "fas fa-masks-theater"
     LAYER = 1_700_300, "Layer", "Layer of a Scene", "fas fa-layer-group"
-    # VIEW_VARIANT, BREAKPOINT_VARIANT, ...
+    # BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
     # ROOM, ...
     # FORM, MENU, ...
+    # CULLING, ...
 
     # view [1_800_000-1_900_000]
     # container views
@@ -761,10 +760,9 @@ class NodeType(Enum):
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
-    # canvas [1_900_000-2_000_000]
+    # drawing [1_900_000-2_000_000]
     # RASTER/BITMAP, ...
     # DAB, PAINT, BRUSH, ...
-    # CULLING, ...
 
     # interaction [2_000_000-2_100_000]
     INPUT_EVENT = 2_000_000, "Input Event", None, "fas fa-mouse-pointer"
@@ -840,14 +838,14 @@ class NodeType(Enum):
 
     # geometry [2_400_000-2_500_000]
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
-    SHAPE = 2_410_000, "Shape", None, "fas fa-shapes"
-    SHAPE2D = 2_410_100, "Shape2D", None, "fas fa-shapes"
-    LINE_SHAPE2D = 2_411_100, "Line Shape2D", None, "fas fa-line"
-    ARROW_SHAPE2D = 2_411_200, "Arrow Shape2D", None, "fas fa-arrow-right"
-    RECTANGLE_SHAPE2D = 2_411_300, "Rectangle Shape2D", None, "fas fa-rectangle"
-    ELLIPSE_SHAPE2D = 2_411_400, "Ellipse Shape2D", None, "fas fa-ellipse"
-    POLYGON_SHAPE2D = 2_411_500, "Polygon Shape2D", None, "fas fa-polygon"
-    PATH_SHAPE2D = 2_411_600, "Path Shape2D", None, "fas fa-path"
+    SHAPE2D = 2_410_000, "Shape2D", None, "fas fa-shapes"
+    LINE_SHAPE2D = 2_410_100, "Line Shape2D", None, "fas fa-line"
+    ARROW_SHAPE2D = 2_410_200, "Arrow Shape2D", None, "fas fa-arrow-right"
+    RECTANGLE_SHAPE2D = 2_410_300, "Rectangle Shape2D", None, "fas fa-rectangle"
+    ELLIPSE_SHAPE2D = 2_410_400, "Ellipse Shape2D", None, "fas fa-ellipse"
+    POLYGON_SHAPE2D = 2_410_500, "Polygon Shape2D", None, "fas fa-polygon"
+    PATH_SHAPE2D = 2_410_600, "Path Shape2D", None, "fas fa-path"
+    SHAPE3D = 2_415_000, "Shape3D", None, "fas fa-shapes"
 
     # physics [2_500_000-2_600_000]
     # BODY, BODY2D, ...
@@ -885,9 +883,9 @@ class UniverseCategory(Enum):
     EXPERIENCE = 1_300_000, "Experience", "User experience"
     SOCIAL = 1_400_000, "Social", "Social interactions"
     FINANCE = 1_500_000, "Finance", "Financial operations"
-    SCENE = 1_700_000, "Scene", "Stage construction"
+    SCENE = 1_700_000, "Scene", "Stage building"
     VIEW = 1_800_000, "View", "View building"
-    CANVAS = 1_900_000, "Canvas", "Drawing, painting and rendering"
+    DRAWING = 1_900_000, "Drawing", "Drawing and painting"
     INTERACTION = 2_000_000, "Interaction", "Interaction design"
     STYLE = 2_100_000, "Style", "Style views"
     ANIMATION = 2_200_000, "Animation", "Motion design"
@@ -895,7 +893,7 @@ class UniverseCategory(Enum):
     GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and surface modeling"
     PHYSICS = 2_500_000, "Physics", "Physics simulation"
     LIGHTING = 2_600_000, "Lighting", "Lighting and shadows"
-    # EDITOR/STUDIO?
+    EDITOR = 3_000_000, "Editor", "Editor and studio"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

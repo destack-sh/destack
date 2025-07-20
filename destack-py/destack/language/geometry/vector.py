@@ -13,29 +13,8 @@ if TYPE_CHECKING:
     pass
 
 
-@builtin_struct(StructType.VECTOR, frozen=True, is_abstract=True)
-class Vector(StructFrozen):
-    """A Vector."""
-
-    pass
-
-
-@builtin_struct(StructType.VECTORF, frozen=True, is_abstract=True)
-class Vectorf(Vector):
-    """A floating point Vector."""
-
-    pass
-
-
-@builtin_struct(StructType.VECTORI, frozen=True, is_abstract=True)
-class Vectori(Vector):
-    """An integer Vector."""
-
-    pass
-
-
 @builtin_struct(StructType.VECTOR2, frozen=True)
-class Vector2(Vectorf):
+class Vector2(StructFrozen):
     """A 2D floating point Vector."""
 
     x: float = builtin_property(
@@ -180,7 +159,7 @@ class Vector2(Vectorf):
 
 
 @builtin_struct(StructType.VECTOR3, frozen=True)
-class Vector3(Vectorf):
+class Vector3(StructFrozen):
     """A 3D floating point vector."""
 
     x: float = builtin_property(
@@ -335,7 +314,7 @@ class Vector3(Vectorf):
 
 
 @builtin_struct(StructType.VECTOR4, frozen=True)
-class Vector4(Vectorf):
+class Vector4(StructFrozen):
     """A 4D floating point vector."""
 
     x: float = builtin_property(
@@ -498,7 +477,7 @@ class Vector4(Vectorf):
 
 
 @builtin_struct(StructType.VECTOR2I, frozen=True)
-class Vector2i(Vectori):
+class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
     x: int = builtin_property(
@@ -639,7 +618,7 @@ class Vector2i(Vectori):
 
 
 @builtin_struct(StructType.VECTOR3I, frozen=True)
-class Vector3i(Vectori):
+class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
     x: int = builtin_property(
@@ -794,7 +773,7 @@ class Vector3i(Vectori):
 
 
 @builtin_struct(StructType.VECTOR4I, frozen=True)
-class Vector4i(Vectori):
+class Vector4i(StructFrozen):
     """A 4D integer vector."""
 
     x: int = builtin_property(

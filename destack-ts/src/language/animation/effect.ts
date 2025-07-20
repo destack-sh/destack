@@ -31,7 +31,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import type { Axis3, Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -40,7 +40,6 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import { Style } from "@destack/language/style";
-import type { Axis3 } from "@destack/language/view";
 import {
   EffectProto,
   EffectStyleProto,
@@ -578,9 +577,9 @@ export class Effect extends StructFrozen {
     _connection?: any | null,
   ): Effect {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
@@ -725,9 +724,9 @@ export class Effect extends StructFrozen {
     _connection?: any | null,
   ): Effect {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     return new Effect({
       type: Number(objectProto.type) as EffectType,
       style:
@@ -1882,9 +1881,9 @@ export class EffectStyle extends Style {
   ): EffectStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const opacityValue = objectCson["200"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectCson["201"];
@@ -2137,9 +2136,9 @@ export class EffectStyle extends Style {
   ): EffectStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {

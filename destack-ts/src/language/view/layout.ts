@@ -8,24 +8,24 @@ import type {
   Value,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
-import type { Vector2 } from "@destack/language/geometry";
+import type {
+  Align,
+  Anchor,
+  Axis2,
+  Corner2,
+  Direction,
+  Distribute,
+  Grid2,
+  GridSpan2,
+  Inset2,
+  Layout,
+  Length,
+  Offset2,
+  Vector2,
+} from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
-import type {
-  Align,
-  Axis2,
-  Axis3,
-  Corners,
-  Dimension,
-  Direction,
-  Distribute,
-  Grid,
-  GridSpan,
-  Insets,
-  Layout,
-  Position,
-} from "@destack/language/view/common";
 import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -158,49 +158,76 @@ export abstract class LayoutView extends View {
   declare readonly isExtensible: boolean;
 
   /**
-   * View.position
+   * Entity2D.position
    */
   /**
-   * View.position
+   * Entity2D.position
    */
-  abstract get position(): Position | null;
-  abstract set position(value: Position | null);
+  abstract get position(): Vector2 | null;
+  abstract set position(value: Vector2 | null);
 
   /**
-   * View.scale
+   * Entity2D.offset
    */
   /**
-   * View.scale
+   * Entity2D.offset
    */
-  abstract get scale(): number | null;
-  abstract set scale(value: number | null);
+  abstract get offset(): Offset2 | null;
+  abstract set offset(value: Offset2 | null);
 
   /**
-   * View.rotation
+   * Entity2D.scale
    */
   /**
-   * View.rotation
+   * Entity2D.scale
    */
-  abstract get rotation(): Axis3 | null;
-  abstract set rotation(value: Axis3 | null);
+  abstract get scale(): Vector2 | null;
+  abstract set scale(value: Vector2 | null);
 
   /**
-   * View.skew
+   * Entity2D.rotation
    */
   /**
-   * View.skew
+   * Entity2D.rotation
+   */
+  abstract get rotation(): Vector2 | null;
+  abstract set rotation(value: Vector2 | null);
+
+  /**
+   * Entity2D.skew
+   */
+  /**
+   * Entity2D.skew
    */
   abstract get skew(): Vector2 | null;
   abstract set skew(value: Vector2 | null);
 
   /**
+   * Entity2D.origin
+   */
+  /**
+   * Entity2D.origin
+   */
+  abstract get origin(): Vector2 | null;
+  abstract set origin(value: Vector2 | null);
+
+  /**
+   * Entity2D.anchor
+   */
+  /**
+   * Entity2D.anchor
+   */
+  abstract get anchor(): Anchor | null;
+  abstract set anchor(value: Anchor | null);
+
+  /**
    * View.width
    */
   /**
    * View.width
    */
-  abstract get width(): Dimension | null;
-  abstract set width(value: Dimension | null);
+  abstract get width(): Length | null;
+  abstract set width(value: Length | null);
 
   /**
    * View.height
@@ -208,8 +235,8 @@ export abstract class LayoutView extends View {
   /**
    * View.height
    */
-  abstract get height(): Dimension | null;
-  abstract set height(value: Dimension | null);
+  abstract get height(): Length | null;
+  abstract set height(value: Length | null);
 
   /**
    * View.minWidth
@@ -217,8 +244,8 @@ export abstract class LayoutView extends View {
   /**
    * View.minWidth
    */
-  abstract get minWidth(): Dimension | null;
-  abstract set minWidth(value: Dimension | null);
+  abstract get minWidth(): Length | null;
+  abstract set minWidth(value: Length | null);
 
   /**
    * View.minHeight
@@ -226,8 +253,8 @@ export abstract class LayoutView extends View {
   /**
    * View.minHeight
    */
-  abstract get minHeight(): Dimension | null;
-  abstract set minHeight(value: Dimension | null);
+  abstract get minHeight(): Length | null;
+  abstract set minHeight(value: Length | null);
 
   /**
    * View.maxWidth
@@ -235,8 +262,8 @@ export abstract class LayoutView extends View {
   /**
    * View.maxWidth
    */
-  abstract get maxWidth(): Dimension | null;
-  abstract set maxWidth(value: Dimension | null);
+  abstract get maxWidth(): Length | null;
+  abstract set maxWidth(value: Length | null);
 
   /**
    * View.maxHeight
@@ -244,8 +271,8 @@ export abstract class LayoutView extends View {
   /**
    * View.maxHeight
    */
-  abstract get maxHeight(): Dimension | null;
-  abstract set maxHeight(value: Dimension | null);
+  abstract get maxHeight(): Length | null;
+  abstract set maxHeight(value: Length | null);
 
   /**
    * View.isVisible
@@ -298,8 +325,8 @@ export abstract class LayoutView extends View {
   /**
    * View.radius
    */
-  abstract get radius(): Corners | null;
-  abstract set radius(value: Corners | null);
+  abstract get radius(): Corner2 | null;
+  abstract set radius(value: Corner2 | null);
 
   /**
    * LayoutView.layout
@@ -352,8 +379,8 @@ export abstract class LayoutView extends View {
   /**
    * LayoutView.padding
    */
-  abstract get padding(): Insets | null;
-  abstract set padding(value: Insets | null);
+  abstract get padding(): Inset2 | null;
+  abstract set padding(value: Inset2 | null);
 
   /**
    * LayoutView.grid
@@ -361,8 +388,8 @@ export abstract class LayoutView extends View {
   /**
    * LayoutView.grid
    */
-  abstract get grid(): Grid | null;
-  abstract set grid(value: Grid | null);
+  abstract get grid(): Grid2 | null;
+  abstract set grid(value: Grid2 | null);
 
   /**
    * LayoutView.gridSpan
@@ -370,8 +397,8 @@ export abstract class LayoutView extends View {
   /**
    * LayoutView.gridSpan
    */
-  abstract get gridSpan(): GridSpan | null;
-  abstract set gridSpan(value: GridSpan | null);
+  abstract get gridSpan(): GridSpan2 | null;
+  abstract set gridSpan(value: GridSpan2 | null);
 
   /**
    * LayoutView.aspectRatio

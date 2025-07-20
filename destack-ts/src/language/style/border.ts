@@ -25,6 +25,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Inset2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -34,7 +35,6 @@ import {
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import { Style } from "@destack/language/style/style";
-import type { Insets } from "@destack/language/view";
 import {
   BorderProto,
   BorderStyleProto,
@@ -84,7 +84,7 @@ export class Border extends StructFrozen {
   /**
    * Border.width
    */
-  readonly width: Insets | null;
+  readonly width: Inset2 | null;
 
   /**
    * Border.style
@@ -104,7 +104,7 @@ export class Border extends StructFrozen {
   constructor(options: {
     type?: BorderType;
     color?: Color | null;
-    width?: Insets | null;
+    width?: Inset2 | null;
     style?: BorderStyle | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -253,8 +253,8 @@ export class Border extends StructFrozen {
     _connection?: any | null,
   ): Border {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Inset2 = STRUCT_CLASS_BY_TYPE[StructType.INSET2] as typeof Inset2;
     const colorValue = objectCson["101"];
     const unpackedColor =
       colorValue != undefined
@@ -263,7 +263,7 @@ export class Border extends StructFrozen {
     const widthValue = objectCson["102"];
     const unpackedWidth =
       widthValue != undefined
-        ? _Insets.fromCson(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Inset2.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const stylePtrValue = objectCson["103"];
     const unpackedStylePtr =
@@ -321,8 +321,8 @@ export class Border extends StructFrozen {
     _connection?: any | null,
   ): Border {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Inset2 = STRUCT_CLASS_BY_TYPE[StructType.INSET2] as typeof Inset2;
     return new Border({
       type: Number(objectProto.type) as BorderType,
       color:
@@ -331,7 +331,7 @@ export class Border extends StructFrozen {
           : null,
       width:
         objectProto.width != undefined
-          ? _Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Inset2.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       style:
         objectProto.stylePtr != undefined
@@ -624,15 +624,15 @@ export class BorderStyle extends Style {
   /**
    * BorderStyle.width
    */
-  get width(): Insets | null {
+  get width(): Inset2 | null {
     return this._width;
   }
-  set width(value: Insets | null) {
+  set width(value: Inset2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["width"];
     this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
-  _width: Insets | null;
+  _width: Inset2 | null;
 
   /**
    * BorderStyle.style
@@ -687,7 +687,7 @@ export class BorderStyle extends Style {
     isExtensible?: boolean;
     type?: BorderType;
     color?: Color | null;
-    width?: Insets | null;
+    width?: Inset2 | null;
     style?: BorderStyle | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1097,8 +1097,8 @@ export class BorderStyle extends Style {
   ): BorderStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Inset2 = STRUCT_CLASS_BY_TYPE[StructType.INSET2] as typeof Inset2;
     const colorValue = objectCson["200"];
     const unpackedColor =
       colorValue != undefined
@@ -1107,7 +1107,7 @@ export class BorderStyle extends Style {
     const widthValue = objectCson["201"];
     const unpackedWidth =
       widthValue != undefined
-        ? _Insets.fromCson(widthValue, _session, _supergraph, _graph, _connection)
+        ? _Inset2.fromCson(widthValue, _session, _supergraph, _graph, _connection)
         : null;
     const stylePtrValue = objectCson["202"];
     const unpackedStylePtr =
@@ -1282,8 +1282,8 @@ export class BorderStyle extends Style {
   ): BorderStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
+    const _Inset2 = STRUCT_CLASS_BY_TYPE[StructType.INSET2] as typeof Inset2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1301,7 +1301,7 @@ export class BorderStyle extends Style {
           : null,
       width:
         objectProto.width != undefined
-          ? _Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Inset2.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
           : null,
       style:
         objectProto.stylePtr != undefined
