@@ -47,18 +47,19 @@ function _filterRows(options: {
   definition: NodeDefinitionReference;
   where: Condition | null;
   includeDeleted?: boolean;
-  snapshotPath: readonly string[];
+  branchId: string | null;
+  snapshotId: string | null;
   ignoreMulti?: boolean;
 }): MemoryEntityRow[] {
   const {
     context,
     definition,
     where,
-    snapshotPath,
+    branchId,
+    snapshotId,
     ignoreMulti = false,
     includeDeleted = false,
   } = options;
-  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
   let filteredRows: MemoryEntityRow[];
 
@@ -133,7 +134,8 @@ function _queryNode(options: {
   includeDeleted?: boolean;
   limit: number | null;
   offset: number | null;
-  snapshotPath: readonly string[];
+  branchId: string | null;
+  snapshotId: string | null;
   ignoreMulti?: boolean;
 }): { nodes: Value[]; nodesPtrs: NodeReference[] } {
   const {
@@ -145,7 +147,8 @@ function _queryNode(options: {
     includeDeleted = false,
     limit,
     offset,
-    snapshotPath,
+    branchId,
+    snapshotId,
     ignoreMulti = false,
   } = options;
 
@@ -166,7 +169,8 @@ function _queryNode(options: {
         sort,
         limit,
         offset,
-        snapshotPath,
+        branchId,
+        snapshotId,
         ignoreMulti: true,
       });
       allValues.push(...nodes);
@@ -180,7 +184,8 @@ function _queryNode(options: {
     context,
     definition,
     where,
-    snapshotPath,
+    branchId,
+    snapshotId,
     ignoreMulti: true,
   });
 
@@ -227,12 +232,28 @@ function queryScalar(options: {
   aggregation: Aggregation;
   where: Condition | null;
   includeDeleted?: boolean;
-  snapshotPath: readonly string[];
+  branchId: string | null;
+  snapshotId: string | null;
 }): Value {
-  const { context, definition, aggregation, where, includeDeleted = false, snapshotPath } = options;
+  const {
+    context,
+    definition,
+    aggregation,
+    where,
+    includeDeleted = false,
+    branchId,
+    snapshotId,
+  } = options;
 
   // filter
-  const filteredRows = filterRows({ context, definition, where, snapshotPath, includeDeleted });
+  const filteredRows = filterRows({
+    context,
+    definition,
+    where,
+    branchId,
+    snapshotId,
+    includeDeleted,
+  });
 
   // execute
   const scalar = evaluateAggregation({ values: filteredRows.map((row) => row.value), aggregation });
@@ -254,7 +275,8 @@ function _queryGroupedNode(options: {
   limit: number | null;
   offset: number | null;
   includeDeleted?: boolean;
-  snapshotPath: readonly string[];
+  branchId: string | null;
+  snapshotId: string | null;
 }): Array<{ discriminator: Value; nodes: Value[]; nodesPtrs: NodeReference[] }> {
   const {
     context,
@@ -267,7 +289,8 @@ function _queryGroupedNode(options: {
     limit,
     offset,
     includeDeleted = false,
-    snapshotPath,
+    branchId,
+    snapshotId,
   } = options;
 
   if (definition.isMulti) {
@@ -275,7 +298,14 @@ function _queryGroupedNode(options: {
   }
 
   // filter
-  const filteredRows = filterRows({ context, definition, where, snapshotPath, includeDeleted });
+  const filteredRows = filterRows({
+    context,
+    definition,
+    where,
+    branchId,
+    snapshotId,
+    includeDeleted,
+  });
 
   // group rows by group_by expressions
   const groups = new Map<string, MemoryEntityRow[]>();
@@ -348,7 +378,8 @@ function _queryGroupedScalar(options: {
   having: Condition | null;
   groupBy: readonly Expression[];
   includeDeleted?: boolean;
-  snapshotPath: readonly string[];
+  branchId: string | null;
+  snapshotId: string | null;
 }): Array<[Value, Value]> {
   const {
     context,
@@ -358,7 +389,8 @@ function _queryGroupedScalar(options: {
     having,
     groupBy,
     includeDeleted = false,
-    snapshotPath,
+    branchId,
+    snapshotId,
   } = options;
 
   if (definition.isMulti) {
@@ -366,7 +398,14 @@ function _queryGroupedScalar(options: {
   }
 
   // filter rows based on where condition
-  const filteredNodes = filterRows({ context, definition, where, snapshotPath, includeDeleted });
+  const filteredNodes = filterRows({
+    context,
+    definition,
+    where,
+    branchId,
+    snapshotId,
+    includeDeleted,
+  });
 
   // group rows by group_by expressions
   const groups = new Map<string, MemoryEntityRow[]>();
@@ -413,7 +452,8 @@ function _walkNode(options: {
   direction: EdgeDirection;
   depth: number;
   includeDeleted?: boolean | Array<string>;
-  snapshotPath: readonly string[];
+  branchId: string;
+  snapshotId: string;
 }): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
   const {
     context,
@@ -422,12 +462,12 @@ function _walkNode(options: {
     direction,
     depth,
     includeDeleted = false,
-    snapshotPath,
+    branchId,
+    snapshotId,
   } = options;
 
   const nodesById = new Map<string, NodeReference>();
   const sourceIdByNodeId = new Map<string, string>();
-  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
   const definitions = context.resolve(definition);
 
   // parent walk
@@ -560,7 +600,8 @@ function _queryClause(options: { context: MemoryContext; query: Query; where: Co
       includeDeleted: query.includeDeleted,
       limit: query.limit || null,
       offset: query.offset || null,
-      snapshotPath: query.snapshotPath || [],
+      branchId: query.branchPtr.id,
+      snapshotId: query.snapshotPtr.id,
     });
     result = new QueryResult({ id: query.id, type: query.type, nodes });
     nodesPtrs = ptrs;
@@ -577,7 +618,8 @@ function _queryClause(options: { context: MemoryContext; query: Query; where: Co
       aggregation: query.aggregation,
       where: combinedWhere,
       includeDeleted: query.includeDeleted,
-      snapshotPath: query.snapshotPath || [],
+      branchId: query.branchPtr.id,
+      snapshotId: query.snapshotPtr.id,
     });
     nodesPtrs = [];
     result = new QueryResult({ id: query.id, type: query.type, scalar: scalarResult });
@@ -604,7 +646,8 @@ function _queryClause(options: { context: MemoryContext; query: Query; where: Co
       includeDeleted: query.includeDeleted,
       limit: query.limit || null,
       offset: query.offset || null,
-      snapshotPath: query.snapshotPath || [],
+      branchId: query.branchPtr.id,
+      snapshotId: query.snapshotPtr.id,
     });
     nodesPtrs = [];
     const groups: QueryResultGroup[] = [];
@@ -636,7 +679,8 @@ function _queryClause(options: { context: MemoryContext; query: Query; where: Co
       having: query.having || null,
       groupBy: query.groupBy,
       includeDeleted: query.includeDeleted,
-      snapshotPath: query.snapshotPath || [],
+      branchId: query.branchPtr.id,
+      snapshotId: query.snapshotPtr.id,
     });
     nodesPtrs = [];
     const groups: QueryResultGroup[] = [];
@@ -707,7 +751,8 @@ function executeSubquery(options: {
         direction: EdgeDirection.PARENT,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
         includeDeleted: subquery.includeDeleted,
-        snapshotPath: subquery.snapshotPath,
+        branchId: subquery.branchPtr.id,
+        snapshotId: subquery.snapshotPtr.id,
       });
       const idProperty = subquery.definition.resolveProperty("id");
       const nodeIds = expandedNodesPtrs.map((n) => n.id);
@@ -737,7 +782,8 @@ function executeSubquery(options: {
         direction: EdgeDirection.CHILD,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
         includeDeleted: subquery.includeDeleted,
-        snapshotPath: subquery.snapshotPath,
+        branchId: subquery.branchPtr.id,
+        snapshotId: subquery.snapshotPtr.id,
       });
       const idProperty = subquery.definition.resolveProperty("id");
       const nodeIds = expandedNodesPtrs.map((n) => n.id);

@@ -1,5 +1,4 @@
 import { ReactiveSession, SessionProvider } from "@destack-web/language";
-import { IndexedDBStore } from "@destack-web/store";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SESSION,
@@ -7,12 +6,13 @@ import {
   ACTIVE_SPACE,
   createSpace,
   Layer,
+  MemoryStore,
   StoreKey,
 } from "destack";
 import React from "react";
 import LayerView from "./Layer";
 
-const store = new IndexedDBStore({
+const store = new MemoryStore({
   keys: [StoreKey.ENTITY_PRIMARY],
 });
 await store.open();
