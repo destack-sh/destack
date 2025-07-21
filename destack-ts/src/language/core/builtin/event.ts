@@ -461,20 +461,20 @@ export class CustomEvent extends Entity {
   _baseType: NodeDefinitionReference | null;
 
   /**
-   * CustomEvent.baseTraits
+   * CustomEvent.selfTraits
    */
   /**
-   * CustomEvent.baseTraits
+   * CustomEvent.selfTraits
    */
-  get baseTraits(): readonly NodeDefinitionReference[] {
-    return this._baseTraits;
+  get selfTraits(): readonly NodeDefinitionReference[] {
+    return this._selfTraits;
   }
-  set baseTraits(value: readonly NodeDefinitionReference[]) {
-    const prop = (this.constructor as NodeClass).__properties__["base_traits"];
+  set selfTraits(value: readonly NodeDefinitionReference[]) {
+    const prop = (this.constructor as NodeClass).__properties__["self_traits"];
     this._session.updateSetProperty(this, prop, value);
-    this._baseTraits = value;
+    this._selfTraits = value;
   }
-  _baseTraits: readonly NodeDefinitionReference[];
+  _selfTraits: readonly NodeDefinitionReference[];
 
   /**
    * CustomEvent.isAbstract
@@ -519,7 +519,7 @@ export class CustomEvent extends Entity {
     key?: string | null;
     icon?: Icon | null;
     baseType?: NodeDefinitionReference | null;
-    baseTraits?: readonly NodeDefinitionReference[];
+    selfTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -667,11 +667,11 @@ export class CustomEvent extends Entity {
     this._icon = _icon;
     let _baseType = options.baseType ?? null;
     this._baseType = _baseType;
-    let _baseTraits = options.baseTraits ?? null;
-    if (_baseTraits === null) {
-      _baseTraits = [];
+    let _selfTraits = options.selfTraits ?? null;
+    if (_selfTraits === null) {
+      _selfTraits = [];
     }
-    this._baseTraits = _baseTraits;
+    this._selfTraits = _selfTraits;
     let _isAbstract = options.isAbstract ?? null;
     if (_isAbstract === null) {
       _isAbstract = false;
@@ -737,11 +737,11 @@ export class CustomEvent extends Entity {
     ) {
       return false;
     }
-    if (this._baseTraits.length != other._baseTraits.length) {
+    if (this._selfTraits.length != other._selfTraits.length) {
       return false;
     }
-    for (let i = 0; i < this._baseTraits.length; i++) {
-      if (!this._baseTraits[i].equals(other._baseTraits[i])) {
+    for (let i = 0; i < this._selfTraits.length; i++) {
+      if (!this._selfTraits[i].equals(other._selfTraits[i])) {
         return false;
       }
     }
@@ -795,8 +795,8 @@ export class CustomEvent extends Entity {
     if (this._baseType != null) {
       h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
-    if (this._baseTraits && this._baseTraits.length > 0) {
-      for (const _item of this._baseTraits) {
+    if (this._selfTraits && this._selfTraits.length > 0) {
+      for (const _item of this._selfTraits) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
@@ -960,12 +960,12 @@ export class CustomEvent extends Entity {
     if (object._baseType != null) {
       objectCson["110"] = object._baseType.toCson();
     }
-    if (object._baseTraits.length > 0) {
-      const packedBaseTraits: any[] = [];
-      for (const item of object._baseTraits) {
-        packedBaseTraits.push(item.toCson());
+    if (object._selfTraits.length > 0) {
+      const packedSelfTraits: any[] = [];
+      for (const item of object._selfTraits) {
+        packedSelfTraits.push(item.toCson());
       }
-      objectCson["111"] = packedBaseTraits;
+      objectCson["111"] = packedSelfTraits;
     }
     objectCson["112"] = object._isAbstract;
     return objectCson;
@@ -1000,10 +1000,10 @@ export class CustomEvent extends Entity {
             _connection,
           )
         : null;
-    const unpackedBaseTraits: any[] = [];
+    const unpackedSelfTraits: any[] = [];
     if (objectCson["111"] != undefined) {
       for (const item of objectCson["111"]) {
-        unpackedBaseTraits.push(
+        unpackedSelfTraits.push(
           _NodeDefinitionReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
@@ -1077,7 +1077,7 @@ export class CustomEvent extends Entity {
     return new CustomEvent({
       icon: unpackedIcon,
       baseType: unpackedBaseType,
-      baseTraits: unpackedBaseTraits,
+      selfTraits: unpackedSelfTraits,
       isAbstract: objectCson["112"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
@@ -1190,12 +1190,12 @@ export class CustomEvent extends Entity {
     if (object._baseType != null) {
       objectProto.baseType = object._baseType.toProto();
     }
-    if (object._baseTraits) {
-      const packedBaseTraits: any[] = [];
-      for (const item of object._baseTraits) {
-        packedBaseTraits.push(item.toProto());
+    if (object._selfTraits) {
+      const packedSelfTraits: any[] = [];
+      for (const item of object._selfTraits) {
+        packedSelfTraits.push(item.toProto());
       }
-      objectProto.baseTraits = packedBaseTraits;
+      objectProto.selfTraits = packedSelfTraits;
     }
     objectProto.isAbstract = object._isAbstract;
     return objectProto as CustomEventProto;
@@ -1214,10 +1214,10 @@ export class CustomEvent extends Entity {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedBaseTraits: any[] = [];
-    if (objectProto.baseTraits) {
-      for (const item of objectProto.baseTraits) {
-        unpackedBaseTraits.push(
+    const unpackedSelfTraits: any[] = [];
+    if (objectProto.selfTraits) {
+      for (const item of objectProto.selfTraits) {
+        unpackedSelfTraits.push(
           _NodeDefinitionReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
@@ -1246,7 +1246,7 @@ export class CustomEvent extends Entity {
               _connection,
             )
           : null,
-      baseTraits: unpackedBaseTraits,
+      selfTraits: unpackedSelfTraits,
       isAbstract: objectProto.isAbstract,
       parent:
         objectProto.parentPtr != undefined

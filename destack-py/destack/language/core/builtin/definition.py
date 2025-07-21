@@ -117,27 +117,27 @@ class NodeDefinition(BuiltinDefinition):
     # content
     properties: list["PropertyDefinition"] = builtin_property(
         120,
-        description="All properties of this Node.",
+        description="All properties of this Node (including inherited).",
     )
     indexes: list["IndexDefinition"] = builtin_property(
         121,
-        description="All indexes of this Node.",
+        description="All indexes of this Node (including inherited).",
     )
     constraints: list["ConstraintDefinition"] = builtin_property(
         122,
-        description="All constraints of this Node.",
+        description="All constraints of this Node (including inherited).",
     )
     permissions: list["PermissionDefinition"] = builtin_property(
         123,
-        description="All permissions of this Node.",
+        description="All permissions of this Node (including inherited).",
     )
     methods: list["MethodDefinition"] = builtin_property(
         125,
-        description="All methods of this Node (excluding actions).",
+        description="All methods of this Node (including inherited, excluding actions).",
     )
     actions: list["ActionDefinition"] = builtin_property(
         126,
-        description="All actions of this Node.",
+        description="All actions of this Node (including inherited).",
     )
 
     # inheritance
@@ -152,39 +152,39 @@ class NodeDefinition(BuiltinDefinition):
     )
     inherits: list[NodeType] = builtin_property(
         132,
-        description="Nodes that this Node inherits (directly and indirectly).",
+        description="Nodes that this Node inherits.",
     )
     inherited_by: list[NodeType] = builtin_property(
         133,
-        description="Nodes that inherit this Node type (directly and indirectly).",
-    )
-    base_traits: list[TraitType] = builtin_property(
-        134,
-        description="Traits directly inherited by this Node (directly).",
+        description="Nodes that inherit this Node type.",
     )
     traits: list[TraitType] = builtin_property(
+        134,
+        description="Traits implemented by this Node.",
+    )
+    self_traits: list[TraitType] = builtin_property(
         135,
-        description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
+        description="Traits declared by this Node (directly).",
     )
 
     # event
     event_types: list[NodeType] = builtin_property(
         140,
-        description="The event types related to this Node (directly and indirectly).",
+        description="The event types related to this Node.",
     )
-    base_event_types: list[NodeType] = builtin_property(
+    self_event_types: list[NodeType] = builtin_property(
         141,
-        description="The base event types related to this Node (directly).",
+        description="The event types declared by this Node (directly).",
     )
 
     # enum
     enum_types: list[EnumType] = builtin_property(
         150,
-        description="The enum types related to this Node (directly and indirectly).",
+        description="The enum types related to this Node.",
     )
-    base_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = builtin_property(
         151,
-        description="The base enum types related to this Node (directly).",
+        description="The enum types declared by this Node (directly).",
     )
 
     # tree
@@ -200,11 +200,11 @@ class NodeDefinition(BuiltinDefinition):
     )
     ancestor_types: list[NodeType] = builtin_property(
         162,
-        description="The ancestor types of this Node type (directly and indirectly).",
+        description="The ancestor types of this Node type.",
     )
     descendant_types: list[NodeType] = builtin_property(
         163,
-        description="The descendant types of this Node type (directly and indirectly).",
+        description="The descendant types of this Node type.",
     )
 
     # expected tree
@@ -259,10 +259,10 @@ class NodeDefinition(BuiltinDefinition):
             inherits=list(node_cls.__inherits__),
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
-            base_traits=list(node_cls.__base_traits__),
+            self_traits=list(node_cls.__self_traits__),
             # event
             event_types=list(node_cls.__event_types__),
-            base_event_types=list(node_cls.__base_event_types__),
+            self_event_types=list(node_cls.__self_event_types__),
             # tree
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),
@@ -301,21 +301,21 @@ class TraitDefinition(BuiltinDefinition):
     )
 
     # inheritance
-    base_traits: list[TraitType] = builtin_property(
+    self_traits: list[TraitType] = builtin_property(
         130,
         description="Traits directly inherited by this Trait (directly).",
     )
     traits: list[TraitType] = builtin_property(
         131,
-        description="Traits directly and indirectly inherited by this Trait (directly and indirectly).",
+        description="Traits directly and indirectly inherited by this Trait.",
     )
 
     # event
     event_types: list[NodeType] = builtin_property(
         140,
-        description="The event types related to this Trait (directly and indirectly).",
+        description="The event types related to this Trait.",
     )
-    base_event_types: list[NodeType] = builtin_property(
+    self_event_types: list[NodeType] = builtin_property(
         141,
         description="The base event types related to this Trait (directly).",
     )
@@ -323,9 +323,9 @@ class TraitDefinition(BuiltinDefinition):
     # enum
     enum_types: list[EnumType] = builtin_property(
         150,
-        description="The enum types related to this Trait (directly and indirectly).",
+        description="The enum types related to this Trait.",
     )
-    base_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = builtin_property(
         151,
         description="The base enum types related to this Trait (directly).",
     )
@@ -349,14 +349,14 @@ class TraitDefinition(BuiltinDefinition):
             # content
             permissions=list(trait_cls.__permissions__),
             # inheritance
-            base_traits=list(trait_cls.__base_traits__),
+            self_traits=list(trait_cls.__self_traits__),
             traits=list(trait_cls.__traits__),
             # event
             event_types=list(trait_cls.__event_types__),
-            base_event_types=list(trait_cls.__base_event_types__),
+            self_event_types=list(trait_cls.__self_event_types__),
             # enum
             enum_types=list(trait_cls.__enum_types__),
-            base_enum_types=list(trait_cls.__base_enum_types__),
+            self_enum_types=list(trait_cls.__self_enum_types__),
         )
 
 
@@ -404,18 +404,18 @@ class StructDefinition(BuiltinDefinition):
         131, description="Structs that extend this Struct type (directly)."
     )
     inherits: list[StructType] = builtin_property(
-        132, description="Structs that this Struct inherits (directly and indirectly)."
+        132, description="Structs that this Struct inherits."
     )
     inherited_by: list[StructType] = builtin_property(
-        133, description="Structs that inherit this Struct type (directly and indirectly)."
+        133, description="Structs that inherit this Struct type."
     )
 
     # enum
     enum_types: list[EnumType] = builtin_property(
         150,
-        description="The enum types related to this Node (directly and indirectly).",
+        description="The enum types related to this Node.",
     )
-    base_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = builtin_property(
         151,
         description="The base enum types related to this Node (directly).",
     )
@@ -448,7 +448,7 @@ class StructDefinition(BuiltinDefinition):
             inherited_by=list(struct_cls.__inherited_by__),
             # enum
             enum_types=list(struct_cls.__enum_types__),
-            base_enum_types=list(struct_cls.__base_enum_types__),
+            self_enum_types=list(struct_cls.__self_enum_types__),
         )
 
 

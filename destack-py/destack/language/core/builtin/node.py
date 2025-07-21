@@ -87,12 +87,12 @@ def builtin_node(
 
         # base types
         traits: list[TraitType] = []
-        base_traits: list[TraitType] = []
+        self_traits: list[TraitType] = []
         inherits: list[NodeType] = []
         for base in cls.__bases__:
             if trait := _resolve_trait_type(base.__name__):
-                if trait not in base_traits:
-                    base_traits.append(trait)
+                if trait not in self_traits:
+                    self_traits.append(trait)
         for superclass in get_superclasses(cls):
             if trait := _resolve_trait_type(superclass.__name__):
                 if trait not in traits:
@@ -102,14 +102,14 @@ def builtin_node(
                     inherits.append(base_type)
         cls.__is_trait__ = False  # override Trait.__is_trait__
         cls.__traits__ = tuple(reversed(traits))
-        cls.__base_traits__ = tuple(reversed(base_traits))
+        cls.__self_traits__ = tuple(reversed(self_traits))
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
         cls.__is_extensible__ = is_extensible
 
         # event types
-        cls.__base_event_types__ = tuple(event_types)
+        cls.__self_event_types__ = tuple(event_types)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -224,7 +224,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """Nodes that extend this Node (directly and indirectly)."""
     __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
     """Traits directly inherited by this Node (directly)."""
-    __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
+    __self_traits__: ClassVar[tuple[TraitType, ...]] = ()
     """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
 
@@ -244,13 +244,13 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     # event
     """The base event types of this Node (directly)."""
-    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __self_event_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The event types of this Node (directly and indirectly)."""
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # enum
     """The base enum types of this Node (directly)."""
-    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
     """The enum types of this Node (directly and indirectly)."""
     __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 

@@ -60,7 +60,7 @@ def builtin_struct(
         cls.__is_extensible__ = is_extensible
 
         # enum types
-        cls.__base_enum_types__ = tuple(enum_types)
+        cls.__self_enum_types__ = tuple(enum_types)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -135,7 +135,7 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
 
     # enum
     __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
-    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
     def __eq__(self, other: Any):
         """Equals the Struct contents."""

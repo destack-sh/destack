@@ -189,7 +189,7 @@ class CustomEvent(
     icon: "Icon | None" = builtin_property(102)
 
     base_type: Optional["NodeDefinitionReference"] = builtin_property(110)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(111)
+    self_traits: list["NodeDefinitionReference"] = builtin_property(111)
     is_abstract: bool = builtin_property(112, default=False)
 
 

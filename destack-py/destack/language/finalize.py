@@ -180,8 +180,8 @@ def finalize():
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), TRAIT_CLASS_BY_TYPE.values()):
         all_event_types: set[NodeType] = set()
         for base in node_cls.__bases__:
-            if issubclass(base, Node) and base.__base_event_types__:
-                for event_type in base.__base_event_types__:
+            if issubclass(base, Node) and base.__self_event_types__:
+                for event_type in base.__self_event_types__:
                     all_event_types.add(event_type)
                     event_cls = NODE_CLASS_BY_TYPE[event_type]
                     all_event_types.update(event_cls.__inherited_by__)

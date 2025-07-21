@@ -72,11 +72,11 @@ def builtin_trait(
 
         # traits
         traits: list[TraitType] = []
-        base_traits: list[TraitType] = []
+        self_traits: list[TraitType] = []
         for base in cls.__bases__:
             if trait := _resolve_trait_type(base.__name__):
-                if trait not in base_traits:
-                    base_traits.append(trait)
+                if trait not in self_traits:
+                    self_traits.append(trait)
         for superclass in get_superclasses(cls):
             if superclass is cls:
                 continue
@@ -84,11 +84,11 @@ def builtin_trait(
                 if trait not in traits:
                     traits.append(trait)
         cls.__traits__ = tuple(traits)
-        cls.__base_traits__ = tuple(base_traits)
+        cls.__self_traits__ = tuple(self_traits)
         cast(type["Trait"], cls).__is_extensible__ = is_extensible
 
         # event types
-        cls.__base_event_types__ = tuple(event_types)
+        cls.__self_event_types__ = tuple(event_types)
 
         # meta
         if permissions:
@@ -135,13 +135,13 @@ class Trait(Entity if TYPE_CHECKING else BuiltinObject):
 
     # event
     """The base event types of this Trait (directly)."""
-    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __self_event_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The event types of this trait (directly and indirectly)."""
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # enum
     """The base enum types of this trait (directly)."""
-    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
     """The enum types of this trait (directly and indirectly)."""
     __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
