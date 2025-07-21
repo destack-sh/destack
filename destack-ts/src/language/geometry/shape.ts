@@ -459,6 +459,15 @@ export abstract class Shape3D extends Entity3D {
   abstract set origin(value: Vector3 | null);
 
   /**
+   * Entity3D.anchor
+   */
+  /**
+   * Entity3D.anchor
+   */
+  abstract get anchor(): Anchor | null;
+  abstract set anchor(value: Anchor | null);
+
+  /**
    * Shape3D.stroke
    */
   /**

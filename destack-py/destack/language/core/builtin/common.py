@@ -235,6 +235,7 @@ class StructType(Enum):
     PROPERTY_DEFINITION = 18
     CONSTANT_DEFINITION = 19
     OPTION_DEFINITION = 20
+    TAG_DEFINITION = 21
 
     # type/value
     VALUE = 100

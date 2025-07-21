@@ -29,6 +29,7 @@ class IndexDeclaration(NamedTuple):
     id: int
     properties: tuple[str, ...]
     cover: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
     name: str | None = None
     type: IndexType = IndexType.BTREE
 
@@ -39,7 +40,9 @@ class ConstraintDeclaration(NamedTuple):
     id: int
     type: ConstraintType
     properties: tuple[str, ...]
+    description: str | None = None
     name: str | None = None
+    tags: tuple[str, ...] = ()
 
 
 class PermissionDeclaration(NamedTuple):
@@ -47,6 +50,8 @@ class PermissionDeclaration(NamedTuple):
 
     id: int
     name: str
+    description: str
+    tags: tuple[str, ...] = ()
 
 
 @builtin_enum(EnumType.METHOD_TYPE)
@@ -72,13 +77,14 @@ class MethodDeclaration(NamedTuple):
     id: int
     name: str
     properties: tuple["PropertyDeclaration", ...]
+    tags: tuple[str, ...]
     func: Callable
     type: MethodType
     is_async: bool
     is_abstract: bool
 
 
-def builtin_method(id: int, *, name: str | None = None):
+def builtin_method(id: int, *, name: str | None = None, tags: tuple[str, ...] = ()):
     """Declare a builtin Method."""
 
     def decorate(func):
@@ -94,10 +100,18 @@ class ActionDeclaration(MethodDeclaration):
     pass
 
 
-def builtin_action(id: int, *, name: str | None = None):
+def builtin_action(id: int, *, name: str | None = None, tags: tuple[str, ...] = ()):
     """Declare a builtin Action."""
 
     def decorate(func):
         return func
 
     return decorate
+
+
+class TagDeclaration(NamedTuple):
+    """Declaration of a TagDefinition (internal use only)."""
+
+    id: int
+    name: str
+    description: str

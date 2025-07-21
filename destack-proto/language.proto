@@ -1349,6 +1349,7 @@ enum StructTypeProto {
   STRUCT_TYPE_PROPERTY_DEFINITION = 18;
   STRUCT_TYPE_CONSTANT_DEFINITION = 19;
   STRUCT_TYPE_OPTION_DEFINITION = 20;
+  STRUCT_TYPE_TAG_DEFINITION = 21;
   STRUCT_TYPE_VALUE = 100;
   STRUCT_TYPE_TYPE = 101;
   STRUCT_TYPE_NUMBER_CONSTRAINT = 110;
@@ -1612,6 +1613,7 @@ message ActionDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 104;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   MethodCardinalityProto cardinality = 110;
   repeated PlatformTypeProto platforms = 120;
   repeated RuntimeLanguageProto languages = 121;
@@ -1764,6 +1766,7 @@ message BuiltinDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
@@ -1967,6 +1970,7 @@ message ConstraintDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyReferenceProto properties = 105;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // A content View.
@@ -2832,15 +2836,12 @@ message EntitlementRevokedEventProto {
 // An Entity is a named, versioned, mutable Node.
 // Entities can be attached to (most) other Entities to compose richer structures.
 // 
+// Updates to Entities can only be affected through Events.
 // Entities are always part of a Snapshot (in their Space).
-// State transition can only be caused by Events (which are immutable).
 // 
 // An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
 // where Snapshots are 'shortcuts' to certain epochs.
-// 
 // (id, definition_id) @ (branch_id, snapshot_id)
-// 
-// (id, instance_id) @ (branch_id, snapshot_id)
 message EntityProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2937,6 +2938,7 @@ message Entity3DProto {
   optional QuaternionProto rotation = 112;
   optional Vector3Proto skew = 113;
   optional Vector3Proto origin = 114;
+  optional AnchorProto anchor = 115;
 }
 
 message EnumDefinitionProto {
@@ -2947,6 +2949,7 @@ message EnumDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated OptionDefinitionProto options = 104;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // An Environment is a deployment scenario of a Space.
@@ -3692,6 +3695,7 @@ message IndexDefinitionProto {
   optional string description = 103;
   repeated PropertyReferenceProto properties = 105;
   repeated PropertyReferenceProto cover = 106;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // An InputEvent is an Event that corresponds to some direct user input.
@@ -4484,6 +4488,7 @@ message MethodDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 104;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   MethodCardinalityProto cardinality = 110;
   repeated PlatformTypeProto platforms = 120;
   repeated RuntimeLanguageProto languages = 121;
@@ -4556,6 +4561,7 @@ message MigrationDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // MigrationOperation of an Entity.
@@ -4593,6 +4599,7 @@ message MigrationOperationDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
@@ -4644,6 +4651,7 @@ message NodeDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   bool is_abstract = 110;
   bool is_extensible = 111;
   bool is_frozen = 112;
@@ -4936,6 +4944,7 @@ message OptionDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // An Organization with Users and Teams.
@@ -5100,6 +5109,7 @@ message PermissionDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // A PointerDownEvent is a PointerEvent when a pointer is pressed down.
@@ -5371,7 +5381,7 @@ message PropertyDefinitionProto {
   optional string description = 103;
   ObjectDefinitionReferenceProto object = 104;
   ObjectDefinitionReferenceProto original_object = 105;
-  optional int64 group_id = 106 [jstype = JS_NUMBER];
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
@@ -6453,6 +6463,7 @@ message Shape3DProto {
   optional QuaternionProto rotation = 112;
   optional Vector3Proto skew = 113;
   optional Vector3Proto origin = 114;
+  optional AnchorProto anchor = 115;
   optional StrokeProto stroke = 180;
 }
 
@@ -6925,12 +6936,14 @@ message StructDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   bool is_frozen = 110;
   bool is_abstract = 111;
   bool is_extensible = 112;
   repeated PropertyDefinitionProto properties = 120;
   repeated MethodDefinitionProto methods = 125;
   repeated ActionDefinitionProto actions = 126;
+  repeated TagDefinitionProto tags = 129;
   optional StructTypeProto base_type = 130;
   repeated StructTypeProto extended_by = 131;
   repeated StructTypeProto inherits = 132;
@@ -7003,6 +7016,15 @@ message TagProto {
   optional NodeReferenceProto source_ptr = 80;
   optional string key = 85;
   optional IconProto icon = 102;
+}
+
+message TagDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
 }
 
 // A Tagging of a Node by a Tag.
@@ -7332,6 +7354,7 @@ message TraitDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   string alias = 110;
   bool is_extensible = 111;
   repeated PermissionDefinitionProto permissions = 123;
@@ -7719,6 +7742,7 @@ message SomeNodeProto {
     TaggingProto tagging = 12100;
     CustomEventProto custom_event = 20000;
     EditEventProto edit_event = 90100;
+    PermissionProto permission = 50000;
     MethodProto method = 40000;
     ActionProto action = 40100;
     CustomEnumProto custom_enum = 20200;
@@ -7727,7 +7751,6 @@ message SomeNodeProto {
     ConstraintProto constraint = 30200;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
-    PermissionProto permission = 50000;
     CustomPropertyProto custom_property = 20300;
     SpaceProto space = 1000;
     CustomStructProto custom_struct = 20100;
@@ -7868,6 +7891,7 @@ message SomeEntityProto {
     TagProto tag = 12000;
     TaggingProto tagging = 12100;
     CustomEventProto custom_event = 20000;
+    PermissionProto permission = 50000;
     MethodProto method = 40000;
     ActionProto action = 40100;
     CustomEnumProto custom_enum = 20200;
@@ -7876,7 +7900,6 @@ message SomeEntityProto {
     ConstraintProto constraint = 30200;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
-    PermissionProto permission = 50000;
     CustomPropertyProto custom_property = 20300;
     SpaceProto space = 1000;
     CustomStructProto custom_struct = 20100;

@@ -1,13 +1,13 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { BuiltinDefinition } from "@destack/language/core/builtin/definition";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor } from "@destack/language/core/builtin/trait";
-import { BuiltinDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -81,12 +81,18 @@ export class MigrationDefinition extends BuiltinDefinition {
    */
   readonly description: string | null;
 
+  /**
+   * BuiltinDefinition.taggings
+   */
+  readonly taggings: readonly number[];
+
   constructor(options: {
     id: number;
     type: MigrationType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
+    taggings?: readonly number[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -121,6 +127,11 @@ export class MigrationDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _taggings = options.taggings ?? null;
+    if (_taggings === null) {
+      _taggings = [];
+    }
+    this.taggings = _taggings;
 
     // identity
     // @ts-expect-error(readonly)
@@ -154,6 +165,14 @@ export class MigrationDefinition extends BuiltinDefinition {
     }
     if (!(this.description === other.description)) {
       return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
     }
     return true;
   }
@@ -189,6 +208,11 @@ export class MigrationDefinition extends BuiltinDefinition {
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -219,6 +243,13 @@ export class MigrationDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    if (object.taggings.length > 0) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectCson["109"] = packedTaggings;
+    }
     return objectCson;
   }
 
@@ -237,12 +268,19 @@ export class MigrationDefinition extends BuiltinDefinition {
         : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    const unpackedTaggings: any[] = [];
+    if (objectCson["109"] != undefined) {
+      for (const item of objectCson["109"]) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new MigrationDefinition({
       type: Number(objectCson["100"]),
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      taggings: unpackedTaggings,
       _cson: objectCson,
       _supergraph,
     });
@@ -283,6 +321,13 @@ export class MigrationDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    if (object.taggings) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectProto.taggings = packedTaggings;
+    }
     return objectProto as MigrationDefinitionProto;
   }
 
@@ -294,6 +339,12 @@ export class MigrationDefinition extends BuiltinDefinition {
     _connection?: any | null,
   ): MigrationDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedTaggings: any[] = [];
+    if (objectProto.taggings) {
+      for (const item of objectProto.taggings) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new MigrationDefinition({
       type: Number(objectProto.type) as MigrationType,
       id: Number(objectProto.id),
@@ -303,6 +354,7 @@ export class MigrationDefinition extends BuiltinDefinition {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      taggings: unpackedTaggings,
       _proto: objectProto,
       _supergraph,
     });
@@ -365,11 +417,17 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
    */
   readonly description: string | null;
 
+  /**
+   * BuiltinDefinition.taggings
+   */
+  readonly taggings: readonly number[];
+
   constructor(options: {
     id: number;
     name: string;
     icon?: Icon | null;
     description?: string | null;
+    taggings?: readonly number[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -399,6 +457,11 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _taggings = options.taggings ?? null;
+    if (_taggings === null) {
+      _taggings = [];
+    }
+    this.taggings = _taggings;
 
     // identity
     // @ts-expect-error(readonly)
@@ -429,6 +492,14 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     }
     if (!(this.description === other.description)) {
       return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
     }
     return true;
   }
@@ -462,6 +533,11 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -491,6 +567,13 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    if (object.taggings.length > 0) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectCson["109"] = packedTaggings;
+    }
     return objectCson;
   }
 
@@ -509,11 +592,18 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
         : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    const unpackedTaggings: any[] = [];
+    if (objectCson["109"] != undefined) {
+      for (const item of objectCson["109"]) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new MigrationOperationDefinition({
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      taggings: unpackedTaggings,
       _cson: objectCson,
       _supergraph,
     });
@@ -553,6 +643,13 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    if (object.taggings) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectProto.taggings = packedTaggings;
+    }
     return objectProto as MigrationOperationDefinitionProto;
   }
 
@@ -564,6 +661,12 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     _connection?: any | null,
   ): MigrationOperationDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedTaggings: any[] = [];
+    if (objectProto.taggings) {
+      for (const item of objectProto.taggings) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new MigrationOperationDefinition({
       id: Number(objectProto.id),
       name: objectProto.name,
@@ -572,6 +675,7 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      taggings: unpackedTaggings,
       _proto: objectProto,
       _supergraph,
     });

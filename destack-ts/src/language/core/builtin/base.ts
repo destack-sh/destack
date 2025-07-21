@@ -3159,6 +3159,15 @@ export abstract class Entity3D extends Entity {
   abstract get origin(): Vector3 | null;
   abstract set origin(value: Vector3 | null);
 
+  /**
+   * Entity3D.anchor
+   */
+  /**
+   * Entity3D.anchor
+   */
+  abstract get anchor(): Anchor | null;
+  abstract set anchor(value: Anchor | null);
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

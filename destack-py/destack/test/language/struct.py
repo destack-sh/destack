@@ -21,11 +21,12 @@ def test_struct_inheritance(session: Session):
         StructType.ENUM_DEFINITION,
         StructType.PROPERTY_DEFINITION,
         StructType.OPTION_DEFINITION,
-        StructType.METHOD_DEFINITION,
+        StructType.TAG_DEFINITION,
         StructType.INDEX_DEFINITION,
         StructType.CONSTRAINT_DEFINITION,
+        StructType.PERMISSION_DEFINITION,
+        StructType.METHOD_DEFINITION,
         StructType.MIGRATION_DEFINITION,
         StructType.MIGRATION_OPERATION_DEFINITION,
-        StructType.PERMISSION_DEFINITION,
     )
     assert len(Struct.__inherited_by__) == len(StructType) - 1

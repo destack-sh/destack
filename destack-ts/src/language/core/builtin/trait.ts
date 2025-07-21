@@ -1,5 +1,8 @@
 import { TraitType } from "@destack/language/core/builtin/common";
-import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/definition";
+import type {
+  PropertyDefinition,
+  TraitDefinition,
+} from "@destack/language/core/builtin/definition";
 import { registerTraitClass } from "@destack/language/registry";
 
 /** Internal base class for Trait companion objects.*/

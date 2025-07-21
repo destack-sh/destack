@@ -118,13 +118,34 @@ class Entity2D(
     """An Entity in 2D space."""
 
     # transform
-    position: Optional["Vector2"] = builtin_property(110)
-    offset: Optional["Offset2"] = builtin_property(111)
-    scale: Optional["Vector2"] = builtin_property(112)
-    rotation: Optional["Vector2"] = builtin_property(113)
-    skew: Optional["Vector2"] = builtin_property(114)
-    origin: Optional["Vector2"] = builtin_property(115)
-    anchor: Optional["Anchor"] = builtin_property(116)
+    position: Optional["Vector2"] = builtin_property(
+        110,
+        tags=("transform",),
+    )
+    offset: Optional["Offset2"] = builtin_property(
+        111,
+        tags=("transform",),
+    )
+    scale: Optional["Vector2"] = builtin_property(
+        112,
+        tags=("transform",),
+    )
+    rotation: Optional["Vector2"] = builtin_property(
+        113,
+        tags=("transform",),
+    )
+    skew: Optional["Vector2"] = builtin_property(
+        114,
+        tags=("transform",),
+    )
+    origin: Optional["Vector2"] = builtin_property(
+        115,
+        tags=("transform",),
+    )
+    anchor: Optional["Anchor"] = builtin_property(
+        116,
+        tags=("transform",),
+    )
 
 
 @builtin_node(
@@ -138,8 +159,27 @@ class Entity3D(
     """An Entity in 3D space."""
 
     # transform
-    position: Optional["Vector3"] = builtin_property(110)
-    scale: Optional["Vector3"] = builtin_property(111)
-    rotation: Optional["Quaternion"] = builtin_property(112)
-    skew: Optional["Vector3"] = builtin_property(113)
-    origin: Optional["Vector3"] = builtin_property(114)
+    position: Optional["Vector3"] = builtin_property(
+        110,
+        tags=("transform",),
+    )
+    scale: Optional["Vector3"] = builtin_property(
+        111,
+        tags=("transform",),
+    )
+    rotation: Optional["Quaternion"] = builtin_property(
+        112,
+        tags=("transform",),
+    )
+    skew: Optional["Vector3"] = builtin_property(
+        113,
+        tags=("transform",),
+    )
+    origin: Optional["Vector3"] = builtin_property(
+        114,
+        tags=("transform",),
+    )
+    anchor: Optional["Anchor"] = builtin_property(
+        115,
+        tags=("transform",),
+    )

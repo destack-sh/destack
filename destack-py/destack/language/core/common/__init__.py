@@ -1,18 +1,9 @@
+from .access import Permission
 from .action import Action, ActionDefinition
 from .cson import pack_cson, unpack_cson
-from .definition import (
-    BuiltinDefinition,
-    ConstantDefinition,
-    EnumDefinition,
-    NodeDefinition,
-    OptionDefinition,
-    PropertyDefinition,
-    StructDefinition,
-    TraitDefinition,
-)
 from .enum import CustomEnum, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .integrity import Constraint, ConstraintDefinition, Index, IndexDefinition
+from .integrity import Constraint, Index
 from .method import Method, MethodDefinition
 from .migration import (
     Migration,
@@ -21,7 +12,6 @@ from .migration import (
     MigrationOperationDefinition,
     MigrationType,
 )
-from .permission import Permission, PermissionDefinition
 from .property import CustomProperty
 from .query import (
     Aggregation,
@@ -83,19 +73,15 @@ __all__ = [
     "AggregationType",
     "Branch",
     "BranchType",
-    "BuiltinDefinition",
     "CollectionConstraint",
     "Condition",
     "ConditionalType",
-    "ConstantDefinition",
     "Constraint",
-    "ConstraintDefinition",
     "CustomEnum",
     "CustomOption",
     "CustomProperty",
     "CustomStruct",
     "DatumMutable",
-    "EnumDefinition",
     "Expression",
     "ExpressionIn",
     "ExpressionType",
@@ -105,7 +91,6 @@ __all__ = [
     "IconIn",
     "IconType",
     "Index",
-    "IndexDefinition",
     "Join",
     "JoinIn",
     "JoinType",
@@ -117,13 +102,9 @@ __all__ = [
     "MigrationOperationDefinition",
     "MigrationType",
     "NodeConstraint",
-    "NodeDefinition",
     "NumberConstraint",
     "NumberFormat",
-    "OptionDefinition",
     "Permission",
-    "PermissionDefinition",
-    "PropertyDefinition",
     "Query",
     "QueryResult",
     "QueryResultGroup",
@@ -141,12 +122,10 @@ __all__ = [
     "SpaceStatus",
     "StringConstraint",
     "StringFormat",
-    "StructDefinition",
     "Text",
     "TextIn",
     "TextSpan",
     "TextSpanType",
-    "TraitDefinition",
     "Type",
     "TypeConstraint",
     "TypeFormat",

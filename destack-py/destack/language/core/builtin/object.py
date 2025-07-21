@@ -898,7 +898,7 @@ def _path_key(self) -> str:
 path = _path_key
 """
     else:
-        path_str = """\
+        path_str = f"""\
 @property
 def path(self) -> str:
     path_parts: list[str] = []
@@ -908,7 +908,7 @@ def path(self) -> str:
         path_parts.append(node._path_key)
         last_node = node
         node = node.parent
-    if last_node.metatype != NodeType.SPACE:
+    if last_node.metatype != {NodeType.SPACE.value}:
         path_parts.append("<detached>")
     return "/".join(reversed(path_parts))
 """

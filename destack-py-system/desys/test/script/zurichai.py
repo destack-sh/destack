@@ -171,9 +171,6 @@ class MeetupResponse(IsOwnable, Record):
     def on_event_full(self, event: Meetup):
         pass
 
-    class Meta:
-        unique_together = (("parent", "user"),)
-
 
 @event
 class MeetupResponded(Event):

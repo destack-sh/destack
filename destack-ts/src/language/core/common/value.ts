@@ -1,9 +1,9 @@
 import { packProtoJson, unpackProtoJson } from "@destack/grpc";
 import { ScalarType, StructType, TypeCardinality } from "@destack/language/core/builtin/common";
+import { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { packCson, unpackCson } from "@destack/language/core/common/cson";
-import { PropertyDefinition } from "@destack/language/core/common/definition";
 import { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";

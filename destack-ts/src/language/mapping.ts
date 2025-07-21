@@ -94,6 +94,20 @@ import type {
   UniverseCategory,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
+import type {
+  BuiltinDefinition,
+  ConstantDefinition,
+  ConstraintDefinition,
+  EnumDefinition,
+  IndexDefinition,
+  NodeDefinition,
+  OptionDefinition,
+  PermissionDefinition,
+  PropertyDefinition,
+  StructDefinition,
+  TagDefinition,
+  TraitDefinition,
+} from "@destack/language/core/builtin/definition";
 import type { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import type { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
@@ -128,25 +142,11 @@ import type {
   IsSelectable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
+import type { Permission } from "@destack/language/core/common/access";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
-import type {
-  BuiltinDefinition,
-  ConstantDefinition,
-  EnumDefinition,
-  NodeDefinition,
-  OptionDefinition,
-  PropertyDefinition,
-  StructDefinition,
-  TraitDefinition,
-} from "@destack/language/core/common/definition";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
-import type {
-  Constraint,
-  ConstraintDefinition,
-  Index,
-  IndexDefinition,
-} from "@destack/language/core/common/integrity";
+import type { Constraint, Index } from "@destack/language/core/common/integrity";
 import type { Method, MethodDefinition } from "@destack/language/core/common/method";
 import type {
   Migration,
@@ -155,7 +155,6 @@ import type {
   MigrationOperationDefinition,
   MigrationType,
 } from "@destack/language/core/common/migration";
-import type { Permission, PermissionDefinition } from "@destack/language/core/common/permission";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type {
   Aggregation,
@@ -442,6 +441,7 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
+  [NodeType.PERMISSION]: Permission;
   [NodeType.METHOD]: Method;
   [NodeType.ACTION]: Action;
   [NodeType.CUSTOM_ENUM]: CustomEnum;
@@ -450,7 +450,6 @@ export type NodeTypeMapping = {
   [NodeType.CONSTRAINT]: Constraint;
   [NodeType.MIGRATION]: Migration;
   [NodeType.MIGRATION_OPERATION]: MigrationOperation;
-  [NodeType.PERMISSION]: Permission;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.SPACE]: Space;
   [NodeType.CUSTOM_STRUCT]: CustomStruct;
@@ -646,6 +645,10 @@ export type StructTypeMapping = {
   [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
   [StructType.OPTION_DEFINITION]: OptionDefinition;
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
+  [StructType.TAG_DEFINITION]: TagDefinition;
+  [StructType.INDEX_DEFINITION]: IndexDefinition;
+  [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
+  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
@@ -654,11 +657,8 @@ export type StructTypeMapping = {
   [StructType.NODE_CONSTRAINT]: NodeConstraint;
   [StructType.TYPE]: Type;
   [StructType.ICON]: Icon;
-  [StructType.INDEX_DEFINITION]: IndexDefinition;
-  [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
   [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
   [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
-  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;
   [StructType.CONDITION]: Condition;
@@ -749,11 +749,11 @@ export type EnumTypeMapping = {
   [EnumType.INDEX_TYPE]: IndexType;
   [EnumType.METHOD_TYPE]: MethodType;
   [EnumType.METHOD_CARDINALITY]: MethodCardinality;
-  [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
+  [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;

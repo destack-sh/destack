@@ -10,6 +10,7 @@ import {
   ACTIVE_SNAPSHOT,
   activeSession,
 } from "@destack/language/core/builtin/const";
+import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {
@@ -18,7 +19,6 @@ import type {
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import { Type } from "@destack/language/core/common/type";
@@ -2007,7 +2007,9 @@ export class Join extends StructFrozen {
     ] as typeof NodeDefinitionReference;
     return new Join({
       type: joinType,
-      definition: options?.definition ? _NodeDefinitionReference.of(options.definition) : null,
+      customDefinition: options?.definition
+        ? _NodeDefinitionReference.of(options.definition)
+        : null,
       recursive: options?.recursive ?? false,
       depth: options?.depth ?? null,
       on: options?.on ?? null,

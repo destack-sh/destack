@@ -6,8 +6,8 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
+import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import type { Supergraph } from "@destack/language/core/runtime/graph";

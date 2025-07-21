@@ -50,18 +50,31 @@ class View(Entity2D):
     """A View is a 2D user interface element."""
 
     # size
-    width: Optional["Length"] = builtin_property(120)
-    height: Optional["Length"] = builtin_property(121)
-    min_width: Optional["Length"] = builtin_property(122)
-    min_height: Optional["Length"] = builtin_property(123)
-    max_width: Optional["Length"] = builtin_property(124)
-    max_height: Optional["Length"] = builtin_property(125)
+    width: Optional["Length"] = builtin_property(120, tags=("size",))
+    height: Optional["Length"] = builtin_property(121, tags=("size",))
+    min_width: Optional["Length"] = builtin_property(122, tags=("size",))
+    min_height: Optional["Length"] = builtin_property(123, tags=("size",))
+    max_width: Optional["Length"] = builtin_property(124, tags=("size",))
+    max_height: Optional["Length"] = builtin_property(125, tags=("size",))
 
-    # appearance
-    is_visible: Optional[bool] = builtin_property(130)
-    opacity: Optional[float] = builtin_property(131)
+    # visibility
+    is_visible: Optional[bool] = builtin_property(130, tags=("visibility",))
+    opacity: Optional[float] = builtin_property(131, tags=("visibility",))
 
-    fill: Optional["Fill"] = builtin_property(140)
-    shadow: Optional["Shadow"] = builtin_property(141)
-    border: Optional["Border"] = builtin_property(142)
-    radius: Optional["Corner2"] = builtin_property(143)
+    # style
+    fill: Optional["Fill"] = builtin_property(
+        140,
+        tags=("style",),
+    )
+    shadow: Optional["Shadow"] = builtin_property(
+        141,
+        tags=("style",),
+    )
+    border: Optional["Border"] = builtin_property(
+        142,
+        tags=("style",),
+    )
+    radius: Optional["Corner2"] = builtin_property(
+        143,
+        tags=("style",),
+    )

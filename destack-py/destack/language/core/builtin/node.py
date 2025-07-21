@@ -19,7 +19,7 @@ from destack.utils.uuid import UUID
 
 from .common import Cson, EnumType, NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
-from .meta import builtin_method
+from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         Sort,
         Space,
         Supergraph,
+        TagDefinition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -76,6 +77,7 @@ def builtin_node(
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
     permissions: tuple["PermissionDeclaration", ...] = (),
+    tags: tuple["TagDeclaration", ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -144,23 +146,27 @@ def builtin_node(
 
         # meta
         if indexes:
-            from ..common import IndexDefinition
+            from .definition import IndexDefinition
 
             cls.__indexes__ = tuple(
                 IndexDefinition.from_declaration(cls, index) for index in indexes
             )
         if constraints:
-            from ..common import ConstraintDefinition
+            from .definition import ConstraintDefinition
 
             cls.__constraints__ = tuple(
                 ConstraintDefinition.from_declaration(cls, constraint) for constraint in constraints
             )
         if permissions:
-            from ..common import PermissionDefinition
+            from .definition import PermissionDefinition
 
             cls.__permissions__ = tuple(
                 PermissionDefinition.from_declaration(permission) for permission in permissions
             )
+        if tags:
+            from .definition import TagDefinition
+
+            cls.__tags__ = tuple(TagDefinition.from_declaration(tag) for tag in tags)
 
         # register
         if node_type is not None:
@@ -177,7 +183,14 @@ def builtin_node(
     return decorate
 
 
-@builtin_node(node_type=NodeType.NODE, is_abstract=True)
+@builtin_node(
+    node_type=NodeType.NODE,
+    is_abstract=True,
+    tags=(
+        TagDeclaration(id=1, name="identity", description="Node identity"),
+        TagDeclaration(id=2, name="tracking", description="Node tracking"),
+    ),
+)
 class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """
     A Node with some Properties and a persistent identity (its id).
@@ -216,16 +229,18 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
 
     # content
-    """The indexes for this Node."""
+    """The indexes defined for this Node."""
     __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
-    """The constraints for this Node."""
+    """The constraints defined for this Node."""
     __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
-    """The permissions for this Node."""
+    """The permissions defined for this Node."""
     __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods for this Node."""
+    """The methods defined for this Node."""
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions for this Node."""
+    """The actions defined for this Node."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+    """The tags defined for this Node."""
+    __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
 
     # event
     """The base event types of this Node (directly)."""
@@ -277,6 +292,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         is_eq=False,
         is_readonly=True,
         description="The universally unique identifier of this Node.",
+        tags=("identity",),
     )
     space: "Space" = builtin_property(
         5,
@@ -284,6 +300,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         is_readonly=True,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
+        tags=("identity",),
     )
     if TYPE_CHECKING:
         space_ptr: NodeReference = UNSET

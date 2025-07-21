@@ -365,11 +365,13 @@ class PropertyDeclaration(TypeDeclaration):
     description: str | None = None
     component: type_["BuiltinObject"] = UNSET  # builtin object component
     original_component: type_["BuiltinObject"] = UNSET  # original component (first in chain)
+    tags: tuple[str, ...] = ()
 
     # pointers
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
+    # flags
     is_unique: bool = False  # unique in DB
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
@@ -468,7 +470,7 @@ class PropertyDeclaration(TypeDeclaration):
     @property
     def definition(self) -> "PropertyDefinition":
         if self._definition is None:
-            from ..common.definition import PropertyDefinition
+            from .definition import PropertyDefinition
 
             self._definition = PropertyDefinition.from_property(self)
         return self._definition
@@ -655,6 +657,7 @@ def builtin_property(
     is_unique: bool = False,
     is_readonly: bool = False,
     is_main: bool = False,
+    tags: tuple[str, ...] = (),
 ) -> Any:
     return PropertyDeclaration(
         id=id,
@@ -675,6 +678,7 @@ def builtin_property(
         is_unique=is_unique,
         is_readonly=is_readonly,
         is_main=is_main,
+        tags=tags,
     )
 
 
