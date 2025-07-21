@@ -40,12 +40,6 @@ class Store(abc.ABC):
         """
         ...
 
-
-class EntityStore(Store, abc.ABC):
-    """
-    A Store for Entities.
-    """
-
     @abc.abstractmethod
     async def commit(self, events: Sequence["EditEvent"]) -> Sequence["EditEvent"]:
         """
@@ -53,24 +47,12 @@ class EntityStore(Store, abc.ABC):
         """
         ...
 
-
-class EventStore(Store, abc.ABC):
-    """
-    A Store for Events.
-    """
-
     @abc.abstractmethod
     async def append(self, events: Sequence["Event"]) -> Sequence["Event"]:
         """
         Commit the Events to the Store. Return the applied Events (including any cascaded Events).
         """
         ...
-
-
-class LiveStore(Store, abc.ABC):
-    """
-    An EventStore that supports Query subscriptions.
-    """
 
     @abc.abstractmethod
     async def subscribe(self, query: "Query") -> AsyncGenerator["QueryUpdate"]:

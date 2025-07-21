@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         Branch,
         CustomProperty,
         PropertyDefinition,
-        QueryConnection,
+        GraphConnection,
         Snapshot,
     )
 
@@ -443,14 +443,14 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     # realtime
     # is_live?
 
-    async def execute(self, is_live: bool = False) -> "QueryConnection[RootT]":
+    async def execute(self, is_live: bool = False) -> "GraphConnection[RootT]":
         """Execute the Query."""
-        from ..runtime.connection import QueryConnection
+        from ..runtime.connection import GraphConnection
 
         session = active_session()
         store = session.store
         assert store is not None, f"no store in {session!r}"
-        connection = QueryConnection(
+        connection = GraphConnection(
             query=self,
             store=store,
             session=session,
@@ -458,7 +458,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         )
         session.connections.append(connection)
         await connection.execute()
-        return cast("QueryConnection[RootT]", connection)
+        return cast("GraphConnection[RootT]", connection)
 
     async def execute_one_or_none(self) -> Optional[RootT]:
         """Execute the Query and return the root (if any)."""

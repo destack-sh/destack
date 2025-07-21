@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from destack.language import (
         Graph,
         Node,
-        QueryConnection,
+        GraphConnection,
         Session,
         Supergraph,
     )
@@ -1336,7 +1336,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
-        _connection: "QueryConnection | None" = None,
+        _connection: "GraphConnection | None" = None,
     ) -> Self:
         """Convert from proto format"""
         raise NotImplementedError  # generated
@@ -1353,7 +1353,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
-        _connection: "QueryConnection | None" = None,
+        _connection: "GraphConnection | None" = None,
     ) -> Self:
         """Convert from proto format"""
         raise NotImplementedError  # generated
@@ -1370,7 +1370,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
-        _connection: "QueryConnection | None" = None,
+        _connection: "GraphConnection | None" = None,
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
@@ -1387,7 +1387,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
-        _connection: "QueryConnection | None" = None,
+        _connection: "GraphConnection | None" = None,
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated

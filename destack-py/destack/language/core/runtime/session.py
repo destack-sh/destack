@@ -26,7 +26,7 @@ from .oracle import WORLD_ORACLE, Oracle
 from .store import EntityStore, EventStore
 
 if TYPE_CHECKING:
-    from destack.language import QueryConnection
+    from destack.language import GraphConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,7 +69,7 @@ class Session:
 
         # runtime
         self.pending_events: list[Event] = []
-        self.connections: list[QueryConnection] = []
+        self.connections: list[GraphConnection] = []
         self.closed_at: datetime | None = None
         self._epoch: int | None = epoch
         self._token: Any | None = None

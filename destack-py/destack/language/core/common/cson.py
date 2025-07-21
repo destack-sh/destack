@@ -27,7 +27,7 @@ from ..builtin import (
 from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
-    from destack.language import Graph, QueryConnection, Session, Supergraph
+    from destack.language import Graph, GraphConnection, Session, Supergraph
 
 
 # ruff: noqa: FURB113
@@ -69,7 +69,7 @@ def __unpack_cson__(cls,
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
     _supergraph: "Supergraph | None" = None,
-    _connection: "QueryConnection | None" = None,
+    _connection: "GraphConnection | None" = None,
 ) -> "Self":
 {unpack_cson}
 
@@ -318,7 +318,7 @@ def unpack_cson(
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
     _supergraph: "Supergraph | None" = None,
-    _connection: "QueryConnection | None" = None,
+    _connection: "GraphConnection | None" = None,
 ) -> Any:
     """Unpack a CSON object to a generic typed value."""
     if type.cardinality == TypeCardinality.SCALAR:
@@ -402,7 +402,7 @@ def _unpack_scalar_cson(
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
     _supergraph: "Supergraph | None" = None,
-    _connection: "QueryConnection | None" = None,
+    _connection: "GraphConnection | None" = None,
 ) -> Any:
     """Unpack a scalar value from CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:

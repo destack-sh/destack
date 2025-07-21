@@ -394,7 +394,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             header_parts.append(f"{ts_name_in}?: {type_str}")
     header_parts.extend(("_session?: Session | null", "_supergraph?: Supergraph | null"))
     if issubclass(cls, Node):
-        header_parts.extend(("_graph?: Graph | null", "_connection?: QueryConnection | null"))
+        header_parts.extend(("_graph?: Graph | null", "_connection?: GraphConnection | null"))
     elif issubclass(cls, StructFrozen):
         header_parts.extend(
             (
@@ -1806,7 +1806,7 @@ def _generate_file(
     }
     value_dependencies.update(("EntitySingletonGraph", "EntityGraph", "EventGraph"))
     language_imports_by_module["core.runtime.session"] = {"Session"}
-    language_imports_by_module["core.runtime.connection"] = {"QueryConnection"}
+    language_imports_by_module["core.runtime.connection"] = {"GraphConnection"}
     language_imports_by_module["core.builtin.relation"] = {"NodeReference"}
     language_imports_by_module["core.builtin.common"] = {
         "NodeType",
@@ -1908,8 +1908,8 @@ def _generate_file(
     # special cases
     if file.name.endswith(".trait"):  # defined manually in same file
         language_imports_by_module["core.builtin.trait"].discard("TraitClass")
-    if file.name.endswith(".query"):  # needs QueryConnection
-        value_dependencies.add("QueryConnection")
+    if file.name.endswith(".query"):  # needs GraphConnection
+        value_dependencies.add("GraphConnection")
 
     # if we're in the same module, use granular imports, otherwise use top-level imports
     file_root_module = ".".join(file.module.split(".")[2:3])

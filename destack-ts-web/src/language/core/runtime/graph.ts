@@ -11,12 +11,6 @@ import {
 
 /** A reactive Graph. */
 export interface ReactiveGraph<T extends Node> extends Graph<T> {
-  /** Touch all Nodes reactively. */
-  touchAll(): void;
-
-  /** Subscribe to all Nodes reactively. */
-  subscribeAll(): void;
-
   /** Touch a Node reactively. */
   touch(id: string): void;
 
@@ -40,14 +34,6 @@ export class ReactiveEntitySingletonGraph
   constructor(supergraph: Supergraph, node: Entity) {
     super(supergraph, node);
     this._signal = signal(0);
-  }
-
-  touchAll(): void {
-    this._signal.value++;
-  }
-
-  subscribeAll(): void {
-    this._signal.value;
   }
 
   touch(id: string): void {
@@ -88,27 +74,16 @@ export class ReactiveEntitySingletonGraph
 
 /** A reactive variant of an EntityGraph. */
 export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<Entity> {
-  readonly _signalAll: Signal<number>;
   readonly _signalById: Map<string, Signal<number>>;
   readonly _signalByParent: Map<string, Signal<number>>;
 
   constructor(supergraph: Supergraph) {
     super(supergraph);
-    this._signalAll = signal(0);
     this._signalById = new Map();
     this._signalByParent = new Map();
   }
 
-  touchAll(): void {
-    this._signalAll.value++;
-  }
-
-  subscribeAll(): void {
-    this._signalAll.value;
-  }
-
   touch(id: string): void {
-    this._signalAll.value++;
     if (this._signalById.has(id)) {
       this._signalById.get(id)!.value += 1;
     }
@@ -119,7 +94,6 @@ export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<En
   }
 
   subscribe(id: string): void {
-    this._signalAll.value;
     if (this.nodesById.has(id)) {
       if (!this._signalById.has(id)) {
         this._signalById.set(id, signal(0));
@@ -129,14 +103,12 @@ export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<En
   }
 
   touchChildren(id: string): void {
-    this._signalAll.value++;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value += 1;
     }
   }
 
   subscribeChildren(id: string): void {
-    this._signalAll.value;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value;
     }
@@ -153,7 +125,6 @@ export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<En
   }
 
   override clear(): void {
-    this.touchAll();
     super.clear();
     this._signalById.clear();
     this._signalByParent.clear();
@@ -172,12 +143,10 @@ export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<En
   }
 
   override getRoots(options?: { nodeType?: NodeType }): Entity[] {
-    this.subscribeAll();
     return super.getRoots(options);
   }
 
   override getLeaves(options?: { nodeType?: NodeType }): Entity[] {
-    this.subscribeAll();
     return super.getLeaves(options);
   }
 

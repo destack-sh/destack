@@ -12,11 +12,8 @@ from opentelemetry import trace
 
 from destack.utils.uuid import UUID
 
-from ..builtin import (
-    Node,
-    NodeReference,
-)
-from .graph import Supergraph
+from ..builtin import Node, NodeReference
+from .graph import Graph
 
 if TYPE_CHECKING:
     pass
@@ -28,8 +25,8 @@ tracer = trace.get_tracer(__name__)
 class Aliasing:
     """Registry of aliases for Nodes."""
 
-    def __init__(self, supergraph: Supergraph):
-        self._supergraph = supergraph
+    def __init__(self, graph: Graph):
+        self._graph = graph
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node | NodeReference] = {}
         self._node_by_id: dict[UUID, Node | NodeReference] = {}
@@ -42,7 +39,7 @@ class Aliasing:
 
     def clone(self) -> "Aliasing":
         """Clone the current aliasing registry."""
-        aliasing = Aliasing(self._supergraph)
+        aliasing = Aliasing(self._graph)
         aliasing._alias_by_node_id = self._alias_by_node_id.copy()
         aliasing._node_by_alias = self._node_by_alias.copy()
         aliasing._node_by_id = self._node_by_id.copy()
@@ -59,7 +56,7 @@ class Aliasing:
 
         # try to resolve node references
         if isinstance(obj, NodeReference):
-            if (resolved := self._supergraph.get(obj.id)) is not None:
+            if (resolved := self._graph.get(obj.id)) is not None:
                 obj = resolved
 
         # make new unique alias if needed
@@ -122,14 +119,14 @@ class Aliasing:
                 pass
         # try to auto-resolve node references
         if isinstance(node, NodeReference):
-            if (resolved := self._supergraph.get(node.id)) is not None:
+            if (resolved := self._graph.get(node.id)) is not None:
                 node = resolved
         return node
 
     @staticmethod
-    def new(supergraph: Supergraph, aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
-        """Create a new Aliasing registry from a supergraph and a mapping of aliases."""
-        aliasing = Aliasing(supergraph)
+    def new(graph: Graph, aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
+        """Create a new Aliasing registry from a graph and a mapping of aliases."""
+        aliasing = Aliasing(graph)
         for name, node in aliases.items():
             aliasing.add(node, name)
         return aliasing
