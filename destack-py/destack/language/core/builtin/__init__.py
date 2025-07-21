@@ -58,6 +58,7 @@ from .const import (
     EMPTY_DICT,
     EMPTY_LIST,
     EMPTY_SET,
+    FLOAT_EPSILON,
     NONCE,
     REGION,
     TRACING,
@@ -78,7 +79,6 @@ from .const import (
     get_active_space,
     get_active_space_ptr,
 )
-from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
 from .definition import (
     BuiltinDefinition,
     ConstantDefinition,
@@ -106,6 +106,7 @@ from .enum import Enum, builtin_enum
 from .event import CustomEvent, Event, EventStatus
 from .meta import (
     ActionDeclaration,
+    ConstantDeclaration,
     ConstraintDeclaration,
     ConstraintType,
     IndexDeclaration,
@@ -116,6 +117,7 @@ from .meta import (
     PermissionDeclaration,
     TagDeclaration,
     builtin_action,
+    builtin_constant,
     builtin_method,
 )
 from .node import Node, builtin_node
@@ -166,11 +168,11 @@ __all__ = [
     "ACTIVE_SPACE",
     "BEGINNING_OF_TIME",
     "CLOUD",
-    "CONSTANT_DECLARATIONS",
     "EMPTY_DICT",
     "EMPTY_LIST",
     "EMPTY_SET",
     "ENUM_TYPES",
+    "FLOAT_EPSILON",
     "NODE_TYPES",
     "NONCE",
     "PRIMITIVE_PY_TYPES",
@@ -293,6 +295,7 @@ __all__ = [
     "active_space",
     "active_space_ptr",
     "builtin_action",
+    "builtin_constant",
     "builtin_enum",
     "builtin_method",
     "builtin_node",
@@ -309,5 +312,4 @@ __all__ = [
     "get_active_space",
     "get_active_space_ptr",
     "parse_type_annotation",
-    "register_constant",
 ]

@@ -23,7 +23,13 @@ from .object import (
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
-    from destack.language import ActionDefinition, Cson, MethodDefinition, StructDefinition
+    from destack.language import (
+        ActionDefinition,
+        ConstantDefinition,
+        Cson,
+        MethodDefinition,
+        StructDefinition,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -132,6 +138,8 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
     """The actions for this Struct type."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+    """The constants for this Struct type."""
+    __constants__: ClassVar[tuple["ConstantDefinition", ...]] = ()
 
     # enum
     __enum_types__: ClassVar[tuple[EnumType, ...]] = ()

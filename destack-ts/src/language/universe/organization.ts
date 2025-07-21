@@ -37,21 +37,6 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:103000 ==== */
-/**
- * OrganizationStatus
- */
-export enum OrganizationStatus {
-  CREATING = 1,
-  ACTIVE = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:103000 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:122000 ==== */
 /**
  * An Organization with Users and Teams.
@@ -1223,3 +1208,18 @@ export class Organization extends Entity implements IsActor, IsJoinable {
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);
 /* ==== DESTACK_GENERATED_END:NODE:122000 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:122000 ==== */
+/**
+ * OrganizationStatus
+ */
+export enum OrganizationStatus {
+  CREATING = 1,
+  ACTIVE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:122000 ==== */

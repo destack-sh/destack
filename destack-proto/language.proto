@@ -347,16 +347,16 @@ enum EnumTypeProto {
   ENUM_TYPE_BRANCH_TYPE = 2000;
   ENUM_TYPE_SNAPSHOT_TYPE = 2100;
   ENUM_TYPE_SNAPSHOT_STATUS = 2101;
+  ENUM_TYPE_SPACE_STATUS = 1101;
   ENUM_TYPE_RESOURCE_STATUS = 10101;
   ENUM_TYPE_INDEX_TYPE = 30100;
   ENUM_TYPE_CONSTRAINT_TYPE = 30200;
   ENUM_TYPE_MIGRATION_TYPE = 31000;
   ENUM_TYPE_METHOD_TYPE = 40000;
   ENUM_TYPE_METHOD_CARDINALITY = 40001;
-  ENUM_TYPE_SPACE_STATUS = 100000;
-  ENUM_TYPE_USER_STATUS = 101000;
-  ENUM_TYPE_ORGANIZATION_STATUS = 103000;
-  ENUM_TYPE_CLIENT_TYPE = 102000;
+  ENUM_TYPE_USER_STATUS = 121000;
+  ENUM_TYPE_CLIENT_TYPE = 121300;
+  ENUM_TYPE_ORGANIZATION_STATUS = 122000;
   ENUM_TYPE_FOLDER_TYPE = 200000;
   ENUM_TYPE_ROLE_TYPE = 300200;
   ENUM_TYPE_SANCTION_TYPE = 300400;
@@ -806,7 +806,8 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_SPACE = 1000;
+  NODE_TYPE_UNIVERSE = 1000;
+  NODE_TYPE_SPACE = 1100;
   NODE_TYPE_BRANCH = 2000;
   NODE_TYPE_SNAPSHOT = 2100;
   NODE_TYPE_RECORD = 10000;
@@ -1925,10 +1926,12 @@ message ConditionProto {
 
 message ConstantDefinitionProto {
   StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
   string name = 101;
+  optional IconProto icon = 102;
   optional string description = 103;
+  repeated int64 taggings = 109 [jstype = JS_NUMBER];
   ValueProto value = 120;
-  bool is_deferred = 130;
 }
 
 // Constraint of an Entity that must be satisfied.
@@ -4661,6 +4664,7 @@ message NodeDefinitionProto {
   repeated PermissionDefinitionProto permissions = 123;
   repeated MethodDefinitionProto methods = 125;
   repeated ActionDefinitionProto actions = 126;
+  repeated ConstantDefinitionProto constants = 128;
   optional NodeTypeProto base_type = 130;
   repeated NodeTypeProto extended_by = 131;
   repeated NodeTypeProto inherits = 132;
@@ -6943,6 +6947,7 @@ message StructDefinitionProto {
   repeated PropertyDefinitionProto properties = 120;
   repeated MethodDefinitionProto methods = 125;
   repeated ActionDefinitionProto actions = 126;
+  repeated ConstantDefinitionProto constants = 128;
   repeated TagDefinitionProto tags = 129;
   optional StructTypeProto base_type = 130;
   repeated StructTypeProto extended_by = 131;
@@ -7522,6 +7527,35 @@ message TypeProto {
   optional bool is_main = 154;
 }
 
+// The Destack computational universe.
+message UniverseProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto branch_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 13;
+  optional NodeReferenceProto preceded_by_ptr = 14;
+  optional NodeReferenceProto instance_ptr = 15;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
+}
+
 // A User is a human using Destack.
 message UserProto {
   NodeTypeProto metatype = 1;
@@ -7752,7 +7786,7 @@ message SomeNodeProto {
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 1000;
+    SpaceProto space = 1100;
     CustomStructProto custom_struct = 20100;
     BranchProto branch = 2000;
     SnapshotProto snapshot = 2100;
@@ -7901,7 +7935,7 @@ message SomeEntityProto {
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 1000;
+    SpaceProto space = 1100;
     CustomStructProto custom_struct = 20100;
     BranchProto branch = 2000;
     SnapshotProto snapshot = 2100;

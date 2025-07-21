@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     ACTIVE_SPACE,
+    BEGINNING_OF_TIME,
+    FLOAT_EPSILON,
+    VERSION,
     Entity,
     Enum,
     EnumType,
@@ -14,9 +17,16 @@ from destack.language.core import (
     NodeType,
     Region,
     ValueFactory,
+    builtin_constant,
     builtin_enum,
     builtin_node,
     builtin_property,
+)
+from destack.language.registry import (
+    ENUM_DEFINITION_BY_TYPE,
+    NODE_DEFINITION_BY_TYPE,
+    STRUCT_DEFINITION_BY_TYPE,
+    TRAIT_DEFINITION_BY_TYPE,
 )
 from destack.utils.uuid import UUID, uuid4
 
@@ -33,6 +43,48 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@builtin_node(NodeType.UNIVERSE, is_abstract=True)
+class Universe(Entity):
+    """The Destack computational universe."""
+
+    VERSION = builtin_constant(
+        1,
+        value=VERSION,
+        description="The current version of Destack.",
+    )
+    FLOAT_EPSILON = builtin_constant(
+        2,
+        value=FLOAT_EPSILON,
+        description="The float epsilon used for floating point comparisons.",
+    )
+    BEGINNING_OF_TIME = builtin_constant(
+        3,
+        value=BEGINNING_OF_TIME,
+        description="The beginning of time. (1970-01-01T00:00:00+00:00)",
+    )
+
+    NODES = builtin_constant(
+        10,
+        value=lambda: list(NODE_DEFINITION_BY_TYPE.values()),
+        description="All Node definitions.",
+    )
+    TRAITS = builtin_constant(
+        11,
+        value=lambda: list(TRAIT_DEFINITION_BY_TYPE.values()),
+        description="All Trait definitions.",
+    )
+    STRUCTS = builtin_constant(
+        12,
+        value=lambda: list(STRUCT_DEFINITION_BY_TYPE.values()),
+        description="All Struct definitions.",
+    )
+    ENUMS = builtin_constant(
+        13,
+        value=lambda: list(ENUM_DEFINITION_BY_TYPE.values()),
+        description="All Enum definitions.",
+    )
 
 
 @builtin_enum(EnumType.SPACE_STATUS)
