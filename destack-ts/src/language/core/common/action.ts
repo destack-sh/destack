@@ -5,12 +5,12 @@ import {
   RuntimeLanguage,
   StructType,
 } from "@destack/language/core/builtin/common";
+import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor, IsRunnable } from "@destack/language/core/builtin/trait";
-import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Method, MethodDefinition } from "@destack/language/core/common/method";
 import type { Space } from "@destack/language/core/common/space";
@@ -54,6 +54,7 @@ export class ActionDefinition extends MethodDefinition {
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyDefinition[];
+    taggings?: readonly number[];
     cardinality?: MethodCardinality;
     platforms?: readonly PlatformType[];
     languages?: readonly RuntimeLanguage[];
@@ -121,6 +122,14 @@ export class ActionDefinition extends MethodDefinition {
     if (!(this.description === other.description)) {
       return false;
     }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -170,6 +179,11 @@ export class ActionDefinition extends MethodDefinition {
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -206,6 +220,13 @@ export class ActionDefinition extends MethodDefinition {
         packedProperties.push(item.toCson());
       }
       objectCson["104"] = packedProperties;
+    }
+    if (object.taggings.length > 0) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectCson["109"] = packedTaggings;
     }
     objectCson["110"] = object.cardinality;
     if (object.platforms.length > 0) {
@@ -263,6 +284,12 @@ export class ActionDefinition extends MethodDefinition {
         : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    const unpackedTaggings: any[] = [];
+    if (objectCson["109"] != undefined) {
+      for (const item of objectCson["109"]) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new ActionDefinition({
       type: Number(objectCson["100"]),
       properties: unpackedProperties,
@@ -273,6 +300,7 @@ export class ActionDefinition extends MethodDefinition {
       name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      taggings: unpackedTaggings,
       _cson: objectCson,
       _supergraph,
     });
@@ -313,6 +341,13 @@ export class ActionDefinition extends MethodDefinition {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
+    }
+    if (object.taggings) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectProto.taggings = packedTaggings;
     }
     objectProto.cardinality = Number(object.cardinality) as MethodCardinalityProto;
     if (object.platforms) {
@@ -363,6 +398,12 @@ export class ActionDefinition extends MethodDefinition {
         unpackedLanguages.push(Number(item) as RuntimeLanguage);
       }
     }
+    const unpackedTaggings: any[] = [];
+    if (objectProto.taggings) {
+      for (const item of objectProto.taggings) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new ActionDefinition({
       type: Number(objectProto.type) as MethodType,
       properties: unpackedProperties,
@@ -376,6 +417,7 @@ export class ActionDefinition extends MethodDefinition {
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      taggings: unpackedTaggings,
       _proto: objectProto,
       _supergraph,
     });

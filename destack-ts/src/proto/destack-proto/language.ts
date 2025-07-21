@@ -177,6 +177,10 @@ export interface ActionDefinitionProto {
      */
     properties: PropertyDefinitionProto[];
     /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
+    /**
      * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
      */
     cardinality: MethodCardinalityProto;
@@ -721,6 +725,10 @@ export interface BuiltinDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
@@ -1459,6 +1467,10 @@ export interface ConstraintDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto properties = 105
      */
     properties: PropertyReferenceProto[];
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * A content View.
@@ -4648,15 +4660,12 @@ export interface EntitlementRevokedEventProto {
  * An Entity is a named, versioned, mutable Node.
  * Entities can be attached to (most) other Entities to compose richer structures.
  *
+ * Updates to Entities can only be affected through Events.
  * Entities are always part of a Snapshot (in their Space).
- * State transition can only be caused by Events (which are immutable).
  *
  * An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
  * where Snapshots are 'shortcuts' to certain epochs.
- *
  * (id, definition_id) @ (branch_id, snapshot_id)
- *
- * (id, instance_id) @ (branch_id, snapshot_id)
  *
  * @generated from protobuf message symbol.destack.EntityProto
  */
@@ -5029,6 +5038,10 @@ export interface Entity3DProto {
      * @generated from protobuf field: optional symbol.destack.Vector3Proto origin = 114
      */
     origin?: Vector3Proto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.AnchorProto anchor = 115
+     */
+    anchor?: AnchorProto;
 }
 /**
  * @generated from protobuf message symbol.destack.EnumDefinitionProto
@@ -5062,6 +5075,10 @@ export interface EnumDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.OptionDefinitionProto options = 104
      */
     options: OptionDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * An Environment is a deployment scenario of a Space.
@@ -7796,6 +7813,10 @@ export interface IndexDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto cover = 106
      */
     cover: PropertyReferenceProto[];
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * An InputEvent is an Event that corresponds to some direct user input.
@@ -10731,6 +10752,10 @@ export interface MethodDefinitionProto {
      */
     properties: PropertyDefinitionProto[];
     /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
+    /**
      * @generated from protobuf field: symbol.destack.MethodCardinalityProto cardinality = 110
      */
     cardinality: MethodCardinalityProto;
@@ -10997,6 +11022,10 @@ export interface MigrationDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * MigrationOperation of an Entity.
@@ -11131,6 +11160,10 @@ export interface MigrationOperationDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
@@ -11300,6 +11333,10 @@ export interface NodeDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
     /**
      * @generated from protobuf field: bool is_abstract = 110
      */
@@ -12358,6 +12395,10 @@ export interface OptionDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * An Organization with Users and Teams.
@@ -12963,6 +13004,10 @@ export interface PermissionDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * A PointerDownEvent is a PointerEvent when a pointer is pressed down.
@@ -13955,9 +14000,9 @@ export interface PropertyDefinitionProto {
      */
     originalObject?: ObjectDefinitionReferenceProto;
     /**
-     * @generated from protobuf field: optional int64 group_id = 106 [jstype = JS_NUMBER]
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
      */
-    groupId?: number;
+    taggings: number[];
     /**
      * @generated from protobuf field: symbol.destack.TypeCardinalityProto cardinality = 110
      */
@@ -17929,6 +17974,10 @@ export interface Shape3DProto {
      */
     origin?: Vector3Proto;
     /**
+     * @generated from protobuf field: optional symbol.destack.AnchorProto anchor = 115
+     */
+    anchor?: AnchorProto;
+    /**
      * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 180
      */
     stroke?: StrokeProto;
@@ -19652,6 +19701,10 @@ export interface StructDefinitionProto {
      */
     description?: string;
     /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
+    /**
      * @generated from protobuf field: bool is_frozen = 110
      */
     isFrozen: boolean;
@@ -19675,6 +19728,10 @@ export interface StructDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.ActionDefinitionProto actions = 126
      */
     actions: ActionDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.TagDefinitionProto tags = 129
+     */
+    tags: TagDefinitionProto[];
     /**
      * @generated from protobuf field: optional symbol.destack.StructTypeProto base_type = 130
      */
@@ -19942,6 +19999,35 @@ export interface TagProto {
      * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
     icon?: IconProto;
+}
+/**
+ * @generated from protobuf message symbol.destack.TagDefinitionProto
+ */
+export interface TagDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: string name = 101
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
+     */
+    icon?: IconProto;
+    /**
+     * @generated from protobuf field: optional string description = 103
+     */
+    description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
 }
 /**
  * A Tagging of a Node by a Tag.
@@ -21148,6 +21234,10 @@ export interface TraitDefinitionProto {
      * @generated from protobuf field: optional string description = 103
      */
     description?: string;
+    /**
+     * @generated from protobuf field: repeated int64 taggings = 109 [jstype = JS_NUMBER]
+     */
+    taggings: number[];
     /**
      * @generated from protobuf field: string alias = 110
      */
@@ -22565,6 +22655,12 @@ export interface SomeNodeProto {
          */
         editEvent: EditEventProto;
     } | {
+        oneofKind: "permission";
+        /**
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 50000
+         */
+        permission: PermissionProto;
+    } | {
         oneofKind: "method";
         /**
          * @generated from protobuf field: symbol.destack.MethodProto method = 40000
@@ -22612,12 +22708,6 @@ export interface SomeNodeProto {
          * @generated from protobuf field: symbol.destack.MigrationOperationProto migration_operation = 31100
          */
         migrationOperation: MigrationOperationProto;
-    } | {
-        oneofKind: "permission";
-        /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 50000
-         */
-        permission: PermissionProto;
     } | {
         oneofKind: "customProperty";
         /**
@@ -23440,6 +23530,12 @@ export interface SomeEntityProto {
          */
         customEvent: CustomEventProto;
     } | {
+        oneofKind: "permission";
+        /**
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 50000
+         */
+        permission: PermissionProto;
+    } | {
         oneofKind: "method";
         /**
          * @generated from protobuf field: symbol.destack.MethodProto method = 40000
@@ -23487,12 +23583,6 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.MigrationOperationProto migration_operation = 31100
          */
         migrationOperation: MigrationOperationProto;
-    } | {
-        oneofKind: "permission";
-        /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 50000
-         */
-        permission: PermissionProto;
     } | {
         oneofKind: "customProperty";
         /**
@@ -28858,6 +28948,10 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_OPTION_DEFINITION = 20,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TAG_DEFINITION = 21;
+     */
+    STRUCT_TYPE_TAG_DEFINITION = 21,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 100;
      */
     STRUCT_TYPE_VALUE = 100,
@@ -29925,6 +30019,7 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
             { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
             { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
@@ -29937,6 +30032,7 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
         message.type = 0;
         message.name = "";
         message.properties = [];
+        message.taggings = [];
         message.cardinality = 0;
         message.platforms = [];
         message.languages = [];
@@ -29969,6 +30065,13 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
@@ -30020,6 +30123,13 @@ class ActionDefinitionProto$Type extends MessageType<ActionDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* symbol.destack.MethodCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
@@ -31264,7 +31374,8 @@ class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<BuiltinDefinitionProto>): BuiltinDefinitionProto {
@@ -31272,6 +31383,7 @@ class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
         message.metatype = 0;
         message.id = 0;
         message.name = "";
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<BuiltinDefinitionProto>(this, message, value);
         return message;
@@ -31295,6 +31407,13 @@ class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -31323,6 +31442,13 @@ class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32932,7 +33058,8 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<ConstraintDefinitionProto>): ConstraintDefinitionProto {
@@ -32942,6 +33069,7 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
         message.type = 0;
         message.name = "";
         message.properties = [];
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<ConstraintDefinitionProto>(this, message, value);
         return message;
@@ -32971,6 +33099,13 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
                     break;
                 case /* repeated symbol.destack.PropertyReferenceProto properties */ 105:
                     message.properties.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -33005,6 +33140,13 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
         /* repeated symbol.destack.PropertyReferenceProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyReferenceProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -40539,7 +40681,8 @@ class Entity3DProto$Type extends MessageType<Entity3DProto> {
             { no: 111, name: "scale", kind: "message", T: () => Vector3Proto },
             { no: 112, name: "rotation", kind: "message", T: () => QuaternionProto },
             { no: 113, name: "skew", kind: "message", T: () => Vector3Proto },
-            { no: 114, name: "origin", kind: "message", T: () => Vector3Proto }
+            { no: 114, name: "origin", kind: "message", T: () => Vector3Proto },
+            { no: 115, name: "anchor", kind: "enum", opt: true, T: () => ["symbol.destack.AnchorProto", AnchorProto] }
         ]);
     }
     create(value?: PartialMessage<Entity3DProto>): Entity3DProto {
@@ -40650,6 +40793,9 @@ class Entity3DProto$Type extends MessageType<Entity3DProto> {
                     break;
                 case /* optional symbol.destack.Vector3Proto origin */ 114:
                     message.origin = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                case /* optional symbol.destack.AnchorProto anchor */ 115:
+                    message.anchor = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -40773,6 +40919,9 @@ class Entity3DProto$Type extends MessageType<Entity3DProto> {
         /* optional symbol.destack.Vector3Proto origin = 114; */
         if (message.origin)
             Vector3Proto.internalBinaryWrite(message.origin, writer.tag(114, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.AnchorProto anchor = 115; */
+        if (message.anchor !== undefined)
+            writer.tag(115, WireType.Varint).int32(message.anchor);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -40793,7 +40942,8 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "options", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => OptionDefinitionProto }
+            { no: 104, name: "options", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => OptionDefinitionProto },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<EnumDefinitionProto>): EnumDefinitionProto {
@@ -40803,6 +40953,7 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
         message.type = 0;
         message.name = "";
         message.options = [];
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<EnumDefinitionProto>(this, message, value);
         return message;
@@ -40832,6 +40983,13 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.OptionDefinitionProto options */ 104:
                     message.options.push(OptionDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -40866,6 +41024,13 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
         /* repeated symbol.destack.OptionDefinitionProto options = 104; */
         for (let i = 0; i < message.options.length; i++)
             OptionDefinitionProto.internalBinaryWrite(message.options[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -46912,7 +47077,8 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto },
-            { no: 106, name: "cover", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
+            { no: 106, name: "cover", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<IndexDefinitionProto>): IndexDefinitionProto {
@@ -46923,6 +47089,7 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
         message.name = "";
         message.properties = [];
         message.cover = [];
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<IndexDefinitionProto>(this, message, value);
         return message;
@@ -46955,6 +47122,13 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyReferenceProto cover */ 106:
                     message.cover.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -46992,6 +47166,13 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
         /* repeated symbol.destack.PropertyReferenceProto cover = 106; */
         for (let i = 0; i < message.cover.length; i++)
             PropertyReferenceProto.internalBinaryWrite(message.cover[i], writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -53238,6 +53419,7 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 104, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.MethodCardinalityProto", MethodCardinalityProto] },
             { no: 120, name: "platforms", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.PlatformTypeProto", PlatformTypeProto] },
             { no: 121, name: "languages", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.RuntimeLanguageProto", RuntimeLanguageProto] }
@@ -53250,6 +53432,7 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
         message.type = 0;
         message.name = "";
         message.properties = [];
+        message.taggings = [];
         message.cardinality = 0;
         message.platforms = [];
         message.languages = [];
@@ -53282,6 +53465,13 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 104:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 case /* symbol.destack.MethodCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
@@ -53333,6 +53523,13 @@ class MethodDefinitionProto$Type extends MessageType<MethodDefinitionProto> {
         /* repeated symbol.destack.PropertyDefinitionProto properties = 104; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* symbol.destack.MethodCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
@@ -53868,7 +54065,8 @@ class MigrationDefinitionProto$Type extends MessageType<MigrationDefinitionProto
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.MigrationTypeProto", MigrationTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<MigrationDefinitionProto>): MigrationDefinitionProto {
@@ -53877,6 +54075,7 @@ class MigrationDefinitionProto$Type extends MessageType<MigrationDefinitionProto
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<MigrationDefinitionProto>(this, message, value);
         return message;
@@ -53903,6 +54102,13 @@ class MigrationDefinitionProto$Type extends MessageType<MigrationDefinitionProto
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -53934,6 +54140,13 @@ class MigrationDefinitionProto$Type extends MessageType<MigrationDefinitionProto
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -54194,7 +54407,8 @@ class MigrationOperationDefinitionProto$Type extends MessageType<MigrationOperat
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<MigrationOperationDefinitionProto>): MigrationOperationDefinitionProto {
@@ -54202,6 +54416,7 @@ class MigrationOperationDefinitionProto$Type extends MessageType<MigrationOperat
         message.metatype = 0;
         message.id = 0;
         message.name = "";
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<MigrationOperationDefinitionProto>(this, message, value);
         return message;
@@ -54225,6 +54440,13 @@ class MigrationOperationDefinitionProto$Type extends MessageType<MigrationOperat
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -54253,6 +54475,13 @@ class MigrationOperationDefinitionProto$Type extends MessageType<MigrationOperat
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -54631,6 +54860,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 112, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -54668,6 +54898,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         message.isAbstract = false;
         message.isExtensible = false;
         message.isFrozen = false;
@@ -54721,6 +54952,13 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 case /* bool is_abstract */ 110:
                     message.isAbstract = reader.bool();
@@ -54911,6 +55149,13 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* bool is_abstract = 110; */
         if (message.isAbstract !== false)
             writer.tag(110, WireType.Varint).bool(message.isAbstract);
@@ -57144,7 +57389,8 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<OptionDefinitionProto>): OptionDefinitionProto {
@@ -57153,6 +57399,7 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<OptionDefinitionProto>(this, message, value);
         return message;
@@ -57179,6 +57426,13 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -57210,6 +57464,13 @@ class OptionDefinitionProto$Type extends MessageType<OptionDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -58515,7 +58776,8 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
             { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<PermissionDefinitionProto>): PermissionDefinitionProto {
@@ -58523,6 +58785,7 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
         message.metatype = 0;
         message.id = 0;
         message.name = "";
+        message.taggings = [];
         if (value !== undefined)
             reflectionMergePartial<PermissionDefinitionProto>(this, message, value);
         return message;
@@ -58546,6 +58809,13 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -58574,6 +58844,13 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -60636,7 +60913,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 104, name: "object", kind: "message", T: () => ObjectDefinitionReferenceProto },
             { no: 105, name: "original_object", kind: "message", T: () => ObjectDefinitionReferenceProto },
-            { no: 106, name: "group_id", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "cardinality", kind: "enum", T: () => ["symbol.destack.TypeCardinalityProto", TypeCardinalityProto] },
             { no: 111, name: "scalar_type", kind: "enum", T: () => ["symbol.destack.ScalarTypeProto", ScalarTypeProto] },
             { no: 112, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
@@ -60670,6 +60947,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         message.cardinality = 0;
         message.scalarType = 0;
         message.isRequired = false;
@@ -60715,8 +60993,12 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* symbol.destack.ObjectDefinitionReferenceProto original_object */ 105:
                     message.originalObject = ObjectDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.originalObject);
                     break;
-                case /* optional int64 group_id = 106 [jstype = JS_NUMBER] */ 106:
-                    message.groupId = reader.int64().toNumber();
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 case /* symbol.destack.TypeCardinalityProto cardinality */ 110:
                     message.cardinality = reader.int32();
@@ -60829,9 +61111,13 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* symbol.destack.ObjectDefinitionReferenceProto original_object = 105; */
         if (message.originalObject)
             ObjectDefinitionReferenceProto.internalBinaryWrite(message.originalObject, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 group_id = 106 [jstype = JS_NUMBER]; */
-        if (message.groupId !== undefined)
-            writer.tag(106, WireType.Varint).int64(message.groupId);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* symbol.destack.TypeCardinalityProto cardinality = 110; */
         if (message.cardinality !== 0)
             writer.tag(110, WireType.Varint).int32(message.cardinality);
@@ -69347,6 +69633,7 @@ class Shape3DProto$Type extends MessageType<Shape3DProto> {
             { no: 112, name: "rotation", kind: "message", T: () => QuaternionProto },
             { no: 113, name: "skew", kind: "message", T: () => Vector3Proto },
             { no: 114, name: "origin", kind: "message", T: () => Vector3Proto },
+            { no: 115, name: "anchor", kind: "enum", opt: true, T: () => ["symbol.destack.AnchorProto", AnchorProto] },
             { no: 180, name: "stroke", kind: "message", T: () => StrokeProto }
         ]);
     }
@@ -69458,6 +69745,9 @@ class Shape3DProto$Type extends MessageType<Shape3DProto> {
                     break;
                 case /* optional symbol.destack.Vector3Proto origin */ 114:
                     message.origin = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                case /* optional symbol.destack.AnchorProto anchor */ 115:
+                    message.anchor = reader.int32();
                     break;
                 case /* optional symbol.destack.StrokeProto stroke */ 180:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
@@ -69584,6 +69874,9 @@ class Shape3DProto$Type extends MessageType<Shape3DProto> {
         /* optional symbol.destack.Vector3Proto origin = 114; */
         if (message.origin)
             Vector3Proto.internalBinaryWrite(message.origin, writer.tag(114, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.AnchorProto anchor = 115; */
+        if (message.anchor !== undefined)
+            writer.tag(115, WireType.Varint).int32(message.anchor);
         /* optional symbol.destack.StrokeProto stroke = 180; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(180, WireType.LengthDelimited).fork(), options).join();
@@ -73367,12 +73660,14 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 112, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 125, name: "methods", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => MethodDefinitionProto },
             { no: 126, name: "actions", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ActionDefinitionProto },
+            { no: 129, name: "tags", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => TagDefinitionProto },
             { no: 130, name: "base_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 131, name: "extended_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 132, name: "inherits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
@@ -73387,12 +73682,14 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         message.isFrozen = false;
         message.isAbstract = false;
         message.isExtensible = false;
         message.properties = [];
         message.methods = [];
         message.actions = [];
+        message.tags = [];
         message.extendedBy = [];
         message.inherits = [];
         message.inheritedBy = [];
@@ -73425,6 +73722,13 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
+                    break;
                 case /* bool is_frozen */ 110:
                     message.isFrozen = reader.bool();
                     break;
@@ -73442,6 +73746,9 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.ActionDefinitionProto actions */ 126:
                     message.actions.push(ActionDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.TagDefinitionProto tags */ 129:
+                    message.tags.push(TagDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbol.destack.StructTypeProto base_type */ 130:
                     message.baseType = reader.int32();
@@ -73511,6 +73818,13 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* bool is_frozen = 110; */
         if (message.isFrozen !== false)
             writer.tag(110, WireType.Varint).bool(message.isFrozen);
@@ -73529,6 +73843,9 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* repeated symbol.destack.ActionDefinitionProto actions = 126; */
         for (let i = 0; i < message.actions.length; i++)
             ActionDefinitionProto.internalBinaryWrite(message.actions[i], writer.tag(126, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.TagDefinitionProto tags = 129; */
+        for (let i = 0; i < message.tags.length; i++)
+            TagDefinitionProto.internalBinaryWrite(message.tags[i], writer.tag(129, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.StructTypeProto base_type = 130; */
         if (message.baseType !== undefined)
             writer.tag(130, WireType.Varint).int32(message.baseType);
@@ -74137,6 +74454,99 @@ class TagProto$Type extends MessageType<TagProto> {
  * @generated MessageType for protobuf message symbol.destack.TagProto
  */
 export const TagProto = new TagProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TagDefinitionProto$Type extends MessageType<TagDefinitionProto> {
+    constructor() {
+        super("symbol.destack.TagDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
+            { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
+        ]);
+    }
+    create(value?: PartialMessage<TagDefinitionProto>): TagDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.name = "";
+        message.taggings = [];
+        if (value !== undefined)
+            reflectionMergePartial<TagDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TagDefinitionProto): TagDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
+                    break;
+                case /* string name */ 101:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional string description */ 103:
+                    message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TagDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int64(message.id);
+        /* string name = 101; */
+        if (message.name !== "")
+            writer.tag(101, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        /* optional string description = 103; */
+        if (message.description !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.TagDefinitionProto
+ */
+export const TagDefinitionProto = new TagDefinitionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TaggingProto$Type extends MessageType<TaggingProto> {
     constructor() {
@@ -76720,6 +77130,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "permissions", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PermissionDefinitionProto },
@@ -76737,6 +77148,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
+        message.taggings = [];
         message.alias = "";
         message.isExtensible = false;
         message.permissions = [];
@@ -76772,6 +77184,13 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
+                    break;
+                case /* repeated int64 taggings = 109 [jstype = JS_NUMBER] */ 109:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.taggings.push(reader.int64().toNumber());
+                    else
+                        message.taggings.push(reader.int64().toNumber());
                     break;
                 case /* string alias */ 110:
                     message.alias = reader.string();
@@ -76854,6 +77273,13 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
+        /* repeated int64 taggings = 109 [jstype = JS_NUMBER]; */
+        if (message.taggings.length) {
+            writer.tag(109, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.taggings.length; i++)
+                writer.int64(message.taggings[i]);
+            writer.join();
+        }
         /* string alias = 110; */
         if (message.alias !== "")
             writer.tag(110, WireType.LengthDelimited).string(message.alias);
@@ -80017,6 +80443,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 12100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 20000, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventProto },
             { no: 90100, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
+            { no: 50000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
             { no: 40000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 40100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 20200, name: "custom_enum", kind: "message", oneof: "node", T: () => CustomEnumProto },
@@ -80025,7 +80452,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 30200, name: "constraint", kind: "message", oneof: "node", T: () => ConstraintProto },
             { no: 31000, name: "migration", kind: "message", oneof: "node", T: () => MigrationProto },
             { no: 31100, name: "migration_operation", kind: "message", oneof: "node", T: () => MigrationOperationProto },
-            { no: 50000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
             { no: 20300, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 1000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 20100, name: "custom_struct", kind: "message", oneof: "node", T: () => CustomStructProto },
@@ -80196,6 +80622,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         editEvent: EditEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
                     };
                     break;
+                case /* symbol.destack.PermissionProto permission */ 50000:
+                    message.node = {
+                        oneofKind: "permission",
+                        permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
+                    };
+                    break;
                 case /* symbol.destack.MethodProto method */ 40000:
                     message.node = {
                         oneofKind: "method",
@@ -80242,12 +80674,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "migrationOperation",
                         migrationOperation: MigrationOperationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).migrationOperation)
-                    };
-                    break;
-                case /* symbol.destack.PermissionProto permission */ 50000:
-                    message.node = {
-                        oneofKind: "permission",
-                        permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
                 case /* symbol.destack.CustomPropertyProto custom_property */ 20300:
@@ -81506,6 +81932,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 12000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
             { no: 12100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 20000, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventProto },
+            { no: 50000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
             { no: 40000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 40100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 20200, name: "custom_enum", kind: "message", oneof: "node", T: () => CustomEnumProto },
@@ -81514,7 +81941,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 30200, name: "constraint", kind: "message", oneof: "node", T: () => ConstraintProto },
             { no: 31000, name: "migration", kind: "message", oneof: "node", T: () => MigrationProto },
             { no: 31100, name: "migration_operation", kind: "message", oneof: "node", T: () => MigrationOperationProto },
-            { no: 50000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
             { no: 20300, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 1000, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
             { no: 20100, name: "custom_struct", kind: "message", oneof: "node", T: () => CustomStructProto },
@@ -81606,6 +82032,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customEvent: CustomEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEvent)
                     };
                     break;
+                case /* symbol.destack.PermissionProto permission */ 50000:
+                    message.node = {
+                        oneofKind: "permission",
+                        permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
+                    };
+                    break;
                 case /* symbol.destack.MethodProto method */ 40000:
                     message.node = {
                         oneofKind: "method",
@@ -81652,12 +82084,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "migrationOperation",
                         migrationOperation: MigrationOperationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).migrationOperation)
-                    };
-                    break;
-                case /* symbol.destack.PermissionProto permission */ 50000:
-                    message.node = {
-                        oneofKind: "permission",
-                        permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
                 case /* symbol.destack.CustomPropertyProto custom_property */ 20300:
@@ -83032,6 +83458,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | Entity2DProto | Entity3DProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | Shape2DProto | Shape3DProto | ArrowShape2DProto | EllipseShape2DProto | LineShape2DProto | PathShape2DProto | PolygonShape2DProto | RectangleShape2DProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | ViewEventProto | ViewProto | ContentViewProto | LayoutViewProto | FrameViewProto | InputViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | SceneEventProto | SceneProto | StageProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | Arrow2DProto | Ellipse2DProto | Line2DProto | Path2DProto | Polygon2DProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | QuaternionProto | Rectangle2DProto | LengthProto | Offset2Proto | Inset2Proto | Corner2Proto | Axis2Proto | Axis3Proto | Grid2Proto | GridSpan2Proto | ScheduleProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | Entity2DProto | Entity3DProto | EventProto | CustomEventProto | SignalProto | EditEventProto | PermissionProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | Shape2DProto | Shape3DProto | ArrowShape2DProto | EllipseShape2DProto | LineShape2DProto | PathShape2DProto | PolygonShape2DProto | RectangleShape2DProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | ViewEventProto | ViewProto | ContentViewProto | LayoutViewProto | FrameViewProto | InputViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | SceneEventProto | SceneProto | StageProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | TagDefinitionProto | IndexDefinitionProto | ConstraintDefinitionProto | PermissionDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | Arrow2DProto | Ellipse2DProto | Line2DProto | Path2DProto | Polygon2DProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | QuaternionProto | Rectangle2DProto | LengthProto | Offset2Proto | Inset2Proto | Corner2Proto | Axis2Proto | Axis3Proto | Grid2Proto | GridSpan2Proto | ScheduleProto
         

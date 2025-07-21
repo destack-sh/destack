@@ -92,7 +92,7 @@ def builtin_trait(
 
         # meta
         if permissions:
-            from ..common import PermissionDefinition
+            from .definition import PermissionDefinition
 
             cls.__permissions__ = tuple(
                 PermissionDefinition.from_declaration(permission) for permission in permissions
@@ -126,11 +126,11 @@ class Trait(Entity if TYPE_CHECKING else BuiltinObject):
     __is_extensible__: ClassVar[bool] = False
 
     # content
-    """The permissions for this Entity type."""
+    """The permissions defined for this Trait."""
     __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods for this Entity type."""
+    """The methods defined for this Trait."""
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions for this Entity type."""
+    """The actions defined for this Trait."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
 
     # event

@@ -16,7 +16,7 @@ from destack.utils.uuid import UUID
 from .common import EnumType, StoreDomain, TraitType, ValueFactory
 from .const import UNSET
 from .enum import Enum, builtin_enum
-from .meta import builtin_method
+from .meta import PermissionDeclaration, TagDeclaration, builtin_method
 from .node import Node, NodeType, builtin_node
 from .property import (
     PropertyDeclaration,
@@ -66,21 +66,28 @@ class Materialization(Enum):
     is_abstract=True,
     is_extensible=True,
     event_types=(NodeType.EDIT_EVENT,),
+    permissions=(PermissionDeclaration(id=20, name="create", description="Create (or Upsert)"),),
+    tags=(
+        TagDeclaration(id=20, name="entity", description="Entity"),
+        TagDeclaration(id=21, name="source", description="Source"),
+        TagDeclaration(id=30, name="visibility", description="Visibility"),
+        TagDeclaration(id=31, name="style", description="style"),
+        TagDeclaration(id=32, name="transform", description="Transform"),
+        TagDeclaration(id=33, name="size", description="Size"),
+        TagDeclaration(id=34, name="layout", description="Layout"),
+    ),
 )
 class Entity(Node):
     """
     An Entity is a named, versioned, mutable Node.
     Entities can be attached to (most) other Entities to compose richer structures.
 
+    Updates to Entities can only be affected through Events.
     Entities are always part of a Snapshot (in their Space).
-    State transition can only be caused by Events (which are immutable).
 
     An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
      where Snapshots are 'shortcuts' to certain epochs.
-
-    (id, definition_id) @ (branch_id, snapshot_id)
-
-    (id, instance_id) @ (branch_id, snapshot_id)
+     (id, definition_id) @ (branch_id, snapshot_id)
     """
 
     __store_domain__ = StoreDomain.ENTITY
@@ -90,19 +97,21 @@ class Entity(Node):
         description="The parent of this Entity. Most Entities can be attached to any other Entity."
     )
 
-    # 10-20: Entity materialization
+    # 1-20: identity
     materialization: Materialization = builtin_property(
         10,
         is_internal=True,
         is_eq=False,
         is_hash=False,
         default=Materialization.ROOT,
+        tags=("identity",),
     )
     definition: Optional["Entity"] = builtin_property(
         11,
         is_internal=True,
         is_readonly=True,
         description="The definition this Entity is an instance of.",
+        tags=("identity",),
     )
     branch: "Branch" = builtin_property(
         12,
@@ -112,6 +121,7 @@ class Entity(Node):
         is_hash=False,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Entity is part of.",
+        tags=("identity",),
     )
     snapshot: "Snapshot" = builtin_property(
         13,
@@ -121,6 +131,7 @@ class Entity(Node):
         is_hash=False,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Entity is part of.",
+        tags=("identity",),
     )
     preceded_by: Optional[Self] = builtin_property(
         14,
@@ -132,6 +143,7 @@ class Entity(Node):
 The previous Entity this Entity is based on (from the base Branch, if any).
 This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
 """,
+        tags=("identity",),
     )
     instance: Optional["Entity"] = builtin_property(
         15,
@@ -140,6 +152,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_eq=False,
         is_hash=False,
         description="The (root) Entity that is being instantiated.",
+        tags=("identity",),
     )
     # set_properties: 16
     if TYPE_CHECKING:
@@ -156,6 +169,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_eq=False,
         is_readonly=True,
         description="The time this Entity was created (system time).",
+        tags=("tracking",),
     )
     created_epoch: int = builtin_property(
         21,
@@ -163,6 +177,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_eq=False,
         is_hash=False,
         description="The logical time this Entity was created (system time).",
+        tags=("tracking",),
     )
     created_by: Optional["IsActor"] = builtin_property(
         22,
@@ -171,12 +186,14 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_eq=False,
         is_readonly=True,
         description="The Actor that created this Entity.",
+        tags=("tracking",),
     )
     updated_at: datetime = builtin_property(
         23,
         is_internal=True,
         is_eq=False,
         description="The time this Entity was last updated (system time).",
+        tags=("tracking",),
     )
     updated_epoch: int = builtin_property(
         24,
@@ -184,6 +201,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_eq=False,
         is_hash=False,
         description="The logical time this Entity was last updated (system time).",
+        tags=("tracking",),
     )
     updated_by: Optional["IsActor"] = builtin_property(
         25,
@@ -191,6 +209,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         description="The Actor that last updated this Entity.",
+        tags=("tracking",),
     )
     deleted_at: Optional[datetime] = builtin_property(
         26,
@@ -201,8 +220,9 @@ The time this Entity was deleted (system time).
 Only set if the Entity is currently 'deleted'.
 Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
 """,
+        tags=("tracking",),
     )
-    owned_by: Optional["IsActor"] = builtin_property(30, is_repr=True)
+    owned_by: Optional["IsActor"] = builtin_property(30, is_repr=True, tags=("tracking",))
     # controlled_by, ...
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
@@ -214,6 +234,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         40,
         is_repr=True,
         default_factory=ValueFactory.NAME,
+        tags=("entity",),
     )
     order_key: str = builtin_property(
         41,
@@ -221,20 +242,24 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         is_internal=True,
         default=INTEGER_ZERO,
         description="The absolute order key of this Entity in its parent.",
+        tags=("entity",),
     )
     custom_values: dict[UUID, "Value"] = builtin_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property id..",
+        tags=("entity",),
     )
     script: Optional["Script"] = builtin_property(
         46,
         description="The Script of this Entity.",
+        tags=("entity",),
     )
     is_extensible: bool | None = builtin_property(
         50,
         is_internal=True,
         is_readonly=True,
         description="Whether this Entity can be instanced.",
+        tags=("entity",),
     )
     # base_type?
     # traits?
@@ -247,11 +272,13 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         80,
         is_internal=True,
         description="The Script that defines this Node.",
+        tags=("source",),
     )
     # token_range, ...
     key: str | None = builtin_property(
         85,
         description="The key to uniquely identify this Node in reconciliation. If not set, name is used.",
+        tags=("source",),
     )
     # aliases: list[str]?
 

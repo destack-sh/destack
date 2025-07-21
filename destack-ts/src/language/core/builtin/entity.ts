@@ -24,15 +24,12 @@ import { Temporal } from "temporal-polyfill";
  * An Entity is a named, versioned, mutable Node.
  * Entities can be attached to (most) other Entities to compose richer structures.
  *
+ * Updates to Entities can only be affected through Events.
  * Entities are always part of a Snapshot (in their Space).
- * State transition can only be caused by Events (which are immutable).
  *
  * An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
  *  where Snapshots are 'shortcuts' to certain epochs.
- *
- * (id, definition_id) @ (branch_id, snapshot_id)
- *
- * (id, instance_id) @ (branch_id, snapshot_id)
+ *  (id, definition_id) @ (branch_id, snapshot_id)
  */
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;

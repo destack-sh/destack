@@ -42,7 +42,7 @@ class Layer(
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)
     icon: "Icon | None" = builtin_property(102)
 
-    # appearance
+    # style
     is_visible: Optional[bool] = builtin_property(140)
     opacity: Optional[float] = builtin_property(141)
     # parallax?

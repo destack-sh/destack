@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, assert_never, cast
+from typing import TYPE_CHECKING, Any, Optional, Self, assert_never, cast
 
 from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
@@ -8,7 +8,7 @@ from destack.language.registry import (
     TRAIT_DEFINITION_BY_TYPE,
 )
 
-from ..builtin.common import (
+from .common import (
     CascadeAction,
     EdgeType,
     Enum,
@@ -24,15 +24,17 @@ from ..builtin.common import (
     TypeCardinality,
     ValueFactory,
 )
-from ..builtin.constant import ConstantDeclaration, register_constant
-from ..builtin.property import PropertyDeclaration, builtin_property, builtin_property_runtime
-from ..builtin.relation import (
+from .constant import ConstantDeclaration, register_constant
+from .meta import ConstraintDeclaration, IndexDeclaration, PermissionDeclaration, TagDeclaration
+from .object import BuiltinObject
+from .property import PropertyDeclaration, builtin_property, builtin_property_runtime
+from .relation import (
     ObjectDefinitionReference,
     ObjectDefinitionType,
     PropertyReference,
     PropertyReferenceType,
 )
-from ..builtin.struct import Struct, StructFrozen, builtin_struct
+from .struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -40,15 +42,14 @@ if TYPE_CHECKING:
         CollectionConstraint,
         Condition,
         ConditionalType,
-        ConstraintDefinition,
+        ConstraintType,
         Icon,
-        IndexDefinition,
+        IndexType,
         MethodDefinition,
         Node,
         NodeConstraint,
         NumberConstraint,
         ObjectDefinitionReference,
-        PermissionDefinition,
         Sort,
         SortType,
         StringConstraint,
@@ -58,7 +59,7 @@ if TYPE_CHECKING:
     )
 
 
-_type = type
+type_ = type
 
 
 @builtin_struct(StructType.BUILTIN_DEFINITION, frozen=True, is_abstract=True)
@@ -69,6 +70,23 @@ class BuiltinDefinition(StructFrozen):
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
+
+    @classmethod
+    def resolve_tagging(cls, object_cls: type_["Node"], tagging: str) -> "TagDefinition":
+        """Resolve a tagging to a definition."""
+        from .node import Node
+
+        for tag in object_cls.__tags__:
+            if tag.name == tagging:
+                return tag
+        for cls in object_cls.__mro__:
+            if issubclass(cls, Node):
+                for tag in cls.__tags__:
+                    if tag.name == tagging:
+                        return tag
+
+        raise ValueError(f"tagging {tagging} not found for {object_cls.__name__}")
 
 
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
@@ -212,9 +230,9 @@ class NodeDefinition(BuiltinDefinition):
     store_domain: StoreDomain | None = builtin_property(201)
 
     @classmethod
-    def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
+    def from_node(cls, node_cls: type_["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
-        from . import to_icon
+        from ..common import to_icon
 
         return cls(
             id=node_cls.metatype.value,
@@ -313,9 +331,9 @@ class TraitDefinition(BuiltinDefinition):
     )
 
     @classmethod
-    def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
+    def from_trait(cls, trait_cls: type_["Trait"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
-        from . import to_icon
+        from ..common import to_icon
 
         trait_type = TraitType(trait_cls.metatype)
         return cls(
@@ -376,6 +394,7 @@ class StructDefinition(BuiltinDefinition):
         126,
         description="All actions of this Struct.",
     )
+    tags: list["TagDefinition"] = builtin_property(129)
 
     # inheritance
     base_type: StructType | None = builtin_property(
@@ -402,9 +421,9 @@ class StructDefinition(BuiltinDefinition):
     )
 
     @classmethod
-    def from_struct(cls, struct_cls: _type[Struct]) -> "StructDefinition":
+    def from_struct(cls, struct_cls: type_[Struct]) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
-        from . import to_icon
+        from ..common import to_icon
 
         return cls(
             id=struct_cls.metatype.value,
@@ -441,9 +460,9 @@ class EnumDefinition(BuiltinDefinition):
     options: list["OptionDefinition"] = builtin_property(104)
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
+    def from_enum(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
-        from . import to_icon
+        from ..common import to_icon
 
         return cls(
             id=enum_type.value,
@@ -469,7 +488,6 @@ class PropertyDefinition(BuiltinDefinition):
     original_object: "ObjectDefinitionReference" = builtin_property(
         105, description="The original object that this property was defined on."
     )
-    group_id: int | None = builtin_property(106)
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
@@ -480,7 +498,6 @@ class PropertyDefinition(BuiltinDefinition):
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    # definition.. not needed?
     key_type: Optional["Type"] = builtin_property(116, is_repr=True)  # for maps
 
     # value
@@ -515,11 +532,9 @@ class PropertyDefinition(BuiltinDefinition):
     )
     is_main: bool = builtin_property(154)
 
+    # internal flags
     is_wired: bool = builtin_property(160)
-    is_stored: bool = builtin_property(
-        161,
-        description="Whether this property is stored in the database.",
-    )
+    is_stored: bool = builtin_property(161)
     is_repr: bool = builtin_property(162)
     is_hash: bool = builtin_property(163)
     is_eq: bool = builtin_property(164)
@@ -530,18 +545,23 @@ class PropertyDefinition(BuiltinDefinition):
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
+        from .node import Node
+
         assert prop.id is not None, f"{prop!r} has no id"
         type = prop._to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
             prop.original_component, object_ref
         )
+        object_cls = prop.component if issubclass(prop.component, Node) else Node
+        taggings = [cls.resolve_tagging(object_cls, tag).id for tag in prop.tags]
 
         return cls(
             type=prop.type,
             id=prop.id,
             name=prop.name,
             description=prop.description,
+            taggings=taggings,
             object=object_ref,
             original_object=original_object_ref,
             # type
@@ -576,7 +596,7 @@ class PropertyDefinition(BuiltinDefinition):
 
     def to_type(self) -> "Type":
         """Convert to a Type."""
-        from .type import Type
+        from ..common.type import Type
 
         if self._type is None:
             type = Type(
@@ -628,86 +648,86 @@ class PropertyDefinition(BuiltinDefinition):
             assert_never(self.object.type)
 
     def eq(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         if value is None:
             return self.not_exists()
         return Condition.of(self, ConditionalType.EQUALS, value=value)
 
     def neq(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         if value is None:
             return self.exists()
         return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
     def gt(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
     def gte(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
     def lt(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
     def lte(self, value: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
     def starts_with(self, value: str) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
     def ends_with(self, value: str) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
     def in_(self, *values: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.IN, value=values)
 
     def not_in(self, *values: Any) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
     def exists(self) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     def is_not_none(self) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     def not_exists(self) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def is_none(self) -> "Condition":
-        from . import Condition
+        from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def asc(self) -> "Sort":
-        from . import Sort
+        from ..common import Sort
 
         return Sort.of(self, SortType.ASCENDING)
 
     def desc(self) -> "Sort":
-        from . import Sort
+        from ..common import Sort
 
         return Sort.of(self, SortType.DESCENDING)
 
@@ -721,7 +741,7 @@ class OptionDefinition(BuiltinDefinition):
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
-        from . import to_icon
+        from ..common import to_icon
 
         return cls(
             id=option.value,
@@ -746,7 +766,7 @@ class ConstantDefinition(StructFrozen):
     @classmethod
     def from_constant(cls, constant_declaration: ConstantDeclaration) -> "ConstantDefinition":
         """Create ConstantDefinition from a ConstantDeclaration."""
-        from . import to_value
+        from ..common import to_value
 
         if constant_declaration.value is None:
             assert constant_declaration.getter is not None, (
@@ -768,6 +788,74 @@ class ConstantDefinition(StructFrozen):
         )
 
 
+@builtin_struct(StructType.TAG_DEFINITION, frozen=True)
+class TagDefinition(BuiltinDefinition):
+    """Definition of a builtin Tag to associate builtin definitions to."""
+
+    @classmethod
+    def from_declaration(cls, declaration: TagDeclaration) -> "TagDefinition":
+        """Create TagDefinition from a TagDeclaration."""
+        return cls(
+            id=declaration.id,
+            name=declaration.name,
+            description=declaration.description,
+        )
+
+
+@builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
+class IndexDefinition(BuiltinDefinition):
+    """Definition of a builtin Index."""
+
+    type: "IndexType" = builtin_property(100, is_repr=True)
+    properties: list["PropertyReference"] = builtin_property(105)
+    cover: list["PropertyReference"] = builtin_property(106)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["BuiltinObject"], declaration: "IndexDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name or "Index",
+            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
+            cover=[object_cls.property(p).to_ref() for p in declaration.cover],
+        )
+
+
+@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
+class ConstraintDefinition(BuiltinDefinition):
+    """Definition of a builtin Constraint."""
+
+    type: "ConstraintType" = builtin_property(100, is_repr=True)
+    properties: list["PropertyReference"] = builtin_property(105)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["BuiltinObject"], declaration: "ConstraintDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name or "Constraint",
+            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
+        )
+
+
+@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
+class PermissionDefinition(BuiltinDefinition):
+    """Definition of a builtin Permission for a builtin Node."""
+
+    @classmethod
+    def from_declaration(cls, declaration: "PermissionDeclaration") -> "Self":
+        return cls(
+            id=declaration.id,
+            name=declaration.name,
+            description=declaration.description,
+        )
+
+
+# nocheckin: move constant definitions into Nodes?
 register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))
 register_constant("TRAIT_DEFINITIONS", lambda: list(TRAIT_DEFINITION_BY_TYPE.values()))
 register_constant("STRUCT_DEFINITIONS", lambda: list(STRUCT_DEFINITION_BY_TYPE.values()))

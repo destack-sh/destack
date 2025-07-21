@@ -11,7 +11,7 @@ from ..builtin import (
     builtin_property,
     builtin_struct,
 )
-from .definition import BuiltinDefinition
+from ..builtin.definition import BuiltinDefinition
 
 if TYPE_CHECKING:
     pass

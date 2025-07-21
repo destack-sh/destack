@@ -20,7 +20,11 @@ if TYPE_CHECKING:
 class Shape2D(Entity2D):
     """A Shape2D represents 2-dimensional geometric Shapes."""
 
-    stroke: Optional["Stroke"] = builtin_property(180, is_repr=True)
+    stroke: Optional["Stroke"] = builtin_property(
+        180,
+        is_repr=True,
+        tags=("style",),
+    )
 
 
 @builtin_node(
@@ -31,4 +35,8 @@ class Shape2D(Entity2D):
 class Shape3D(Entity3D):
     """A Shape3D represents 3-dimensional geometric Shapes."""
 
-    stroke: Optional["Stroke"] = builtin_property(180, is_repr=True)
+    stroke: Optional["Stroke"] = builtin_property(
+        180,
+        is_repr=True,
+        tags=("style",),
+    )
