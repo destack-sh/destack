@@ -53,6 +53,15 @@ import type {
 } from "@destack/language/animation/transition";
 import type { Node, Struct } from "@destack/language/core";
 import type {
+  Entity2D,
+  Entity3D,
+  Record,
+  Resource,
+  Tag,
+  Tagging,
+  Variant,
+} from "@destack/language/core/builtin/base";
+import type {
   CascadeAction,
   ClientType,
   Cloud,
@@ -86,15 +95,7 @@ import type {
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
-import type {
-  Entity,
-  Materialization,
-  Record,
-  Resource,
-  Tag,
-  Tagging,
-  Variant,
-} from "@destack/language/core/builtin/entity";
+import type { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
 import type {
   ConstraintType,
@@ -115,21 +116,16 @@ import type {
 } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
-  IsCustomizable,
   IsDraggable,
-  IsExtensible,
   IsFollowable,
   IsInteractive,
-  IsIrreversible,
   IsJoinable,
   IsOrdered,
   IsOwnable,
   IsOwned,
   IsReactable,
   IsRunnable,
-  IsScriptable,
   IsSelectable,
-  IsSourceable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
@@ -144,7 +140,6 @@ import type {
   TraitDefinition,
 } from "@destack/language/core/common/definition";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
-import type { Entity2D, Entity3D } from "@destack/language/core/common/geometry";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
 import type {
   Constraint,
@@ -255,11 +250,7 @@ import type {
   Vector4,
   Vector4i,
 } from "@destack/language/geometry/vector";
-import type {
-  Database,
-  DatabaseInfo,
-  DatabaseType,
-} from "@destack/language/infrastructure/database";
+import type { Database, DatabaseType } from "@destack/language/infrastructure/database";
 import type { Machine, MachineType } from "@destack/language/infrastructure/machine";
 import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence/model";
 import type {
@@ -445,6 +436,8 @@ export type NodeTypeMapping = {
   [NodeType.VARIANT]: Variant;
   [NodeType.TAG]: Tag;
   [NodeType.TAGGING]: Tagging;
+  [NodeType.ENTITY2D]: Entity2D;
+  [NodeType.ENTITY3D]: Entity3D;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.SIGNAL]: Signal;
@@ -453,8 +446,6 @@ export type NodeTypeMapping = {
   [NodeType.ACTION]: Action;
   [NodeType.CUSTOM_ENUM]: CustomEnum;
   [NodeType.CUSTOM_OPTION]: CustomOption;
-  [NodeType.ENTITY2D]: Entity2D;
-  [NodeType.ENTITY3D]: Entity3D;
   [NodeType.INDEX]: Index;
   [NodeType.CONSTRAINT]: Constraint;
   [NodeType.MIGRATION]: Migration;
@@ -637,12 +628,7 @@ export type TraitTypeMapping = {
   [TraitType.INTERACTIVE]: IsInteractive;
   [TraitType.DRAGGABLE]: IsDraggable;
   [TraitType.SELECTABLE]: IsSelectable;
-  [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.RUNNABLE]: IsRunnable;
-  [TraitType.CUSTOMIZABLE]: IsCustomizable;
-  [TraitType.SCRIPTABLE]: IsScriptable;
-  [TraitType.EXTENSIBLE]: IsExtensible;
-  [TraitType.IRREVERSIBLE]: IsIrreversible;
 };
 
 export type StructTypeMapping = {
@@ -724,7 +710,6 @@ export type StructTypeMapping = {
   [StructType.AXIS3]: Axis3;
   [StructType.GRID2]: Grid2;
   [StructType.GRID_SPAN2]: GridSpan2;
-  [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.SCHEDULE]: Schedule;
 };
 

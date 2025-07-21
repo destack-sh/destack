@@ -11,7 +11,6 @@ from .definition import (
     TraitDefinition,
 )
 from .enum import CustomEnum, CustomOption
-from .geometry import Entity2D, Entity3D
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .integrity import Constraint, ConstraintDefinition, Index, IndexDefinition
 from .method import Method, MethodDefinition
@@ -96,8 +95,6 @@ __all__ = [
     "CustomProperty",
     "CustomStruct",
     "DatumMutable",
-    "Entity2D",
-    "Entity3D",
     "EnumDefinition",
     "Expression",
     "ExpressionIn",

@@ -5,7 +5,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsSourceable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -76,7 +75,7 @@ class TimerType(Enum):
         NodeType.TIMER_CANCELLED_EVENT,
     ),
 )
-class Timer(IsSourceable, Entity):
+class Timer(Entity):
     """A Timer."""
 
     type: TimerType = builtin_property(100, is_repr=True)

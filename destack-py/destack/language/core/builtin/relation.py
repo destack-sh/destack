@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         CustomEvent,
         CustomProperty,
         CustomStruct,
-        IsExtensible,
+        Entity,
         Node,
         PropertyDefinition,
         Type,
@@ -49,11 +49,7 @@ class NodeDefinitionReference(StructFrozen):
 
     type: NodeDefinitionType = builtin_property(100, is_repr=True)
     node_type: NodeType = builtin_property(101, is_repr=True)
-    definition: Union[
-        "IsExtensible",
-        "CustomEvent",
-        None,
-    ] = builtin_property(105, is_repr=True)
+    definition: Optional["Entity"] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -140,14 +136,9 @@ class ObjectDefinitionReference(StructFrozen):
     node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
     trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
-    definition: Union[
-        "IsExtensible",
-        "CustomEvent",
-        "CustomStruct",
-        None,
-    ] = builtin_property(105, is_repr=True)
+    custom_definition: Optional["Entity"] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
-        definition_ptr: Optional["NodeReference"] = None
+        custom_definition_ptr: Optional["NodeReference"] = None
 
     @property
     def object_cls(self) -> type_[BuiltinObject] | None:

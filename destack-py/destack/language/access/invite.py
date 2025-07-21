@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IsActor,
-    IsExtensible,
     IsJoinable,
     IsOwnable,
     NodeType,
@@ -64,7 +63,6 @@ class InviteRejectedEvent(InviteEvent):
 )
 class Invite(
     IsOwnable,
-    IsExtensible,
     Entity,
 ):
     """An Invite to a Joinable."""

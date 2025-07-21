@@ -64,11 +64,11 @@ class EnumType(Enum):
     QUERY_UPDATE_TYPE = 321
 
     # time
-    BRANCH_TYPE = 11_000
-    SNAPSHOT_TYPE = 11_100
-    SNAPSHOT_STATUS = 11_101
+    BRANCH_TYPE = 2_000
+    SNAPSHOT_TYPE = 2_100
+    SNAPSHOT_STATUS = 2_101
     # base
-    RESOURCE_STATUS = 12_100
+    RESOURCE_STATUS = 10_101
 
     # custom
     # ...
@@ -79,8 +79,8 @@ class EnumType(Enum):
     MIGRATION_TYPE = 31_000
 
     # logic
-    METHOD_TYPE = 701_000
-    METHOD_CARDINALITY = 701_001
+    METHOD_TYPE = 40_000
+    METHOD_CARDINALITY = 40_001
 
     # universe [100_000-200_000]
     SPACE_STATUS = 100_000
@@ -223,6 +223,17 @@ class StructType(Enum):
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
     DATUM = 2
     DATUM_MUTABLE = 3
+    BUILTIN_DEFINITION = 10
+    OBJECT_DEFINITION_REFERENCE = 11
+    NODE_DEFINITION = 12
+    NODE_DEFINITION_REFERENCE = 13
+    TRAIT_DEFINITION = 14
+    STRUCT_DEFINITION = 15
+    STRUCT_DEFINITION_REFERENCE = 16
+    ENUM_DEFINITION = 17
+    PROPERTY_DEFINITION = 18
+    CONSTANT_DEFINITION = 19
+    OPTION_DEFINITION = 20
 
     # type/value
     VALUE = 100
@@ -252,26 +263,19 @@ class StructType(Enum):
     NODE_REFERENCE = 1_000
     PROPERTY_REFERENCE = 1_001
 
-    # definitions
-    BUILTIN_DEFINITION = 20_000
-    OBJECT_DEFINITION_REFERENCE = 20_001
-    NODE_DEFINITION = 20_002
-    NODE_DEFINITION_REFERENCE = 20_003
-    TRAIT_DEFINITION = 20_004
-    STRUCT_DEFINITION = 20_100
-    STRUCT_DEFINITION_REFERENCE = 20_101
-    ENUM_DEFINITION = 20_200
-    PROPERTY_DEFINITION = 20_300
-    CONSTANT_DEFINITION = 20_301
-    OPTION_DEFINITION = 20_400
+    # integrity
     INDEX_DEFINITION = 30_100
     CONSTRAINT_DEFINITION = 30_200
     # EXPECTATION_DEFINITION = 30_300
     MIGRATION_DEFINITION = 31_000
     MIGRATION_OPERATION_DEFINITION = 31_100
-    METHOD_DEFINITION = 35_000
-    ACTION_DEFINITION = 35_100
-    PERMISSION_DEFINITION = 40_000
+
+    # logic
+    METHOD_DEFINITION = 40_000
+    ACTION_DEFINITION = 40_100
+
+    # access
+    PERMISSION_DEFINITION = 50_000
 
     # universe [100_000-200_000]
     # ...
@@ -305,7 +309,6 @@ class StructType(Enum):
     # ...
 
     # infrastructure [1_000_000-1_100_000]
-    DATABASE_INFO = 1_000_001
     # ...
 
     # deployment [1_100_000-1_200_000]
@@ -384,6 +387,9 @@ class StructType(Enum):
     # lighting [2_600_000-2_700_000]
     # ...
 
+    # editor [3_000_000-3_100_000]
+    # ...
+
 
 @builtin_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
@@ -394,14 +400,6 @@ class TraitType(Enum):
 
     # common
     ORDERED = 10_000, "Ordered", "Is ordered", "fas fa-sort"
-    CUSTOMIZABLE = (
-        10_100,
-        "Customizable",
-        "Can be customized with custom Properties",
-        "fas fa-paint-roller",
-    )
-    EXTENSIBLE = 10_200, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
-    IRREVERSIBLE = 10_300, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
     # PAUSABLE?
 
     # universe [100_000-200_000]
@@ -427,8 +425,6 @@ class TraitType(Enum):
 
     # logic [700_000-800_000]
     RUNNABLE = 700_001, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 700_002, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 700_003, "Sourcable", "Can be defined in a Script", "fas fa-code"
 
     # quality [800_000-900_000]
     # ...
@@ -490,40 +486,48 @@ class TraitType(Enum):
     # lighting [2_600_000-2_700_000]
     # ...
 
+    # editor [3_000_000-3_100_000]
+    # ...
+
 
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
     # core [1-100_000]
+
     # root
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
+
     # space
     # UNIVERSE
-    SPACE = 10_100, "Space", "Universal Space", "fas fa-galaxy"
+    SPACE = 1_000, "Space", "Universal Space", "fas fa-galaxy"
+
     # time
-    BRANCH = 11_000, "Branch", None, "fas fa-code-branch"
-    SNAPSHOT = 11_100, "Snapshot", "Point in Space-time", "fas fa-save"
+    BRANCH = 2_000, "Branch", None, "fas fa-code-branch"
+    SNAPSHOT = 2_100, "Snapshot", "Point in Space-time", "fas fa-save"
+
     # base
-    RECORD = 12_000, "Record", "Data Entity", "fas fa-database"
-    RESOURCE = 12_100, "Resource", "External asset outside of Destack", "fas fa-dot"
-    METRIC = 12_200, "Metric", None, "fas fa-gauge"
-    SERVICE = 12_400, "Service", None, "fas fa-screwdriver-wrench"
-    VARIANT = 12_500, "Variant", "Variant of a Scene", "fas fa-shapes"
-    TAG = 12_600, "Tag", None, "fas fa-tag"
-    TAGGING = 12_700, "Tagging", None, "fas fa-tag"
+    RECORD = 10_000, "Record", "Data Entity", "fas fa-database"
+    RESOURCE = 10_100, "Resource", "External asset outside of Destack", "fas fa-dot"
+    METRIC = 10_200, "Metric", None, "fas fa-gauge"
+    SERVICE = 10_300, "Service", None, "fas fa-screwdriver-wrench"
+    VARIANT = 10_400, "Variant", "Variant of a Scene", "fas fa-shapes"
+    ENTITY2D = 11_000, "Entity2D", "2D Entity", "fas fa-shapes"
+    ENTITY3D = 11_100, "Entity3D", "3D Entity", "fas fa-shapes"
+    TAG = 12_000, "Tag", None, "fas fa-tag"
+    TAGGING = 12_100, "Tagging", None, "fas fa-tag"
     # TRAIT?
     # SLOT, LINK, ...
-    # geometry
-    ENTITY2D = 15_000, "Entity2D", "2D Entity", "fas fa-shapes"
-    ENTITY3D = 15_100, "Entity3D", "3D Entity", "fas fa-shapes"
     # TIMELINE, TRACK, (KEY)FRAME, ...
+
     # custom
     CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
     CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
     CUSTOM_ENUM = 20_200, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
     CUSTOM_PROPERTY = 20_300, "Custom Property", "Custom Property Definition", "fas fa-triangle"
     CUSTOM_OPTION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
+
     # integrity
     INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"
     CONSTRAINT = 30_200, "Constraint", "Constraint of an Entity", "fas fa-database"
@@ -535,17 +539,19 @@ class NodeType(Enum):
         "Migration Operation of an Entity",
         "fas fa-database",
     )
+
     # logic
-    METHOD = 35_000, "Method", None, "fas fa-code"
-    ACTION = 35_100, "Action", None, "fas fa-code"
+    METHOD = 40_000, "Method", None, "fas fa-code"
+    ACTION = 40_100, "Action", None, "fas fa-code"
+
     # access
-    PERMISSION = 40_000, "Permission", "Permission for something", "fas fa-user-shield"
+    PERMISSION = 50_000, "Permission", "Permission for something", "fas fa-user-shield"
 
     # event
-    SIGNAL = 50_000, "Signal", "Custom Event instance", "fas fa-signal"
-    EDIT_EVENT = 50_100, "Edit Event", None, "fas fa-file-lines"
+    SIGNAL = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
+    EDIT_EVENT = 90_100, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
-    MEASUREMENT_EVENT = 50_200, "Measurement of a Metric", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 90_200, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
     # UNIVERSE, ...
@@ -860,6 +866,10 @@ class NodeType(Enum):
     # LIGHT, LIGHT2D, ...
     # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
     # OCCLUDER, ...
+    # ...
+
+    # editor [3_000_000-3_100_000]
+    # INSPECTOR_VIEW, ...
     # ...
 
 

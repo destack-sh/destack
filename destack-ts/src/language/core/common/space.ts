@@ -10,7 +10,6 @@ import type {
   IsFollowable,
   IsJoinable,
   IsOwnable,
-  IsScriptable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -31,7 +30,7 @@ import type { Folder } from "@destack/language/space";
 import type { Handle } from "@destack/language/universe";
 import { MaterializationProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { uuid4 } from "@destack/utils/uuid";
 import { Temporal } from "temporal-polyfill";
 
@@ -64,6 +63,7 @@ export function createSpace(options: {
   const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
   const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
   const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
+  const _Space = NODE_CLASS_BY_TYPE[NodeType.SPACE] as typeof Space;
 
   const { session, id, name, slug } = options;
   const epoch = session.epoch;
@@ -116,7 +116,7 @@ export function createSpace(options: {
     branch: branchPtr,
   });
   session.create(snapshot);
-  const space = new Space({
+  const space = new _Space({
     id: spaceId,
     name: name ?? "Space",
     slug: slug ?? "space",
@@ -134,14 +134,11 @@ export function createSpace(options: {
   return { space, branch, snapshot };
 }
 
-/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
 /**
  * A Space is the home of your personal software studio.
  */
-export class Space
-  extends Entity
-  implements IsFollowable, IsJoinable, IsOwnable, IsStarable, IsScriptable
-{
+export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable, IsStarable {
   static metatype: NodeType = NodeType.SPACE;
 
   /**
@@ -174,7 +171,7 @@ export class Space
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -286,23 +283,7 @@ export class Space
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
-  }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
-  }
-  _customValues: { readonly [key: string]: Value };
-
-  /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -319,7 +300,7 @@ export class Space
     }
   }
   /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
@@ -348,7 +329,28 @@ export class Space
   _name: string;
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
@@ -365,7 +367,7 @@ export class Space
     }
   }
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
@@ -376,6 +378,39 @@ export class Space
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Space.slug
@@ -578,10 +613,14 @@ export class Space
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     slug: string;
     status: SpaceStatus;
     handle?: Handle | NodeReference | null;
@@ -688,11 +727,6 @@ export class Space
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this._customValues = _customValues;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -706,11 +740,33 @@ export class Space
       throw new Error(`Space.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Space.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Space.slug is required`);
@@ -818,13 +874,10 @@ export class Space
     if (!(this._databasePtr?.id === other._databasePtr?.id)) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -840,6 +893,18 @@ export class Space
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
     }
     return true;
   }
@@ -866,12 +931,6 @@ export class Space
     if (this._databasePtr != null) {
       h = (h * 31 + hashString(this._databasePtr.id)) & 0xffffffff;
     }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
-    }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -889,14 +948,30 @@ export class Space
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
   }
@@ -941,7 +1016,7 @@ export class Space
 
   static __packCson__(object: Space): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 10100;
+    objectCson["1"] = 1000;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -972,19 +1047,29 @@ export class Space
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
+      objectCson["45"] = packedCustomValues;
     }
-    if (object._ownedByPtr != null) {
-      objectCson["32"] = object._ownedByPtr.toCson();
-    }
-    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectCson["80"] = object._scriptPtr.toCson();
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
     }
     objectCson["102"] = object._slug;
     objectCson["110"] = object._status;
@@ -1038,16 +1123,6 @@ export class Space
       databasePtrValue != undefined
         ? _NodeReference.fromCson(databasePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectCson["32"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1083,9 +1158,14 @@ export class Space
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
@@ -1095,6 +1175,20 @@ export class Space
         );
       }
     }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Space({
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       slug: objectCson["102"],
@@ -1105,8 +1199,6 @@ export class Space
       region: Number(objectCson["120"]),
       galaxyName: unpackedGalaxyName,
       database: unpackedDatabasePtr,
-      ownedBy: unpackedOwnedByPtr,
-      script: unpackedScriptPtr,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1127,9 +1219,15 @@ export class Space
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      id: String(objectCson["2"]),
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
+      id: String(objectCson["2"]),
       _session,
       _graph,
       _connection,
@@ -1151,7 +1249,7 @@ export class Space
   }
 
   static __packProto__(object: Space): SpaceProto {
-    const objectProto: Partial<SpaceProto> = { metatype: 10100 };
+    const objectProto: Partial<SpaceProto> = { metatype: 1000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1182,18 +1280,28 @@ export class Space
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.slug = object._slug;
     objectProto.status = Number(object._status) as SpaceStatusProto;
@@ -1286,26 +1394,6 @@ export class Space
               _connection,
             )
           : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1387,9 +1475,42 @@ export class Space
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
-      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
+      id: String(objectProto.id),
       _session,
       _graph,
       _connection,
@@ -1417,4 +1538,4 @@ export class Space
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPACE, Space);
-/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */

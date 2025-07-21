@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    IsExtensible,
     IsOrdered,
     IsOwnable,
     NodeType,
@@ -34,7 +33,6 @@ class SceneEvent(Event["Scene"]):
 class Scene(
     IsOwnable,
     IsOrdered,
-    IsExtensible,
     Entity,
 ):
     """A Scene contains some interactive part of a Stage."""

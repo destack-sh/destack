@@ -1,16 +1,14 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..builtin import (
     CascadeAction,
     EdgeType,
     Entity,
     EnumType,
-    IsSourceable,
     NodeType,
     PropertyType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
@@ -27,12 +25,7 @@ from .type import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomEnum,
-        CustomEvent,
-        CustomStruct,
         Icon,
-        IsCustomizable,
-        IsExtensible,
         Type,
         Value,
     )
@@ -43,14 +36,12 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_PROPERTY)
 class CustomProperty(
-    IsSourceable,
     Entity,
 ):
     """
     A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
     """
 
-    parent: Union["IsCustomizable", None] = builtin_property_parent()
     type: PropertyType = builtin_property(100, default=PropertyType.MEMBER)
     icon: "Icon | None" = builtin_property(102)
 
@@ -63,13 +54,7 @@ class CustomProperty(
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    definition: Union[
-        "IsExtensible",
-        "CustomEvent",
-        "CustomEnum",
-        "CustomStruct",
-        None,
-    ] = builtin_property(116, is_repr=True)
+    custom_definition: Optional["Entity"] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
     # value
@@ -87,11 +72,26 @@ class CustomProperty(
     cascade: Optional[CascadeAction] = builtin_property(141)
 
     # flags
-    is_required: bool | None = builtin_property(150)
-    is_unique: bool | None = builtin_property(151)
-    is_computed: bool | None = builtin_property(152)
-    is_readonly: bool | None = builtin_property(153)
-    is_main: bool | None = builtin_property(154)
+    is_required: bool | None = builtin_property(
+        150,
+        description="Whether this property must be set.",
+    )
+    is_unique: bool | None = builtin_property(
+        151,
+        description="Whether this property must have a unique value.",
+    )
+    is_computed: bool | None = builtin_property(
+        152,
+        description="Whether this property is computed.",
+    )
+    is_readonly: bool | None = builtin_property(
+        153,
+        description="Whether this property is read-only.",
+    )
+    is_main: bool | None = builtin_property(
+        154,
+        description="Whether this property is the main property of the object.",
+    )
 
     def to_type(self) -> "Type":
         type = Type(

@@ -8,7 +8,6 @@ from destack.language.core import (
     EnumType,
     Event,
     IsActor,
-    IsExtensible,
     IsJoinable,
     NodeReference,
     NodeType,
@@ -63,7 +62,6 @@ class EntitlementType(Enum):
     event_types=(NodeType.ENTITLEMENT_EVENT,),
 )
 class Entitlement(
-    IsExtensible,
     Entity,
 ):
     """A Entitlement to some Actor."""

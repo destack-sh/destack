@@ -188,7 +188,7 @@ def get_naive_object_strategy(object_cls: type[BuiltinObject]):
             prop.id is None
             or prop.id == 1
             or prop.default_factory is not None
-            or (prop.is_managed and prop.name != "definition")
+            or (prop.is_internal and prop.name != "definition")
             or prop.is_computed
             or prop.is_unique  # is unique (causes meaningless test errors)
         ):

@@ -6,11 +6,9 @@ import {
   TraitType,
 } from "@destack/language/core/builtin/common";
 import { Entity } from "@destack/language/core/builtin/entity";
-import type { CustomEvent } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import type { IsExtensible } from "@destack/language/core/builtin/trait";
 import { PropertyDefinition, Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
@@ -41,7 +39,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20003 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:13 ==== */
 /**
  * Reference to a Node definition.
  */
@@ -62,13 +60,13 @@ export class NodeDefinitionReference extends StructFrozen {
   /**
    * NodeDefinitionReference.definition
    */
-  get definition(): (Entity & IsExtensible) | CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -77,7 +75,7 @@ export class NodeDefinitionReference extends StructFrozen {
   constructor(options: {
     type: NodeDefinitionType;
     nodeType: NodeType;
-    definition?: (Entity & IsExtensible) | CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -182,7 +180,7 @@ export class NodeDefinitionReference extends StructFrozen {
 
   static __packCson__(object: NodeDefinitionReference): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20003;
+    objectCson["1"] = 13;
     objectCson["100"] = object.type;
     objectCson["101"] = object.nodeType;
     if (object.definitionPtr != null) {
@@ -238,7 +236,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: NodeDefinitionReference): NodeDefinitionReferenceProto {
-    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 20003 };
+    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 13 };
     objectProto.type = Number(object.type) as NodeDefinitionTypeProto;
     objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     if (object.definitionPtr != null) {
@@ -379,7 +377,7 @@ export class NodeDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION_REFERENCE, NodeDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:20003 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:13 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:1001 ==== */
 /**
@@ -1187,7 +1185,7 @@ export class NodeReference extends StructFrozen {
 registerStructClass(StructType.NODE_REFERENCE, NodeReference);
 /* ==== DESTACK_GENERATED_END:STRUCT:1000 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20001 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:11 ==== */
 /**
  * Reference to an object "type" (builtin, custom or trait).
  */
@@ -1216,30 +1214,26 @@ export class ObjectDefinitionReference extends StructFrozen {
   readonly structType: StructType | null;
 
   /**
-   * ObjectDefinitionReference.definition
+   * ObjectDefinitionReference.customDefinition
    */
-  get definition(): (Entity & IsExtensible) | CustomEvent | CustomStruct | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
+  get customDefinition(): Entity | null {
+    const nodePtr: NodeReference | null = this.customDefinitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as
-        | (Entity & IsExtensible)
-        | CustomEvent
-        | CustomStruct
-        | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly customDefinitionPtr: NodeReference | null;
 
   constructor(options: {
     type: ObjectDefinitionType;
     nodeType?: NodeType | null;
     traitType?: TraitType | null;
     structType?: StructType | null;
-    definition?: (Entity & IsExtensible) | CustomEvent | CustomStruct | NodeReference | null;
+    customDefinition?: Entity | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1266,11 +1260,11 @@ export class ObjectDefinitionReference extends StructFrozen {
     this.traitType = _traitType;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
+    let _customDefinition = options.customDefinition ?? null;
+    if (_customDefinition != null && _customDefinition.metatype != StructType.NODE_REFERENCE) {
+      _customDefinition = (_customDefinition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.customDefinitionPtr = _customDefinition;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1299,7 +1293,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.customDefinitionPtr?.id === other.customDefinitionPtr?.id)) {
       return false;
     }
     return true;
@@ -1318,8 +1312,8 @@ export class ObjectDefinitionReference extends StructFrozen {
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.definition != null) {
-        propertyReprs.push(`definition=${this.definition?.repr()}`);
+      if (this.customDefinition != null) {
+        propertyReprs.push(`customDefinition=${this.customDefinition?.repr()}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<ObjectDefinitionReference ${propertyReprs.join(" ")}>`;
@@ -1344,8 +1338,8 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.customDefinitionPtr != null) {
+      h = (h * 31 + hashString(this.customDefinitionPtr.id)) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -1367,7 +1361,7 @@ export class ObjectDefinitionReference extends StructFrozen {
 
   static __packCson__(object: ObjectDefinitionReference): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20001;
+    objectCson["1"] = 11;
     objectCson["100"] = object.type;
     if (object.nodeType != null) {
       objectCson["101"] = object.nodeType;
@@ -1378,8 +1372,8 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (object.structType != null) {
       objectCson["103"] = object.structType;
     }
-    if (object.definitionPtr != null) {
-      objectCson["105"] = object.definitionPtr.toCson();
+    if (object.customDefinitionPtr != null) {
+      objectCson["105"] = object.customDefinitionPtr.toCson();
     }
     return objectCson;
   }
@@ -1398,17 +1392,23 @@ export class ObjectDefinitionReference extends StructFrozen {
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
     const structTypeValue = objectCson["103"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectCson["105"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+    const customDefinitionPtrValue = objectCson["105"];
+    const unpackedCustomDefinitionPtr =
+      customDefinitionPtrValue != undefined
+        ? _NodeReference.fromCson(
+            customDefinitionPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     return new ObjectDefinitionReference({
       type: Number(objectCson["100"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
-      definition: unpackedDefinitionPtr,
+      customDefinition: unpackedCustomDefinitionPtr,
       _cson: objectCson,
       _supergraph,
     });
@@ -1439,7 +1439,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: ObjectDefinitionReference): ObjectDefinitionReferenceProto {
-    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 20001 };
+    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 11 };
     objectProto.type = Number(object.type) as ObjectDefinitionTypeProto;
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
@@ -1450,8 +1450,8 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
     }
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.customDefinitionPtr != null) {
+      objectProto.customDefinitionPtr = object.customDefinitionPtr.toProto();
     }
     return objectProto as ObjectDefinitionReferenceProto;
   }
@@ -1472,10 +1472,10 @@ export class ObjectDefinitionReference extends StructFrozen {
         objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       structType:
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      definition:
-        objectProto.definitionPtr != undefined
+      customDefinition:
+        objectProto.customDefinitionPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
+              objectProto.customDefinitionPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1514,9 +1514,9 @@ export class ObjectDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:20001 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:11 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20101 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:16 ==== */
 /**
  * Reference to a Struct definition (builtin, custom or by trait).
  */
@@ -1657,7 +1657,7 @@ export class StructDefinitionReference extends StructFrozen {
 
   static __packCson__(object: StructDefinitionReference): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20101;
+    objectCson["1"] = 16;
     objectCson["100"] = object.type;
     if (object.structType != null) {
       objectCson["101"] = object.structType;
@@ -1716,7 +1716,7 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: StructDefinitionReference): StructDefinitionReferenceProto {
-    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 20101 };
+    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 16 };
     objectProto.type = Number(object.type) as StructDefinitionTypeProto;
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
@@ -1776,4 +1776,4 @@ export class StructDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION_REFERENCE, StructDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:20101 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:16 ==== */

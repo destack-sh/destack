@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsActor,
     IsJoinable,
-    IsScriptable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 class Team(
     IsActor,
     IsJoinable,
-    IsScriptable,
     Entity,
 ):
     """

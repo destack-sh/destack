@@ -6,8 +6,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsCustomizable,
-    IsIrreversible,
     IsRunnable,
     NodeType,
     builtin_enum,
@@ -136,7 +134,7 @@ class RunCompletedEvent(RunEvent):
     event_types=(NodeType.RUN_EVENT,),
     is_abstract=True,
 )
-class Run(IsCustomizable, IsIrreversible, Entity):
+class Run(Entity):
     """
     Run of a Runnable.
     """

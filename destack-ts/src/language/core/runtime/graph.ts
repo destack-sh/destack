@@ -1,4 +1,4 @@
-import type { Entity, Event, IsOrdered, Node, NodeClass } from "@destack/language/core/builtin";
+import type { Entity, Event, Node, NodeClass } from "@destack/language/core/builtin";
 import { NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { hasTrait } from "@destack/language/core/builtin/node";
 import { TraitClass } from "@destack/language/core/builtin/trait";
@@ -313,8 +313,8 @@ export class EntityGraph extends Graph<Entity> {
           if (children.length > 0) {
             if (hasTrait(children[0], TraitType.ORDERED)) {
               children.sort((a, b) => {
-                const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
-                const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                const aOrderKey = (a as Entity).orderKey || INTEGER_ZERO;
+                const bOrderKey = (b as Entity).orderKey || INTEGER_ZERO;
                 return aOrderKey.localeCompare(bOrderKey);
               });
             }
@@ -329,8 +329,8 @@ export class EntityGraph extends Graph<Entity> {
           if (children.length > 0) {
             if (hasTrait(children[0], TraitType.ORDERED)) {
               children.sort((a, b) => {
-                const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
-                const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                const aOrderKey = (a as Entity).orderKey || INTEGER_ZERO;
+                const bOrderKey = (b as Entity).orderKey || INTEGER_ZERO;
                 return aOrderKey.localeCompare(bOrderKey);
               });
             }

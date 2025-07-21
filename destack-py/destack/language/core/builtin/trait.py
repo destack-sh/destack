@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     ClassVar,
-    Optional,
     cast,
     dataclass_transform,
 )
@@ -10,31 +9,22 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.func import get_superclasses
-from destack.utils.uuid import UUID
 
 from .common import EnumType, NodeType, TraitType
-from .const import UNSET
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     _resolve_trait_type,
-    builtin_property,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
-        ConstraintDefinition,
-        IndexDefinition,
+        Entity,
         MethodDefinition,
-        Node,
-        NodeReference,
         PermissionDeclaration,
         PermissionDefinition,
-        Script,
-        Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -53,7 +43,7 @@ def builtin_trait(
     event_types: tuple[NodeType, ...] = (),
     permissions: tuple["PermissionDeclaration", ...] = (),
 ):
-    """Register a class as a node trait."""
+    """Register a class as an Entity trait."""
 
     def decorate(cls: type) -> type:
         cls, _ = _process_object_cls(
@@ -73,6 +63,12 @@ def builtin_trait(
             cls.metatype = trait_type
         cls.__is_trait__ = True
         cls.__is_abstract__ = True
+
+        # traits cannot have properties
+        real_properties = [
+            p for p in cls.__properties__.values() if p.is_wired and p.name != "metatype"
+        ]
+        assert not real_properties, f"Trait {cls.__name__} has properties: {real_properties}"
 
         # traits
         traits: list[TraitType] = []
@@ -113,8 +109,12 @@ def builtin_trait(
 
 
 @builtin_trait(None)
-class Trait(Node if TYPE_CHECKING else BuiltinObject):
-    """A Node trait."""
+class Trait(Entity if TYPE_CHECKING else BuiltinObject):
+    """
+    An Entity trait that ascribes some behavior to an Entity.
+
+    Traits may define logic and access, but no properties.
+    """
 
     # meta
     metatype: ClassVar[TraitType]
@@ -125,25 +125,12 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     """Whether this trait can be extended by custom Traits."""
     __is_extensible__: ClassVar[bool] = False
 
-    # 1-20: node identity
-    id: UUID = builtin_property(
-        2,
-        is_managed=True,
-        is_eq=False,
-        is_readonly=True,
-        description="The universally unique identifier of this Node.",
-    )
-
     # content
-    """The indexes for this Node type."""
-    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
-    """The constraints for this Node type."""
-    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
-    """The permissions for this Node type."""
+    """The permissions for this Entity type."""
     __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods for this Node type."""
+    """The methods for this Entity type."""
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions for this Node type."""
+    """The actions for this Entity type."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
 
     # event
@@ -163,36 +150,21 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
 class IsOrdered(Trait):
     """An Entity that can be ordered."""
 
-    order_key: str = builtin_property(
-        31,
-        is_eq=False,
-        is_managed=True,
-        default=INTEGER_ZERO,
-        description="The absolute order key of this Node in its parent.",
-    )
-
-
-#
-# Access
-#
+    pass
 
 
 @builtin_trait(TraitType.OWNABLE, is_extensible=True)
 class IsOwnable(Trait):
     """An Entity that can be owned by an Actor."""
 
-    owned_by: Optional["IsActor"] = builtin_property(32, is_repr=True)
-    if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_trait(TraitType.OWNED)
 class IsOwned(IsOwnable):
     """An Entity that must be owned by an Actor."""
 
-    owned_by: "IsActor" = builtin_property(32, is_repr=True)
-    if TYPE_CHECKING:
-        owned_by_ptr: NodeReference = UNSET
+    pass
 
 
 @builtin_trait(TraitType.JOINABLE, is_extensible=True)
@@ -263,70 +235,8 @@ class IsSelectable(Trait):
     pass
 
 
-@builtin_trait(TraitType.SOURCEABLE)
-class IsSourceable(IsOrdered):
-    """An Entity that can be defined in a Script."""
-
-    source: Optional["Script"] = builtin_property(
-        60,
-        is_managed=True,
-        description="The Script that defines this Node.",
-    )
-    # source_type: ScriptType?
-    # token_range, ...
-    key: str | None = builtin_property(
-        70,
-        description="The key to uniquely identify this Node in reconciliation. If not set, name is used.",
-    )
-    # aliases: list[str]?
-
-
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
     """An Entity that can be (directly, with Runs)."""
-
-    pass
-
-
-@builtin_trait(TraitType.CUSTOMIZABLE)
-class IsCustomizable(Trait):
-    """An Entity that can be customized with custom Properties."""
-
-    custom_values: dict[UUID, "Value"] = builtin_property(
-        30,
-        description="The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.",
-    )
-
-
-@builtin_trait(TraitType.SCRIPTABLE)
-class IsScriptable(IsCustomizable):
-    """An Entity that can be customized with custom Properties and a Script."""
-
-    script: Optional["Script"] = builtin_property(
-        80, description="The main / root Script of this Node."
-    )
-
-
-@builtin_trait(TraitType.EXTENSIBLE)
-class IsExtensible(IsScriptable):
-    """A Node that be customized andextended by custom Nodes (i.e. used as a base type)."""
-
-    is_extensible: bool = builtin_property(
-        90,
-        default=False,
-        is_managed=True,
-        is_readonly=True,
-        description="Whether this Node is extensible (whether it can be instanced).",
-    )
-    # base_type?
-    # traits?
-    # is_trait? is_abstract?
-    # is_locked/is_final?
-    # is_singleton?
-
-
-@builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
-class IsIrreversible(Trait):
-    """An Entity that is fixed / forward-only in spacetime."""
 
     pass

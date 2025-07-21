@@ -29,7 +29,7 @@ export enum IndexType {
 registerEnumClass(EnumType.INDEX_TYPE, IndexType);
 /* ==== DESTACK_GENERATED_END:ENUM:30100 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:701000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:40000 ==== */
 /**
  * MethodType
  */
@@ -43,9 +43,9 @@ export enum MethodType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.METHOD_TYPE, MethodType);
-/* ==== DESTACK_GENERATED_END:ENUM:701000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:40000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:40001 ==== */
 /**
  * MethodCardinality
  */
@@ -57,4 +57,4 @@ export enum MethodCardinality {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:701001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:40001 ==== */

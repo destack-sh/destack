@@ -5,7 +5,6 @@ from destack.language.core import (
     IsJoinable,
     IsOrdered,
     IsOwnable,
-    IsScriptable,
     NodeType,
     builtin_node,
 )
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 class Stage(
     IsOwnable,
     IsOrdered,
-    IsScriptable,
     IsJoinable,
     Entity,
 ):

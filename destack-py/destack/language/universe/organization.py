@@ -6,7 +6,6 @@ from destack.language.core import (
     EnumType,
     IsActor,
     IsJoinable,
-    IsScriptable,
     NodeReference,
     NodeType,
     builtin_enum,
@@ -31,7 +30,6 @@ class OrganizationStatus(Enum):
 class Organization(
     IsActor,
     IsJoinable,
-    IsScriptable,
     Entity,
 ):
     """

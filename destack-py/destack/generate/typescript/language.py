@@ -100,14 +100,14 @@ def _get_properties(cls: type[BuiltinObject]) -> list[PropertyDeclaration]:
 
 def _is_property_effective_readonly(prop: PropertyDeclaration) -> bool:
     """Check if a property is (effectively) readonly to the user."""
-    return prop.is_readonly or prop.is_managed
+    return prop.is_readonly or prop.is_internal
 
 
 def _is_property_tracked(prop: PropertyDeclaration) -> bool:
     """Check if a property is tracked (tracked properties are set on Nodes)."""
     return (
         not prop.is_computed
-        and not prop.is_managed
+        and not prop.is_internal
         and not prop.is_readonly
         and (prop.component.__is_node__ or prop.component.__is_trait__)
         and not prop.component.__is_frozen__
@@ -351,7 +351,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             and prop.default is UNSET
             and prop.default_factory is None
             and prop.cardinality == TypeCardinality.SCALAR
-            and not prop.is_managed
+            and not prop.is_internal
         )
 
     parent_cls = cls.__base__ if cls.__base__ and issubclass(cls.__base__, BuiltinObject) else None
@@ -1130,22 +1130,6 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif TraitType.EXTENSIBLE in cls.__traits__:
-        ref_impl = f"""\
-__toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.spacePtr?.id ?? null,
-    branchId: this.branchPtr?.id ?? null,
-    snapshotId: this.snapshotPtr?.id ?? null,
-    definitionId: this.definitionPtr?.id ?? null,
-    _session: this._session,
-    _supergraph: this._supergraph,
-  }});
-}}
-"""
     else:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
@@ -1154,6 +1138,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    definitionId: this.definitionPtr?.id ?? null,
     branchId: this.branchPtr?.id ?? null,
     snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,

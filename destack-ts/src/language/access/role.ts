@@ -1,11 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   Icon,
   IsActor,
-  IsExtensible,
   IsJoinable,
   NodeClass,
   NodeReference,
@@ -60,7 +58,7 @@ export abstract class RoleEvent extends Event {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -170,10 +168,10 @@ export class RoleAssignedEvent extends RoleEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -308,7 +306,7 @@ export class RoleAssignedEvent extends RoleEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -561,6 +559,7 @@ export class RoleAssignedEvent extends RoleEvent {
       type: NodeType.ROLE_ASSIGNED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -904,10 +903,10 @@ export class RoleUnassignedEvent extends RoleEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1042,7 +1041,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1295,6 +1294,7 @@ export class RoleUnassignedEvent extends RoleEvent {
       type: NodeType.ROLE_UNASSIGNED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -1626,7 +1626,7 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
 /**
  * A Role for Actors to take.
  */
-export class Role extends Entity implements IsActor, IsExtensible {
+export class Role extends Entity implements IsActor {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
@@ -1659,7 +1659,7 @@ export class Role extends Entity implements IsActor, IsExtensible {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -1771,20 +1771,34 @@ export class Role extends Entity implements IsActor, IsExtensible {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
+    this._ownedByPtr = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -1803,7 +1817,28 @@ export class Role extends Entity implements IsActor, IsExtensible {
   _name: string;
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
@@ -1820,7 +1855,7 @@ export class Role extends Entity implements IsActor, IsExtensible {
     }
   }
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
@@ -1833,9 +1868,37 @@ export class Role extends Entity implements IsActor, IsExtensible {
   _scriptPtr: NodeReference | null;
 
   /**
-   * Whether this Node is extensible (whether it can be instanced).
+   * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean;
+  readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Role.type
@@ -1886,10 +1949,14 @@ export class Role extends Entity implements IsActor, IsExtensible {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean;
+    isExtensible?: boolean | null;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     type: RoleType;
     icon?: Icon | null;
     _session?: Session | null;
@@ -1994,11 +2061,11 @@ export class Role extends Entity implements IsActor, IsExtensible {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._customValues = _customValues;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Role";
@@ -2007,19 +2074,33 @@ export class Role extends Entity implements IsActor, IsExtensible {
       throw new Error(`Role.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Role.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
     let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`Role.isExtensible is required`);
-    }
     this.isExtensible = _isExtensible;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Role.type is required`);
@@ -2079,19 +2160,13 @@ export class Role extends Entity implements IsActor, IsExtensible {
     ) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -2104,6 +2179,21 @@ export class Role extends Entity implements IsActor, IsExtensible {
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
     }
     return true;
   }
@@ -2118,7 +2208,6 @@ export class Role extends Entity implements IsActor, IsExtensible {
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -2133,18 +2222,31 @@ export class Role extends Entity implements IsActor, IsExtensible {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2159,9 +2261,9 @@ export class Role extends Entity implements IsActor, IsExtensible {
       type: NodeType.ROLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2189,6 +2291,9 @@ export class Role extends Entity implements IsActor, IsExtensible {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${RoleType[this.type]}`);
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Role "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2230,18 +2335,30 @@ export class Role extends Entity implements IsActor, IsExtensible {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
+      objectCson["45"] = packedCustomValues;
     }
-    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectCson["80"] = object._scriptPtr.toCson();
+      objectCson["46"] = object._scriptPtr.toCson();
     }
-    objectCson["90"] = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
+    }
     objectCson["100"] = object._type;
     if (object._icon != null) {
       objectCson["102"] = object._icon.toCson();
@@ -2299,14 +2416,14 @@ export class Role extends Entity implements IsActor, IsExtensible {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
@@ -2316,11 +2433,24 @@ export class Role extends Entity implements IsActor, IsExtensible {
         );
       }
     }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Role({
       parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
       icon: unpackedIcon,
-      isExtensible: objectCson["90"],
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -2340,11 +2470,16 @@ export class Role extends Entity implements IsActor, IsExtensible {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      id: String(objectCson["2"]),
-      script: unpackedScriptPtr,
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2397,17 +2532,29 @@ export class Role extends Entity implements IsActor, IsExtensible {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.isExtensible = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.type = Number(object._type) as RoleTypeProto;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
@@ -2450,7 +2597,6 @@ export class Role extends Entity implements IsActor, IsExtensible {
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      isExtensible: objectProto.isExtensible,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
         objectProto.definitionPtr != undefined
@@ -2522,8 +2668,19 @@ export class Role extends Entity implements IsActor, IsExtensible {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
-      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -2534,6 +2691,19 @@ export class Role extends Entity implements IsActor, IsExtensible {
               _connection,
             )
           : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -2541,7 +2711,6 @@ export class Role extends Entity implements IsActor, IsExtensible {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

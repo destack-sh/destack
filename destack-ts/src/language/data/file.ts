@@ -27,6 +27,7 @@ import {
   Materialization,
   Node,
   NodeType,
+  Region,
   Resource,
   ResourceStatus,
   StructType,
@@ -42,6 +43,7 @@ import {
   FileProto,
   FileTypeProto,
   MaterializationProto,
+  RegionProto,
   ResourceStatusProto,
 } from "@destack/proto";
 import {
@@ -228,7 +230,7 @@ export class File extends Resource {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -340,23 +342,7 @@ export class File extends Resource {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
-  }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
-  }
-  _customValues: { readonly [key: string]: Value };
-
-  /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -373,7 +359,7 @@ export class File extends Resource {
     }
   }
   /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
@@ -384,22 +370,6 @@ export class File extends Resource {
     this._ownedByPtr = value;
   }
   _ownedByPtr: NodeReference | null;
-
-  /**
-   * Resource.status
-   */
-  /**
-   * Resource.status
-   */
-  get status(): ResourceStatus {
-    return this._status;
-  }
-  set status(value: ResourceStatus) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: ResourceStatus;
 
   /**
    * Entity.name
@@ -418,7 +388,28 @@ export class File extends Resource {
   _name: string;
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
@@ -435,7 +426,7 @@ export class File extends Resource {
     }
   }
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
@@ -448,9 +439,37 @@ export class File extends Resource {
   _scriptPtr: NodeReference | null;
 
   /**
-   * Whether this Node is extensible (whether it can be instanced).
+   * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean;
+  readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * File.type
@@ -467,6 +486,38 @@ export class File extends Resource {
     this._type = value;
   }
   _type: FileType;
+
+  /**
+   * Resource.status
+   */
+  /**
+   * Resource.status
+   */
+  get status(): ResourceStatus | null {
+    return this._status;
+  }
+  set status(value: ResourceStatus | null) {
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
+    this._status = value;
+  }
+  _status: ResourceStatus | null;
+
+  /**
+   * Resource.region
+   */
+  /**
+   * Resource.region
+   */
+  get region(): Region | null {
+    return this._region;
+  }
+  set region(value: Region | null) {
+    const prop = (this.constructor as NodeClass).__properties__["region"];
+    this._session.updateSetProperty(this, prop, value);
+    this._region = value;
+  }
+  _region: Region | null;
 
   /**
    * File.mimeType
@@ -741,13 +792,17 @@ export class File extends Resource {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
-    status?: ResourceStatus;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean;
+    isExtensible?: boolean | null;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     type: FileType;
+    status?: ResourceStatus | null;
+    region?: Region | null;
     mimeType?: string | null;
     format?: FileFormat | null;
     size?: number | null;
@@ -866,24 +921,11 @@ export class File extends Resource {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this._customValues = _customValues;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 1 /* ResourceStatus.PENDING */;
-    }
-    if (_status === null) {
-      throw new Error(`File.status is required`);
-    }
-    this._status = _status;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "File";
@@ -892,24 +934,42 @@ export class File extends Resource {
       throw new Error(`File.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`File.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
     let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`File.isExtensible is required`);
-    }
     this.isExtensible = _isExtensible;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`File.type is required`);
     }
     this._type = _type;
+    let _status = options.status ?? null;
+    this._status = _status;
+    let _region = options.region ?? null;
+    this._region = _region;
     let _mimeType = options.mimeType ?? null;
     this._mimeType = _mimeType;
     let _format = options.format ?? null;
@@ -1046,22 +1106,16 @@ export class File extends Resource {
     if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+    if (!(this._region === other._region)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -1074,6 +1128,21 @@ export class File extends Resource {
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
     }
     return true;
   }
@@ -1133,10 +1202,11 @@ export class File extends Resource {
     if (this._content != null) {
       h = (h * 31 + hashBytes(this._content)) & 0xffffffff;
     }
-    h = (h * 31 + this._status) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this._status != null) {
+      h = (h * 31 + this._status) & 0xffffffff;
+    }
+    if (this._region != null) {
+      h = (h * 31 + this._region) & 0xffffffff;
     }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -1152,18 +1222,31 @@ export class File extends Resource {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1178,9 +1261,9 @@ export class File extends Resource {
       type: NodeType.FILE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1264,70 +1347,84 @@ export class File extends Resource {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
+      objectCson["45"] = packedCustomValues;
     }
-    if (object._ownedByPtr != null) {
-      objectCson["32"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._status;
-    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectCson["80"] = object._scriptPtr.toCson();
+      objectCson["46"] = object._scriptPtr.toCson();
     }
-    objectCson["90"] = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
+    }
     objectCson["100"] = object._type;
+    if (object._status != null) {
+      objectCson["110"] = object._status;
+    }
+    if (object._region != null) {
+      objectCson["111"] = object._region;
+    }
     if (object._mimeType != null) {
-      objectCson["111"] = object._mimeType;
+      objectCson["120"] = object._mimeType;
     }
     if (object._format != null) {
-      objectCson["112"] = object._format;
+      objectCson["121"] = object._format;
     }
     if (object._size != null) {
-      objectCson["113"] = object._size;
+      objectCson["122"] = object._size;
     }
     if (object._sha256 != null) {
-      objectCson["114"] = object._sha256;
+      objectCson["123"] = object._sha256;
     }
     if (object._width != null) {
-      objectCson["115"] = object._width;
+      objectCson["124"] = object._width;
     }
     if (object._height != null) {
-      objectCson["116"] = object._height;
+      objectCson["125"] = object._height;
     }
     if (object._aspectRatio != null) {
-      objectCson["117"] = object._aspectRatio;
+      objectCson["126"] = object._aspectRatio;
     }
     if (object._codec != null) {
-      objectCson["118"] = object._codec;
+      objectCson["127"] = object._codec;
     }
     if (object._duration != null) {
-      objectCson["119"] = timedeltaToISOFormat(object._duration);
+      objectCson["128"] = timedeltaToISOFormat(object._duration);
     }
     if (object._url != null) {
-      objectCson["120"] = object._url;
+      objectCson["130"] = object._url;
     }
     if (object._contentUrl != null) {
-      objectCson["121"] = object._contentUrl;
+      objectCson["131"] = object._contentUrl;
     }
     if (object._thumbnailUrl != null) {
-      objectCson["122"] = object._thumbnailUrl;
+      objectCson["132"] = object._thumbnailUrl;
     }
     if (object._faviconUrl != null) {
-      objectCson["123"] = object._faviconUrl;
+      objectCson["133"] = object._faviconUrl;
     }
     if (object._thumbnailWidth != null) {
-      objectCson["124"] = object._thumbnailWidth;
+      objectCson["134"] = object._thumbnailWidth;
     }
     if (object._thumbnailHeight != null) {
-      objectCson["125"] = object._thumbnailHeight;
+      objectCson["135"] = object._thumbnailHeight;
     }
     if (object._content != null) {
-      objectCson["126"] = base64Encode(object._content);
+      objectCson["136"] = base64Encode(object._content);
     }
     return objectCson;
   }
@@ -1346,46 +1443,45 @@ export class File extends Resource {
       parentPtrValue != undefined
         ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const mimeTypeValue = objectCson["111"];
+    const mimeTypeValue = objectCson["120"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
-    const formatValue = objectCson["112"];
+    const formatValue = objectCson["121"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
-    const sizeValue = objectCson["113"];
+    const sizeValue = objectCson["122"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const sha256Value = objectCson["114"];
+    const sha256Value = objectCson["123"];
     const unpackedSha256 = sha256Value != undefined ? sha256Value : null;
-    const widthValue = objectCson["115"];
+    const widthValue = objectCson["124"];
     const unpackedWidth = widthValue != undefined ? Number(widthValue) : null;
-    const heightValue = objectCson["116"];
+    const heightValue = objectCson["125"];
     const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
-    const aspectRatioValue = objectCson["117"];
+    const aspectRatioValue = objectCson["126"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const codecValue = objectCson["118"];
+    const codecValue = objectCson["127"];
     const unpackedCodec = codecValue != undefined ? codecValue : null;
-    const durationValue = objectCson["119"];
+    const durationValue = objectCson["128"];
     const unpackedDuration =
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
-    const urlValue = objectCson["120"];
+    const urlValue = objectCson["130"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
-    const contentUrlValue = objectCson["121"];
+    const contentUrlValue = objectCson["131"];
     const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
-    const thumbnailUrlValue = objectCson["122"];
+    const thumbnailUrlValue = objectCson["132"];
     const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
-    const faviconUrlValue = objectCson["123"];
+    const faviconUrlValue = objectCson["133"];
     const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
-    const thumbnailWidthValue = objectCson["124"];
+    const thumbnailWidthValue = objectCson["134"];
     const unpackedThumbnailWidth =
       thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
-    const thumbnailHeightValue = objectCson["125"];
+    const thumbnailHeightValue = objectCson["135"];
     const unpackedThumbnailHeight =
       thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
-    const contentValue = objectCson["126"];
+    const contentValue = objectCson["136"];
     const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : null;
-    const ownedByPtrValue = objectCson["32"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
+    const statusValue = objectCson["110"];
+    const unpackedStatus = statusValue != undefined ? Number(statusValue) : null;
+    const regionValue = objectCson["111"];
+    const unpackedRegion = regionValue != undefined ? Number(regionValue) : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -1416,14 +1512,14 @@ export class File extends Resource {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
@@ -1433,6 +1529,20 @@ export class File extends Resource {
         );
       }
     }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new File({
       parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
@@ -1452,9 +1562,8 @@ export class File extends Resource {
       thumbnailWidth: unpackedThumbnailWidth,
       thumbnailHeight: unpackedThumbnailHeight,
       content: unpackedContent,
-      status: Number(objectCson["40"]),
-      isExtensible: objectCson["90"],
-      ownedBy: unpackedOwnedByPtr,
+      status: unpackedStatus,
+      region: unpackedRegion,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -1474,11 +1583,16 @@ export class File extends Resource {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1531,22 +1645,36 @@ export class File extends Resource {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.status = Number(object._status) as ResourceStatusProto;
-    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.isExtensible = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.type = Number(object._type) as FileTypeProto;
+    if (object._status != null) {
+      objectProto.status = Number(object._status) as ResourceStatusProto;
+    }
+    if (object._region != null) {
+      objectProto.region = Number(object._region) as RegionProto;
+    }
     if (object._mimeType != null) {
       objectProto.mimeType = object._mimeType;
     }
@@ -1647,18 +1775,9 @@ export class File extends Resource {
       thumbnailHeight:
         objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
       content: objectProto.content != undefined ? objectProto.content : null,
-      status: Number(objectProto.status) as ResourceStatus,
-      isExtensible: objectProto.isExtensible,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      status:
+        objectProto.status != undefined ? (Number(objectProto.status) as ResourceStatus) : null,
+      region: objectProto.region != undefined ? (Number(objectProto.region) as Region) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
         objectProto.definitionPtr != undefined
@@ -1730,7 +1849,19 @@ export class File extends Resource {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1741,6 +1872,18 @@ export class File extends Resource {
               _connection,
             )
           : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1749,7 +1892,6 @@ export class File extends Resource {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

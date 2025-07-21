@@ -6,14 +6,14 @@ from typing import (
     ClassVar,
     Optional,
     Self,
-    Union,
     cast,
 )
 
 from destack.language.registry import NODE_CLASS_BY_TYPE
-from destack.utils.fractional import get_order_key
+from destack.utils.fractional import INTEGER_ZERO, get_order_key
+from destack.utils.uuid import UUID
 
-from .common import EnumType, ResourceStatus, StoreDomain, TraitType, ValueFactory
+from .common import EnumType, StoreDomain, TraitType, ValueFactory
 from .const import UNSET
 from .enum import Enum, builtin_enum
 from .meta import builtin_method
@@ -25,10 +25,7 @@ from .property import (
     builtin_property_runtime,
 )
 from .trait import (
-    IsExtensible,
     IsOrdered,
-    IsOwnable,
-    IsSourceable,
 )
 
 if TYPE_CHECKING:
@@ -36,10 +33,13 @@ if TYPE_CHECKING:
         Branch,
         EntityGraph,
         EntitySingletonGraph,
-        Icon,
         IsActor,
         NodeReference,
+        Script,
         Snapshot,
+        Tag,
+        Tagging,
+        Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -64,6 +64,7 @@ class Materialization(Enum):
 @builtin_node(
     NodeType.ENTITY,
     is_abstract=True,
+    is_extensible=True,
     event_types=(NodeType.EDIT_EVENT,),
 )
 class Entity(Node):
@@ -89,24 +90,24 @@ class Entity(Node):
         description="The parent of this Entity. Most Entities can be attached to any other Entity."
     )
 
-    # 10-20: entity materialization
+    # 10-20: Entity materialization
     materialization: Materialization = builtin_property(
         10,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         default=Materialization.ROOT,
     )
-    definition: Union["Entity", None] = builtin_property(
+    definition: Optional["Entity"] = builtin_property(
         11,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
-        description="The definition this CustomEntity is an instance of.",
+        description="The definition this Entity is an instance of.",
     )
     branch: "Branch" = builtin_property(
         12,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         default_factory=ValueFactory.BRANCH,
@@ -115,7 +116,7 @@ class Entity(Node):
     snapshot: "Snapshot" = builtin_property(
         13,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         default_factory=ValueFactory.SNAPSHOT,
@@ -124,7 +125,7 @@ class Entity(Node):
     preceded_by: Optional[Self] = builtin_property(
         14,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         description="""\
@@ -135,7 +136,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     instance: Optional["Entity"] = builtin_property(
         15,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         description="The (root) Entity that is being instantiated.",
@@ -148,17 +149,17 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         preceded_by_ptr: Optional[NodeReference] = None
         instance_ptr: Optional[NodeReference] = None
 
-    # 20-40: node tracking
+    # 20-40: Entity tracking
     created_at: datetime = builtin_property(
         20,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The time this Entity was created (system time).",
     )
     created_epoch: int = builtin_property(
         21,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         description="The logical time this Entity was created (system time).",
@@ -166,20 +167,20 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     created_by: Optional["IsActor"] = builtin_property(
         22,
         default=None,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The Actor that created this Entity.",
     )
     updated_at: datetime = builtin_property(
         23,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         description="The time this Entity was last updated (system time).",
     )
     updated_epoch: int = builtin_property(
         24,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         description="The logical time this Entity was last updated (system time).",
@@ -187,13 +188,13 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     updated_by: Optional["IsActor"] = builtin_property(
         25,
         default=None,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         description="The Actor that last updated this Entity.",
     )
     deleted_at: Optional[datetime] = builtin_property(
         26,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         description="""\
 The time this Entity was deleted (system time).
@@ -201,15 +202,58 @@ Only set if the Entity is currently 'deleted'.
 Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
 """,
     )
+    owned_by: Optional["IsActor"] = builtin_property(30, is_repr=True)
+    # controlled_by, ...
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
         updated_by_ptr: Optional[NodeReference] = None
+        owned_by_ptr: Optional[NodeReference] = None
 
+    # 40-60: Entity basics
     name: str = builtin_property(
-        50,
+        40,
         is_repr=True,
         default_factory=ValueFactory.NAME,
     )
+    order_key: str = builtin_property(
+        41,
+        is_eq=False,
+        is_internal=True,
+        default=INTEGER_ZERO,
+        description="The absolute order key of this Entity in its parent.",
+    )
+    custom_values: dict[UUID, "Value"] = builtin_property(
+        45,
+        description="The custom Values of this Entity, keyed by custom Property id..",
+    )
+    script: Optional["Script"] = builtin_property(
+        46,
+        description="The Script of this Entity.",
+    )
+    is_extensible: bool | None = builtin_property(
+        50,
+        is_internal=True,
+        is_readonly=True,
+        description="Whether this Entity can be instanced.",
+    )
+    # base_type?
+    # traits?
+    # is_trait? is_abstract?
+    # is_locked/is_final?
+    # is_singleton?
+
+    # 80-100: source
+    source: Optional["Script"] = builtin_property(
+        80,
+        is_internal=True,
+        description="The Script that defines this Node.",
+    )
+    # token_range, ...
+    key: str | None = builtin_property(
+        85,
+        description="The key to uniquely identify this Node in reconciliation. If not set, name is used.",
+    )
+    # aliases: list[str]?
 
     """The specific Graph this Entity is part of."""
     _graph: "EntityGraph | EntitySingletonGraph" = builtin_property_runtime(default=None)
@@ -532,64 +576,3 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     def instantiate(self) -> "Self":
         """Instantiate this Entity into a new Entity."""
         raise NotImplementedError
-
-
-@builtin_node(NodeType.RECORD, is_abstract=True)
-class Record(
-    IsExtensible,
-    IsOwnable,
-    Entity,
-):
-    """
-    A generic Record instance of a CustomEntity.
-    """
-
-    pass
-
-
-@builtin_node(NodeType.RESOURCE, is_abstract=True)
-class Resource(
-    IsExtensible,
-    IsOwnable,
-    Entity,
-):
-    """
-    A Resource represents an external asset outside of Destack.
-    The lifecycle of a Resource may be managed by some Provisioner (Service).
-    """
-
-    status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
-
-
-@builtin_node(NodeType.VARIANT, is_abstract=True)
-class Variant(
-    IsExtensible,
-    IsOwnable,
-    Entity,
-):
-    """A Variant is an alternative version of an Entity."""
-
-    icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_node(NodeType.TAG)
-class Tag(
-    IsSourceable,
-    IsExtensible,
-    Entity,
-):
-    """A Tag to tag an Entity with (in a Tagging)."""
-
-    icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_node(NodeType.TAGGING)
-class Tagging(
-    IsOrdered,
-    Entity,
-):
-    """A Tagging of a Node by a Tag."""
-
-    tag: Tag = builtin_property(110)
-    if TYPE_CHECKING:
-        tag_ptr: NodeReference = UNSET

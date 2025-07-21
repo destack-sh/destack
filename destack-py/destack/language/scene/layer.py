@@ -6,7 +6,6 @@ from destack.language.core import (
     EnumType,
     IsOrdered,
     IsOwnable,
-    IsScriptable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -36,7 +35,6 @@ class LayerType(Enum):
 class Layer(
     IsOwnable,
     IsOrdered,
-    IsScriptable,
     Entity,
 ):
     """A Layer is a container for Views."""

@@ -3,10 +3,8 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     IsActor,
-    IsExtensible,
     IsOwnable,
     IsRunnable,
-    IsSourceable,
     NodeType,
     builtin_action,
     builtin_node,
@@ -23,8 +21,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SERVICE)
 class Service(
     IsOwnable,
-    IsExtensible,
-    IsSourceable,
     IsActor,
     IsRunnable,
     Entity,

@@ -33,10 +33,7 @@ from ..builtin import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomEnum,
-        CustomEvent,
-        CustomStruct,
-        IsExtensible,
+        Entity,
         Value,
     )
 
@@ -136,13 +133,7 @@ class Type(StructFrozen):
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    definition: Union[
-        "IsExtensible",
-        "CustomEvent",
-        "CustomEnum",
-        "CustomStruct",
-        None,
-    ] = builtin_property(116, is_repr=True)
+    custom_definition: Optional["Entity"] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
     # meta

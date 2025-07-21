@@ -8,7 +8,6 @@ from destack.language.core import (
     EnumType,
     Event,
     IsActor,
-    IsExtensible,
     IsJoinable,
     NodeReference,
     NodeType,
@@ -63,7 +62,6 @@ class SanctionType(Enum):
     event_types=(NodeType.SANCTION_EVENT,),
 )
 class Sanction(
-    IsExtensible,
     Entity,
 ):
     """A Sanction on some Actor."""

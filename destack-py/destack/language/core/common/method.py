@@ -1,10 +1,7 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
     Entity,
-    IsCustomizable,
-    IsScriptable,
-    IsSourceable,
     MethodCardinality,
     MethodType,
     NodeType,
@@ -13,7 +10,6 @@ from ..builtin import (
     StructType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
     builtin_struct,
 )
 from .definition import BuiltinDefinition
@@ -44,15 +40,11 @@ class MethodDefinition(BuiltinDefinition):
 
 @builtin_node(NodeType.METHOD)
 class Method(
-    IsSourceable,
-    IsCustomizable,
     Entity,
 ):
     """
     A Method is a small piece of logic.
     """
-
-    parent: Union["IsScriptable", None] = builtin_property_parent()
 
     type: MethodType = builtin_property(100)
     text: Optional["Text"] = builtin_property(104)

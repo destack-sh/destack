@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TEXT_VIEW)
+@builtin_node(
+    NodeType.TEXT_VIEW,
+)
 class TextView(ContentView):
     """A (rich) text view."""
 

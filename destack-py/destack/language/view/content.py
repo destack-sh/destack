@@ -10,7 +10,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CONTENT_VIEW, is_abstract=True)
+@builtin_node(
+    NodeType.CONTENT_VIEW,
+    is_extensible=True,
+    is_abstract=True,
+)
 class ContentView(View):
     """A content View."""
 

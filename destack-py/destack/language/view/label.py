@@ -5,7 +5,9 @@ from .layout import LayoutView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.LABEL_VIEW)
+@builtin_node(
+    NodeType.LABEL_VIEW,
+)
 class LabelView(LayoutView):
     """A label container View for form-like input views."""
 

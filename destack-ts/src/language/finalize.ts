@@ -10,8 +10,6 @@ import {
   StructDefinition,
   StructType,
   TRAIT_DEFINITIONS,
-  TraitClass,
-  TraitDefinition,
   TraitType,
   Type,
   TypeCardinality,
@@ -30,8 +28,8 @@ import { Casing, toCasing } from "@destack/utils";
 let __isFinalized__ = false;
 
 function _indexProperties(
-  cls: NodeClass | TraitClass | StructClass,
-  definition: NodeDefinition | TraitDefinition | StructDefinition,
+  cls: NodeClass | StructClass,
+  definition: NodeDefinition | StructDefinition,
 ) {
   cls.__properties__ = {};
   cls.__propertiesById__ = {};
@@ -139,7 +137,6 @@ export function finalize(): void {
       );
     }
     traitClass.__definition__ = traitDefinition;
-    _indexProperties(traitClass, traitDefinition);
   }
 
   // structs

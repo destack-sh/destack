@@ -1,0 +1,145 @@
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+)
+
+from .common import ResourceStatus
+from .const import UNSET
+from .node import NodeType, builtin_node
+from .property import (
+    builtin_property,
+)
+from .trait import (
+    IsOrdered,
+    IsOwnable,
+)
+
+if TYPE_CHECKING:
+    from destack.language import (
+        Anchor,
+        Icon,
+        NodeReference,
+        Offset2,
+        Quaternion,
+        Region,
+        Vector2,
+        Vector3,
+    )
+
+from .entity import Entity
+
+# pyright: reportIncompatibleVariableOverride=false
+
+type_ = type
+object_set_ = object.__setattr__
+
+
+@builtin_node(
+    NodeType.RECORD,
+    is_extensible=True,
+    is_abstract=True,
+)
+class Record(
+    IsOwnable,
+    Entity,
+):
+    """
+    A generic Record instance of a CustomEntity.
+    """
+
+    pass
+
+
+@builtin_node(
+    NodeType.RESOURCE,
+    is_extensible=True,
+    is_abstract=True,
+)
+class Resource(
+    IsOwnable,
+    Entity,
+):
+    """
+    A Resource represents an external asset outside of Destack.
+    The lifecycle of a Resource may be managed by some Provisioner (Service).
+    """
+
+    status: Optional[ResourceStatus] = builtin_property(110)
+    region: Optional["Region"] = builtin_property(111)
+
+
+@builtin_node(
+    NodeType.VARIANT,
+    is_extensible=True,
+    is_abstract=True,
+)
+class Variant(
+    IsOwnable,
+    Entity,
+):
+    """A Variant is an alternative version of an Entity."""
+
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(
+    NodeType.TAG,
+    is_extensible=True,
+)
+class Tag(
+    IsOrdered,
+    Entity,
+):
+    """A Tag to tag an Entity with (in a Tagging)."""
+
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(NodeType.TAGGING)
+class Tagging(
+    IsOrdered,
+    Entity,
+):
+    """A Tagging of a Node by a Tag."""
+
+    tag: Tag = builtin_property(110)
+    if TYPE_CHECKING:
+        tag_ptr: NodeReference = UNSET
+
+
+@builtin_node(
+    NodeType.ENTITY2D,
+    is_extensible=True,
+    is_abstract=True,
+)
+class Entity2D(
+    Entity,
+):
+    """An Entity in 2D space."""
+
+    # transform
+    position: Optional["Vector2"] = builtin_property(110)
+    offset: Optional["Offset2"] = builtin_property(111)
+    scale: Optional["Vector2"] = builtin_property(112)
+    rotation: Optional["Vector2"] = builtin_property(113)
+    skew: Optional["Vector2"] = builtin_property(114)
+    origin: Optional["Vector2"] = builtin_property(115)
+    anchor: Optional["Anchor"] = builtin_property(116)
+
+
+@builtin_node(
+    NodeType.ENTITY3D,
+    is_extensible=True,
+    is_abstract=True,
+)
+class Entity3D(
+    Entity,
+):
+    """An Entity in 3D space."""
+
+    # transform
+    position: Optional["Vector3"] = builtin_property(110)
+    scale: Optional["Vector3"] = builtin_property(111)
+    rotation: Optional["Quaternion"] = builtin_property(112)
+    skew: Optional["Vector3"] = builtin_property(113)
+    origin: Optional["Vector3"] = builtin_property(114)

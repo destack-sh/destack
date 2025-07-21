@@ -1,16 +1,12 @@
 import type {
   Branch,
-  CustomEvent,
   EventStatus,
   IsActor,
-  IsExtensible,
   NodeReference,
   Snapshot,
   Space,
-  Value,
 } from "@destack/language/core";
 import { Entity, Event, Node, NodeType } from "@destack/language/core";
-import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
@@ -19,7 +15,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An InputEvent is an Event that corresponds to some direct user input.
  */
-export abstract class InputEvent extends Event implements IsExtensible {
+export abstract class InputEvent extends Event {
   static metatype: NodeType = NodeType.INPUT_EVENT;
 
   /**
@@ -31,7 +27,7 @@ export abstract class InputEvent extends Event implements IsExtensible {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -96,25 +92,9 @@ export abstract class InputEvent extends Event implements IsExtensible {
   declare readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  declare readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  abstract get script(): Script | null;
-  declare readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node

@@ -1,16 +1,14 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from ..builtin import (
     Entity,
     Enum,
     EnumType,
-    IsExtensible,
     NodeType,
     StructType,
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
     builtin_struct,
 )
 from .definition import BuiltinDefinition
@@ -40,7 +38,6 @@ class MigrationDefinition(BuiltinDefinition):
 class Migration(Entity):
     """Migration of an Entity."""
 
-    parent: Union["IsExtensible", None] = builtin_property_parent()
     type: MigrationType = builtin_property(100, is_repr=True)
 
 
@@ -52,5 +49,3 @@ class MigrationOperationDefinition(BuiltinDefinition):
 @builtin_node(NodeType.MIGRATION_OPERATION)
 class MigrationOperation(Entity):
     """MigrationOperation of an Entity."""
-
-    parent: Union["IsExtensible", None] = builtin_property_parent()

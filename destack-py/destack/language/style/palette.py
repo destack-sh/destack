@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsExtensible,
     NodeType,
     builtin_node,
     builtin_property,
@@ -14,9 +13,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.PALETTE)
+@builtin_node(
+    NodeType.PALETTE,
+    is_extensible=True,
+)
 class Palette(
-    IsExtensible,
     Entity,
 ):
     """A Palette of Colors."""

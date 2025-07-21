@@ -41,7 +41,7 @@ export abstract class Shape2D extends Entity2D {
   declare readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
@@ -111,13 +111,15 @@ export abstract class Shape2D extends Entity2D {
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -129,20 +131,49 @@ export abstract class Shape2D extends Entity2D {
   abstract set name(value: string);
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
    */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   abstract get scriptPtr(): NodeReference | null;
   abstract set scriptPtr(value: NodeReference | null);
 
   /**
-   * Whether this Node is extensible (whether it can be instanced).
+   * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean;
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Entity2D.position
@@ -248,7 +279,7 @@ export abstract class Shape3D extends Entity3D {
   declare readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
@@ -318,13 +349,15 @@ export abstract class Shape3D extends Entity3D {
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -336,20 +369,49 @@ export abstract class Shape3D extends Entity3D {
   abstract set name(value: string);
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
    */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   abstract get scriptPtr(): NodeReference | null;
   abstract set scriptPtr(value: NodeReference | null);
 
   /**
-   * Whether this Node is extensible (whether it can be instanced).
+   * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean;
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Entity3D.position

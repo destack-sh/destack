@@ -5,7 +5,10 @@ from .layout import LayoutView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.FRAME_VIEW)
+@builtin_node(
+    NodeType.FRAME_VIEW,
+    is_extensible=True,
+)
 class FrameView(LayoutView):
     """
     A frame View is a bare ContainerView.

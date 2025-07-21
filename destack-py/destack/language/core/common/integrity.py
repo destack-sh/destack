@@ -1,13 +1,12 @@
-from typing import TYPE_CHECKING, Self, Union
+from typing import TYPE_CHECKING, Self
 
 from ..builtin.common import NodeType, StructType
 from ..builtin.entity import Entity
 from ..builtin.meta import ConstraintDeclaration, ConstraintType, IndexDeclaration, IndexType
 from ..builtin.node import builtin_node
 from ..builtin.object import BuiltinObject
-from ..builtin.property import builtin_property, builtin_property_parent
+from ..builtin.property import builtin_property
 from ..builtin.struct import builtin_struct
-from ..builtin.trait import IsExtensible
 from .definition import BuiltinDefinition
 
 if TYPE_CHECKING:
@@ -44,7 +43,6 @@ class IndexDefinition(BuiltinDefinition):
 class Index(Entity):
     """Index of an Entity for faster querying."""
 
-    parent: Union["IsExtensible", None] = builtin_property_parent()
     type: IndexType = builtin_property(100, is_repr=True)
     properties: list["PropertyReference"] = builtin_property(105)
 
@@ -72,6 +70,5 @@ class ConstraintDefinition(BuiltinDefinition):
 class Constraint(Entity):
     """Constraint of an Entity that must be satisfied."""
 
-    parent: Union["IsExtensible", None] = builtin_property_parent()
     type: ConstraintType = builtin_property(100, is_repr=True)
     properties: list["PropertyReference"] = builtin_property(105)

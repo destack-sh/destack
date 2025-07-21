@@ -9,7 +9,7 @@ import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor, IsRunnable, IsScriptable } from "@destack/language/core/builtin/trait";
+import type { IsActor, IsRunnable } from "@destack/language/core/builtin/trait";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Method, MethodDefinition } from "@destack/language/core/common/method";
@@ -36,10 +36,10 @@ import {
   RuntimeLanguageProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:35100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:40100 ==== */
 /**
  * Definition of a builtin Action.
  */
@@ -190,7 +190,7 @@ export class ActionDefinition extends MethodDefinition {
 
   static __packCson__(object: ActionDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 35100;
+    objectCson["1"] = 40100;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -297,7 +297,7 @@ export class ActionDefinition extends MethodDefinition {
   }
 
   static __packProto__(object: ActionDefinition): ActionDefinitionProto {
-    const objectProto: Partial<ActionDefinitionProto> = { metatype: 35100 };
+    const objectProto: Partial<ActionDefinitionProto> = { metatype: 40100 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as MethodTypeProto;
     objectProto.name = object.name;
@@ -408,9 +408,9 @@ export class ActionDefinition extends MethodDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ACTION_DEFINITION, ActionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:35100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:40100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:35100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:40100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -420,7 +420,7 @@ export class Action extends Method implements IsRunnable {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsScriptable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -435,9 +435,12 @@ export class Action extends Method implements IsRunnable {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
     type: MethodType;
@@ -490,10 +493,13 @@ export class Action extends Method implements IsRunnable {
         return false;
       }
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
-    if (!(this._key === other._key)) {
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -507,10 +513,16 @@ export class Action extends Method implements IsRunnable {
         return false;
       }
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
-    if (!(this._name === other._name)) {
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -522,9 +534,6 @@ export class Action extends Method implements IsRunnable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._text != null) {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
@@ -540,18 +549,8 @@ export class Action extends Method implements IsRunnable {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
-    }
-    if (this._customValues && Object.keys(this._customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this._customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -567,8 +566,30 @@ export class Action extends Method implements IsRunnable {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -584,6 +605,7 @@ export class Action extends Method implements IsRunnable {
       type: NodeType.ACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -612,6 +634,9 @@ export class Action extends Method implements IsRunnable {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Action "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -622,7 +647,7 @@ export class Action extends Method implements IsRunnable {
 
   static __packCson__(object: Action): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 35100;
+    objectCson["1"] = 40100;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -653,20 +678,29 @@ export class Action extends Method implements IsRunnable {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
+      objectCson["45"] = packedCustomValues;
     }
-    objectCson["31"] = object.orderKey;
-    objectCson["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
+      objectCson["80"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["85"] = object._key;
     }
     objectCson["100"] = object._type;
     if (object._text != null) {
@@ -700,11 +734,6 @@ export class Action extends Method implements IsRunnable {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const textValue = objectCson["104"];
     const unpackedText =
       textValue != undefined
@@ -722,25 +751,11 @@ export class Action extends Method implements IsRunnable {
         unpackedLanguages.push(Number(item));
       }
     }
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectCson["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -771,17 +786,44 @@ export class Action extends Method implements IsRunnable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Action({
-      parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
       text: unpackedText,
       cardinality: Number(objectCson["110"]),
       platforms: unpackedPlatforms,
       languages: unpackedLanguages,
-      id: String(objectCson["2"]),
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      customValues: unpackedCustomValues,
+      parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -801,8 +843,15 @@ export class Action extends Method implements IsRunnable {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      orderKey: objectCson["31"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
+      id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -825,7 +874,7 @@ export class Action extends Method implements IsRunnable {
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 35100 };
+    const objectProto: Partial<ActionProto> = { metatype: 40100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -856,14 +905,23 @@ export class Action extends Method implements IsRunnable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
-    objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -924,6 +982,14 @@ export class Action extends Method implements IsRunnable {
       }
     }
     return new Action({
+      type: Number(objectProto.type) as MethodType,
+      text:
+        objectProto.text != undefined
+          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          : null,
+      cardinality: Number(objectProto.cardinality) as MethodCardinality,
+      platforms: unpackedPlatforms,
+      languages: unpackedLanguages,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -934,27 +1000,6 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as MethodType,
-      text:
-        objectProto.text != undefined
-          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
-          : null,
-      cardinality: Number(objectProto.cardinality) as MethodCardinality,
-      platforms: unpackedPlatforms,
-      languages: unpackedLanguages,
-      id: String(objectProto.id),
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      customValues: unpackedCustomValues,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
         objectProto.definitionPtr != undefined
@@ -1026,8 +1071,42 @@ export class Action extends Method implements IsRunnable {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -1062,4 +1141,4 @@ export class Action extends Method implements IsRunnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:35100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:40100 ==== */
