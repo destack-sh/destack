@@ -131,10 +131,10 @@ export class TextSpan extends StructFrozen {
     let _content = options.content ?? null;
     this.content = _content;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _url = options.url ?? null;
     this.url = _url;
     let _isBold = options.isBold ?? null;

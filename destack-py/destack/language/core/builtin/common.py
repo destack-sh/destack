@@ -67,6 +67,7 @@ class EnumType(Enum):
     BRANCH_TYPE = 2_000
     SNAPSHOT_TYPE = 2_100
     SNAPSHOT_STATUS = 2_101
+
     # base
     RESOURCE_STATUS = 10_101
 

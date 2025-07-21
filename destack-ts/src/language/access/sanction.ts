@@ -359,13 +359,13 @@ export class SanctionRequestedEvent extends SanctionEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -378,14 +378,14 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_space === null) {
       throw new Error(`SanctionRequestedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -398,9 +398,9 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_branch === null) {
       throw new Error(`SanctionRequestedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -413,22 +413,22 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_snapshot === null) {
       throw new Error(`SanctionRequestedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -440,21 +440,21 @@ export class SanctionRequestedEvent extends SanctionEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionRequestedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionRequestedEvent.target is required`);
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference;
 
     // identity
     if (options.id == null) {
@@ -478,7 +478,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1106,13 +1106,13 @@ export class SanctionGrantedEvent extends SanctionEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1125,14 +1125,14 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_space === null) {
       throw new Error(`SanctionGrantedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1145,9 +1145,9 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_branch === null) {
       throw new Error(`SanctionGrantedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1160,22 +1160,22 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_snapshot === null) {
       throw new Error(`SanctionGrantedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1187,21 +1187,21 @@ export class SanctionGrantedEvent extends SanctionEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionGrantedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionGrantedEvent.target is required`);
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference;
 
     // identity
     if (options.id == null) {
@@ -1225,7 +1225,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1853,13 +1853,13 @@ export class SanctionRevokedEvent extends SanctionEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1872,14 +1872,14 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_space === null) {
       throw new Error(`SanctionRevokedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1892,9 +1892,9 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_branch === null) {
       throw new Error(`SanctionRevokedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1907,22 +1907,22 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_snapshot === null) {
       throw new Error(`SanctionRevokedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1934,21 +1934,21 @@ export class SanctionRevokedEvent extends SanctionEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionRevokedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionRevokedEvent.target is required`);
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference;
 
     // identity
     if (options.id == null) {
@@ -1972,7 +1972,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -2600,13 +2600,13 @@ export class SanctionExpiredEvent extends SanctionEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -2619,14 +2619,14 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_space === null) {
       throw new Error(`SanctionExpiredEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -2639,9 +2639,9 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_branch === null) {
       throw new Error(`SanctionExpiredEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -2654,22 +2654,22 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_snapshot === null) {
       throw new Error(`SanctionExpiredEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -2681,21 +2681,21 @@ export class SanctionExpiredEvent extends SanctionEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`SanctionExpiredEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`SanctionExpiredEvent.target is required`);
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference;
 
     // identity
     if (options.id == null) {
@@ -2719,7 +2719,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -3528,7 +3528,7 @@ export class Sanction extends Entity {
       options.id ?? null,
       // parent
       options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
+        ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
@@ -3540,18 +3540,18 @@ export class Sanction extends Entity {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+    if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
-    this.parentPtr = _parent;
+    this.parentPtr = _parent as NodeReference | null;
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -3564,7 +3564,7 @@ export class Sanction extends Entity {
     if (_space === null) {
       throw new Error(`Sanction.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 11 /* Materialization.ROOT */;
@@ -3574,12 +3574,12 @@ export class Sanction extends Entity {
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -3592,9 +3592,9 @@ export class Sanction extends Entity {
     if (_branch === null) {
       throw new Error(`Sanction.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -3607,24 +3607,24 @@ export class Sanction extends Entity {
     if (_snapshot === null) {
       throw new Error(`Sanction.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
-    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+    if (_instance != null && _instance.constructor.name != "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
-    this.instancePtr = _instance;
+    this.instancePtr = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_ownedBy != null && _ownedBy.constructor.name != "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Sanction";
@@ -3647,17 +3647,17 @@ export class Sanction extends Entity {
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+    if (_script != null && _script.constructor.name != "NodeReference") {
       _script = (_script as Node).toRef();
     }
-    this._scriptPtr = _script;
+    this._scriptPtr = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+    if (_source != null && _source.constructor.name != "NodeReference") {
       _source = (_source as Node).toRef();
     }
-    this.sourcePtr = _source;
+    this.sourcePtr = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
@@ -3668,13 +3668,13 @@ export class Sanction extends Entity {
     let _expiresAt = options.expiresAt ?? null;
     this._expiresAt = _expiresAt;
     let _target = options.target;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
     if (_target === null) {
       throw new Error(`Sanction.target is required`);
     }
-    this._targetPtr = _target;
+    this._targetPtr = _target as NodeReference;
 
     // identity
     if (options.id == null) {
@@ -3701,7 +3701,7 @@ export class Sanction extends Entity {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -3709,7 +3709,7 @@ export class Sanction extends Entity {
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+          ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
           : null;

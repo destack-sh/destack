@@ -307,13 +307,13 @@ export class FocusInEvent extends FocusEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -326,14 +326,14 @@ export class FocusInEvent extends FocusEvent {
     if (_space === null) {
       throw new Error(`FocusInEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -346,9 +346,9 @@ export class FocusInEvent extends FocusEvent {
     if (_branch === null) {
       throw new Error(`FocusInEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -361,22 +361,22 @@ export class FocusInEvent extends FocusEvent {
     if (_snapshot === null) {
       throw new Error(`FocusInEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -388,10 +388,10 @@ export class FocusInEvent extends FocusEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -415,7 +415,7 @@ export class FocusInEvent extends FocusEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1012,13 +1012,13 @@ export class FocusOutEvent extends FocusEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1031,14 +1031,14 @@ export class FocusOutEvent extends FocusEvent {
     if (_space === null) {
       throw new Error(`FocusOutEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1051,9 +1051,9 @@ export class FocusOutEvent extends FocusEvent {
     if (_branch === null) {
       throw new Error(`FocusOutEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1066,22 +1066,22 @@ export class FocusOutEvent extends FocusEvent {
     if (_snapshot === null) {
       throw new Error(`FocusOutEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1093,10 +1093,10 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -1120,7 +1120,7 @@ export class FocusOutEvent extends FocusEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;

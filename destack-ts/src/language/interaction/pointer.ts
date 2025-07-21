@@ -383,13 +383,13 @@ export class PointerDownEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -402,14 +402,14 @@ export class PointerDownEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerDownEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -422,9 +422,9 @@ export class PointerDownEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerDownEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -437,22 +437,22 @@ export class PointerDownEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerDownEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -464,10 +464,10 @@ export class PointerDownEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerDownEvent.position is required`);
@@ -518,7 +518,7 @@ export class PointerDownEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1229,13 +1229,13 @@ export class PointerUpEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1248,14 +1248,14 @@ export class PointerUpEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerUpEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1268,9 +1268,9 @@ export class PointerUpEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerUpEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1283,22 +1283,22 @@ export class PointerUpEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerUpEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1310,10 +1310,10 @@ export class PointerUpEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerUpEvent.position is required`);
@@ -1364,7 +1364,7 @@ export class PointerUpEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -2069,13 +2069,13 @@ export class PointerMoveEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -2088,14 +2088,14 @@ export class PointerMoveEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerMoveEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -2108,9 +2108,9 @@ export class PointerMoveEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerMoveEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -2123,22 +2123,22 @@ export class PointerMoveEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerMoveEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -2150,10 +2150,10 @@ export class PointerMoveEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerMoveEvent.position is required`);
@@ -2204,7 +2204,7 @@ export class PointerMoveEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -2915,13 +2915,13 @@ export class PointerEnterEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -2934,14 +2934,14 @@ export class PointerEnterEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerEnterEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -2954,9 +2954,9 @@ export class PointerEnterEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerEnterEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -2969,22 +2969,22 @@ export class PointerEnterEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerEnterEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -2996,10 +2996,10 @@ export class PointerEnterEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerEnterEvent.position is required`);
@@ -3050,7 +3050,7 @@ export class PointerEnterEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -3761,13 +3761,13 @@ export class PointerOverEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -3780,14 +3780,14 @@ export class PointerOverEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerOverEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -3800,9 +3800,9 @@ export class PointerOverEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerOverEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -3815,22 +3815,22 @@ export class PointerOverEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerOverEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -3842,10 +3842,10 @@ export class PointerOverEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerOverEvent.position is required`);
@@ -3896,7 +3896,7 @@ export class PointerOverEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -4607,13 +4607,13 @@ export class PointerLeaveEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -4626,14 +4626,14 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerLeaveEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -4646,9 +4646,9 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerLeaveEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -4661,22 +4661,22 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerLeaveEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -4688,10 +4688,10 @@ export class PointerLeaveEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerLeaveEvent.position is required`);
@@ -4742,7 +4742,7 @@ export class PointerLeaveEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -5453,13 +5453,13 @@ export class PointerLongPressEvent extends PointerEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -5472,14 +5472,14 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_space === null) {
       throw new Error(`PointerLongPressEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -5492,9 +5492,9 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_branch === null) {
       throw new Error(`PointerLongPressEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -5507,22 +5507,22 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_snapshot === null) {
       throw new Error(`PointerLongPressEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -5534,10 +5534,10 @@ export class PointerLongPressEvent extends PointerEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
     if (_position === null) {
       throw new Error(`PointerLongPressEvent.position is required`);
@@ -5588,7 +5588,7 @@ export class PointerLongPressEvent extends PointerEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
