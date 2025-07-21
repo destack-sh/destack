@@ -213,7 +213,7 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
     def close(self) -> None:
         """Close the QueryConnection."""
-        # nocheckin: live QueryConnections
+        # nocheckin: turn QueryConnections into SpaceConnections?
         raise NotImplementedError
 
     async def wait_closed(self) -> None:

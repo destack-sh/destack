@@ -21,6 +21,7 @@ def test_struct_inheritance(session: Session):
         StructType.ENUM_DEFINITION,
         StructType.PROPERTY_DEFINITION,
         StructType.OPTION_DEFINITION,
+        StructType.CONSTANT_DEFINITION,
         StructType.TAG_DEFINITION,
         StructType.INDEX_DEFINITION,
         StructType.CONSTRAINT_DEFINITION,

@@ -343,7 +343,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_BRANCH_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_INDEX_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CONSTRAINT_TYPE: _ClassVar[EnumTypeProto]
@@ -405,11 +404,11 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_STROKE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TEXT_SPLIT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OFFSCREEN_BEHAVIOR: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_EASING: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TRANSITION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SPRING_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EFFECT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_REPEAT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_EASING: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ANCHOR: _ClassVar[EnumTypeProto]
     ENUM_TYPE_LENGTH_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_LAYOUT: _ClassVar[EnumTypeProto]
@@ -964,9 +963,9 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_BORDER_STYLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_SHADOW_STYLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_GRADIENT_STYLE: _ClassVar[NodeTypeProto]
+    NODE_TYPE_STROKE_STYLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_TRANSITION_STYLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_EFFECT_STYLE: _ClassVar[NodeTypeProto]
-    NODE_TYPE_STROKE_STYLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_SHAPE2D: _ClassVar[NodeTypeProto]
     NODE_TYPE_LINE_SHAPE2D: _ClassVar[NodeTypeProto]
     NODE_TYPE_ARROW_SHAPE2D: _ClassVar[NodeTypeProto]
@@ -1240,12 +1239,6 @@ class SortTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SORT_TYPE_ASCENDING: _ClassVar[SortTypeProto]
     SORT_TYPE_DESCENDING: _ClassVar[SortTypeProto]
 
-class SpaceStatusProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SPACE_STATUS_UNSPECIFIED: _ClassVar[SpaceStatusProto]
-    SPACE_STATUS_CREATING: _ClassVar[SpaceStatusProto]
-    SPACE_STATUS_ACTIVE: _ClassVar[SpaceStatusProto]
-
 class SpringTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SPRING_TYPE_UNSPECIFIED: _ClassVar[SpringTypeProto]
@@ -1500,7 +1493,7 @@ class UniverseCategoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UNIVERSE_CATEGORY_FINANCE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_SCENE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_VIEW: _ClassVar[UniverseCategoryProto]
-    UNIVERSE_CATEGORY_DRAWING: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_PAINT: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_INTERACTION: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_STYLE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_ANIMATION: _ClassVar[UniverseCategoryProto]
@@ -1763,7 +1756,6 @@ ENUM_TYPE_QUERY_UPDATE_TYPE: EnumTypeProto
 ENUM_TYPE_BRANCH_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_STATUS: EnumTypeProto
-ENUM_TYPE_SPACE_STATUS: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
 ENUM_TYPE_INDEX_TYPE: EnumTypeProto
 ENUM_TYPE_CONSTRAINT_TYPE: EnumTypeProto
@@ -1825,11 +1817,11 @@ ENUM_TYPE_GRADIENT_TYPE: EnumTypeProto
 ENUM_TYPE_STROKE_TYPE: EnumTypeProto
 ENUM_TYPE_TEXT_SPLIT_TYPE: EnumTypeProto
 ENUM_TYPE_OFFSCREEN_BEHAVIOR: EnumTypeProto
-ENUM_TYPE_EASING: EnumTypeProto
 ENUM_TYPE_TRANSITION_TYPE: EnumTypeProto
 ENUM_TYPE_SPRING_TYPE: EnumTypeProto
 ENUM_TYPE_EFFECT_TYPE: EnumTypeProto
 ENUM_TYPE_REPEAT_TYPE: EnumTypeProto
+ENUM_TYPE_EASING: EnumTypeProto
 ENUM_TYPE_ANCHOR: EnumTypeProto
 ENUM_TYPE_LENGTH_TYPE: EnumTypeProto
 ENUM_TYPE_LAYOUT: EnumTypeProto
@@ -2282,9 +2274,9 @@ NODE_TYPE_FONT_STYLE: NodeTypeProto
 NODE_TYPE_BORDER_STYLE: NodeTypeProto
 NODE_TYPE_SHADOW_STYLE: NodeTypeProto
 NODE_TYPE_GRADIENT_STYLE: NodeTypeProto
+NODE_TYPE_STROKE_STYLE: NodeTypeProto
 NODE_TYPE_TRANSITION_STYLE: NodeTypeProto
 NODE_TYPE_EFFECT_STYLE: NodeTypeProto
-NODE_TYPE_STROKE_STYLE: NodeTypeProto
 NODE_TYPE_SHAPE2D: NodeTypeProto
 NODE_TYPE_LINE_SHAPE2D: NodeTypeProto
 NODE_TYPE_ARROW_SHAPE2D: NodeTypeProto
@@ -2467,9 +2459,6 @@ SORT_MODE_MEDIAN: SortModeProto
 SORT_TYPE_UNSPECIFIED: SortTypeProto
 SORT_TYPE_ASCENDING: SortTypeProto
 SORT_TYPE_DESCENDING: SortTypeProto
-SPACE_STATUS_UNSPECIFIED: SpaceStatusProto
-SPACE_STATUS_CREATING: SpaceStatusProto
-SPACE_STATUS_ACTIVE: SpaceStatusProto
 SPRING_TYPE_UNSPECIFIED: SpringTypeProto
 SPRING_TYPE_TIME: SpringTypeProto
 SPRING_TYPE_PHYSICAL: SpringTypeProto
@@ -2662,7 +2651,7 @@ UNIVERSE_CATEGORY_SOCIAL: UniverseCategoryProto
 UNIVERSE_CATEGORY_FINANCE: UniverseCategoryProto
 UNIVERSE_CATEGORY_SCENE: UniverseCategoryProto
 UNIVERSE_CATEGORY_VIEW: UniverseCategoryProto
-UNIVERSE_CATEGORY_DRAWING: UniverseCategoryProto
+UNIVERSE_CATEGORY_PAINT: UniverseCategoryProto
 UNIVERSE_CATEGORY_INTERACTION: UniverseCategoryProto
 UNIVERSE_CATEGORY_STYLE: UniverseCategoryProto
 UNIVERSE_CATEGORY_ANIMATION: UniverseCategoryProto
@@ -12555,7 +12544,7 @@ class SortProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[SortTypeProto, str]] = ..., by: _Optional[_Union[ExpressionProto, _Mapping]] = ..., mode: _Optional[_Union[SortModeProto, str]] = ...) -> None: ...
 
 class SpaceProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key", "slug", "status", "handle_ptr", "system_folder_ptr", "home_folder_ptr", "region", "galaxy_name", "database_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key", "slug", "handle_ptr", "region")
     class CustomValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -12589,13 +12578,8 @@ class SpaceProto(_message.Message):
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
     HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
-    SYSTEM_FOLDER_PTR_FIELD_NUMBER: _ClassVar[int]
-    HOME_FOLDER_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    GALAXY_NAME_FIELD_NUMBER: _ClassVar[int]
-    DATABASE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -12622,14 +12606,9 @@ class SpaceProto(_message.Message):
     source_ptr: NodeReferenceProto
     key: str
     slug: str
-    status: SpaceStatusProto
     handle_ptr: NodeReferenceProto
-    system_folder_ptr: NodeReferenceProto
-    home_folder_ptr: NodeReferenceProto
     region: RegionProto
-    galaxy_name: str
-    database_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., slug: _Optional[str] = ..., status: _Optional[_Union[SpaceStatusProto, str]] = ..., handle_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., system_folder_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., home_folder_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., region: _Optional[_Union[RegionProto, str]] = ..., galaxy_name: _Optional[str] = ..., database_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., slug: _Optional[str] = ..., handle_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., region: _Optional[_Union[RegionProto, str]] = ...) -> None: ...
 
 class SpanEventProto(_message.Message):
     __slots__ = ("metatype", "id", "space_ptr", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "caused_by_ptr", "created_at", "created_epoch", "created_by_ptr", "client_ptr", "client_nonce", "client_created_at", "client_epoch", "status", "node_ptr")

@@ -99,9 +99,9 @@ class EditEvent(Event):
     # EditEvent.type in reverse is derivable
     # EditEvent.node is same
     reverse_operation: "EditOperation | None" = builtin_property(
-        202, is_repr=True, description="The specific reverse Edit operation."
+        202, description="The specific reverse Edit operation."
     )
     # EditEvent.attribute/key is same
     reverse_value: "Value | None" = builtin_property(
-        210, is_repr=True, description="The value of the reverse Edit."
+        210, description="The value of the reverse Edit."
     )

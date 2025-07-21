@@ -18628,33 +18628,13 @@ export interface SpaceProto {
      */
     slug: string;
     /**
-     * @generated from protobuf field: symbol.destack.SpaceStatusProto status = 110
-     */
-    status: SpaceStatusProto;
-    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto handle_ptr = 111
      */
     handlePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto system_folder_ptr = 112
-     */
-    systemFolderPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto home_folder_ptr = 113
-     */
-    homeFolderPtr?: NodeReferenceProto;
-    /**
      * @generated from protobuf field: symbol.destack.RegionProto region = 120
      */
     region: RegionProto;
-    /**
-     * @generated from protobuf field: optional string galaxy_name = 121
-     */
-    galaxyName?: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto database_ptr = 122
-     */
-    databasePtr?: NodeReferenceProto;
 }
 /**
  * A Span is a trace inside a Run.
@@ -23046,13 +23026,13 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2200000
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2200100
          */
         effectStyle: EffectStyleProto;
     } | {
@@ -23825,13 +23805,13 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2200000
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2200100
          */
         effectStyle: EffectStyleProto;
     } | {
@@ -25640,10 +25620,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_SNAPSHOT_STATUS = 2101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_STATUS = 1101;
-     */
-    ENUM_TYPE_SPACE_STATUS = 1101,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 10101;
      */
     ENUM_TYPE_RESOURCE_STATUS = 10101,
@@ -25888,10 +25864,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EASING = 2100225;
-     */
-    ENUM_TYPE_EASING = 2100225,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 2200000;
      */
     ENUM_TYPE_TRANSITION_TYPE = 2200000,
@@ -25907,6 +25879,10 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 2200003;
      */
     ENUM_TYPE_REPEAT_TYPE = 2200003,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EASING = 2100004;
+     */
+    ENUM_TYPE_EASING = 2100004,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 2400000;
      */
@@ -27906,17 +27882,17 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_GRADIENT_STYLE = 2100800,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 2100900;
-     */
-    NODE_TYPE_TRANSITION_STYLE = 2100900,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 2101000;
-     */
-    NODE_TYPE_EFFECT_STYLE = 2101000,
-    /**
      * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 2101100;
      */
     NODE_TYPE_STROKE_STYLE = 2101100,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 2200000;
+     */
+    NODE_TYPE_TRANSITION_STYLE = 2200000,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 2200100;
+     */
+    NODE_TYPE_EFFECT_STYLE = 2200100,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SHAPE2D = 2410000;
      */
@@ -28829,25 +28805,6 @@ export enum SortTypeProto {
     SORT_TYPE_DESCENDING = 2
 }
 /**
- * The status of a Space
- *
- * @generated from protobuf enum symbol.destack.SpaceStatusProto
- */
-export enum SpaceStatusProto {
-    /**
-     * @generated from protobuf enum value: SPACE_STATUS_UNSPECIFIED = 0;
-     */
-    SPACE_STATUS_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SPACE_STATUS_CREATING = 1;
-     */
-    SPACE_STATUS_CREATING = 1,
-    /**
-     * @generated from protobuf enum value: SPACE_STATUS_ACTIVE = 10;
-     */
-    SPACE_STATUS_ACTIVE = 10
-}
-/**
  * Built-in spring types.
  *
  * @generated from protobuf enum symbol.destack.SpringTypeProto
@@ -29736,9 +29693,9 @@ export enum UniverseCategoryProto {
      */
     UNIVERSE_CATEGORY_VIEW = 1800000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_DRAWING = 1900000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_PAINT = 1900000;
      */
-    UNIVERSE_CATEGORY_DRAWING = 1900000,
+    UNIVERSE_CATEGORY_PAINT = 1900000,
     /**
      * @generated from protobuf enum value: UNIVERSE_CATEGORY_INTERACTION = 2000000;
      */
@@ -71190,13 +71147,8 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
             { no: 80, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 85, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "status", kind: "enum", T: () => ["symbol.destack.SpaceStatusProto", SpaceStatusProto] },
             { no: 111, name: "handle_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 112, name: "system_folder_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 113, name: "home_folder_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 120, name: "region", kind: "enum", T: () => ["symbol.destack.RegionProto", RegionProto] },
-            { no: 121, name: "galaxy_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 122, name: "database_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 120, name: "region", kind: "enum", T: () => ["symbol.destack.RegionProto", RegionProto] }
         ]);
     }
     create(value?: PartialMessage<SpaceProto>): SpaceProto {
@@ -71210,7 +71162,6 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         message.orderKey = "";
         message.customValues = {};
         message.slug = "";
-        message.status = 0;
         message.region = 0;
         if (value !== undefined)
             reflectionMergePartial<SpaceProto>(this, message, value);
@@ -71299,26 +71250,11 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
                 case /* string slug */ 102:
                     message.slug = reader.string();
                     break;
-                case /* symbol.destack.SpaceStatusProto status */ 110:
-                    message.status = reader.int32();
-                    break;
                 case /* optional symbol.destack.NodeReferenceProto handle_ptr */ 111:
                     message.handlePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.handlePtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto system_folder_ptr */ 112:
-                    message.systemFolderPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.systemFolderPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto home_folder_ptr */ 113:
-                    message.homeFolderPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.homeFolderPtr);
-                    break;
                 case /* symbol.destack.RegionProto region */ 120:
                     message.region = reader.int32();
-                    break;
-                case /* optional string galaxy_name */ 121:
-                    message.galaxyName = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto database_ptr */ 122:
-                    message.databasePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.databasePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -71430,27 +71366,12 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         /* string slug = 102; */
         if (message.slug !== "")
             writer.tag(102, WireType.LengthDelimited).string(message.slug);
-        /* symbol.destack.SpaceStatusProto status = 110; */
-        if (message.status !== 0)
-            writer.tag(110, WireType.Varint).int32(message.status);
         /* optional symbol.destack.NodeReferenceProto handle_ptr = 111; */
         if (message.handlePtr)
             NodeReferenceProto.internalBinaryWrite(message.handlePtr, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto system_folder_ptr = 112; */
-        if (message.systemFolderPtr)
-            NodeReferenceProto.internalBinaryWrite(message.systemFolderPtr, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto home_folder_ptr = 113; */
-        if (message.homeFolderPtr)
-            NodeReferenceProto.internalBinaryWrite(message.homeFolderPtr, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RegionProto region = 120; */
         if (message.region !== 0)
             writer.tag(120, WireType.Varint).int32(message.region);
-        /* optional string galaxy_name = 121; */
-        if (message.galaxyName !== undefined)
-            writer.tag(121, WireType.LengthDelimited).string(message.galaxyName);
-        /* optional symbol.destack.NodeReferenceProto database_ptr = 122; */
-        if (message.databasePtr)
-            NodeReferenceProto.internalBinaryWrite(message.databasePtr, writer.tag(122, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -80897,8 +80818,8 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
             { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
             { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
-            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 2200000, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2200100, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
             { no: 480000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 1100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
             { no: 1110011, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
@@ -81296,13 +81217,13 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2200000:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2200100:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
@@ -82298,15 +82219,15 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.GradientStyleProto gradient_style = 2100800; */
         if (message.node.oneofKind === "gradientStyle")
             GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(2100800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 2100900; */
-        if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2100900, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 2101000; */
-        if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2101000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.StrokeStyleProto stroke_style = 2101100; */
         if (message.node.oneofKind === "strokeStyle")
             StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2101100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 2200000; */
+        if (message.node.oneofKind === "transitionStyle")
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2200000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2200100; */
+        if (message.node.oneofKind === "effectStyle")
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2200100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LineShape2DProto line_shape2d = 2410100; */
         if (message.node.oneofKind === "lineShape2D")
             LineShape2DProto.internalBinaryWrite(message.node.lineShape2D, writer.tag(2410100, WireType.LengthDelimited).fork(), options).join();
@@ -82370,8 +82291,8 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
             { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
             { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
-            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 2200000, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2200100, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
             { no: 480000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 1100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
             { no: 2410200, name: "arrow_shape2d", kind: "message", jsonName: "arrowShape2d", oneof: "node", T: () => ArrowShape2DProto },
@@ -82610,13 +82531,13 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2200000:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2200100:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
@@ -83048,15 +82969,15 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.GradientStyleProto gradient_style = 2100800; */
         if (message.node.oneofKind === "gradientStyle")
             GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(2100800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 2100900; */
-        if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2100900, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 2101000; */
-        if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2101000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.StrokeStyleProto stroke_style = 2101100; */
         if (message.node.oneofKind === "strokeStyle")
             StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2101100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 2200000; */
+        if (message.node.oneofKind === "transitionStyle")
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2200000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2200100; */
+        if (message.node.oneofKind === "effectStyle")
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2200100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LineShape2DProto line_shape2d = 2410100; */
         if (message.node.oneofKind === "lineShape2D")
             LineShape2DProto.internalBinaryWrite(message.node.lineShape2D, writer.tag(2410100, WireType.LengthDelimited).fork(), options).join();

@@ -625,12 +625,6 @@ export class EditEvent extends Event {
     if (this.key != null) {
       propertyReprs.push(`key=${this.key.repr()}`);
     }
-    if (this.reverseOperation != null) {
-      propertyReprs.push(`reverseOperation=${EditOperation[this.reverseOperation]}`);
-    }
-    if (this.reverseValue != null) {
-      propertyReprs.push(`reverseValue=${this.reverseValue.repr()}`);
-    }
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EditEvent "${this.path}" ${propertyReprs.join(" ")}>`;

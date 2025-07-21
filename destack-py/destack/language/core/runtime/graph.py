@@ -651,6 +651,8 @@ class NullGraph(Graph):
 _MISSING = object()
 
 
+# nocheckin: unify Graph*/Supergraph into just Graph (for Entities)
+#  (separate Events into some other structure)
 class Supergraph:
     """
     A collection of Graphs in a Session.

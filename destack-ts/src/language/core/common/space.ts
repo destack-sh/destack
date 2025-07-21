@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { EnumType, NodeType, Region, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, Region, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/const";
 import type {
   EnumDefinition,
@@ -24,17 +24,14 @@ import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import type { Database } from "@destack/language/infrastructure";
 import type { Script } from "@destack/language/logic";
 import {
   NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space";
 import type { Handle } from "@destack/language/universe";
-import { MaterializationProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
+import { MaterializationProto, RegionProto, SpaceProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { uuid4 } from "@destack/utils/uuid";
@@ -111,7 +108,6 @@ export function createSpace(options: {
     id: spaceId,
     name: name ?? "Space",
     slug: slug ?? "space",
-    status: SpaceStatus.ACTIVE,
     region: Region.ZURICH,
     branch: branchPtr,
     snapshot: snapshotPtr,
@@ -327,21 +323,6 @@ export abstract class Universe extends Entity {
 }
 registerNodeClass(NodeType.UNIVERSE, Universe);
 /* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:1101 ==== */
-/**
- * SpaceStatus
- */
-export enum SpaceStatus {
-  CREATING = 1,
-  ACTIVE = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:1101 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1100 ==== */
 /**
@@ -638,22 +619,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   _slug: string;
 
   /**
-   * Space.status
-   */
-  /**
-   * Space.status
-   */
-  get status(): SpaceStatus {
-    return this._status;
-  }
-  set status(value: SpaceStatus) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: SpaceStatus;
-
-  /**
    * Space.handle
    */
   get handle(): Handle | null {
@@ -684,66 +649,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   _handlePtr: NodeReference | null;
 
   /**
-   * The system Folder.
-   */
-  get systemFolder(): Folder | null {
-    const nodePtr: NodeReference | null = this.systemFolderPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null;
-    }
-    return null;
-  }
-  set systemFolder(node: Folder | null) {
-    if (node === null) {
-      this.systemFolderPtr = null;
-    } else {
-      this.systemFolderPtr = node.toRef();
-    }
-  }
-  /**
-   * The system Folder.
-   */
-  get systemFolderPtr(): NodeReference | null {
-    return this._systemFolderPtr;
-  }
-  set systemFolderPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["system_folder"];
-    this._session.updateSetProperty(this, prop, value);
-    this._systemFolderPtr = value;
-  }
-  _systemFolderPtr: NodeReference | null;
-
-  /**
-   * The home Folder.
-   */
-  get homeFolder(): Folder | null {
-    const nodePtr: NodeReference | null = this.homeFolderPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null;
-    }
-    return null;
-  }
-  set homeFolder(node: Folder | null) {
-    if (node === null) {
-      this.homeFolderPtr = null;
-    } else {
-      this.homeFolderPtr = node.toRef();
-    }
-  }
-  /**
-   * The home Folder.
-   */
-  get homeFolderPtr(): NodeReference | null {
-    return this._homeFolderPtr;
-  }
-  set homeFolderPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["home_folder"];
-    this._session.updateSetProperty(this, prop, value);
-    this._homeFolderPtr = value;
-  }
-  _homeFolderPtr: NodeReference | null;
-
-  /**
    * Space.region
    */
   /**
@@ -758,52 +663,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     this._region = value;
   }
   _region: Region;
-
-  /**
-   * Space.galaxyName
-   */
-  /**
-   * Space.galaxyName
-   */
-  get galaxyName(): string | null {
-    return this._galaxyName;
-  }
-  set galaxyName(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["galaxy_name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._galaxyName = value;
-  }
-  _galaxyName: string | null;
-
-  /**
-   * Space.database
-   */
-  get database(): Database | null {
-    const nodePtr: NodeReference | null = this.databasePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Database | null;
-    }
-    return null;
-  }
-  set database(node: Database | null) {
-    if (node === null) {
-      this.databasePtr = null;
-    } else {
-      this.databasePtr = node.toRef();
-    }
-  }
-  /**
-   * Space.database
-   */
-  get databasePtr(): NodeReference | null {
-    return this._databasePtr;
-  }
-  set databasePtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["database"];
-    this._session.updateSetProperty(this, prop, value);
-    this._databasePtr = value;
-  }
-  _databasePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
@@ -831,13 +690,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     source?: Script | NodeReference | null;
     key?: string | null;
     slug: string;
-    status: SpaceStatus;
     handle?: Handle | NodeReference | null;
-    systemFolder?: Folder | NodeReference | null;
-    homeFolder?: Folder | NodeReference | null;
     region: Region;
-    galaxyName?: string | null;
-    database?: Database | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -981,38 +835,16 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       throw new Error(`Space.slug is required`);
     }
     this._slug = _slug;
-    let _status = options.status;
-    if (_status === null) {
-      throw new Error(`Space.status is required`);
-    }
-    this._status = _status;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.constructor.name != "NodeReference") {
       _handle = (_handle as Node).toRef();
     }
     this._handlePtr = _handle as NodeReference | null;
-    let _systemFolder = options.systemFolder ?? null;
-    if (_systemFolder != null && _systemFolder.constructor.name != "NodeReference") {
-      _systemFolder = (_systemFolder as Node).toRef();
-    }
-    this._systemFolderPtr = _systemFolder as NodeReference | null;
-    let _homeFolder = options.homeFolder ?? null;
-    if (_homeFolder != null && _homeFolder.constructor.name != "NodeReference") {
-      _homeFolder = (_homeFolder as Node).toRef();
-    }
-    this._homeFolderPtr = _homeFolder as NodeReference | null;
     let _region = options.region;
     if (_region === null) {
       throw new Error(`Space.region is required`);
     }
     this._region = _region;
-    let _galaxyName = options.galaxyName ?? null;
-    this._galaxyName = _galaxyName;
-    let _database = options.database ?? null;
-    if (_database != null && _database.constructor.name != "NodeReference") {
-      _database = (_database as Node).toRef();
-    }
-    this._databasePtr = _database as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -1062,25 +894,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this._status === other._status)) {
-      return false;
-    }
     if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
-    if (!(this._systemFolderPtr?.id === other._systemFolderPtr?.id)) {
-      return false;
-    }
-    if (!(this._homeFolderPtr?.id === other._homeFolderPtr?.id)) {
-      return false;
-    }
     if (!(this._region === other._region)) {
-      return false;
-    }
-    if (!(this._galaxyName === other._galaxyName)) {
-      return false;
-    }
-    if (!(this._databasePtr?.id === other._databasePtr?.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1123,23 +940,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
-    h = (h * 31 + this._status) & 0xffffffff;
     if (this._handlePtr != null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
-    if (this._systemFolderPtr != null) {
-      h = (h * 31 + hashString(this._systemFolderPtr.id)) & 0xffffffff;
-    }
-    if (this._homeFolderPtr != null) {
-      h = (h * 31 + hashString(this._homeFolderPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._region) & 0xffffffff;
-    if (this._galaxyName != null) {
-      h = (h * 31 + hashString(this._galaxyName)) & 0xffffffff;
-    }
-    if (this._databasePtr != null) {
-      h = (h * 31 + hashString(this._databasePtr.id)) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1211,7 +1015,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
-    propertyReprs.push(`status=${SpaceStatus[this.status]}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
@@ -1281,23 +1084,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       objectCson["85"] = object._key;
     }
     objectCson["102"] = object._slug;
-    objectCson["110"] = object._status;
     if (object._handlePtr != null) {
       objectCson["111"] = object._handlePtr.toCson();
     }
-    if (object._systemFolderPtr != null) {
-      objectCson["112"] = object._systemFolderPtr.toCson();
-    }
-    if (object._homeFolderPtr != null) {
-      objectCson["113"] = object._homeFolderPtr.toCson();
-    }
     objectCson["120"] = object._region;
-    if (object._galaxyName != null) {
-      objectCson["121"] = object._galaxyName;
-    }
-    if (object._databasePtr != null) {
-      objectCson["122"] = object._databasePtr.toCson();
-    }
     return objectCson;
   }
 
@@ -1314,23 +1104,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     const unpackedHandlePtr =
       handlePtrValue != undefined
         ? _NodeReference.fromCson(handlePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const systemFolderPtrValue = objectCson["112"];
-    const unpackedSystemFolderPtr =
-      systemFolderPtrValue != undefined
-        ? _NodeReference.fromCson(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const homeFolderPtrValue = objectCson["113"];
-    const unpackedHomeFolderPtr =
-      homeFolderPtrValue != undefined
-        ? _NodeReference.fromCson(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const galaxyNameValue = objectCson["121"];
-    const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
-    const databasePtrValue = objectCson["122"];
-    const unpackedDatabasePtr =
-      databasePtrValue != undefined
-        ? _NodeReference.fromCson(databasePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
@@ -1401,13 +1174,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     return new Space({
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       slug: objectCson["102"],
-      status: Number(objectCson["110"]),
       handle: unpackedHandlePtr,
-      systemFolder: unpackedSystemFolderPtr,
-      homeFolder: unpackedHomeFolderPtr,
       region: Number(objectCson["120"]),
-      galaxyName: unpackedGalaxyName,
-      database: unpackedDatabasePtr,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1513,23 +1281,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       objectProto.key = object._key;
     }
     objectProto.slug = object._slug;
-    objectProto.status = Number(object._status) as SpaceStatusProto;
     if (object._handlePtr != null) {
       objectProto.handlePtr = object._handlePtr.toProto();
     }
-    if (object._systemFolderPtr != null) {
-      objectProto.systemFolderPtr = object._systemFolderPtr.toProto();
-    }
-    if (object._homeFolderPtr != null) {
-      objectProto.homeFolderPtr = object._homeFolderPtr.toProto();
-    }
     objectProto.region = Number(object._region) as RegionProto;
-    if (object._galaxyName != null) {
-      objectProto.galaxyName = object._galaxyName;
-    }
-    if (object._databasePtr != null) {
-      objectProto.databasePtr = object._databasePtr.toProto();
-    }
     return objectProto as SpaceProto;
   }
 
@@ -1560,7 +1315,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         _connection,
       ),
       slug: objectProto.slug,
-      status: Number(objectProto.status) as SpaceStatus,
       handle:
         objectProto.handlePtr != undefined
           ? _NodeReference.fromProto(
@@ -1571,38 +1325,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
               _connection,
             )
           : null,
-      systemFolder:
-        objectProto.systemFolderPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.systemFolderPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      homeFolder:
-        objectProto.homeFolderPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.homeFolderPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       region: Number(objectProto.region) as Region,
-      galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
-      database:
-        objectProto.databasePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.databasePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(

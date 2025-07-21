@@ -574,7 +574,7 @@ export class Transition extends StructFrozen {
 registerStructClass(StructType.TRANSITION, Transition);
 /* ==== DESTACK_GENERATED_END:STRUCT:2200000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2100900 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2200000 ==== */
 /**
  * A transition style.
  */
@@ -1494,7 +1494,7 @@ export class TransitionStyle extends Style {
 
   static __packCson__(object: TransitionStyle): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2100900;
+    objectCson["1"] = 2200000;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1737,7 +1737,7 @@ export class TransitionStyle extends Style {
   }
 
   static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 2100900 };
+    const objectProto: Partial<TransitionStyleProto> = { metatype: 2200000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2009,4 +2009,4 @@ export class TransitionStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
-/* ==== DESTACK_GENERATED_END:NODE:2100900 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2200000 ==== */
