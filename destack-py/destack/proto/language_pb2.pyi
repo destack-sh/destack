@@ -343,16 +343,16 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_BRANCH_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_INDEX_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CONSTRAINT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_MIGRATION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_METHOD_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_METHOD_CARDINALITY: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_FOLDER_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SANCTION_TYPE: _ClassVar[EnumTypeProto]
@@ -792,6 +792,7 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_NODE: _ClassVar[NodeTypeProto]
     NODE_TYPE_ENTITY: _ClassVar[NodeTypeProto]
     NODE_TYPE_EVENT: _ClassVar[NodeTypeProto]
+    NODE_TYPE_UNIVERSE: _ClassVar[NodeTypeProto]
     NODE_TYPE_SPACE: _ClassVar[NodeTypeProto]
     NODE_TYPE_BRANCH: _ClassVar[NodeTypeProto]
     NODE_TYPE_SNAPSHOT: _ClassVar[NodeTypeProto]
@@ -1762,16 +1763,16 @@ ENUM_TYPE_QUERY_UPDATE_TYPE: EnumTypeProto
 ENUM_TYPE_BRANCH_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_STATUS: EnumTypeProto
+ENUM_TYPE_SPACE_STATUS: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
 ENUM_TYPE_INDEX_TYPE: EnumTypeProto
 ENUM_TYPE_CONSTRAINT_TYPE: EnumTypeProto
 ENUM_TYPE_MIGRATION_TYPE: EnumTypeProto
 ENUM_TYPE_METHOD_TYPE: EnumTypeProto
 ENUM_TYPE_METHOD_CARDINALITY: EnumTypeProto
-ENUM_TYPE_SPACE_STATUS: EnumTypeProto
 ENUM_TYPE_USER_STATUS: EnumTypeProto
-ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
 ENUM_TYPE_CLIENT_TYPE: EnumTypeProto
+ENUM_TYPE_ORGANIZATION_STATUS: EnumTypeProto
 ENUM_TYPE_FOLDER_TYPE: EnumTypeProto
 ENUM_TYPE_ROLE_TYPE: EnumTypeProto
 ENUM_TYPE_SANCTION_TYPE: EnumTypeProto
@@ -2109,6 +2110,7 @@ NODE_TYPE_UNSPECIFIED: NodeTypeProto
 NODE_TYPE_NODE: NodeTypeProto
 NODE_TYPE_ENTITY: NodeTypeProto
 NODE_TYPE_EVENT: NodeTypeProto
+NODE_TYPE_UNIVERSE: NodeTypeProto
 NODE_TYPE_SPACE: NodeTypeProto
 NODE_TYPE_BRANCH: NodeTypeProto
 NODE_TYPE_SNAPSHOT: NodeTypeProto
@@ -3379,18 +3381,22 @@ class ConditionProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[ConditionalTypeProto, str]] = ..., left: _Optional[_Union[ExpressionProto, _Mapping]] = ..., right: _Optional[_Union[ExpressionProto, _Mapping]] = ...) -> None: ...
 
 class ConstantDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "name", "description", "value", "is_deferred")
+    __slots__ = ("metatype", "id", "name", "icon", "description", "taggings", "value")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    TAGGINGS_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
-    IS_DEFERRED_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
+    id: int
     name: str
+    icon: IconProto
     description: str
+    taggings: _containers.RepeatedScalarFieldContainer[int]
     value: ValueProto
-    is_deferred: bool
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., is_deferred: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
 
 class ConstraintProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key", "type", "properties")
@@ -8735,7 +8741,7 @@ class NodeConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_abstract", "is_extensible", "is_frozen", "properties", "indexes", "constraints", "permissions", "methods", "actions", "base_type", "extended_by", "inherits", "inherited_by", "traits", "self_traits", "event_types", "self_event_types", "enum_types", "self_enum_types", "parent_types", "child_types", "ancestor_types", "descendant_types", "expected_parent_types", "expected_child_types", "expected_ancestor_types", "expected_descendant_types", "primary_store_keys", "store_domain")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_abstract", "is_extensible", "is_frozen", "properties", "indexes", "constraints", "permissions", "methods", "actions", "constants", "base_type", "extended_by", "inherits", "inherited_by", "traits", "self_traits", "event_types", "self_event_types", "enum_types", "self_enum_types", "parent_types", "child_types", "ancestor_types", "descendant_types", "expected_parent_types", "expected_child_types", "expected_ancestor_types", "expected_descendant_types", "primary_store_keys", "store_domain")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -8752,6 +8758,7 @@ class NodeDefinitionProto(_message.Message):
     PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
     METHODS_FIELD_NUMBER: _ClassVar[int]
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    CONSTANTS_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
     EXTENDED_BY_FIELD_NUMBER: _ClassVar[int]
     INHERITS_FIELD_NUMBER: _ClassVar[int]
@@ -8788,6 +8795,7 @@ class NodeDefinitionProto(_message.Message):
     permissions: _containers.RepeatedCompositeFieldContainer[PermissionDefinitionProto]
     methods: _containers.RepeatedCompositeFieldContainer[MethodDefinitionProto]
     actions: _containers.RepeatedCompositeFieldContainer[ActionDefinitionProto]
+    constants: _containers.RepeatedCompositeFieldContainer[ConstantDefinitionProto]
     base_type: NodeTypeProto
     extended_by: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     inherits: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
@@ -8808,7 +8816,7 @@ class NodeDefinitionProto(_message.Message):
     expected_descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     primary_store_keys: _containers.RepeatedScalarFieldContainer[StoreKeyProto]
     store_domain: StoreDomainProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., indexes: _Optional[_Iterable[_Union[IndexDefinitionProto, _Mapping]]] = ..., constraints: _Optional[_Iterable[_Union[ConstraintDefinitionProto, _Mapping]]] = ..., permissions: _Optional[_Iterable[_Union[PermissionDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., self_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., self_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., primary_store_keys: _Optional[_Iterable[_Union[StoreKeyProto, str]]] = ..., store_domain: _Optional[_Union[StoreDomainProto, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., indexes: _Optional[_Iterable[_Union[IndexDefinitionProto, _Mapping]]] = ..., constraints: _Optional[_Iterable[_Union[ConstraintDefinitionProto, _Mapping]]] = ..., permissions: _Optional[_Iterable[_Union[PermissionDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., constants: _Optional[_Iterable[_Union[ConstantDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., self_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., self_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., primary_store_keys: _Optional[_Iterable[_Union[StoreKeyProto, str]]] = ..., store_domain: _Optional[_Union[StoreDomainProto, str]] = ...) -> None: ...
 
 class NodeDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "node_type", "definition_ptr")
@@ -13178,7 +13186,7 @@ class StructProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ...) -> None: ...
 
 class StructDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_frozen", "is_abstract", "is_extensible", "properties", "methods", "actions", "tags", "base_type", "extended_by", "inherits", "inherited_by", "enum_types", "self_enum_types")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_frozen", "is_abstract", "is_extensible", "properties", "methods", "actions", "constants", "tags", "base_type", "extended_by", "inherits", "inherited_by", "enum_types", "self_enum_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -13192,6 +13200,7 @@ class StructDefinitionProto(_message.Message):
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     METHODS_FIELD_NUMBER: _ClassVar[int]
     ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    CONSTANTS_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
     EXTENDED_BY_FIELD_NUMBER: _ClassVar[int]
@@ -13212,6 +13221,7 @@ class StructDefinitionProto(_message.Message):
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     methods: _containers.RepeatedCompositeFieldContainer[MethodDefinitionProto]
     actions: _containers.RepeatedCompositeFieldContainer[ActionDefinitionProto]
+    constants: _containers.RepeatedCompositeFieldContainer[ConstantDefinitionProto]
     tags: _containers.RepeatedCompositeFieldContainer[TagDefinitionProto]
     base_type: StructTypeProto
     extended_by: _containers.RepeatedScalarFieldContainer[StructTypeProto]
@@ -13219,7 +13229,7 @@ class StructDefinitionProto(_message.Message):
     inherited_by: _containers.RepeatedScalarFieldContainer[StructTypeProto]
     enum_types: _containers.RepeatedScalarFieldContainer[EnumTypeProto]
     self_enum_types: _containers.RepeatedScalarFieldContainer[EnumTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_frozen: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., tags: _Optional[_Iterable[_Union[TagDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[StructTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_frozen: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., constants: _Optional[_Iterable[_Union[ConstantDefinitionProto, _Mapping]]] = ..., tags: _Optional[_Iterable[_Union[TagDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[StructTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[StructTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ...) -> None: ...
 
 class StructDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "struct_type", "definition_ptr")
@@ -14348,6 +14358,67 @@ class TypeProto(_message.Message):
     is_required: bool
     is_main: bool
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., cardinality: _Optional[_Union[TypeCardinalityProto, str]] = ..., scalar_type: _Optional[_Union[ScalarTypeProto, str]] = ..., primitive_type: _Optional[_Union[PrimitiveTypeProto, str]] = ..., enum_type: _Optional[_Union[EnumTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., custom_definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key_type: _Optional[_Union[TypeProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., value_factory: _Optional[_Union[ValueFactoryProto, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintProto, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintProto, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintProto, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintProto, _Mapping]] = ..., is_required: bool = ..., is_main: bool = ...) -> None: ...
+
+class UniverseProto(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key")
+    class CustomValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ValueProto
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    MATERIALIZATION_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    PRECEDED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    INSTANCE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
+    SCRIPT_PTR_FIELD_NUMBER: _ClassVar[int]
+    IS_EXTENSIBLE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeTypeProto
+    id: str
+    parent_ptr: NodeReferenceProto
+    space_ptr: NodeReferenceProto
+    materialization: MaterializationProto
+    definition_ptr: NodeReferenceProto
+    branch_ptr: NodeReferenceProto
+    snapshot_ptr: NodeReferenceProto
+    preceded_by_ptr: NodeReferenceProto
+    instance_ptr: NodeReferenceProto
+    created_at: _timestamp_pb2.Timestamp
+    created_epoch: int
+    created_by_ptr: NodeReferenceProto
+    updated_at: _timestamp_pb2.Timestamp
+    updated_epoch: int
+    updated_by_ptr: NodeReferenceProto
+    deleted_at: _timestamp_pb2.Timestamp
+    owned_by_ptr: NodeReferenceProto
+    name: str
+    order_key: str
+    custom_values: _containers.MessageMap[str, ValueProto]
+    script_ptr: NodeReferenceProto
+    is_extensible: bool
+    source_ptr: NodeReferenceProto
+    key: str
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ...) -> None: ...
 
 class UserProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key", "slug", "status", "last_logged_in_at", "is_staff", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash")

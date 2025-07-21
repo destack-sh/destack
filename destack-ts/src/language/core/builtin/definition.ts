@@ -197,6 +197,11 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly actions: readonly ActionDefinition[];
 
   /**
+   * All constants of this Node (including inherited).
+   */
+  readonly constants: readonly ConstantDefinition[];
+
+  /**
    * The base type this Node extends (directly).
    */
   readonly baseType: NodeType | null;
@@ -217,12 +222,12 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly inheritedBy: readonly NodeType[];
 
   /**
-   * Traits directly and indirectly inherited by this Node.
+   * Traits implemented by this Node.
    */
   readonly traits: readonly TraitType[];
 
   /**
-   * Traits directly inherited by this Node (directly).
+   * Traits declared by this Node (directly).
    */
   readonly selfTraits: readonly TraitType[];
 
@@ -232,7 +237,7 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly eventTypes: readonly NodeType[];
 
   /**
-   * The base event types related to this Node (directly).
+   * The event types declared by this Node (directly).
    */
   readonly selfEventTypes: readonly NodeType[];
 
@@ -242,7 +247,7 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly enumTypes: readonly EnumType[];
 
   /**
-   * The base enum types related to this Node (directly).
+   * The enum types declared by this Node (directly).
    */
   readonly selfEnumTypes: readonly EnumType[];
 
@@ -312,6 +317,7 @@ export class NodeDefinition extends BuiltinDefinition {
     permissions?: readonly PermissionDefinition[];
     methods?: readonly MethodDefinition[];
     actions?: readonly ActionDefinition[];
+    constants?: readonly ConstantDefinition[];
     baseType?: NodeType | null;
     extendedBy?: readonly NodeType[];
     inherits?: readonly NodeType[];
@@ -416,6 +422,11 @@ export class NodeDefinition extends BuiltinDefinition {
       _actions = [];
     }
     this.actions = _actions;
+    let _constants = options.constants ?? null;
+    if (_constants === null) {
+      _constants = [];
+    }
+    this.constants = _constants;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
@@ -583,6 +594,14 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.actions.length; i++) {
       if (!this.actions[i].equals(other.actions[i])) {
+        return false;
+      }
+    }
+    if (this.constants.length != other.constants.length) {
+      return false;
+    }
+    for (let i = 0; i < this.constants.length; i++) {
+      if (!this.constants[i].equals(other.constants[i])) {
         return false;
       }
     }
@@ -834,6 +853,11 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    if (this.constants && this.constants.length > 0) {
+      for (const _item of this.constants) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     if (this.baseType != null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
@@ -1025,6 +1049,13 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectCson["126"] = packedActions;
     }
+    if (object.constants.length > 0) {
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.toCson());
+      }
+      objectCson["128"] = packedConstants;
+    }
     if (object.baseType != null) {
       objectCson["130"] = object.baseType;
     }
@@ -1170,6 +1201,9 @@ export class NodeDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTANT_DEFINITION
+    ] as typeof ConstantDefinition;
     const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.INDEX_DEFINITION
     ] as typeof IndexDefinition;
@@ -1231,6 +1265,14 @@ export class NodeDefinition extends BuiltinDefinition {
       for (const item of objectCson["126"]) {
         unpackedActions.push(
           _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstants: any[] = [];
+    if (objectCson["128"] != undefined) {
+      for (const item of objectCson["128"]) {
+        unpackedConstants.push(
+          _ConstantDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1370,6 +1412,7 @@ export class NodeDefinition extends BuiltinDefinition {
       permissions: unpackedPermissions,
       methods: unpackedMethods,
       actions: unpackedActions,
+      constants: unpackedConstants,
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
@@ -1480,6 +1523,13 @@ export class NodeDefinition extends BuiltinDefinition {
         packedActions.push(item.toProto());
       }
       objectProto.actions = packedActions;
+    }
+    if (object.constants) {
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.toProto());
+      }
+      objectProto.constants = packedConstants;
     }
     if (object.baseType != null) {
       objectProto.baseType = Number(object.baseType) as NodeTypeProto;
@@ -1626,6 +1676,9 @@ export class NodeDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTANT_DEFINITION
+    ] as typeof ConstantDefinition;
     const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.INDEX_DEFINITION
     ] as typeof IndexDefinition;
@@ -1687,6 +1740,14 @@ export class NodeDefinition extends BuiltinDefinition {
       for (const item of objectProto.actions) {
         unpackedActions.push(
           _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstants: any[] = [];
+    if (objectProto.constants) {
+      for (const item of objectProto.constants) {
+        unpackedConstants.push(
+          _ConstantDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1815,6 +1876,7 @@ export class NodeDefinition extends BuiltinDefinition {
       permissions: unpackedPermissions,
       methods: unpackedMethods,
       actions: unpackedActions,
+      constants: unpackedConstants,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
       extendedBy: unpackedExtendedBy,
@@ -2708,6 +2770,11 @@ export class StructDefinition extends BuiltinDefinition {
   readonly actions: readonly ActionDefinition[];
 
   /**
+   * StructDefinition.constants
+   */
+  readonly constants: readonly ConstantDefinition[];
+
+  /**
    * StructDefinition.tags
    */
   readonly tags: readonly TagDefinition[];
@@ -2755,6 +2822,7 @@ export class StructDefinition extends BuiltinDefinition {
     properties?: readonly PropertyDefinition[];
     methods?: readonly MethodDefinition[];
     actions?: readonly ActionDefinition[];
+    constants?: readonly ConstantDefinition[];
     tags?: readonly TagDefinition[];
     baseType?: StructType | null;
     extendedBy?: readonly StructType[];
@@ -2831,6 +2899,11 @@ export class StructDefinition extends BuiltinDefinition {
       _actions = [];
     }
     this.actions = _actions;
+    let _constants = options.constants ?? null;
+    if (_constants === null) {
+      _constants = [];
+    }
+    this.constants = _constants;
     let _tags = options.tags ?? null;
     if (_tags === null) {
       _tags = [];
@@ -2912,6 +2985,14 @@ export class StructDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.actions.length; i++) {
       if (!this.actions[i].equals(other.actions[i])) {
+        return false;
+      }
+    }
+    if (this.constants.length != other.constants.length) {
+      return false;
+    }
+    for (let i = 0; i < this.constants.length; i++) {
+      if (!this.constants[i].equals(other.constants[i])) {
         return false;
       }
     }
@@ -3033,6 +3114,11 @@ export class StructDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    if (this.constants && this.constants.length > 0) {
+      for (const _item of this.constants) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     if (this.tags && this.tags.length > 0) {
       for (const _item of this.tags) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -3140,6 +3226,13 @@ export class StructDefinition extends BuiltinDefinition {
       }
       objectCson["126"] = packedActions;
     }
+    if (object.constants.length > 0) {
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.toCson());
+      }
+      objectCson["128"] = packedConstants;
+    }
     if (object.tags.length > 0) {
       const packedTags: any[] = [];
       for (const item of object.tags) {
@@ -3198,6 +3291,9 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTANT_DEFINITION
+    ] as typeof ConstantDefinition;
     const _TagDefinition = STRUCT_CLASS_BY_TYPE[StructType.TAG_DEFINITION] as typeof TagDefinition;
     const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.METHOD_DEFINITION
@@ -3227,6 +3323,14 @@ export class StructDefinition extends BuiltinDefinition {
       for (const item of objectCson["126"]) {
         unpackedActions.push(
           _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstants: any[] = [];
+    if (objectCson["128"] != undefined) {
+      for (const item of objectCson["128"]) {
+        unpackedConstants.push(
+          _ConstantDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -3291,6 +3395,7 @@ export class StructDefinition extends BuiltinDefinition {
       properties: unpackedProperties,
       methods: unpackedMethods,
       actions: unpackedActions,
+      constants: unpackedConstants,
       tags: unpackedTags,
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
@@ -3368,6 +3473,13 @@ export class StructDefinition extends BuiltinDefinition {
       }
       objectProto.actions = packedActions;
     }
+    if (object.constants) {
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.toProto());
+      }
+      objectProto.constants = packedConstants;
+    }
     if (object.tags) {
       const packedTags: any[] = [];
       for (const item of object.tags) {
@@ -3426,6 +3538,9 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTANT_DEFINITION
+    ] as typeof ConstantDefinition;
     const _TagDefinition = STRUCT_CLASS_BY_TYPE[StructType.TAG_DEFINITION] as typeof TagDefinition;
     const _MethodDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.METHOD_DEFINITION
@@ -3455,6 +3570,14 @@ export class StructDefinition extends BuiltinDefinition {
       for (const item of objectProto.actions) {
         unpackedActions.push(
           _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstants: any[] = [];
+    if (objectProto.constants) {
+      for (const item of objectProto.constants) {
+        unpackedConstants.push(
+          _ConstantDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -3510,6 +3633,7 @@ export class StructDefinition extends BuiltinDefinition {
       properties: unpackedProperties,
       methods: unpackedMethods,
       actions: unpackedActions,
+      constants: unpackedConstants,
       tags: unpackedTags,
       baseType:
         objectProto.baseType != undefined ? (Number(objectProto.baseType) as StructType) : null,
@@ -5540,35 +5664,47 @@ registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
 /**
  * Definition of a builtin Constant.
  */
-export class ConstantDefinition extends StructFrozen {
+export class ConstantDefinition extends BuiltinDefinition {
   static metatype: StructType = StructType.CONSTANT_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * ConstantDefinition.name
+   * BuiltinDefinition.id
+   */
+  readonly id: number;
+
+  /**
+   * BuiltinDefinition.name
    */
   readonly name: string;
 
   /**
-   * ConstantDefinition.description
+   * BuiltinDefinition.icon
+   */
+  readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
    */
   readonly description: string | null;
+
+  /**
+   * BuiltinDefinition.taggings
+   */
+  readonly taggings: readonly number[];
 
   /**
    * ConstantDefinition.value
    */
   readonly value: Value;
 
-  /**
-   * ConstantDefinition.isDeferred
-   */
-  readonly isDeferred: boolean;
-
   constructor(options: {
+    id: number;
     name: string;
+    icon?: Icon | null;
     description?: string | null;
+    taggings?: readonly number[];
     value: Value;
-    isDeferred: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -5584,23 +5720,30 @@ export class ConstantDefinition extends StructFrozen {
     );
 
     // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`ConstantDefinition.id is required`);
+    }
+    this.id = _id;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`ConstantDefinition.name is required`);
     }
     this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _taggings = options.taggings ?? null;
+    if (_taggings === null) {
+      _taggings = [];
+    }
+    this.taggings = _taggings;
     let _value = options.value;
     if (_value === null) {
       throw new Error(`ConstantDefinition.value is required`);
     }
     this.value = _value;
-    let _isDeferred = options.isDeferred;
-    if (_isDeferred === null) {
-      throw new Error(`ConstantDefinition.isDeferred is required`);
-    }
-    this.isDeferred = _isDeferred;
 
     // identity
     // @ts-expect-error(readonly)
@@ -5617,17 +5760,31 @@ export class ConstantDefinition extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!this.value.equals(other.value)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
       return false;
     }
-    if (!this.value.equals(other.value)) {
+    if (this.taggings.length != other.taggings.length) {
       return false;
     }
-    if (!(this.isDeferred === other.isDeferred)) {
-      return false;
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
     }
     return true;
   }
@@ -5635,6 +5792,7 @@ export class ConstantDefinition extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
@@ -5652,12 +5810,20 @@ export class ConstantDefinition extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.value.hash()) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
-    h = (h * 31 + this.value.hash()) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isDeferred)) & 0xffffffff;
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -5679,12 +5845,22 @@ export class ConstantDefinition extends StructFrozen {
   static __packCson__(object: ConstantDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 19;
+    objectCson["2"] = object.id;
     objectCson["101"] = object.name;
+    if (object.icon != null) {
+      objectCson["102"] = object.icon.toCson();
+    }
     if (object.description != null) {
       objectCson["103"] = object.description;
     }
+    if (object.taggings.length > 0) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectCson["109"] = packedTaggings;
+    }
     objectCson["120"] = object.value.toCson();
-    objectCson["130"] = object.isDeferred;
     return objectCson;
   }
 
@@ -5696,13 +5872,27 @@ export class ConstantDefinition extends StructFrozen {
     _connection?: any | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const iconValue = objectCson["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    const unpackedTaggings: any[] = [];
+    if (objectCson["109"] != undefined) {
+      for (const item of objectCson["109"]) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new ConstantDefinition({
-      name: objectCson["101"],
-      description: unpackedDescription,
       value: _Value.fromCson(objectCson["120"], _session, _supergraph, _graph, _connection),
-      isDeferred: objectCson["130"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
+      icon: unpackedIcon,
+      description: unpackedDescription,
+      taggings: unpackedTaggings,
       _cson: objectCson,
       _supergraph,
     });
@@ -5734,12 +5924,22 @@ export class ConstantDefinition extends StructFrozen {
 
   static __packProto__(object: ConstantDefinition): ConstantDefinitionProto {
     const objectProto: Partial<ConstantDefinitionProto> = { metatype: 19 };
+    objectProto.id = object.id;
     objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    if (object.taggings) {
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(item);
+      }
+      objectProto.taggings = packedTaggings;
+    }
     objectProto.value = object.value.toProto();
-    objectProto.isDeferred = object.isDeferred;
     return objectProto as ConstantDefinitionProto;
   }
 
@@ -5751,11 +5951,23 @@ export class ConstantDefinition extends StructFrozen {
     _connection?: any | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedTaggings: any[] = [];
+    if (objectProto.taggings) {
+      for (const item of objectProto.taggings) {
+        unpackedTaggings.push(Number(item));
+      }
+    }
     return new ConstantDefinition({
-      name: objectProto.name,
-      description: objectProto.description != undefined ? objectProto.description : null,
       value: _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection),
-      isDeferred: objectProto.isDeferred,
+      id: Number(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      description: objectProto.description != undefined ? objectProto.description : null,
+      taggings: unpackedTaggings,
       _proto: objectProto,
       _supergraph,
     });

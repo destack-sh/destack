@@ -37,21 +37,6 @@ import { base64Decode, base64Encode } from "@destack/utils";
 import { hashBool, hashBytes, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:101000 ==== */
-/**
- * UserStatus
- */
-export enum UserStatus {
-  CREATING = 2,
-  ACTIVE = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.USER_STATUS, UserStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:101000 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:121000 ==== */
 /**
  * A User is a human using Destack.
@@ -1462,3 +1447,18 @@ export class User extends Entity implements IsActor, IsFollowable {
 }
 registerNodeClass(NodeType.USER, User);
 /* ==== DESTACK_GENERATED_END:NODE:121000 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:121000 ==== */
+/**
+ * UserStatus
+ */
+export enum UserStatus {
+  CREATING = 2,
+  ACTIVE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.USER_STATUS, UserStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:121000 ==== */

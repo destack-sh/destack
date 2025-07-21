@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from destack import proto
 from destack.utils.code import exec_
@@ -17,7 +17,6 @@ from .core.builtin.common import (
 )
 from .registry import (
     ANCESTOR_NODE_TYPES_BY_TYPE,
-    CONSTANT_DEFINITIONS,
     DESCENDANT_NODE_TYPES_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -125,7 +124,7 @@ def finalize():
 
     from destack.language.core import Node, expand_node_traits
 
-    # index parent types
+    # index Node parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__parent_property__ is None:
             continue
@@ -176,16 +175,21 @@ def finalize():
         DESCENDANT_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__descendant_types__
         ANCESTOR_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__ancestor_types__
 
-    # index event types
+    # index Node event types
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), TRAIT_CLASS_BY_TYPE.values()):
         all_event_types: set[NodeType] = set()
         for base in node_cls.__bases__:
             if issubclass(base, Node) and base.__self_event_types__:
-                for event_type in base.__self_event_types__:
-                    all_event_types.add(event_type)
-                    event_cls = NODE_CLASS_BY_TYPE[event_type]
-                    all_event_types.update(event_cls.__inherited_by__)
+                all_event_types.update(base.__self_event_types__)
         node_cls.__event_types__ = tuple(all_event_types)
+
+    # index Node enum types
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        all_enum_types: set[EnumType] = set()
+        for base in node_cls.__bases__:
+            if issubclass(base, Node) and base.__self_enum_types__:
+                all_enum_types.update(base.__self_enum_types__)
+        node_cls.__enum_types__ = tuple(all_enum_types)
 
     # generate pack/unpack methods
     from destack.grpc.wiring import generate_pack_proto_impl
@@ -242,8 +246,6 @@ def finalize():
 
     # generate meta info
     from destack.language.core import (
-        CONSTANT_DECLARATIONS,
-        ConstantDefinition,
         EnumDefinition,
         NodeDefinition,
         ScalarType,
@@ -254,23 +256,20 @@ def finalize():
     )
 
     for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
-        trait_definition = TraitDefinition.from_trait(trait_cls)
+        trait_definition = TraitDefinition.from_declaration(trait_cls)
         TRAIT_DEFINITION_BY_TYPE[trait_type] = trait_definition
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        node_definition = NodeDefinition.from_node(node_cls)
+        node_definition = NodeDefinition.from_declaration(node_cls)
         NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition
         node_cls.__definition__ = node_definition
         node_cls.__definition_reference__ = NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        struct_definition = StructDefinition.from_struct(struct_cls)
+        struct_definition = StructDefinition.from_declaration(struct_cls)
         STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
         struct_cls.__definition__ = struct_definition
     for enum_type in ENUM_TYPES:
-        enum_definition = EnumDefinition.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
+        enum_definition = EnumDefinition.from_declaration(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition
-    for constant_declaration in CONSTANT_DECLARATIONS.values():
-        constant_definition = ConstantDefinition.from_constant(constant_declaration)
-        CONSTANT_DEFINITIONS[constant_declaration.name] = constant_definition
 
     # index node scalar types
     for node_type in NodeType:
@@ -284,6 +283,22 @@ def finalize():
     # index subdefinitions
     for node_type in NodeType:
         SUBDEFINITIONS_BY_NODE_TYPE[node_type] = get_subdefinitions_for_node_type(node_type)
+
+    # finalize constants
+    from destack.language.core import ConstantDeclaration, ConstantDefinition
+
+    for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        constants: list[ConstantDefinition] = []
+        for name, attribute in object_cls.__dict__.items():
+            if isinstance(attribute, ConstantDeclaration):
+                if isinstance(attribute.value, Callable):
+                    attribute.value = attribute.value()
+                constant = ConstantDefinition.from_declaration(attribute)
+                constants.append(constant)
+
+                # replace constant with value
+                setattr(object_cls, name, attribute.value)
+        object_cls.__constants__ = tuple(constants)
 
     # sanity check stuff
     if IS_DEV or IS_TEST:

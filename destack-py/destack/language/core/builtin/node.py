@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
         Condition,
+        ConstantDefinition,
         ConstraintDeclaration,
         ConstraintDefinition,
         ExpressionIn,
@@ -110,6 +111,9 @@ def builtin_node(
 
         # event types
         cls.__self_event_types__ = tuple(event_types)
+
+        # enum types
+        cls.__self_enum_types__ = tuple(enum_types)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -239,6 +243,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
     """The actions defined for this Node."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+    """The constants defined for this Node."""
+    __constants__: ClassVar[tuple["ConstantDefinition", ...]] = ()
     """The tags defined for this Node."""
     __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
 

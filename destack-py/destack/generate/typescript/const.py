@@ -1,7 +1,6 @@
 from typing import Literal
 
 from destack.language import (
-    ConstantDefinition,
     EnumDefinition,
     NodeDefinition,
     StructDefinition,
@@ -15,6 +14,4 @@ MARKER_CUSTOM_START = "/* ==== DESTACK_CUSTOM_START ==== */"
 MARKER_CUSTOM_END = "/* ==== DESTACK_CUSTOM_END ==== */"
 
 Kind = Literal["ENUM", "STRUCT", "TRAIT", "NODE", "CONSTANT"]
-Definition = (
-    EnumDefinition | StructDefinition | TraitDefinition | NodeDefinition | ConstantDefinition
-)
+Definition = EnumDefinition | StructDefinition | TraitDefinition | NodeDefinition

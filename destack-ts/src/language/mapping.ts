@@ -179,7 +179,7 @@ import type {
   SortMode,
   SortType,
 } from "@destack/language/core/common/query";
-import type { Space, SpaceStatus } from "@destack/language/core/common/space";
+import type { Space, SpaceStatus, Universe } from "@destack/language/core/common/space";
 import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
@@ -451,6 +451,7 @@ export type NodeTypeMapping = {
   [NodeType.MIGRATION]: Migration;
   [NodeType.MIGRATION_OPERATION]: MigrationOperation;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
+  [NodeType.UNIVERSE]: Universe;
   [NodeType.SPACE]: Space;
   [NodeType.CUSTOM_STRUCT]: CustomStruct;
   [NodeType.BRANCH]: Branch;

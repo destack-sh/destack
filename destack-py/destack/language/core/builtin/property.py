@@ -472,7 +472,7 @@ class PropertyDeclaration(TypeDeclaration):
         if self._definition is None:
             from .definition import PropertyDefinition
 
-            self._definition = PropertyDefinition.from_property(self)
+            self._definition = PropertyDefinition.from_declaration(self)
         return self._definition
 
     def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:

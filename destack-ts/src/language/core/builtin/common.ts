@@ -48,16 +48,16 @@ export enum EnumType {
   BRANCH_TYPE = 2000,
   SNAPSHOT_TYPE = 2100,
   SNAPSHOT_STATUS = 2101,
+  SPACE_STATUS = 1101,
   RESOURCE_STATUS = 10101,
   INDEX_TYPE = 30100,
   CONSTRAINT_TYPE = 30200,
   MIGRATION_TYPE = 31000,
   METHOD_TYPE = 40000,
   METHOD_CARDINALITY = 40001,
-  SPACE_STATUS = 100000,
-  USER_STATUS = 101000,
-  ORGANIZATION_STATUS = 103000,
-  CLIENT_TYPE = 102000,
+  USER_STATUS = 121000,
+  CLIENT_TYPE = 121300,
+  ORGANIZATION_STATUS = 122000,
   FOLDER_TYPE = 200000,
   ROLE_TYPE = 300200,
   SANCTION_TYPE = 300400,
@@ -257,7 +257,8 @@ export enum NodeType {
   NODE = 1,
   ENTITY = 2,
   EVENT = 3,
-  SPACE = 1000,
+  UNIVERSE = 1000,
+  SPACE = 1100,
   BRANCH = 2000,
   SNAPSHOT = 2100,
   RECORD = 10000,
@@ -740,24 +741,6 @@ export enum RoleType {
 registerEnumClass(EnumType.ROLE_TYPE, RoleType);
 /* ==== DESTACK_GENERATED_END:ENUM:300200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:102000 ==== */
-/**
- * ClientType
- */
-export enum ClientType {
-  WEB = 1,
-  BROWSER_PLUGIN = 2,
-  DESKTOP = 3,
-  MOBILE = 4,
-  MACHINE = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
-/* ==== DESTACK_GENERATED_END:ENUM:102000 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:1000004 ==== */
 /**
  * Tenancy
@@ -990,3 +973,21 @@ export enum ResourceStatus {
 }
 registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:10101 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:121300 ==== */
+/**
+ * ClientType
+ */
+export enum ClientType {
+  WEB = 1,
+  BROWSER_PLUGIN = 2,
+  DESKTOP = 3,
+  MOBILE = 4,
+  MACHINE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
+/* ==== DESTACK_GENERATED_END:ENUM:121300 ==== */

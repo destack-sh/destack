@@ -36,7 +36,6 @@ from destack.language import (
     expand_node_types,
 )
 from destack.language.registry import (
-    CONSTANT_DEFINITIONS,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -2042,16 +2041,6 @@ def generate():
             continue  # manually defined
         definition = _generate_definition(NODE_DEFINITION_BY_TYPE[node_type])
         definitions_by_module[node_cls.__module__].append(definition)
-    for constant_definition in CONSTANT_DEFINITIONS.values():
-        definition = _generate_definition(constant_definition)
-        assert constant_definition._declaration is not None, (
-            f"missing declaration for {constant_definition.name}"
-        )
-        if constant_definition.is_deferred:
-            # put deferred constants in separate top-level file (to avoid circular dependencies)
-            definitions_by_module["constants"].append(definition)
-        else:
-            definitions_by_module[constant_definition._declaration.module].append(definition)
     definitions_by_name: dict[str, TypescriptDefinition] = {}
     for _, definitions in definitions_by_module.items():
         for definition in definitions:

@@ -37,7 +37,7 @@ from .query import (
     SortMode,
     SortType,
 )
-from .space import Space, SpaceStatus, create_space
+from .space import Space, SpaceStatus, Universe, create_space
 from .struct import CustomStruct, DatumMutable
 from .text import (
     Text,
@@ -129,6 +129,7 @@ __all__ = [
     "Type",
     "TypeConstraint",
     "TypeFormat",
+    "Universe",
     "ValidationError",
     "Value",
     "create_space",

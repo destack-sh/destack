@@ -51,6 +51,7 @@ from .const import (
     REGION,
     UNSET,
 )
+from .meta import ConstantDeclaration
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -1030,23 +1031,31 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     # collect properties from this class definition
     properties: dict[str, PropertyDeclaration] = {"metatype": metatype}
-    for name, prop in list(cls.__dict__.items()):
+    for name, attribute in list(cls.__dict__.items()):
         if (
             name.startswith("__")
-            or type(prop).__name__.startswith("_")
-            or inspect.ismethod(prop)
-            or inspect.isfunction(prop)
-            or isinstance(prop, (property, classmethod, staticmethod, dualmethod))
+            or type(attribute).__name__.startswith("_")
+            or inspect.ismethod(attribute)
+            or inspect.isfunction(attribute)
+            or isinstance(attribute, (property, classmethod, staticmethod, dualmethod))
         ):
             continue  # ignore reserved names and non-fields
-        if not isinstance(prop, PropertyDeclaration):
-            raise TypeError(f"{cls.__name__}.{name} is not a Property: {prop} ({type(prop)})")
-        prop.name = intern(name)
-        prop.component = cls
-        if prop.original_component is UNSET:
-            prop.original_component = cls
-        prop.py_type = cls.__annotations__.get(name, None)
-        properties[name] = prop
+        elif isinstance(attribute, PropertyDeclaration):
+            attribute.name = intern(name)
+            attribute.component = cls
+            if attribute.original_component is UNSET:
+                attribute.original_component = cls
+            attribute.py_type = cls.__annotations__.get(name, None)
+            properties[name] = attribute
+        elif isinstance(attribute, ConstantDeclaration):
+            attribute.name = intern(name)
+            attribute.component = cls
+            if attribute.original_component is UNSET:
+                attribute.original_component = cls
+        else:
+            raise TypeError(
+                f"{cls.__name__}.{name} is not a Property or Constant: {attribute} ({type(attribute)})"
+            )
     cls.__declared_properties__ = frozendict(properties)
 
     # add properties from ancestor components (closest first)

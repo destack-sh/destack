@@ -68,6 +68,9 @@ class EnumType(Enum):
     SNAPSHOT_TYPE = 2_100
     SNAPSHOT_STATUS = 2_101
 
+    # space
+    SPACE_STATUS = 1_101
+
     # base
     RESOURCE_STATUS = 10_101
 
@@ -84,10 +87,9 @@ class EnumType(Enum):
     METHOD_CARDINALITY = 40_001
 
     # universe [100_000-200_000]
-    SPACE_STATUS = 100_000
-    USER_STATUS = 101_000
-    ORGANIZATION_STATUS = 103_000
-    CLIENT_TYPE = 102_000
+    USER_STATUS = 121_000
+    CLIENT_TYPE = 121_300
+    ORGANIZATION_STATUS = 122_000
 
     # space [200_000-300_000]
     FOLDER_TYPE = 200_000
@@ -502,8 +504,10 @@ class NodeType(Enum):
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
 
     # space
-    # UNIVERSE
-    SPACE = 1_000, "Space", "Universal Space", "fas fa-galaxy"
+    # nocheckin: Universe (singleton, global constants), Context (local info)
+    UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
+    SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
+    # CONTEXT?
 
     # time
     BRANCH = 2_000, "Branch", None, "fas fa-code-branch"

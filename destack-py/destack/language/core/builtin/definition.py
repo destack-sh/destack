@@ -1,11 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Self, assert_never, cast
 
 from destack.language.registry import (
-    ENUM_DEFINITION_BY_TYPE,
-    NODE_DEFINITION_BY_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
-    STRUCT_DEFINITION_BY_TYPE,
-    TRAIT_DEFINITION_BY_TYPE,
 )
 
 from .common import (
@@ -24,8 +20,13 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
-from .constant import ConstantDeclaration, register_constant
-from .meta import ConstraintDeclaration, IndexDeclaration, PermissionDeclaration, TagDeclaration
+from .meta import (
+    ConstraintDeclaration,
+    IndexDeclaration,
+    PermissionDeclaration,
+    TagDeclaration,
+    builtin_method,
+)
 from .object import BuiltinObject
 from .property import PropertyDeclaration, builtin_property, builtin_property_runtime
 from .relation import (
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
         CollectionConstraint,
         Condition,
         ConditionalType,
+        ConstantDeclaration,
         ConstraintType,
         Icon,
         IndexType,
@@ -139,6 +141,9 @@ class NodeDefinition(BuiltinDefinition):
         126,
         description="All actions of this Node (including inherited).",
     )
+    constants: list["ConstantDefinition"] = builtin_property(
+        128, description="All constants of this Node (including inherited)."
+    )
 
     # inheritance
     base_type: NodeType | None = builtin_property(
@@ -230,7 +235,7 @@ class NodeDefinition(BuiltinDefinition):
     store_domain: StoreDomain | None = builtin_property(201)
 
     @classmethod
-    def from_node(cls, node_cls: type_["Node"]) -> "NodeDefinition":
+    def from_declaration(cls, node_cls: type_["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
         from ..common import to_icon
 
@@ -253,6 +258,7 @@ class NodeDefinition(BuiltinDefinition):
             permissions=list(node_cls.__permissions__),
             methods=list(node_cls.__methods__),
             actions=list(node_cls.__actions__),
+            constants=list(node_cls.__constants__),
             # inheritance
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
@@ -331,7 +337,7 @@ class TraitDefinition(BuiltinDefinition):
     )
 
     @classmethod
-    def from_trait(cls, trait_cls: type_["Trait"]) -> "TraitDefinition":
+    def from_declaration(cls, trait_cls: type_["Trait"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
         from ..common import to_icon
 
@@ -394,6 +400,7 @@ class StructDefinition(BuiltinDefinition):
         126,
         description="All actions of this Struct.",
     )
+    constants: list["ConstantDefinition"] = builtin_property(128)
     tags: list["TagDefinition"] = builtin_property(129)
 
     # inheritance
@@ -421,7 +428,7 @@ class StructDefinition(BuiltinDefinition):
     )
 
     @classmethod
-    def from_struct(cls, struct_cls: type_[Struct]) -> "StructDefinition":
+    def from_declaration(cls, struct_cls: type_[Struct]) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
         from ..common import to_icon
 
@@ -441,6 +448,7 @@ class StructDefinition(BuiltinDefinition):
             ],
             methods=list(struct_cls.__methods__),
             actions=list(struct_cls.__actions__),
+            constants=list(struct_cls.__constants__),
             # inheritance
             base_type=struct_cls.__base_type__,
             extended_by=list(struct_cls.__extended_by__),
@@ -460,7 +468,7 @@ class EnumDefinition(BuiltinDefinition):
     options: list["OptionDefinition"] = builtin_property(104)
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
+    def from_declaration(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
         from ..common import to_icon
 
@@ -471,7 +479,7 @@ class EnumDefinition(BuiltinDefinition):
             icon=to_icon(enum_type.icon) if enum_type.icon else None,
             description=enum_type.__doc__,
             options=[
-                OptionDefinition.from_enum_option(enum_type, option)
+                OptionDefinition.from_declaration(enum_type, option)
                 for option in enum_cls.__members__.values()
             ],
         )
@@ -543,7 +551,7 @@ class PropertyDefinition(BuiltinDefinition):
     _type: "Type | None" = builtin_property_runtime()
 
     @classmethod
-    def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
+    def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
         from .node import Node
 
@@ -594,6 +602,7 @@ class PropertyDefinition(BuiltinDefinition):
             is_internal=prop.is_internal,
         )
 
+    @builtin_method(101)
     def to_type(self) -> "Type":
         """Convert to a Type."""
         from ..common.type import Type
@@ -619,6 +628,7 @@ class PropertyDefinition(BuiltinDefinition):
 
         return self._type
 
+    @builtin_method(102)
     def to_ref(self) -> PropertyReference:
         if self.object.type == ObjectDefinitionType.BUILTIN_NODE:
             return PropertyReference(
@@ -647,6 +657,7 @@ class PropertyDefinition(BuiltinDefinition):
         else:
             assert_never(self.object.type)
 
+    @builtin_method(110)
     def eq(self, value: Any) -> "Condition":
         from ..common import Condition
 
@@ -654,6 +665,7 @@ class PropertyDefinition(BuiltinDefinition):
             return self.not_exists()
         return Condition.of(self, ConditionalType.EQUALS, value=value)
 
+    @builtin_method(111)
     def neq(self, value: Any) -> "Condition":
         from ..common import Condition
 
@@ -661,71 +673,85 @@ class PropertyDefinition(BuiltinDefinition):
             return self.exists()
         return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
+    @builtin_method(112)
     def gt(self, value: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
+    @builtin_method(113)
     def gte(self, value: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
+    @builtin_method(114)
     def lt(self, value: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
+    @builtin_method(115)
     def lte(self, value: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
+    @builtin_method(116)
     def starts_with(self, value: str) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
+    @builtin_method(117)
     def ends_with(self, value: str) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
+    @builtin_method(118)
     def in_(self, *values: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.IN, value=values)
 
+    @builtin_method(119)
     def not_in(self, *values: Any) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
+    @builtin_method(120)
     def exists(self) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
+    @builtin_method(121)
     def is_not_none(self) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
+    @builtin_method(122)
     def not_exists(self) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
+    @builtin_method(123)
     def is_none(self) -> "Condition":
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
+    @builtin_method(124)
     def asc(self) -> "Sort":
         from ..common import Sort
 
         return Sort.of(self, SortType.ASCENDING)
 
+    @builtin_method(125)
     def desc(self) -> "Sort":
         from ..common import Sort
 
@@ -739,7 +765,7 @@ class OptionDefinition(BuiltinDefinition):
     type: EnumType = builtin_property(100, is_repr=True)
 
     @classmethod
-    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
+    def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
         from ..common import to_icon
 
@@ -753,38 +779,25 @@ class OptionDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
-class ConstantDefinition(StructFrozen):
+class ConstantDefinition(BuiltinDefinition):
     """Definition of a builtin Constant."""
 
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
     value: "Value" = builtin_property(120)
-    is_deferred: bool = builtin_property(130)
 
-    _declaration: "ConstantDeclaration | None" = builtin_property_runtime()
+    _is_deferred: bool = builtin_property_runtime()
 
     @classmethod
-    def from_constant(cls, constant_declaration: ConstantDeclaration) -> "ConstantDefinition":
+    def from_declaration(cls, declaration: "ConstantDeclaration") -> "ConstantDefinition":
         """Create ConstantDefinition from a ConstantDeclaration."""
         from ..common import to_value
 
-        if constant_declaration.value is None:
-            assert constant_declaration.getter is not None, (
-                f"missing getter for {constant_declaration.name}"
-            )
-            value_raw = constant_declaration.getter()
-            is_deferred = True
-        else:
-            value_raw = constant_declaration.value
-            is_deferred = False
-        value = to_value(value_raw)
-
+        assert declaration.name is not None, f"{declaration!r} has no name"
         return cls(
-            name=constant_declaration.name,
-            description=constant_declaration.description,
-            value=value,
-            is_deferred=is_deferred,
-            _declaration=constant_declaration,
+            id=declaration.id,
+            name=declaration.name,
+            description=declaration.description,
+            value=to_value(declaration.value),
+            _is_deferred=declaration.is_deferred,
         )
 
 
@@ -853,10 +866,3 @@ class PermissionDefinition(BuiltinDefinition):
             name=declaration.name,
             description=declaration.description,
         )
-
-
-# nocheckin: move constant definitions into Nodes?
-register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))
-register_constant("TRAIT_DEFINITIONS", lambda: list(TRAIT_DEFINITION_BY_TYPE.values()))
-register_constant("STRUCT_DEFINITIONS", lambda: list(STRUCT_DEFINITION_BY_TYPE.values()))
-register_constant("ENUM_DEFINITIONS", lambda: list(ENUM_DEFINITION_BY_TYPE.values()))

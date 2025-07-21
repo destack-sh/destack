@@ -1,10 +1,15 @@
-from typing import TYPE_CHECKING, Callable, NamedTuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable
 
 from .common import EnumType
 from .enum import Enum, builtin_enum
 
 if TYPE_CHECKING:
+    from .object import BuiltinObject
     from .property import PropertyDeclaration
+
+
+type_ = type
 
 
 @builtin_enum(EnumType.CONSTRAINT_TYPE)
@@ -23,7 +28,8 @@ class IndexType(Enum):
     # HASH, ...
 
 
-class IndexDeclaration(NamedTuple):
+@dataclass(slots=True)
+class IndexDeclaration:
     """Declaration of an IndexDefinition (internal use only)."""
 
     id: int
@@ -34,7 +40,8 @@ class IndexDeclaration(NamedTuple):
     type: IndexType = IndexType.BTREE
 
 
-class ConstraintDeclaration(NamedTuple):
+@dataclass(slots=True)
+class ConstraintDeclaration:
     """Declaration of a ConstraintDefinition (internal use only)."""
 
     id: int
@@ -45,7 +52,8 @@ class ConstraintDeclaration(NamedTuple):
     tags: tuple[str, ...] = ()
 
 
-class PermissionDeclaration(NamedTuple):
+@dataclass(slots=True)
+class PermissionDeclaration:
     """Declaration of a PermissionDefinition (internal use only)."""
 
     id: int
@@ -71,7 +79,8 @@ class MethodCardinality(Enum):
         return self < 40
 
 
-class MethodDeclaration(NamedTuple):
+@dataclass(slots=True)
+class MethodDeclaration:
     """Declaration of a MethodDefinition (internal use only)."""
 
     id: int
@@ -94,6 +103,7 @@ def builtin_method(id: int, *, name: str | None = None, tags: tuple[str, ...] = 
     return decorate
 
 
+@dataclass(slots=True)
 class ActionDeclaration(MethodDeclaration):
     """Declaration of an ActionDefinition (internal use only)."""
 
@@ -109,9 +119,44 @@ def builtin_action(id: int, *, name: str | None = None, tags: tuple[str, ...] = 
     return decorate
 
 
-class TagDeclaration(NamedTuple):
+@dataclass(slots=True)
+class TagDeclaration:
     """Declaration of a TagDefinition (internal use only)."""
 
     id: int
     name: str
     description: str
+
+
+@dataclass(slots=True)
+class ConstantDeclaration:
+    """Declaration of a builtin Constant (may be deferred)."""
+
+    id: int
+    value: Any | Callable[[], Any]
+    is_deferred: bool
+    description: str | None
+    name: str | None
+    component: type_["BuiltinObject"] | None
+    original_component: type_["BuiltinObject"] | None
+
+
+def builtin_constant[T](
+    id: int,
+    value: T | Callable[[], T],
+    *,
+    description: str | None = None,
+) -> T:  # replaced with T after finalization
+    """Declare a builtin Constant. Constants are replaced with their value during finalization."""
+
+    declaration = ConstantDeclaration(
+        id=id,
+        description=description,
+        value=value,
+        is_deferred=isinstance(value, Callable),
+        # set during class processing
+        name=None,
+        component=None,
+        original_component=None,
+    )
+    return declaration  # type: ignore
