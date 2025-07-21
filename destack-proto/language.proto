@@ -2192,7 +2192,7 @@ message CustomEventProto {
   optional string key = 85;
   optional IconProto icon = 102;
   optional NodeDefinitionReferenceProto base_type = 110;
-  repeated NodeDefinitionReferenceProto base_traits = 111;
+  repeated NodeDefinitionReferenceProto self_traits = 111;
   bool is_abstract = 112;
 }
 
@@ -4665,12 +4665,12 @@ message NodeDefinitionProto {
   repeated NodeTypeProto extended_by = 131;
   repeated NodeTypeProto inherits = 132;
   repeated NodeTypeProto inherited_by = 133;
-  repeated TraitTypeProto base_traits = 134;
-  repeated TraitTypeProto traits = 135;
+  repeated TraitTypeProto traits = 134;
+  repeated TraitTypeProto self_traits = 135;
   repeated NodeTypeProto event_types = 140;
-  repeated NodeTypeProto base_event_types = 141;
+  repeated NodeTypeProto self_event_types = 141;
   repeated EnumTypeProto enum_types = 150;
-  repeated EnumTypeProto base_enum_types = 151;
+  repeated EnumTypeProto self_enum_types = 151;
   repeated NodeTypeProto parent_types = 160;
   repeated NodeTypeProto child_types = 161;
   repeated NodeTypeProto ancestor_types = 162;
@@ -6949,7 +6949,7 @@ message StructDefinitionProto {
   repeated StructTypeProto inherits = 132;
   repeated StructTypeProto inherited_by = 133;
   repeated EnumTypeProto enum_types = 150;
-  repeated EnumTypeProto base_enum_types = 151;
+  repeated EnumTypeProto self_enum_types = 151;
 }
 
 message StructDefinitionReferenceProto {
@@ -7358,12 +7358,12 @@ message TraitDefinitionProto {
   string alias = 110;
   bool is_extensible = 111;
   repeated PermissionDefinitionProto permissions = 123;
-  repeated TraitTypeProto base_traits = 130;
+  repeated TraitTypeProto self_traits = 130;
   repeated TraitTypeProto traits = 131;
   repeated NodeTypeProto event_types = 140;
-  repeated NodeTypeProto base_event_types = 141;
+  repeated NodeTypeProto self_event_types = 141;
   repeated EnumTypeProto enum_types = 150;
-  repeated EnumTypeProto base_enum_types = 151;
+  repeated EnumTypeProto self_enum_types = 151;
 }
 
 message TransitionProto {
