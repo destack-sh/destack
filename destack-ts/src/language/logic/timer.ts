@@ -1,10 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   IsActor,
-  IsSourceable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -12,6 +10,7 @@ import type {
   Snapshot,
   Space,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -46,7 +45,7 @@ import {
   TimerTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:705100 ==== */
@@ -80,7 +79,7 @@ export abstract class TimerEvent extends Event {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -184,10 +183,10 @@ export class TimerStartedEvent extends TimerEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -310,7 +309,7 @@ export class TimerStartedEvent extends TimerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -550,6 +549,7 @@ export class TimerStartedEvent extends TimerEvent {
       type: NodeType.TIMER_STARTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -883,10 +883,10 @@ export class TimerPausedEvent extends TimerEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1009,7 +1009,7 @@ export class TimerPausedEvent extends TimerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1249,6 +1249,7 @@ export class TimerPausedEvent extends TimerEvent {
       type: NodeType.TIMER_PAUSED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -1582,10 +1583,10 @@ export class TimerResumedEvent extends TimerEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1708,7 +1709,7 @@ export class TimerResumedEvent extends TimerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1948,6 +1949,7 @@ export class TimerResumedEvent extends TimerEvent {
       type: NodeType.TIMER_RESUMED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -2263,7 +2265,7 @@ registerNodeClass(NodeType.TIMER_RESUMED_EVENT, TimerResumedEvent);
 /**
  * A Timer.
  */
-export class Timer extends Entity implements IsSourceable {
+export class Timer extends Entity {
   static metatype: NodeType = NodeType.TIMER;
 
   /**
@@ -2296,7 +2298,7 @@ export class Timer extends Entity implements IsSourceable {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -2408,9 +2410,34 @@ export class Timer extends Entity implements IsSourceable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
+   * Entity.ownedBy
    */
-  readonly orderKey: string;
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * Entity.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -2427,6 +2454,62 @@ export class Timer extends Entity implements IsSourceable {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2505,8 +2588,12 @@ export class Timer extends Entity implements IsSourceable {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    orderKey?: string;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
     type: TimerType;
@@ -2613,14 +2700,11 @@ export class Timer extends Entity implements IsSourceable {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    if (_orderKey === null) {
-      throw new Error(`Timer.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Timer";
@@ -2629,6 +2713,26 @@ export class Timer extends Entity implements IsSourceable {
       throw new Error(`Timer.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Timer.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -2695,16 +2799,36 @@ export class Timer extends Entity implements IsSourceable {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2719,12 +2843,6 @@ export class Timer extends Entity implements IsSourceable {
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._schedule != null) {
       h = (h * 31 + this._schedule.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -2743,8 +2861,29 @@ export class Timer extends Entity implements IsSourceable {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2761,6 +2900,7 @@ export class Timer extends Entity implements IsSourceable {
       type: NodeType.TIMER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -2790,6 +2930,9 @@ export class Timer extends Entity implements IsSourceable {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${TimerType[this.type]}`);
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Timer "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2831,13 +2974,29 @@ export class Timer extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectCson["31"] = object.orderKey;
-    objectCson["50"] = object._name;
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["45"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
+      objectCson["80"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["85"] = object._key;
     }
     objectCson["100"] = object._type;
     if (object._schedule != null) {
@@ -2853,6 +3012,7 @@ export class Timer extends Entity implements IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): Timer {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
     const scheduleValue = objectCson["110"];
@@ -2860,13 +3020,6 @@ export class Timer extends Entity implements IsSourceable {
       scheduleValue != undefined
         ? _Schedule.fromCson(scheduleValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2902,11 +3055,40 @@ export class Timer extends Entity implements IsSourceable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Timer({
       type: Number(objectCson["100"]),
       schedule: unpackedSchedule,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -2927,8 +3109,14 @@ export class Timer extends Entity implements IsSourceable {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      orderKey: objectCson["31"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2983,8 +3171,23 @@ export class Timer extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.orderKey = object.orderKey;
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -3005,25 +3208,24 @@ export class Timer extends Entity implements IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): Timer {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Timer({
       type: Number(objectProto.type) as TimerType,
       schedule:
         objectProto.schedule != undefined
           ? _Schedule.fromProto(objectProto.schedule!, _session, _supergraph, _graph, _connection)
           : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -3105,8 +3307,41 @@ export class Timer extends Entity implements IsSourceable {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3166,10 +3401,10 @@ export class TimerCompletedEvent extends TimerEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3292,7 +3527,7 @@ export class TimerCompletedEvent extends TimerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -3532,6 +3767,7 @@ export class TimerCompletedEvent extends TimerEvent {
       type: NodeType.TIMER_COMPLETED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -3871,10 +4107,10 @@ export class TimerCancelledEvent extends TimerEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3997,7 +4233,7 @@ export class TimerCancelledEvent extends TimerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -4237,6 +4473,7 @@ export class TimerCancelledEvent extends TimerEvent {
       type: NodeType.TIMER_CANCELLED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,

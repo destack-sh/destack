@@ -66,6 +66,7 @@ def builtin_node(
     *,
     frozen: bool = False,
     is_abstract: bool = False,
+    is_extensible: bool = False,
     event_types: tuple[NodeType, ...] = (),
     enum_types: tuple[EnumType, ...] = (),
     expected_parent_types: tuple[NodeType, ...] = (),
@@ -103,6 +104,7 @@ def builtin_node(
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
+        cls.__is_extensible__ = is_extensible
 
         # event types
         cls.__base_event_types__ = tuple(event_types)
@@ -196,6 +198,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
+    """Whether this class is extensible (can be extended by custom Nodes)."""
+    __is_extensible__: ClassVar[bool] = False
 
     # inheritance
     """The base type this Node extends (directly)."""
@@ -269,23 +273,23 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # Node.metatype: 1
     id: UUID = builtin_property(
         2,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The universally unique identifier of this Node.",
     )
     space: "Space" = builtin_property(
         5,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
     )
-    # IsExtensible.definition: 6
-    # IsExtensible.base_type: 7
-    # Entity.[*]: 10-20
     if TYPE_CHECKING:
         space_ptr: NodeReference = UNSET
+
+    # 100+ for general properties
+    # ...
 
     """The current Session this Node is in."""
     _session: "Session" = builtin_property_runtime()
@@ -299,15 +303,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
     """Whether this Node is new."""
     _is_new: bool = builtin_property_runtime(default=False)
-
-    # 20-40: node tracking
-    # ...
-
-    # 40-100: more internal properties
-    # ...
-
-    # 100+ for general properties
-    # ...
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""

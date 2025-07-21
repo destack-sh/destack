@@ -7,7 +7,9 @@ from .input import InputView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SLIDER_INPUT_VIEW)
+@builtin_node(
+    NodeType.SLIDER_INPUT_VIEW,
+)
 class SliderInputView(InputView):
     """A slider input View."""
 

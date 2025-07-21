@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity } from "@destack/language/core/builtin/entity";
-import type { CustomEvent } from "@destack/language/core/builtin/event";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
@@ -63,7 +62,7 @@ export enum EditOperation {
 registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
 /* ==== DESTACK_GENERATED_END:ENUM:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:50100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90100 ==== */
 /**
  * A recorded Edit of an Entity.
  */
@@ -85,10 +84,10 @@ export class EditEvent extends Event {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -258,7 +257,7 @@ export class EditEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -583,6 +582,7 @@ export class EditEvent extends Event {
       type: NodeType.EDIT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -642,7 +642,7 @@ export class EditEvent extends Event {
 
   static __packCson__(object: EditEvent): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 50100;
+    objectCson["1"] = 90100;
     objectCson["2"] = String(object.id);
     objectCson["5"] = object.spacePtr.toCson();
     if (object.definitionPtr != null) {
@@ -817,7 +817,7 @@ export class EditEvent extends Event {
   }
 
   static __packProto__(object: EditEvent): EditEventProto {
-    const objectProto: Partial<EditEventProto> = { metatype: 50100 };
+    const objectProto: Partial<EditEventProto> = { metatype: 90100 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1025,4 +1025,4 @@ export class EditEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
-/* ==== DESTACK_GENERATED_END:NODE:50100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90100 ==== */

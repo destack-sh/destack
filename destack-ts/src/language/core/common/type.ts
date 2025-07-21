@@ -10,13 +10,9 @@ import {
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { Entity } from "@destack/language/core/builtin/entity";
-import type { CustomEvent } from "@destack/language/core/builtin/event";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import type { IsExtensible } from "@destack/language/core/builtin/trait";
-import type { CustomEnum } from "@destack/language/core/common/enum";
-import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -1240,24 +1236,19 @@ export class Type extends StructFrozen {
   readonly structType: StructType | null;
 
   /**
-   * Type.definition
+   * Type.customDefinition
    */
-  get definition(): (Entity & IsExtensible) | CustomEvent | CustomEnum | CustomStruct | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
+  get customDefinition(): Entity | null {
+    const nodePtr: NodeReference | null = this.customDefinitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as
-        | (Entity & IsExtensible)
-        | CustomEvent
-        | CustomEnum
-        | CustomStruct
-        | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly customDefinitionPtr: NodeReference | null;
 
   /**
    * Type.keyType
@@ -1312,13 +1303,7 @@ export class Type extends StructFrozen {
     enumType?: EnumType | null;
     nodeType?: NodeType | null;
     structType?: StructType | null;
-    definition?:
-      | (Entity & IsExtensible)
-      | CustomEvent
-      | CustomEnum
-      | CustomStruct
-      | NodeReference
-      | null;
+    customDefinition?: Entity | NodeReference | null;
     keyType?: Type | null;
     value?: Value | null;
     valueFactory?: ValueFactory | null;
@@ -1366,11 +1351,11 @@ export class Type extends StructFrozen {
     this.nodeType = _nodeType;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
+    let _customDefinition = options.customDefinition ?? null;
+    if (_customDefinition != null && _customDefinition.metatype != StructType.NODE_REFERENCE) {
+      _customDefinition = (_customDefinition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.customDefinitionPtr = _customDefinition;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
     let _value = options.value ?? null;
@@ -1426,7 +1411,7 @@ export class Type extends StructFrozen {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.customDefinitionPtr?.id === other.customDefinitionPtr?.id)) {
       return false;
     }
     if (
@@ -1498,8 +1483,8 @@ export class Type extends StructFrozen {
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.definition != null) {
-        propertyReprs.push(`definition=${this.definition?.repr()}`);
+      if (this.customDefinition != null) {
+        propertyReprs.push(`customDefinition=${this.customDefinition?.repr()}`);
       }
       if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
@@ -1534,8 +1519,8 @@ export class Type extends StructFrozen {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.customDefinitionPtr != null) {
+      h = (h * 31 + hashString(this.customDefinitionPtr.id)) & 0xffffffff;
     }
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
@@ -1602,8 +1587,8 @@ export class Type extends StructFrozen {
     if (object.structType != null) {
       objectCson["115"] = object.structType;
     }
-    if (object.definitionPtr != null) {
-      objectCson["116"] = object.definitionPtr.toCson();
+    if (object.customDefinitionPtr != null) {
+      objectCson["116"] = object.customDefinitionPtr.toCson();
     }
     if (object.keyType != null) {
       objectCson["117"] = object.keyType.toCson();
@@ -1668,10 +1653,16 @@ export class Type extends StructFrozen {
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const structTypeValue = objectCson["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectCson["116"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+    const customDefinitionPtrValue = objectCson["116"];
+    const unpackedCustomDefinitionPtr =
+      customDefinitionPtrValue != undefined
+        ? _NodeReference.fromCson(
+            customDefinitionPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const keyTypeValue = objectCson["117"];
     const unpackedKeyType =
@@ -1735,7 +1726,7 @@ export class Type extends StructFrozen {
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
       structType: unpackedStructType,
-      definition: unpackedDefinitionPtr,
+      customDefinition: unpackedCustomDefinitionPtr,
       keyType: unpackedKeyType,
       value: unpackedValue,
       valueFactory: unpackedValueFactory,
@@ -1787,8 +1778,8 @@ export class Type extends StructFrozen {
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
     }
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.customDefinitionPtr != null) {
+      objectProto.customDefinitionPtr = object.customDefinitionPtr.toProto();
     }
     if (object.keyType != null) {
       objectProto.keyType = object.keyType.toProto();
@@ -1856,10 +1847,10 @@ export class Type extends StructFrozen {
         objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       structType:
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      definition:
-        objectProto.definitionPtr != undefined
+      customDefinition:
+        objectProto.customDefinitionPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
+              objectProto.customDefinitionPtr!,
               _session,
               _supergraph,
               _graph,

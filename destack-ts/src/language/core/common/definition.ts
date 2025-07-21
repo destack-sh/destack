@@ -69,7 +69,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20000 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:10 ==== */
 /**
  * Definition of a builtin object.
  */
@@ -102,9 +102,9 @@ export abstract class BuiltinDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20000 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:10 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20002 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:12 ==== */
 /**
  * Definition of a builtin Node.
  */
@@ -930,7 +930,7 @@ export class NodeDefinition extends BuiltinDefinition {
 
   static __packCson__(object: NodeDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20002;
+    objectCson["1"] = 12;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -1372,7 +1372,7 @@ export class NodeDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: NodeDefinition): NodeDefinitionProto {
-    const objectProto: Partial<NodeDefinitionProto> = { metatype: 20002 };
+    const objectProto: Partial<NodeDefinitionProto> = { metatype: 12 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.name = object.name;
@@ -1833,9 +1833,9 @@ export class NodeDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20002 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:12 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20004 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:14 ==== */
 /**
  * Definition of a builtin Trait.
  */
@@ -1877,21 +1877,6 @@ export class TraitDefinition extends BuiltinDefinition {
    * Whether this Trait can be extended by custom Nodes and custom Traits.
    */
   readonly isExtensible: boolean;
-
-  /**
-   * All properties of this Trait.
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  /**
-   * All indexes of this Trait.
-   */
-  readonly indexes: readonly IndexDefinition[];
-
-  /**
-   * All constraints of this Trait.
-   */
-  readonly constraints: readonly ConstraintDefinition[];
 
   /**
    * All permissions of this Trait.
@@ -1936,9 +1921,6 @@ export class TraitDefinition extends BuiltinDefinition {
     description?: string | null;
     alias: string;
     isExtensible: boolean;
-    properties?: readonly PropertyDefinition[];
-    indexes?: readonly IndexDefinition[];
-    constraints?: readonly ConstraintDefinition[];
     permissions?: readonly PermissionDefinition[];
     baseTraits?: readonly TraitType[];
     traits?: readonly TraitType[];
@@ -1990,21 +1972,6 @@ export class TraitDefinition extends BuiltinDefinition {
       throw new Error(`TraitDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
-    let _indexes = options.indexes ?? null;
-    if (_indexes === null) {
-      _indexes = [];
-    }
-    this.indexes = _indexes;
-    let _constraints = options.constraints ?? null;
-    if (_constraints === null) {
-      _constraints = [];
-    }
-    this.constraints = _constraints;
     let _permissions = options.permissions ?? null;
     if (_permissions === null) {
       _permissions = [];
@@ -2064,30 +2031,6 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
-    }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.indexes.length != other.indexes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.indexes.length; i++) {
-      if (!this.indexes[i].equals(other.indexes[i])) {
-        return false;
-      }
-    }
-    if (this.constraints.length != other.constraints.length) {
-      return false;
-    }
-    for (let i = 0; i < this.constraints.length; i++) {
-      if (!this.constraints[i].equals(other.constraints[i])) {
-        return false;
-      }
     }
     if (this.permissions.length != other.permissions.length) {
       return false;
@@ -2190,21 +2133,6 @@ export class TraitDefinition extends BuiltinDefinition {
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.alias)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.indexes && this.indexes.length > 0) {
-      for (const _item of this.indexes) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.constraints && this.constraints.length > 0) {
-      for (const _item of this.constraints) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     if (this.permissions && this.permissions.length > 0) {
       for (const _item of this.permissions) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -2268,7 +2196,7 @@ export class TraitDefinition extends BuiltinDefinition {
 
   static __packCson__(object: TraitDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20004;
+    objectCson["1"] = 14;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -2280,27 +2208,6 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     objectCson["110"] = object.alias;
     objectCson["111"] = object.isExtensible;
-    if (object.properties.length > 0) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toCson());
-      }
-      objectCson["120"] = packedProperties;
-    }
-    if (object.indexes.length > 0) {
-      const packedIndexes: any[] = [];
-      for (const item of object.indexes) {
-        packedIndexes.push(item.toCson());
-      }
-      objectCson["121"] = packedIndexes;
-    }
-    if (object.constraints.length > 0) {
-      const packedConstraints: any[] = [];
-      for (const item of object.constraints) {
-        packedConstraints.push(item.toCson());
-      }
-      objectCson["122"] = packedConstraints;
-    }
     if (object.permissions.length > 0) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
@@ -2360,43 +2267,10 @@ export class TraitDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): TraitDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.INDEX_DEFINITION
-    ] as typeof IndexDefinition;
-    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.CONSTRAINT_DEFINITION
-    ] as typeof ConstraintDefinition;
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectCson["120"] != undefined) {
-      for (const item of objectCson["120"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedIndexes: any[] = [];
-    if (objectCson["121"] != undefined) {
-      for (const item of objectCson["121"]) {
-        unpackedIndexes.push(
-          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedConstraints: any[] = [];
-    if (objectCson["122"] != undefined) {
-      for (const item of objectCson["122"]) {
-        unpackedConstraints.push(
-          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     const unpackedPermissions: any[] = [];
     if (objectCson["123"] != undefined) {
       for (const item of objectCson["123"]) {
@@ -2452,9 +2326,6 @@ export class TraitDefinition extends BuiltinDefinition {
       type: Number(objectCson["100"]),
       alias: objectCson["110"],
       isExtensible: objectCson["111"],
-      properties: unpackedProperties,
-      indexes: unpackedIndexes,
-      constraints: unpackedConstraints,
       permissions: unpackedPermissions,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
@@ -2490,7 +2361,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: TraitDefinition): TraitDefinitionProto {
-    const objectProto: Partial<TraitDefinitionProto> = { metatype: 20004 };
+    const objectProto: Partial<TraitDefinitionProto> = { metatype: 14 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as TraitTypeProto;
     objectProto.name = object.name;
@@ -2502,27 +2373,6 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     objectProto.alias = object.alias;
     objectProto.isExtensible = object.isExtensible;
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    if (object.indexes) {
-      const packedIndexes: any[] = [];
-      for (const item of object.indexes) {
-        packedIndexes.push(item.toProto());
-      }
-      objectProto.indexes = packedIndexes;
-    }
-    if (object.constraints) {
-      const packedConstraints: any[] = [];
-      for (const item of object.constraints) {
-        packedConstraints.push(item.toProto());
-      }
-      objectProto.constraints = packedConstraints;
-    }
     if (object.permissions) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
@@ -2582,43 +2432,10 @@ export class TraitDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): TraitDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.INDEX_DEFINITION
-    ] as typeof IndexDefinition;
-    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.CONSTRAINT_DEFINITION
-    ] as typeof ConstraintDefinition;
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
     ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedIndexes: any[] = [];
-    if (objectProto.indexes) {
-      for (const item of objectProto.indexes) {
-        unpackedIndexes.push(
-          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedConstraints: any[] = [];
-    if (objectProto.constraints) {
-      for (const item of objectProto.constraints) {
-        unpackedConstraints.push(
-          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     const unpackedPermissions: any[] = [];
     if (objectProto.permissions) {
       for (const item of objectProto.permissions) {
@@ -2667,9 +2484,6 @@ export class TraitDefinition extends BuiltinDefinition {
       type: Number(objectProto.type) as TraitType,
       alias: objectProto.alias,
       isExtensible: objectProto.isExtensible,
-      properties: unpackedProperties,
-      indexes: unpackedIndexes,
-      constraints: unpackedConstraints,
       permissions: unpackedPermissions,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
@@ -2710,9 +2524,9 @@ export class TraitDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20004 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:14 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:15 ==== */
 /**
  * Definition of a builtin Struct.
  */
@@ -3124,7 +2938,7 @@ export class StructDefinition extends BuiltinDefinition {
 
   static __packCson__(object: StructDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20100;
+    objectCson["1"] = 15;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -3321,7 +3135,7 @@ export class StructDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: StructDefinition): StructDefinitionProto {
-    const objectProto: Partial<StructDefinitionProto> = { metatype: 20100 };
+    const objectProto: Partial<StructDefinitionProto> = { metatype: 15 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as StructTypeProto;
     objectProto.name = object.name;
@@ -3521,9 +3335,9 @@ export class StructDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:15 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:17 ==== */
 /**
  * Definition of a builtin Enum.
  */
@@ -3708,7 +3522,7 @@ export class EnumDefinition extends BuiltinDefinition {
 
   static __packCson__(object: EnumDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20200;
+    objectCson["1"] = 17;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -3785,7 +3599,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: EnumDefinition): EnumDefinitionProto {
-    const objectProto: Partial<EnumDefinitionProto> = { metatype: 20200 };
+    const objectProto: Partial<EnumDefinitionProto> = { metatype: 17 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -3860,9 +3674,9 @@ export class EnumDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:17 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:18 ==== */
 /**
  * Definition of a builtin Property.
  */
@@ -3986,17 +3800,17 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly cascade: CascadeAction | null;
 
   /**
-   * PropertyDefinition.isRequired
+   * Whether this property must be set.
    */
   readonly isRequired: boolean;
 
   /**
-   * PropertyDefinition.isUnique
+   * Whether this property must have a unique value.
    */
   readonly isUnique: boolean;
 
   /**
-   * PropertyDefinition.isReadonly
+   * Whether this property is read-only.
    */
   readonly isReadonly: boolean;
 
@@ -4011,7 +3825,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly isWired: boolean;
 
   /**
-   * PropertyDefinition.isStored
+   * Whether this property is stored in the database.
    */
   readonly isStored: boolean;
 
@@ -4031,9 +3845,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly isEq: boolean;
 
   /**
-   * PropertyDefinition.isManaged
+   * PropertyDefinition.isInternal
    */
-  readonly isManaged: boolean;
+  readonly isInternal: boolean;
 
   constructor(options: {
     id: number;
@@ -4068,7 +3882,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     isRepr: boolean;
     isHash: boolean;
     isEq: boolean;
-    isManaged: boolean;
+    isInternal: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -4199,11 +4013,11 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.isEq is required`);
     }
     this.isEq = _isEq;
-    let _isManaged = options.isManaged;
-    if (_isManaged === null) {
-      throw new Error(`PropertyDefinition.isManaged is required`);
+    let _isInternal = options.isInternal;
+    if (_isInternal === null) {
+      throw new Error(`PropertyDefinition.isInternal is required`);
     }
-    this.isManaged = _isManaged;
+    this.isInternal = _isInternal;
 
     // identity
     // @ts-expect-error(readonly)
@@ -4323,7 +4137,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.isEq === other.isEq)) {
       return false;
     }
-    if (!(this.isManaged === other.isManaged)) {
+    if (!(this.isInternal === other.isInternal)) {
       return false;
     }
     if (!(this.id === other.id)) {
@@ -4372,6 +4186,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       }
       propertyReprs.push(`isRequired=${this.isRequired}`);
       propertyReprs.push(`isUnique=${this.isUnique}`);
+      propertyReprs.push(`isReadonly=${this.isReadonly}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
@@ -4446,7 +4261,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isHash)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isInternal)) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -4475,7 +4290,7 @@ export class PropertyDefinition extends BuiltinDefinition {
 
   static __packCson__(object: PropertyDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20300;
+    objectCson["1"] = 18;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -4540,7 +4355,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectCson["162"] = object.isRepr;
     objectCson["163"] = object.isHash;
     objectCson["164"] = object.isEq;
-    objectCson["165"] = object.isManaged;
+    objectCson["165"] = object.isInternal;
     return objectCson;
   }
 
@@ -4551,6 +4366,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
+    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.OBJECT_DEFINITION_REFERENCE
+    ] as typeof ObjectDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -4565,9 +4383,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
-    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.OBJECT_DEFINITION_REFERENCE
-    ] as typeof ObjectDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const groupIdValue = objectCson["106"];
     const unpackedGroupId = groupIdValue != undefined ? Number(groupIdValue) : null;
@@ -4682,7 +4497,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRepr: objectCson["162"],
       isHash: objectCson["163"],
       isEq: objectCson["164"],
-      isManaged: objectCson["165"],
+      isInternal: objectCson["165"],
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
@@ -4717,7 +4532,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: PropertyDefinition): PropertyDefinitionProto {
-    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 20300 };
+    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 18 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as PropertyTypeProto;
     objectProto.name = object.name;
@@ -4782,7 +4597,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectProto.isRepr = object.isRepr;
     objectProto.isHash = object.isHash;
     objectProto.isEq = object.isEq;
-    objectProto.isManaged = object.isManaged;
+    objectProto.isInternal = object.isInternal;
     return objectProto as PropertyDefinitionProto;
   }
 
@@ -4793,6 +4608,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
+    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.OBJECT_DEFINITION_REFERENCE
+    ] as typeof ObjectDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -4807,9 +4625,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
-    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.OBJECT_DEFINITION_REFERENCE
-    ] as typeof ObjectDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new PropertyDefinition({
       type: Number(objectProto.type) as PropertyType,
@@ -4905,7 +4720,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRepr: objectProto.isRepr,
       isHash: objectProto.isHash,
       isEq: objectProto.isEq,
-      isManaged: objectProto.isManaged,
+      isInternal: objectProto.isInternal,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -5078,9 +4893,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:18 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20400 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20 ==== */
 /**
  * Definition of a builtin Enum Option.
  */
@@ -5241,7 +5056,7 @@ export class OptionDefinition extends BuiltinDefinition {
 
   static __packCson__(object: OptionDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20400;
+    objectCson["1"] = 20;
     objectCson["2"] = object.id;
     objectCson["100"] = object.type;
     objectCson["101"] = object.name;
@@ -5299,7 +5114,7 @@ export class OptionDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: OptionDefinition): OptionDefinitionProto {
-    const objectProto: Partial<OptionDefinitionProto> = { metatype: 20400 };
+    const objectProto: Partial<OptionDefinitionProto> = { metatype: 20 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -5361,9 +5176,9 @@ export class OptionDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20400 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:20301 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:19 ==== */
 /**
  * Definition of a builtin Constant.
  */
@@ -5505,7 +5320,7 @@ export class ConstantDefinition extends StructFrozen {
 
   static __packCson__(object: ConstantDefinition): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20301;
+    objectCson["1"] = 19;
     objectCson["101"] = object.name;
     if (object.description != null) {
       objectCson["103"] = object.description;
@@ -5560,7 +5375,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   static __packProto__(object: ConstantDefinition): ConstantDefinitionProto {
-    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 20301 };
+    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 19 };
     objectProto.name = object.name;
     if (object.description != null) {
       objectProto.description = object.description;
@@ -5615,4 +5430,4 @@ export class ConstantDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:20301 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:19 ==== */

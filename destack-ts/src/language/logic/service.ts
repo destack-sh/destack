@@ -4,10 +4,8 @@ import type {
   Graph,
   Icon,
   IsActor,
-  IsExtensible,
   IsOwnable,
   IsRunnable,
-  IsSourceable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -35,15 +33,12 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:12400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10300 ==== */
 /**
  * A Service provides related functionality via Actions (and Methods).
  * Services may be stateful (with custom Properties and runtime only state).
  */
-export class Service
-  extends Entity
-  implements IsOwnable, IsExtensible, IsSourceable, IsActor, IsRunnable
-{
+export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   static metatype: NodeType = NodeType.SERVICE;
 
   /**
@@ -76,7 +71,7 @@ export class Service
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -188,28 +183,7 @@ export class Service
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
-  }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
-  }
-  _customValues: { readonly [key: string]: Value };
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -226,7 +200,7 @@ export class Service
     }
   }
   /**
-   * IsOwnable.ownedBy
+   * Entity.ownedBy
    */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
@@ -255,6 +229,62 @@ export class Service
   _name: string;
 
   /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -281,41 +311,6 @@ export class Service
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  set script(node: Script | null) {
-    if (node === null) {
-      this.scriptPtr = null;
-    } else {
-      this.scriptPtr = node.toRef();
-    }
-  }
-  /**
-   * The main / root Script of this Node.
-   */
-  get scriptPtr(): NodeReference | null {
-    return this._scriptPtr;
-  }
-  set scriptPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["script"];
-    this._session.updateSetProperty(this, prop, value);
-    this._scriptPtr = value;
-  }
-  _scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * Service.icon
@@ -350,14 +345,14 @@ export class Service
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -461,19 +456,6 @@ export class Service
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`Service.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -487,6 +469,26 @@ export class Service
       throw new Error(`Service.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Service.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -494,19 +496,6 @@ export class Service
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this._scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`Service.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -558,28 +547,13 @@ export class Service
     ) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
-      return false;
-    }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
-      return false;
-    }
-    if (!(this._key === other._key)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -593,6 +567,21 @@ export class Service
         return false;
       }
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -601,16 +590,6 @@ export class Service
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -629,19 +608,31 @@ export class Service
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -656,9 +647,9 @@ export class Service
       type: NodeType.SERVICE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -698,7 +689,7 @@ export class Service
 
   static __packCson__(object: Service): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 12400;
+    objectCson["1"] = 10300;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -729,28 +720,30 @@ export class Service
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
-    }
-    objectCson["31"] = object.orderKey;
-    if (object._ownedByPtr != null) {
-      objectCson["32"] = object._ownedByPtr.toCson();
-    }
-    objectCson["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["45"] = packedCustomValues;
     }
     if (object._scriptPtr != null) {
-      objectCson["80"] = object._scriptPtr.toCson();
+      objectCson["46"] = object._scriptPtr.toCson();
     }
-    objectCson["90"] = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
+    }
     if (object._icon != null) {
       objectCson["102"] = object._icon.toCson();
     }
@@ -772,18 +765,6 @@ export class Service
       iconValue != undefined
         ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectCson["32"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -819,14 +800,14 @@ export class Service
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
@@ -836,12 +817,22 @@ export class Service
         );
       }
     }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Service({
       icon: unpackedIcon,
-      ownedBy: unpackedOwnedByPtr,
-      isExtensible: objectCson["90"],
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -862,12 +853,16 @@ export class Service
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      id: String(objectCson["2"]),
-      script: unpackedScriptPtr,
-      orderKey: objectCson["31"],
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
       customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -889,7 +884,7 @@ export class Service
   }
 
   static __packProto__(object: Service): ServiceProto {
-    const objectProto: Partial<ServiceProto> = { metatype: 12400 };
+    const objectProto: Partial<ServiceProto> = { metatype: 10300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -920,27 +915,29 @@ export class Service
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.orderKey = object.orderKey;
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.name = object._name;
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -971,28 +968,6 @@ export class Service
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      isExtensible: objectProto.isExtensible,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1074,8 +1049,19 @@ export class Service
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
-      id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1086,7 +1072,19 @@ export class Service
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -1094,7 +1092,6 @@ export class Service
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1122,4 +1119,4 @@ export class Service
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SERVICE, Service);
-/* ==== DESTACK_GENERATED_END:NODE:12400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10300 ==== */

@@ -1691,9 +1691,9 @@ export class Join extends StructFrozen {
   readonly type: JoinType;
 
   /**
-   * Join.definition
+   * Join.customDefinition
    */
-  readonly definition: NodeDefinitionReference | null;
+  readonly customDefinition: NodeDefinitionReference | null;
 
   /**
    * Join.recursive
@@ -1712,7 +1712,7 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    definition?: NodeDefinitionReference | null;
+    customDefinition?: NodeDefinitionReference | null;
     recursive?: boolean;
     depth?: number | null;
     on?: Condition | null;
@@ -1736,8 +1736,8 @@ export class Join extends StructFrozen {
       throw new Error(`Join.type is required`);
     }
     this.type = _type;
-    let _definition = options.definition ?? null;
-    this.definition = _definition;
+    let _customDefinition = options.customDefinition ?? null;
+    this.customDefinition = _customDefinition;
     let _recursive = options.recursive ?? null;
     if (_recursive === null) {
       _recursive = false;
@@ -1770,8 +1770,8 @@ export class Join extends StructFrozen {
       return false;
     }
     if (
-      (this.definition == null) !== (other.definition == null) ||
-      (this.definition != null && !this.definition.equals(other.definition))
+      (this.customDefinition == null) !== (other.customDefinition == null) ||
+      (this.customDefinition != null && !this.customDefinition.equals(other.customDefinition))
     ) {
       return false;
     }
@@ -1794,8 +1794,8 @@ export class Join extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${JoinType[this.type]}`);
-      if (this.definition != null) {
-        propertyReprs.push(`definition=${this.definition.repr()}`);
+      if (this.customDefinition != null) {
+        propertyReprs.push(`customDefinition=${this.customDefinition.repr()}`);
       }
       propertyReprs.push(`recursive=${this.recursive}`);
       if (this.depth != null) {
@@ -1818,8 +1818,8 @@ export class Join extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.definition != null) {
-      h = (h * 31 + this.definition.hash()) & 0xffffffff;
+    if (this.customDefinition != null) {
+      h = (h * 31 + this.customDefinition.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
     if (this.depth != null) {
@@ -1850,8 +1850,8 @@ export class Join extends StructFrozen {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 202;
     objectCson["100"] = object.type;
-    if (object.definition != null) {
-      objectCson["101"] = object.definition.toCson();
+    if (object.customDefinition != null) {
+      objectCson["101"] = object.customDefinition.toCson();
     }
     objectCson["102"] = object.recursive;
     if (object.depth != null) {
@@ -1870,15 +1870,15 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const definitionValue = objectCson["101"];
-    const unpackedDefinition =
-      definitionValue != undefined
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
+    const customDefinitionValue = objectCson["101"];
+    const unpackedCustomDefinition =
+      customDefinitionValue != undefined
         ? _NodeDefinitionReference.fromCson(
-            definitionValue,
+            customDefinitionValue,
             _session,
             _supergraph,
             _graph,
@@ -1894,7 +1894,7 @@ export class Join extends StructFrozen {
         : null;
     return new Join({
       type: Number(objectCson["100"]),
-      definition: unpackedDefinition,
+      customDefinition: unpackedCustomDefinition,
       recursive: objectCson["102"],
       depth: unpackedDepth,
       on: unpackedOn,
@@ -1924,8 +1924,8 @@ export class Join extends StructFrozen {
   static __packProto__(object: Join): JoinProto {
     const objectProto: Partial<JoinProto> = { metatype: 202 };
     objectProto.type = Number(object.type) as JoinTypeProto;
-    if (object.definition != null) {
-      objectProto.definition = object.definition.toProto();
+    if (object.customDefinition != null) {
+      objectProto.customDefinition = object.customDefinition.toProto();
     }
     objectProto.recursive = object.recursive;
     if (object.depth != null) {
@@ -1944,16 +1944,16 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     return new Join({
       type: Number(objectProto.type) as JoinType,
-      definition:
-        objectProto.definition != undefined
+      customDefinition:
+        objectProto.customDefinition != undefined
           ? _NodeDefinitionReference.fromProto(
-              objectProto.definition!,
+              objectProto.customDefinition!,
               _session,
               _supergraph,
               _graph,
@@ -2781,6 +2781,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2789,9 +2792,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const unpackedSubqueries: any[] = [];
     if (objectCson["109"] != undefined) {
       for (const item of objectCson["109"]) {
@@ -2963,6 +2963,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2971,9 +2974,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const unpackedSubqueries: any[] = [];
     if (objectProto.subqueries) {
       for (const item of objectProto.subqueries) {

@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   IsActor,
   NodeReference,
@@ -10,7 +9,6 @@ import type {
   Snapshot,
   Space,
   Supergraph,
-  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -24,12 +22,11 @@ import {
   StructType,
 } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
-import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { CopyEventProto, CutEventProto, EventStatusProto, PasteEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashInt, hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000500 ==== */
@@ -48,7 +45,7 @@ export abstract class ClipboardEvent extends InputEvent {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -113,25 +110,9 @@ export abstract class ClipboardEvent extends InputEvent {
   declare readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  declare readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  abstract get script(): Script | null;
-  declare readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -168,10 +149,10 @@ export class CopyEvent extends ClipboardEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -275,31 +256,9 @@ export class CopyEvent extends ClipboardEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -316,7 +275,7 @@ export class CopyEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -328,10 +287,7 @@ export class CopyEvent extends ClipboardEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -423,11 +379,6 @@ export class CopyEvent extends ClipboardEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -436,19 +387,6 @@ export class CopyEvent extends ClipboardEvent {
       throw new Error(`CopyEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`CopyEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -493,9 +431,6 @@ export class CopyEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -526,22 +461,8 @@ export class CopyEvent extends ClipboardEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -552,7 +473,6 @@ export class CopyEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -578,17 +498,8 @@ export class CopyEvent extends ClipboardEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -603,9 +514,9 @@ export class CopyEvent extends ClipboardEvent {
       type: NodeType.COPY_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -670,18 +581,7 @@ export class CopyEvent extends ClipboardEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -695,7 +595,6 @@ export class CopyEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CopyEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
@@ -729,26 +628,8 @@ export class CopyEvent extends ClipboardEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new CopyEvent({
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -768,10 +649,8 @@ export class CopyEvent extends ClipboardEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -820,17 +699,7 @@ export class CopyEvent extends ClipboardEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -844,17 +713,7 @@ export class CopyEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CopyEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new CopyEvent({
       node:
         objectProto.nodePtr != undefined
@@ -866,7 +725,6 @@ export class CopyEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -937,16 +795,6 @@ export class CopyEvent extends ClipboardEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -955,7 +803,6 @@ export class CopyEvent extends ClipboardEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1007,10 +854,10 @@ export class CutEvent extends ClipboardEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1114,31 +961,9 @@ export class CutEvent extends ClipboardEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1155,7 +980,7 @@ export class CutEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1167,10 +992,7 @@ export class CutEvent extends ClipboardEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1262,11 +1084,6 @@ export class CutEvent extends ClipboardEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -1275,19 +1092,6 @@ export class CutEvent extends ClipboardEvent {
       throw new Error(`CutEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`CutEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1332,9 +1136,6 @@ export class CutEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -1365,22 +1166,8 @@ export class CutEvent extends ClipboardEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -1391,7 +1178,6 @@ export class CutEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -1417,17 +1203,8 @@ export class CutEvent extends ClipboardEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -1442,9 +1219,9 @@ export class CutEvent extends ClipboardEvent {
       type: NodeType.CUT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1509,18 +1286,7 @@ export class CutEvent extends ClipboardEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -1534,7 +1300,6 @@ export class CutEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CutEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
@@ -1568,26 +1333,8 @@ export class CutEvent extends ClipboardEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new CutEvent({
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -1607,10 +1354,8 @@ export class CutEvent extends ClipboardEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1659,17 +1404,7 @@ export class CutEvent extends ClipboardEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1683,17 +1418,7 @@ export class CutEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): CutEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new CutEvent({
       node:
         objectProto.nodePtr != undefined
@@ -1705,7 +1430,6 @@ export class CutEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -1776,16 +1500,6 @@ export class CutEvent extends ClipboardEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1794,7 +1508,6 @@ export class CutEvent extends ClipboardEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1846,10 +1559,10 @@ export class PasteEvent extends ClipboardEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1953,31 +1666,9 @@ export class PasteEvent extends ClipboardEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1994,7 +1685,7 @@ export class PasteEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2006,10 +1697,7 @@ export class PasteEvent extends ClipboardEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2101,11 +1789,6 @@ export class PasteEvent extends ClipboardEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -2114,19 +1797,6 @@ export class PasteEvent extends ClipboardEvent {
       throw new Error(`PasteEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`PasteEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2171,9 +1841,6 @@ export class PasteEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -2204,22 +1871,8 @@ export class PasteEvent extends ClipboardEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -2230,7 +1883,6 @@ export class PasteEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -2256,17 +1908,8 @@ export class PasteEvent extends ClipboardEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -2281,9 +1924,9 @@ export class PasteEvent extends ClipboardEvent {
       type: NodeType.PASTE_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2348,18 +1991,7 @@ export class PasteEvent extends ClipboardEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -2373,7 +2005,6 @@ export class PasteEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PasteEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
@@ -2407,26 +2038,8 @@ export class PasteEvent extends ClipboardEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new PasteEvent({
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -2446,10 +2059,8 @@ export class PasteEvent extends ClipboardEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2498,17 +2109,7 @@ export class PasteEvent extends ClipboardEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2522,17 +2123,7 @@ export class PasteEvent extends ClipboardEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): PasteEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new PasteEvent({
       node:
         objectProto.nodePtr != undefined
@@ -2544,7 +2135,6 @@ export class PasteEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -2615,16 +2205,6 @@ export class PasteEvent extends ClipboardEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -2633,7 +2213,6 @@ export class PasteEvent extends ClipboardEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

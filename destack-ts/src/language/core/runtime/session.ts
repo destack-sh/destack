@@ -1,8 +1,9 @@
 import {
+  Client,
   EntityStore,
   EventStatus,
   EventStore,
-  NodeReference,
+  IsActor,
   type Entity,
   type Event,
   type PropertyDefinition,
@@ -21,9 +22,9 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Session {
   oracle: Oracle;
-  clientPtr: NodeReference | null;
+  client: Client | null;
   clientNonce: string | null;
-  actorPtr: NodeReference | null;
+  actor: (Entity & IsActor) | null;
   store: EventStore | EntityStore | null;
   supergraph: Supergraph;
   eventGraph: EventGraph;
@@ -37,17 +38,17 @@ export class Session {
 
   constructor(options?: {
     oracle?: Oracle;
-    clientPtr?: NodeReference | null;
+    client?: Client | null;
     clientNonce?: string | null;
-    actorPtr?: NodeReference | null;
+    actor?: (Entity & IsActor) | null;
     store?: EventStore | EntityStore | null;
     epoch?: number;
     supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
-    this.clientPtr = options?.clientPtr ?? null;
+    this.client = options?.client ?? null;
     this.clientNonce = options?.clientNonce ?? null;
-    this.actorPtr = options?.actorPtr ?? null;
+    this.actor = options?.actor ?? null;
     this.store = options?.store ?? null;
     this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
     this.eventGraph = this.supergraph.createEventGraph();
@@ -62,8 +63,8 @@ export class Session {
 
   repr(): string {
     const contentParts: string[] = [];
-    if (this.actorPtr) {
-      contentParts.push(`actor=${this.actorPtr.id}`);
+    if (this.actor) {
+      contentParts.push(`actor=${this.actor.repr()}`);
     }
     if (this.store) {
       contentParts.push(`store=${this.store.repr()}`);

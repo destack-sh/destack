@@ -72,7 +72,7 @@ export class TextView extends ContentView {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -184,20 +184,34 @@ export class TextView extends ContentView {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
+    this._ownedByPtr = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -216,7 +230,28 @@ export class TextView extends ContentView {
   _name: string;
 
   /**
-   * The main / root Script of this Node.
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
@@ -233,7 +268,7 @@ export class TextView extends ContentView {
     }
   }
   /**
-   * The main / root Script of this Node.
+   * The Script of this Entity.
    */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
@@ -246,9 +281,37 @@ export class TextView extends ContentView {
   _scriptPtr: NodeReference | null;
 
   /**
-   * Whether this Node is extensible (whether it can be instanced).
+   * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean;
+  readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Entity2D.position
@@ -619,10 +682,14 @@ export class TextView extends ContentView {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean;
+    isExtensible?: boolean | null;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     position?: Vector2 | null;
     offset?: Offset2 | null;
     scale?: Vector2 | null;
@@ -747,11 +814,11 @@ export class TextView extends ContentView {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._customValues = _customValues;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "TextView";
@@ -760,19 +827,33 @@ export class TextView extends ContentView {
       throw new Error(`TextView.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`TextView.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
     let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`TextView.isExtensible is required`);
-    }
     this.isExtensible = _isExtensible;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _position = options.position ?? null;
     this._position = _position;
     let _offset = options.offset ?? null;
@@ -989,19 +1070,13 @@ export class TextView extends ContentView {
     if (!(this._anchor === other._anchor)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -1014,6 +1089,21 @@ export class TextView extends ContentView {
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
     }
     return true;
   }
@@ -1087,7 +1177,6 @@ export class TextView extends ContentView {
     if (this._anchor != null) {
       h = (h * 31 + this._anchor) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1105,18 +1194,31 @@ export class TextView extends ContentView {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1131,9 +1233,9 @@ export class TextView extends ContentView {
       type: NodeType.TEXT_VIEW,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1160,6 +1262,9 @@ export class TextView extends ContentView {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<TextView "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1201,18 +1306,30 @@ export class TextView extends ContentView {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectCson["30"] = packedCustomValues;
+      objectCson["45"] = packedCustomValues;
     }
-    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectCson["80"] = object._scriptPtr.toCson();
+      objectCson["46"] = object._scriptPtr.toCson();
     }
-    objectCson["90"] = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
+    }
     if (object._position != null) {
       objectCson["110"] = object._position.toCson();
     }
@@ -1259,16 +1376,16 @@ export class TextView extends ContentView {
       objectCson["131"] = object._opacity;
     }
     if (object._fill != null) {
-      objectCson["132"] = object._fill.toCson();
+      objectCson["140"] = object._fill.toCson();
     }
     if (object._shadow != null) {
-      objectCson["136"] = object._shadow.toCson();
+      objectCson["141"] = object._shadow.toCson();
     }
     if (object._border != null) {
-      objectCson["137"] = object._border.toCson();
+      objectCson["142"] = object._border.toCson();
     }
     if (object._radius != null) {
-      objectCson["138"] = object._radius.toCson();
+      objectCson["143"] = object._radius.toCson();
     }
     if (object._font != null) {
       objectCson["201"] = object._font.toCson();
@@ -1349,22 +1466,22 @@ export class TextView extends ContentView {
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
     const opacityValue = objectCson["131"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectCson["132"];
+    const fillValue = objectCson["140"];
     const unpackedFill =
       fillValue != undefined
         ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const shadowValue = objectCson["136"];
+    const shadowValue = objectCson["141"];
     const unpackedShadow =
       shadowValue != undefined
         ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
         : null;
-    const borderValue = objectCson["137"];
+    const borderValue = objectCson["142"];
     const unpackedBorder =
       borderValue != undefined
         ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
         : null;
-    const radiusValue = objectCson["138"];
+    const radiusValue = objectCson["143"];
     const unpackedRadius =
       radiusValue != undefined
         ? _Corner2.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
@@ -1436,14 +1553,14 @@ export class TextView extends ContentView {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
@@ -1453,6 +1570,20 @@ export class TextView extends ContentView {
         );
       }
     }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new TextView({
       text: unpackedText,
       font: unpackedFont,
@@ -1476,7 +1607,6 @@ export class TextView extends ContentView {
       skew: unpackedSkew,
       origin: unpackedOrigin,
       anchor: unpackedAnchor,
-      isExtensible: objectCson["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1497,11 +1627,16 @@ export class TextView extends ContentView {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1554,17 +1689,29 @@ export class TextView extends ContentView {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
     if (object._customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.isExtensible = object.isExtensible;
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     if (object._position != null) {
       objectProto.position = object._position.toProto();
     }
@@ -1741,7 +1888,6 @@ export class TextView extends ContentView {
           ? _Vector2.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
           : null,
       anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
-      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1823,7 +1969,19 @@ export class TextView extends ContentView {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1834,6 +1992,18 @@ export class TextView extends ContentView {
               _connection,
             )
           : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1842,7 +2012,6 @@ export class TextView extends ContentView {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

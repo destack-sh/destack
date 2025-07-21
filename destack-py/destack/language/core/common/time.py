@@ -51,14 +51,14 @@ class Branch(
     branch: "Branch" = builtin_property(
         12,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         default_factory=ValueFactory.SELF,
         description="The Branch itself. Cannot be any other Branch than this Branch",
     )
     snapshot: "Snapshot" = builtin_property(
         13,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         default_factory=ValueFactory.SELF,
         description="The latest Snapshot this Branch is based on (the head of the Branch).",
     )
@@ -110,7 +110,7 @@ class Snapshot(
     snapshot: "Snapshot" = builtin_property(
         13,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         default_factory=ValueFactory.SELF,
         description="The Snapshot itself. Cannot be any other Snapshot than this Snapshot",
     )

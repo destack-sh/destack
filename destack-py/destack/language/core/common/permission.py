@@ -1,13 +1,10 @@
-from typing import TYPE_CHECKING, Self, Union
+from typing import TYPE_CHECKING, Self
 
 from ..builtin import (
     Entity,
-    IsExtensible,
-    IsSourceable,
     NodeType,
     StructType,
     builtin_node,
-    builtin_property_parent,
     builtin_struct,
 )
 
@@ -33,9 +30,6 @@ class PermissionDefinition(BuiltinDefinition):
 
 @builtin_node(NodeType.PERMISSION)
 class Permission(
-    IsSourceable,
     Entity,
 ):
     """A Permission for something."""
-
-    parent: Union["IsExtensible", None] = builtin_property_parent()

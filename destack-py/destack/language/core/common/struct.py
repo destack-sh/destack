@@ -4,8 +4,6 @@ from destack.utils.uuid import UUID
 
 from ..builtin import (
     Entity,
-    IsCustomizable,
-    IsSourceable,
     NodeType,
     StructFrozen,
     StructMutable,
@@ -23,16 +21,13 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_STRUCT)
 class CustomStruct(
-    IsSourceable,
-    IsCustomizable,
     Entity,
 ):
     """A CustomStruct describes a custom Struct with custom Properties."""
 
-    base_type: Optional["StructDefinitionReference"] = builtin_property(41)
-    is_frozen: bool = builtin_property(42, default=False)
-
     icon: "Icon | None" = builtin_property(102)
+
+    base_type: Optional["StructDefinitionReference"] = builtin_property(110)
 
 
 @builtin_struct(StructType.DATUM, frozen=True)

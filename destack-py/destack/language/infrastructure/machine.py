@@ -36,18 +36,18 @@ class Machine(Resource):
 
     type: MachineType = builtin_property(100, default=MachineType.RUNTIME)
 
-    version: str = builtin_property(110, default=VERSION)
-    external_name: Optional[str] = builtin_property(112)
-    external_id: Optional[str] = builtin_property(113)
-    image_id: Optional[str] = builtin_property(114)
-    grpc_url: Optional[str] = builtin_property(115)
-    vnc_url: Optional[str] = builtin_property(116)
-    client: Optional["Client"] = builtin_property(119)
+    version: str = builtin_property(120, default=VERSION)
+    external_name: Optional[str] = builtin_property(121)
+    external_id: Optional[str] = builtin_property(122)
+    image_id: Optional[str] = builtin_property(123)
+    grpc_url: Optional[str] = builtin_property(124)
+    vnc_url: Optional[str] = builtin_property(125)
+    client: Optional["Client"] = builtin_property(126)
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
 
-    cpu: float = builtin_property(120, description="vCPU count", default=1.0)
-    ram: float = builtin_property(121, description="GB", default=1.0)
-    width: int = builtin_property(122, default=1280)
-    height: int = builtin_property(123, default=960)
-    is_headless: bool = builtin_property(124, default=False)
+    cpu: float = builtin_property(130, description="vCPU count", default=1.0)
+    ram: float = builtin_property(131, description="GB", default=1.0)
+    width: int = builtin_property(132, default=1280)
+    height: int = builtin_property(133, default=960)
+    is_headless: bool = builtin_property(134, default=False)

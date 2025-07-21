@@ -1,11 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   IsActor,
-  IsCustomizable,
-  IsIrreversible,
   IsRunnable,
   Materialization,
   NodeReference,
@@ -28,6 +25,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -86,7 +84,7 @@ export abstract class RunEvent extends Event {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -196,10 +194,10 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -334,7 +332,7 @@ export class RunStartedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -586,6 +584,7 @@ export class RunStartedEvent extends RunEvent {
       type: NodeType.RUN_STARTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -935,10 +934,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1073,7 +1072,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1325,6 +1324,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       type: NodeType.RUN_PAUSE_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -1686,10 +1686,10 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1824,7 +1824,7 @@ export class RunPausedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2076,6 +2076,7 @@ export class RunPausedEvent extends RunEvent {
       type: NodeType.RUN_PAUSED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -2425,10 +2426,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2563,7 +2564,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2815,6 +2816,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       type: NodeType.RUN_RESUME_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -3176,10 +3178,10 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3314,7 +3316,7 @@ export class RunResumedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -3566,6 +3568,7 @@ export class RunResumedEvent extends RunEvent {
       type: NodeType.RUN_RESUMED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -3915,10 +3918,10 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -4053,7 +4056,7 @@ export class RunStopRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -4305,6 +4308,7 @@ export class RunStopRequestedEvent extends RunEvent {
       type: NodeType.RUN_STOP_REQUESTED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -4666,10 +4670,10 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -4804,7 +4808,7 @@ export class RunFailedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -5056,6 +5060,7 @@ export class RunFailedEvent extends RunEvent {
       type: NodeType.RUN_FAILED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -5405,10 +5410,10 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -5543,7 +5548,7 @@ export class RunCompletedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -5795,6 +5800,7 @@ export class RunCompletedEvent extends RunEvent {
       type: NodeType.RUN_COMPLETED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -6132,7 +6138,7 @@ registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /**
  * Run of a Runnable.
  */
-export abstract class Run extends Entity implements IsCustomizable, IsIrreversible {
+export abstract class Run extends Entity {
   static metatype: NodeType = NodeType.RUN;
 
   /**
@@ -6153,7 +6159,7 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
@@ -6223,13 +6229,15 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   * Entity.ownedBy
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -6239,6 +6247,51 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
    */
   abstract get name(): string;
   abstract set name(value: string);
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Run.target

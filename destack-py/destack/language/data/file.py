@@ -445,24 +445,24 @@ class File(Resource):
     type: FileType = builtin_property(100, is_repr=True)
 
     # meta
-    mime_type: str | None = builtin_property(111, is_repr=True)
-    format: FileFormat | None = builtin_property(112, is_repr=True)
-    size: int | None = builtin_property(113, primitive_type=PrimitiveType.INT64, is_repr=True)
-    sha256: str | None = builtin_property(114)
-    width: int | None = builtin_property(115)
-    height: int | None = builtin_property(116)
-    aspect_ratio: float | None = builtin_property(117)
-    codec: str | None = builtin_property(118)
-    duration: Optional[timedelta] = builtin_property(119)
+    mime_type: str | None = builtin_property(120, is_repr=True)
+    format: FileFormat | None = builtin_property(121, is_repr=True)
+    size: int | None = builtin_property(122, primitive_type=PrimitiveType.INT64, is_repr=True)
+    sha256: str | None = builtin_property(123)
+    width: int | None = builtin_property(124)
+    height: int | None = builtin_property(125)
+    aspect_ratio: float | None = builtin_property(126)
+    codec: str | None = builtin_property(127)
+    duration: Optional[timedelta] = builtin_property(128)
 
     # content
-    url: str | None = builtin_property(120, is_repr=True)  # if external
-    content_url: str | None = builtin_property(121)  # if external
-    thumbnail_url: str | None = builtin_property(122)  # if external
-    favicon_url: str | None = builtin_property(123)
-    thumbnail_width: int | None = builtin_property(124)
-    thumbnail_height: int | None = builtin_property(125)
-    content: bytes | None = builtin_property(126)
+    url: str | None = builtin_property(130, is_repr=True)  # if external
+    content_url: str | None = builtin_property(131)  # if external
+    thumbnail_url: str | None = builtin_property(132)  # if external
+    favicon_url: str | None = builtin_property(133)
+    thumbnail_width: int | None = builtin_property(134)
+    thumbnail_height: int | None = builtin_property(135)
+    content: bytes | None = builtin_property(136)
 
     # cached content
     _original: Optional["File"] = builtin_property_runtime(default=None)  # if converted

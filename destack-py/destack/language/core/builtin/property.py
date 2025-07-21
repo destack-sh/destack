@@ -373,10 +373,10 @@ class PropertyDeclaration(TypeDeclaration):
     is_unique: bool = False  # unique in DB
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
-    is_repr: bool = False  # printed BuiltinObject.__repr__
-    is_hash: bool = True  # included BuiltinObject.__hash__
-    is_eq: bool = True  # included BuiltinObject.equals check
-    is_managed: bool = False  # set automatically by the system
+    is_repr: bool = False  # included in BuiltinObject.__repr__
+    is_hash: bool = True  # included in BuiltinObject.__hash__
+    is_eq: bool = True  # included in BuiltinObject.equals check
+    is_internal: bool = False  # managed internally by the system
     is_computed: bool = False  # set automatically at runtime
     is_readonly: bool = False  # can only be set once (at init time)
     is_main: bool = False  # root property (for return types with single value)
@@ -648,7 +648,7 @@ def builtin_property(
     constraint: "TypeConstraint | None" = None,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
-    is_managed: bool = False,
+    is_internal: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
@@ -668,7 +668,7 @@ def builtin_property(
         cascade=cascade,
         is_wired=True,
         is_stored=True,
-        is_managed=is_managed,
+        is_internal=is_internal,
         is_repr=is_repr,
         is_hash=is_hash,
         is_eq=is_eq,
@@ -687,7 +687,7 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
         is_wired=True,
         is_stored=True,
         is_required=False,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=is_readonly,
         cascade=CascadeAction.CASCADE,
@@ -699,7 +699,7 @@ def builtin_property_runtime(*, default: Any = UNSET) -> Any:
     """A property that is only used at runtime."""
     return PropertyDeclaration(
         id=None,
-        is_managed=True,
+        is_internal=True,
         is_wired=False,
         is_stored=False,
         is_repr=False,

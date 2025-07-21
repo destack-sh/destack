@@ -7,7 +7,6 @@ from destack.language.core import (
     EnumType,
     IsActor,
     IsFollowable,
-    IsScriptable,
     NodeType,
     StringFormat,
     builtin_enum,
@@ -32,7 +31,6 @@ class UserStatus(Enum):
 class User(
     IsActor,
     IsFollowable,
-    IsScriptable,
     Entity,
 ):
     """A User is a human using Destack."""

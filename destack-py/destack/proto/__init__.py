@@ -28,6 +28,8 @@ AnyNodeProto = Union[
     VariantProto,
     TagProto,
     TaggingProto,
+    Entity2DProto,
+    Entity3DProto,
     EventProto,
     CustomEventProto,
     SignalProto,
@@ -36,8 +38,6 @@ AnyNodeProto = Union[
     ActionProto,
     CustomEnumProto,
     CustomOptionProto,
-    Entity2DProto,
-    Entity3DProto,
     IndexProto,
     ConstraintProto,
     MigrationProto,
@@ -286,7 +286,6 @@ AnyStructProto = Union[
     Axis3Proto,
     Grid2Proto,
     GridSpan2Proto,
-    DatabaseInfoProto,
     ScheduleProto,
 ]
 AnyObjectProto = AnyNodeProto | AnyStructProto

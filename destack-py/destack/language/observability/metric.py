@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     Event,
-    IsSourceable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)
-class Metric(IsSourceable, Entity):
+class Metric(Entity):
     """An Entity that represents a Metric."""
 
     icon: "Icon | None" = builtin_property(102)
@@ -28,7 +27,7 @@ class MeasurementEvent(Event):
 
     definition: "Metric" = builtin_property(
         6,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
     )
 

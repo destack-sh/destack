@@ -4,7 +4,6 @@ import type {
   Graph,
   Icon,
   IsActor,
-  IsSourceable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -12,6 +11,7 @@ import type {
   Snapshot,
   Space,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -39,14 +39,14 @@ import {
   MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:12200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
 /**
  * An Entity that represents a Metric.
  */
-export abstract class Metric extends Entity implements IsSourceable {
+export abstract class Metric extends Entity {
   static metatype: NodeType = NodeType.METRIC;
 
   /**
@@ -67,7 +67,7 @@ export abstract class Metric extends Entity implements IsSourceable {
   declare readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
@@ -137,9 +137,15 @@ export abstract class Metric extends Entity implements IsSourceable {
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
+   * Entity.ownedBy
    */
-  declare readonly orderKey: string;
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -149,6 +155,36 @@ export abstract class Metric extends Entity implements IsSourceable {
    */
   abstract get name(): string;
   abstract set name(value: string);
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -179,9 +215,9 @@ export abstract class Metric extends Entity implements IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:12200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:50200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:90200 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -277,7 +313,7 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:50200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:90200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1200000 ==== */
 /**
@@ -316,7 +352,7 @@ export class GaugeMetric extends Metric {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -428,9 +464,34 @@ export class GaugeMetric extends Metric {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
+   * Entity.ownedBy
    */
-  readonly orderKey: string;
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * Entity.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -447,6 +508,62 @@ export class GaugeMetric extends Metric {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -509,8 +626,12 @@ export class GaugeMetric extends Metric {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    orderKey?: string;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
     icon?: Icon | null;
@@ -616,14 +737,11 @@ export class GaugeMetric extends Metric {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    if (_orderKey === null) {
-      throw new Error(`GaugeMetric.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "GaugeMetric";
@@ -632,6 +750,26 @@ export class GaugeMetric extends Metric {
       throw new Error(`GaugeMetric.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`GaugeMetric.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -692,16 +830,36 @@ export class GaugeMetric extends Metric {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -715,12 +873,6 @@ export class GaugeMetric extends Metric {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -739,8 +891,29 @@ export class GaugeMetric extends Metric {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -757,6 +930,7 @@ export class GaugeMetric extends Metric {
       type: NodeType.GAUGE_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -785,6 +959,9 @@ export class GaugeMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<GaugeMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -826,13 +1003,29 @@ export class GaugeMetric extends Metric {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectCson["31"] = object.orderKey;
-    objectCson["50"] = object._name;
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["45"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
+      objectCson["80"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["85"] = object._key;
     }
     if (object._icon != null) {
       objectCson["102"] = object._icon.toCson();
@@ -847,6 +1040,7 @@ export class GaugeMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
@@ -854,13 +1048,6 @@ export class GaugeMetric extends Metric {
       iconValue != undefined
         ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -896,10 +1083,39 @@ export class GaugeMetric extends Metric {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new GaugeMetric({
       icon: unpackedIcon,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -920,8 +1136,14 @@ export class GaugeMetric extends Metric {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      orderKey: objectCson["31"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -976,8 +1198,23 @@ export class GaugeMetric extends Metric {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.orderKey = object.orderKey;
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -997,24 +1234,23 @@ export class GaugeMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new GaugeMetric({
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1096,8 +1332,41 @@ export class GaugeMetric extends Metric {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1523,6 +1792,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       type: NodeType.GAUGE_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -1883,7 +2153,7 @@ export class CounterMetric extends Metric {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -1995,9 +2265,34 @@ export class CounterMetric extends Metric {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
+   * Entity.ownedBy
    */
-  readonly orderKey: string;
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * Entity.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -2014,6 +2309,62 @@ export class CounterMetric extends Metric {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2076,8 +2427,12 @@ export class CounterMetric extends Metric {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    orderKey?: string;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
     icon?: Icon | null;
@@ -2183,14 +2538,11 @@ export class CounterMetric extends Metric {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    if (_orderKey === null) {
-      throw new Error(`CounterMetric.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "CounterMetric";
@@ -2199,6 +2551,26 @@ export class CounterMetric extends Metric {
       throw new Error(`CounterMetric.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`CounterMetric.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -2259,16 +2631,36 @@ export class CounterMetric extends Metric {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2282,12 +2674,6 @@ export class CounterMetric extends Metric {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -2306,8 +2692,29 @@ export class CounterMetric extends Metric {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2324,6 +2731,7 @@ export class CounterMetric extends Metric {
       type: NodeType.COUNTER_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -2352,6 +2760,9 @@ export class CounterMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<CounterMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2393,13 +2804,29 @@ export class CounterMetric extends Metric {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectCson["31"] = object.orderKey;
-    objectCson["50"] = object._name;
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["45"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
+      objectCson["80"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["85"] = object._key;
     }
     if (object._icon != null) {
       objectCson["102"] = object._icon.toCson();
@@ -2414,6 +2841,7 @@ export class CounterMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
@@ -2421,13 +2849,6 @@ export class CounterMetric extends Metric {
       iconValue != undefined
         ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2463,10 +2884,39 @@ export class CounterMetric extends Metric {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new CounterMetric({
       icon: unpackedIcon,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -2487,8 +2937,14 @@ export class CounterMetric extends Metric {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      orderKey: objectCson["31"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2543,8 +2999,23 @@ export class CounterMetric extends Metric {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.orderKey = object.orderKey;
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -2564,24 +3035,23 @@ export class CounterMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new CounterMetric({
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2663,8 +3133,41 @@ export class CounterMetric extends Metric {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3090,6 +3593,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       type: NodeType.COUNTER_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -3450,7 +3954,7 @@ export class HistogramMetric extends Metric {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -3562,9 +4066,34 @@ export class HistogramMetric extends Metric {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
+   * Entity.ownedBy
    */
-  readonly orderKey: string;
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * Entity.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -3581,6 +4110,62 @@ export class HistogramMetric extends Metric {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -3643,8 +4228,12 @@ export class HistogramMetric extends Metric {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    orderKey?: string;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
     icon?: Icon | null;
@@ -3750,14 +4339,11 @@ export class HistogramMetric extends Metric {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
     }
-    if (_orderKey === null) {
-      throw new Error(`HistogramMetric.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "HistogramMetric";
@@ -3766,6 +4352,26 @@ export class HistogramMetric extends Metric {
       throw new Error(`HistogramMetric.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`HistogramMetric.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -3826,16 +4432,36 @@ export class HistogramMetric extends Metric {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -3849,12 +4475,6 @@ export class HistogramMetric extends Metric {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -3873,8 +4493,29 @@ export class HistogramMetric extends Metric {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -3891,6 +4532,7 @@ export class HistogramMetric extends Metric {
       type: NodeType.HISTOGRAM_METRIC,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -3919,6 +4561,9 @@ export class HistogramMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<HistogramMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3960,13 +4605,29 @@ export class HistogramMetric extends Metric {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectCson["31"] = object.orderKey;
-    objectCson["50"] = object._name;
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["45"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
-      objectCson["60"] = object.sourcePtr.toCson();
+      objectCson["80"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectCson["70"] = object._key;
+      objectCson["85"] = object._key;
     }
     if (object._icon != null) {
       objectCson["102"] = object._icon.toCson();
@@ -3981,6 +4642,7 @@ export class HistogramMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
@@ -3988,13 +4650,6 @@ export class HistogramMetric extends Metric {
       iconValue != undefined
         ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectCson["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectCson["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -4030,10 +4685,39 @@ export class HistogramMetric extends Metric {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new HistogramMetric({
       icon: unpackedIcon,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -4054,8 +4738,14 @@ export class HistogramMetric extends Metric {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
-      orderKey: objectCson["31"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -4110,8 +4800,23 @@ export class HistogramMetric extends Metric {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.orderKey = object.orderKey;
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -4131,24 +4836,23 @@ export class HistogramMetric extends Metric {
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMetric {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new HistogramMetric({
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -4230,8 +4934,41 @@ export class HistogramMetric extends Metric {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -4657,6 +5394,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       type: NodeType.HISTOGRAM_MEASUREMENT_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,

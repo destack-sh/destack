@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IsActor,
-    IsExtensible,
     IsJoinable,
     IsOwnable,
     NodeType,
@@ -49,7 +48,6 @@ class MembershipLeftEvent(MembershipEvent):
 )
 class Membership(
     IsOwnable,
-    IsExtensible,
     Entity,
 ):
     """A Membership of a Actor in a Joinable."""

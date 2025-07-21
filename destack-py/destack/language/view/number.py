@@ -7,7 +7,9 @@ from .input import InputView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.NUMBER_INPUT_VIEW)
+@builtin_node(
+    NodeType.NUMBER_INPUT_VIEW,
+)
 class NumberInputView(InputView):
     """A general number input View."""
 

@@ -161,7 +161,7 @@ export function assertNever(value?: never, msg?: string): never {
   if (msg != null) {
     throw new Error(msg);
   } else {
-    throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+    throw new Error(`unexpected value: ${(value as any).constructor.name}`);
   }
 }
 

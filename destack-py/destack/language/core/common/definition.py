@@ -224,7 +224,7 @@ class NodeDefinition(BuiltinDefinition):
             description=node_cls.__doc__,
             # flags
             is_abstract=node_cls.__is_abstract__,
-            is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
+            is_extensible=node_cls.__is_extensible__,
             is_frozen=node_cls.__is_frozen__,
             # content
             properties=[
@@ -277,18 +277,6 @@ class TraitDefinition(BuiltinDefinition):
     )
 
     # content
-    properties: list["PropertyDefinition"] = builtin_property(
-        120,
-        description="All properties of this Trait.",
-    )
-    indexes: list["IndexDefinition"] = builtin_property(
-        121,
-        description="All indexes of this Trait.",
-    )
-    constraints: list["ConstraintDefinition"] = builtin_property(
-        122,
-        description="All constraints of this Trait.",
-    )
     permissions: list["PermissionDefinition"] = builtin_property(
         123,
         description="All permissions of this Trait.",
@@ -341,11 +329,6 @@ class TraitDefinition(BuiltinDefinition):
             alias=trait_cls.__name__,
             is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
             # content
-            properties=[
-                prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
-            ],
-            indexes=list(trait_cls.__indexes__),
-            constraints=list(trait_cls.__constraints__),
             permissions=list(trait_cls.__permissions__),
             # inheritance
             base_traits=list(trait_cls.__base_traits__),
@@ -515,16 +498,32 @@ class PropertyDefinition(BuiltinDefinition):
     cascade: CascadeAction | None = builtin_property(141)
 
     # flags
-    is_required: bool = builtin_property(150, is_repr=True)
-    is_unique: bool = builtin_property(151, is_repr=True)
-    is_readonly: bool = builtin_property(153)
+    is_required: bool = builtin_property(
+        150,
+        is_repr=True,
+        description="Whether this property must be set.",
+    )
+    is_unique: bool = builtin_property(
+        151,
+        is_repr=True,
+        description="Whether this property must have a unique value.",
+    )
+    is_readonly: bool = builtin_property(
+        153,
+        is_repr=True,
+        description="Whether this property is read-only.",
+    )
     is_main: bool = builtin_property(154)
+
     is_wired: bool = builtin_property(160)
-    is_stored: bool = builtin_property(161)
+    is_stored: bool = builtin_property(
+        161,
+        description="Whether this property is stored in the database.",
+    )
     is_repr: bool = builtin_property(162)
     is_hash: bool = builtin_property(163)
     is_eq: bool = builtin_property(164)
-    is_managed: bool = builtin_property(165)
+    is_internal: bool = builtin_property(165)
 
     _type: "Type | None" = builtin_property_runtime()
 
@@ -572,7 +571,7 @@ class PropertyDefinition(BuiltinDefinition):
             is_repr=prop.is_repr,
             is_hash=prop.is_hash,
             is_eq=prop.is_eq,
-            is_managed=prop.is_managed,
+            is_internal=prop.is_internal,
         )
 
     def to_type(self) -> "Type":

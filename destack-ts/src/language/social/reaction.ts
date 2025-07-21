@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   IsActor,
   IsOwned,
@@ -13,6 +12,7 @@ import type {
   Snapshot,
   Space,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -26,6 +26,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import {
@@ -37,7 +38,7 @@ import {
   ReactionRemovedEventProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1400000 ==== */
@@ -77,7 +78,7 @@ export class Reaction extends Entity implements IsOwned {
   readonly materialization: Materialization;
 
   /**
-   * The definition this CustomEntity is an instance of.
+   * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
@@ -189,7 +190,7 @@ export class Reaction extends Entity implements IsOwned {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * IsOwned.ownedBy
+   * Entity.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -198,21 +199,25 @@ export class Reaction extends Entity implements IsOwned {
     }
     return null;
   }
-  set ownedBy(node: Entity & IsActor) {
-    this.ownedByPtr = node.toRef();
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
   }
   /**
-   * IsOwned.ownedBy
+   * Entity.ownedBy
    */
-  get ownedByPtr(): NodeReference {
+  get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
-  set ownedByPtr(value: NodeReference) {
+  set ownedByPtr(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
     this._ownedByPtr = value;
   }
-  _ownedByPtr: NodeReference;
+  _ownedByPtr: NodeReference | null;
 
   /**
    * Entity.name
@@ -229,6 +234,90 @@ export class Reaction extends Entity implements IsOwned {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
+   * The Script of this Entity.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The Script of this Entity.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Reaction.content
@@ -263,8 +352,14 @@ export class Reaction extends Entity implements IsOwned {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: (Entity & IsActor) | NodeReference;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    orderKey?: string;
+    customValues?: { readonly [key: string]: Value };
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean | null;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     content: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -368,12 +463,9 @@ export class Reaction extends Entity implements IsOwned {
     this.instancePtr = _instance;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _ownedBy = options.ownedBy;
+    let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
-    }
-    if (_ownedBy === null) {
-      throw new Error(`Reaction.ownedBy is required`);
     }
     this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
@@ -384,6 +476,33 @@ export class Reaction extends Entity implements IsOwned {
       throw new Error(`Reaction.name is required`);
     }
     this._name = _name;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Reaction.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    this.isExtensible = _isExtensible;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _content = options.content;
     if (_content === null) {
       throw new Error(`Reaction.content is required`);
@@ -437,13 +556,36 @@ export class Reaction extends Entity implements IsOwned {
     if (!(this._content === other._content)) {
       return false;
     }
-    if (!(this._ownedByPtr.id === other._ownedByPtr.id)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
+      return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -459,7 +601,6 @@ export class Reaction extends Entity implements IsOwned {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._content)) & 0xffffffff;
-    h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -474,7 +615,29 @@ export class Reaction extends Entity implements IsOwned {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.isExtensible != null) {
+      h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -491,6 +654,7 @@ export class Reaction extends Entity implements IsOwned {
       type: NodeType.REACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -520,7 +684,9 @@ export class Reaction extends Entity implements IsOwned {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`content=${`"${this.content}"`}`);
-    propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Reaction "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -562,8 +728,30 @@ export class Reaction extends Entity implements IsOwned {
     if (object.deletedAt != null) {
       objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectCson["32"] = object._ownedByPtr.toCson();
-    objectCson["50"] = object._name;
+    if (object._ownedByPtr != null) {
+      objectCson["30"] = object._ownedByPtr.toCson();
+    }
+    objectCson["40"] = object._name;
+    objectCson["41"] = object.orderKey;
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toCson();
+      }
+      objectCson["45"] = packedCustomValues;
+    }
+    if (object._scriptPtr != null) {
+      objectCson["46"] = object._scriptPtr.toCson();
+    }
+    if (object.isExtensible != null) {
+      objectCson["50"] = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectCson["80"] = object.sourcePtr.toCson();
+    }
+    if (object._key != null) {
+      objectCson["85"] = object._key;
+    }
     objectCson["101"] = object._content;
     return objectCson;
   }
@@ -575,6 +763,7 @@ export class Reaction extends Entity implements IsOwned {
     _graph?: any | null,
     _connection?: any | null,
   ): Reaction {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
@@ -611,16 +800,40 @@ export class Reaction extends Entity implements IsOwned {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const ownedByPtrValue = objectCson["30"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectCson["45"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["45"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectCson["46"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const isExtensibleValue = objectCson["50"];
+    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+    const sourcePtrValue = objectCson["80"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectCson["85"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     return new Reaction({
       parent: unpackedParentPtr,
       content: objectCson["101"],
-      ownedBy: _NodeReference.fromCson(
-        objectCson["32"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -640,7 +853,14 @@ export class Reaction extends Entity implements IsOwned {
       updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectCson["50"],
+      ownedBy: unpackedOwnedByPtr,
+      name: objectCson["40"],
+      orderKey: objectCson["41"],
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
+      isExtensible: unpackedIsExtensible,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -695,8 +915,29 @@ export class Reaction extends Entity implements IsOwned {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
+    objectProto.orderKey = object.orderKey;
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    if (object.isExtensible != null) {
+      objectProto.isExtensible = object.isExtensible;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.content = object._content;
     return objectProto as ReactionProto;
   }
@@ -708,7 +949,17 @@ export class Reaction extends Entity implements IsOwned {
     _graph?: any | null,
     _connection?: any | null,
   ): Reaction {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Reaction({
       parent:
         objectProto.parentPtr != undefined
@@ -721,13 +972,6 @@ export class Reaction extends Entity implements IsOwned {
             )
           : null,
       content: objectProto.content,
-      ownedBy: _NodeReference.fromProto(
-        objectProto.ownedByPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
         objectProto.definitionPtr != undefined
@@ -799,7 +1043,41 @@ export class Reaction extends Entity implements IsOwned {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -859,10 +1137,10 @@ export class ReactionEvent extends Event {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -990,7 +1268,7 @@ export class ReactionEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1240,6 +1518,7 @@ export class ReactionEvent extends Event {
       type: NodeType.REACTION_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -1559,7 +1838,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1679,6 +1958,7 @@ export class ReactionAddedEvent extends ReactionEvent {
       type: NodeType.REACTION_ADDED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
@@ -2010,7 +2290,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2130,6 +2410,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
       type: NodeType.REACTION_REMOVED_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,

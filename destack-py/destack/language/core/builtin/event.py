@@ -11,7 +11,6 @@ from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
 from .property import ValueFactory, builtin_property
-from .trait import IsCustomizable, IsExtensible, IsSourceable
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -58,49 +57,49 @@ class Event[N: Node = Node](Node):
     __store_domain__ = StoreDomain.EVENT
 
     # 10-20: event identity
-    definition: Union["CustomEvent", None] = builtin_property(
+    definition: Union["Entity", None] = builtin_property(
         11,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The definition this Event is an instance of.",
     )
     branch: "Branch" = builtin_property(
         12,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Event originated from.",
     )
     snapshot: "Snapshot" = builtin_property(
         13,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Event originated from.",
     )
     preceded_by: Optional["Event"] = builtin_property(
         14,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         description="The previous Event that this Event follows.",
     )
     caused_by: Optional["Event"] = builtin_property(
         15,
         is_readonly=True,
-        is_managed=True,
+        is_internal=True,
         description="The Event that caused this Event (if any).",
     )
     # 20-40: node tracking
     created_at: datetime = builtin_property(
         20,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The time this Event was created (system time).",
     )
     created_epoch: int = builtin_property(
         21,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_hash=False,
         is_repr=True,
@@ -110,32 +109,32 @@ class Event[N: Node = Node](Node):
     created_by: Optional["IsActor"] = builtin_property(
         22,
         default=None,
-        is_managed=True,
+        is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The Actor that created this Event.",
     )
     client: Optional["Client"] = builtin_property(
         23,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The Client that created this Event.",
     )
     client_nonce: Optional[UUID] = builtin_property(
         24,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The nonce of the Client that created this Event.",
     )
     client_created_at: datetime = builtin_property(
         25,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The time in the Client when it created this Event.",
     )
     client_epoch: int = builtin_property(
         26,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The logical time in the Client when it created this Event.",
     )
@@ -183,32 +182,31 @@ class Event[N: Node = Node](Node):
 
 @builtin_node(NodeType.CUSTOM_EVENT)
 class CustomEvent(
-    IsSourceable,
-    IsCustomizable,
     Entity,
 ):
     """A CustomEvent defines a custom Event with custom Properties."""
 
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
-    is_abstract: bool = builtin_property(45, default=False)
-
     icon: "Icon | None" = builtin_property(102)
+
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(110)
+    base_traits: list["NodeDefinitionReference"] = builtin_property(111)
+    is_abstract: bool = builtin_property(112, default=False)
 
 
 @builtin_node(
     NodeType.SIGNAL,
     frozen=True,  # type: ignore (frozen)
+    is_extensible=True,
     is_abstract=True,
 )
-class Signal(IsExtensible, Event):
+class Signal(Event):
     """
     A generic Event of a CustomEventDefinition.
     """
 
     definition: "CustomEvent" = builtin_property(
         6,
-        is_managed=True,
+        is_internal=True,
         is_readonly=True,
         description="The CustomEventDefinition this Signal is an instance of.",
     )

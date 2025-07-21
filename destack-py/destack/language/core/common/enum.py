@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from ..builtin import (
     Entity,
-    IsCustomizable,
-    IsSourceable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -17,8 +15,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_ENUM)
 class CustomEnum(
-    IsSourceable,
-    IsCustomizable,
     Entity,
 ):
     """A CustomEnum describes a custom Enum with custom Options."""
@@ -28,7 +24,6 @@ class CustomEnum(
 
 @builtin_node(NodeType.CUSTOM_OPTION)
 class CustomOption(
-    IsSourceable,
     Entity,
 ):
     parent: Union["CustomEnum", None] = builtin_property_parent()

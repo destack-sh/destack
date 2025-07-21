@@ -5,7 +5,9 @@ from .layout import LayoutView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SPLIT_VIEW)
+@builtin_node(
+    NodeType.SPLIT_VIEW,
+)
 class SplitView(LayoutView):
     """A split container View."""
 

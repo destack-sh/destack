@@ -119,7 +119,7 @@ def _generate_init[ObjectT: BuiltinObject](
         if not p.is_computed
         and p.default is UNSET
         and p.default_factory is None
-        and not p.is_managed
+        and not p.is_internal
         and p.cardinality == TypeCardinality.SCALAR
         and p.scalar_type
         != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
@@ -597,18 +597,6 @@ def __to_ref__(self) -> "NodeReference":
         snapshot_id=self.id,
     )
 """
-    elif TraitType.EXTENSIBLE in cls.__traits__:
-        ref_impl = f"""\
-def __to_ref__(self) -> "NodeReference":
-    return NodeReference(
-        type=NodeType.{node_type.name},
-        id=self.id,
-        definition_id=definition_ptr.id if (definition_ptr := self.definition_ptr) is not None else None,
-        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
-        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
-        snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
-    )
-"""
     else:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
@@ -616,6 +604,7 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        definition_id=definition_ptr.id if (definition_ptr := self.definition_ptr) is not None else None,
         branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
@@ -1132,7 +1121,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cls.__tracked_properties__ = frozendict()
     else:
         cls.__tracked_properties__ = frozendict(
-            {p.name: p for p in props if not p.is_managed and not p.is_computed}
+            {p.name: p for p in props if not p.is_internal and not p.is_computed}
         )
 
     # assign property ordinals

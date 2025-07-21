@@ -344,15 +344,15 @@ enum EnumTypeProto {
   ENUM_TYPE_EXPRESSION_TYPE = 306;
   ENUM_TYPE_QUERY_TYPE = 320;
   ENUM_TYPE_QUERY_UPDATE_TYPE = 321;
-  ENUM_TYPE_BRANCH_TYPE = 11000;
-  ENUM_TYPE_SNAPSHOT_TYPE = 11100;
-  ENUM_TYPE_SNAPSHOT_STATUS = 11101;
-  ENUM_TYPE_RESOURCE_STATUS = 12100;
+  ENUM_TYPE_BRANCH_TYPE = 2000;
+  ENUM_TYPE_SNAPSHOT_TYPE = 2100;
+  ENUM_TYPE_SNAPSHOT_STATUS = 2101;
+  ENUM_TYPE_RESOURCE_STATUS = 10101;
   ENUM_TYPE_INDEX_TYPE = 30100;
   ENUM_TYPE_CONSTRAINT_TYPE = 30200;
   ENUM_TYPE_MIGRATION_TYPE = 31000;
-  ENUM_TYPE_METHOD_TYPE = 701000;
-  ENUM_TYPE_METHOD_CARDINALITY = 701001;
+  ENUM_TYPE_METHOD_TYPE = 40000;
+  ENUM_TYPE_METHOD_CARDINALITY = 40001;
   ENUM_TYPE_SPACE_STATUS = 100000;
   ENUM_TYPE_USER_STATUS = 101000;
   ENUM_TYPE_ORGANIZATION_STATUS = 103000;
@@ -806,18 +806,18 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_SPACE = 10100;
-  NODE_TYPE_BRANCH = 11000;
-  NODE_TYPE_SNAPSHOT = 11100;
-  NODE_TYPE_RECORD = 12000;
-  NODE_TYPE_RESOURCE = 12100;
-  NODE_TYPE_METRIC = 12200;
-  NODE_TYPE_SERVICE = 12400;
-  NODE_TYPE_VARIANT = 12500;
-  NODE_TYPE_TAG = 12600;
-  NODE_TYPE_TAGGING = 12700;
-  NODE_TYPE_ENTITY2D = 15000;
-  NODE_TYPE_ENTITY3D = 15100;
+  NODE_TYPE_SPACE = 1000;
+  NODE_TYPE_BRANCH = 2000;
+  NODE_TYPE_SNAPSHOT = 2100;
+  NODE_TYPE_RECORD = 10000;
+  NODE_TYPE_RESOURCE = 10100;
+  NODE_TYPE_METRIC = 10200;
+  NODE_TYPE_SERVICE = 10300;
+  NODE_TYPE_VARIANT = 10400;
+  NODE_TYPE_ENTITY2D = 11000;
+  NODE_TYPE_ENTITY3D = 11100;
+  NODE_TYPE_TAG = 12000;
+  NODE_TYPE_TAGGING = 12100;
   NODE_TYPE_CUSTOM_EVENT = 20000;
   NODE_TYPE_CUSTOM_STRUCT = 20100;
   NODE_TYPE_CUSTOM_ENUM = 20200;
@@ -827,12 +827,12 @@ enum NodeTypeProto {
   NODE_TYPE_CONSTRAINT = 30200;
   NODE_TYPE_MIGRATION = 31000;
   NODE_TYPE_MIGRATION_OPERATION = 31100;
-  NODE_TYPE_METHOD = 35000;
-  NODE_TYPE_ACTION = 35100;
-  NODE_TYPE_PERMISSION = 40000;
-  NODE_TYPE_SIGNAL = 50000;
-  NODE_TYPE_EDIT_EVENT = 50100;
-  NODE_TYPE_MEASUREMENT_EVENT = 50200;
+  NODE_TYPE_METHOD = 40000;
+  NODE_TYPE_ACTION = 40100;
+  NODE_TYPE_PERMISSION = 50000;
+  NODE_TYPE_SIGNAL = 90000;
+  NODE_TYPE_EDIT_EVENT = 90100;
+  NODE_TYPE_MEASUREMENT_EVENT = 90200;
   NODE_TYPE_HANDLE = 100200;
   NODE_TYPE_USER = 121000;
   NODE_TYPE_CLIENT = 121300;
@@ -1338,6 +1338,17 @@ enum StructTypeProto {
   STRUCT_TYPE_STRUCT = 1;
   STRUCT_TYPE_DATUM = 2;
   STRUCT_TYPE_DATUM_MUTABLE = 3;
+  STRUCT_TYPE_BUILTIN_DEFINITION = 10;
+  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 11;
+  STRUCT_TYPE_NODE_DEFINITION = 12;
+  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 13;
+  STRUCT_TYPE_TRAIT_DEFINITION = 14;
+  STRUCT_TYPE_STRUCT_DEFINITION = 15;
+  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 16;
+  STRUCT_TYPE_ENUM_DEFINITION = 17;
+  STRUCT_TYPE_PROPERTY_DEFINITION = 18;
+  STRUCT_TYPE_CONSTANT_DEFINITION = 19;
+  STRUCT_TYPE_OPTION_DEFINITION = 20;
   STRUCT_TYPE_VALUE = 100;
   STRUCT_TYPE_TYPE = 101;
   STRUCT_TYPE_NUMBER_CONSTRAINT = 110;
@@ -1358,29 +1369,17 @@ enum StructTypeProto {
   STRUCT_TYPE_QUERY_UPDATE = 303;
   STRUCT_TYPE_NODE_REFERENCE = 1000;
   STRUCT_TYPE_PROPERTY_REFERENCE = 1001;
-  STRUCT_TYPE_BUILTIN_DEFINITION = 20000;
-  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 20001;
-  STRUCT_TYPE_NODE_DEFINITION = 20002;
-  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 20003;
-  STRUCT_TYPE_TRAIT_DEFINITION = 20004;
-  STRUCT_TYPE_STRUCT_DEFINITION = 20100;
-  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 20101;
-  STRUCT_TYPE_ENUM_DEFINITION = 20200;
-  STRUCT_TYPE_PROPERTY_DEFINITION = 20300;
-  STRUCT_TYPE_CONSTANT_DEFINITION = 20301;
-  STRUCT_TYPE_OPTION_DEFINITION = 20400;
   STRUCT_TYPE_INDEX_DEFINITION = 30100;
   STRUCT_TYPE_CONSTRAINT_DEFINITION = 30200;
   STRUCT_TYPE_MIGRATION_DEFINITION = 31000;
   STRUCT_TYPE_MIGRATION_OPERATION_DEFINITION = 31100;
-  STRUCT_TYPE_METHOD_DEFINITION = 35000;
-  STRUCT_TYPE_ACTION_DEFINITION = 35100;
-  STRUCT_TYPE_PERMISSION_DEFINITION = 40000;
+  STRUCT_TYPE_METHOD_DEFINITION = 40000;
+  STRUCT_TYPE_ACTION_DEFINITION = 40100;
+  STRUCT_TYPE_PERMISSION_DEFINITION = 50000;
   STRUCT_TYPE_TEXT = 400020;
   STRUCT_TYPE_TEXT_SPAN = 400021;
   STRUCT_TYPE_ICON = 400031;
   STRUCT_TYPE_SCHEDULE = 700001;
-  STRUCT_TYPE_DATABASE_INFO = 1000001;
   STRUCT_TYPE_COLOR = 2100300;
   STRUCT_TYPE_FILL = 2100400;
   STRUCT_TYPE_FONT = 2100500;
@@ -1484,16 +1483,11 @@ enum ToolTypeProto {
 enum TraitTypeProto {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_ORDERED = 10000;
-  TRAIT_TYPE_CUSTOMIZABLE = 10100;
-  TRAIT_TYPE_EXTENSIBLE = 10200;
-  TRAIT_TYPE_IRREVERSIBLE = 10300;
   TRAIT_TYPE_OWNABLE = 300000;
   TRAIT_TYPE_OWNED = 300001;
   TRAIT_TYPE_JOINABLE = 300003;
   TRAIT_TYPE_ACTOR = 300004;
   TRAIT_TYPE_RUNNABLE = 700001;
-  TRAIT_TYPE_SCRIPTABLE = 700002;
-  TRAIT_TYPE_SOURCEABLE = 700003;
   TRAIT_TYPE_STARABLE = 1400030;
   TRAIT_TYPE_REACTABLE = 1400032;
   TRAIT_TYPE_FOLLOWABLE = 1400034;
@@ -1595,11 +1589,14 @@ message ActionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   MethodTypeProto type = 100;
   optional TextProto text = 104;
   MethodCardinalityProto cardinality = 110;
@@ -1653,10 +1650,14 @@ message ArrowShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -1713,10 +1714,14 @@ message BorderStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   BorderTypeProto type = 100;
   optional ColorProto color = 200;
   optional Inset2Proto width = 201;
@@ -1742,8 +1747,14 @@ message BranchProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   BranchTypeProto type = 100;
 }
 
@@ -1772,10 +1783,7 @@ message ClickEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -1805,8 +1813,15 @@ message ClientProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
   optional string browser_version = 44;
-  string name = 50;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   ClientTypeProto type = 100;
   optional NodeReferenceProto machine_ptr = 110;
   optional NodeReferenceProto user_ptr = 111;
@@ -1837,10 +1852,7 @@ message ClipboardEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -1882,10 +1894,14 @@ message ColorStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   ColorTypeProto type = 100;
   optional ColorHueProto hue = 200;
   optional ColorShadeProto shade = 201;
@@ -1931,7 +1947,14 @@ message ConstraintProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   ConstraintTypeProto type = 100;
   repeated PropertyReferenceProto properties = 105;
 }
@@ -1965,10 +1988,14 @@ message ContentViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -1984,10 +2011,10 @@ message ContentViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
 }
 
 // A CopyEvent is a ClipboardEvent when a copy is performed.
@@ -2007,10 +2034,7 @@ message CopyEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2063,10 +2087,14 @@ message CounterMetricProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -2089,8 +2117,14 @@ message CursorProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
 }
@@ -2114,11 +2148,14 @@ message CustomEnumProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -2141,15 +2178,18 @@ message CustomEventProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeDefinitionReferenceProto base_type = 40;
-  repeated NodeDefinitionReferenceProto base_traits = 41;
-  bool is_abstract = 45;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
+  optional NodeDefinitionReferenceProto base_type = 110;
+  repeated NodeDefinitionReferenceProto base_traits = 111;
+  bool is_abstract = 112;
 }
 
 message CustomOptionProto {
@@ -2170,10 +2210,14 @@ message CustomOptionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -2184,6 +2228,7 @@ message CustomPropertyProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
+  optional NodeReferenceProto definition_ptr = 11;
   NodeReferenceProto branch_ptr = 12;
   NodeReferenceProto snapshot_ptr = 13;
   optional NodeReferenceProto preceded_by_ptr = 14;
@@ -2195,10 +2240,14 @@ message CustomPropertyProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   PropertyTypeProto type = 100;
   optional IconProto icon = 102;
   TypeCardinalityProto cardinality = 110;
@@ -2207,7 +2256,7 @@ message CustomPropertyProto {
   optional EnumTypeProto enum_type = 113;
   optional NodeTypeProto node_type = 114;
   optional StructTypeProto struct_type = 115;
-  optional NodeReferenceProto definition_ptr = 116;
+  optional NodeReferenceProto custom_definition_ptr = 116;
   optional TypeProto key_type = 117;
   optional ValueProto value = 120;
   optional ValueFactoryProto value_factory = 121;
@@ -2243,14 +2292,16 @@ message CustomStructProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional StructDefinitionReferenceProto base_type = 41;
-  bool is_frozen = 42;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
+  optional StructDefinitionReferenceProto base_type = 110;
 }
 
 // A CutEvent is a ClipboardEvent when a cut is performed.
@@ -2270,10 +2321,7 @@ message CutEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2296,31 +2344,23 @@ message DatabaseProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  ResourceStatusProto status = 40;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   DatabaseTypeProto type = 100;
   optional IconProto icon = 102;
-  RegionProto region = 110;
-  optional string galaxy_name = 111;
-  string external_name = 112;
-  optional string custom_schema_name = 113;
-  TenancyProto tenancy = 115;
-  optional string connection_url = 118;
-}
-
-message DatabaseInfoProto {
-  StructTypeProto metatype = 1;
-  DatabaseTypeProto type = 100;
-  RegionProto region = 110;
-  optional string galaxy_name = 111;
-  string external_name = 112;
-  optional string custom_schema_name = 113;
-  TenancyProto tenancy = 115;
-  optional string connection_url = 118;
+  optional ResourceStatusProto status = 110;
+  optional RegionProto region = 111;
+  optional string galaxy_name = 200;
+  string external_name = 201;
+  optional string custom_schema_name = 202;
+  TenancyProto tenancy = 203;
+  optional string connection_url = 204;
 }
 
 message DatumProto {
@@ -2352,10 +2392,7 @@ message DoubleClickEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -2383,10 +2420,7 @@ message DragEndEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2408,10 +2442,7 @@ message DragEnterEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2433,10 +2464,7 @@ message DragEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2458,10 +2486,7 @@ message DragLeaveEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2483,10 +2508,7 @@ message DragOverEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2508,10 +2530,7 @@ message DragStartEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2533,10 +2552,7 @@ message DropEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
 }
@@ -2609,10 +2625,14 @@ message EffectStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   EffectTypeProto type = 100;
   optional double opacity = 200;
   optional Vector2Proto offset = 201;
@@ -2654,10 +2674,14 @@ message EllipseShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -2687,10 +2711,14 @@ message EntitlementProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   EntitlementTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -2831,7 +2859,14 @@ message EntityProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 // An Entity in 2D space.
@@ -2853,10 +2888,14 @@ message Entity2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -2885,10 +2924,14 @@ message Entity3DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector3Proto position = 110;
   optional Vector3Proto scale = 111;
   optional QuaternionProto rotation = 112;
@@ -2925,7 +2968,14 @@ message EnvironmentProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -2970,8 +3020,14 @@ message EventCursorProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
   optional NodeReferenceProto event_ptr = 120;
@@ -3006,29 +3062,33 @@ message FileProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  ResourceStatusProto status = 40;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   FileTypeProto type = 100;
-  optional string mime_type = 111;
-  optional FileFormatProto format = 112;
-  optional int64 size = 113 [jstype = JS_NUMBER];
-  optional string sha256 = 114;
-  optional int64 width = 115 [jstype = JS_NUMBER];
-  optional int64 height = 116 [jstype = JS_NUMBER];
-  optional double aspect_ratio = 117;
-  optional string codec = 118;
-  optional google.protobuf.Duration duration = 119;
-  optional string url = 120;
-  optional string content_url = 121;
-  optional string thumbnail_url = 122;
-  optional string favicon_url = 123;
-  optional int64 thumbnail_width = 124 [jstype = JS_NUMBER];
-  optional int64 thumbnail_height = 125 [jstype = JS_NUMBER];
-  optional bytes content = 126;
+  optional ResourceStatusProto status = 110;
+  optional RegionProto region = 111;
+  optional string mime_type = 120;
+  optional FileFormatProto format = 121;
+  optional int64 size = 122 [jstype = JS_NUMBER];
+  optional string sha256 = 123;
+  optional int64 width = 124 [jstype = JS_NUMBER];
+  optional int64 height = 125 [jstype = JS_NUMBER];
+  optional double aspect_ratio = 126;
+  optional string codec = 127;
+  optional google.protobuf.Duration duration = 128;
+  optional string url = 130;
+  optional string content_url = 131;
+  optional string thumbnail_url = 132;
+  optional string favicon_url = 133;
+  optional int64 thumbnail_width = 134 [jstype = JS_NUMBER];
+  optional int64 thumbnail_height = 135 [jstype = JS_NUMBER];
+  optional bytes content = 136;
 }
 
 message FillProto {
@@ -3061,10 +3121,14 @@ message FillStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   FillTypeProto type = 100;
   optional ColorProto color = 200;
   optional GradientProto gradient = 201;
@@ -3090,10 +3154,7 @@ message FocusEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -3114,10 +3175,7 @@ message FocusInEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -3138,10 +3196,7 @@ message FocusOutEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -3164,12 +3219,14 @@ message FolderProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   FolderTypeProto type = 100;
   optional IconProto icon = 102;
   optional string slug = 103;
@@ -3195,8 +3252,14 @@ message FollowProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 message FollowAddedEventProto {
@@ -3292,10 +3355,14 @@ message FontStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   FontTypeProto type = 100;
   optional FontWeightProto weight = 102;
   optional FillProto color = 103;
@@ -3326,10 +3393,14 @@ message FrameViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -3345,10 +3416,10 @@ message FrameViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
@@ -3408,10 +3479,14 @@ message GaugeMetricProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -3449,10 +3524,14 @@ message GradientStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   GradientTypeProto type = 100;
   optional double angle = 102;
   repeated GradientStopProto stops = 103;
@@ -3494,7 +3573,14 @@ message HandleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string slug = 101;
 }
 
@@ -3544,10 +3630,14 @@ message HistogramMetricProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -3581,7 +3671,14 @@ message IndexProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   IndexTypeProto type = 100;
   repeated PropertyReferenceProto properties = 105;
 }
@@ -3614,10 +3711,7 @@ message InputEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -3640,10 +3734,14 @@ message InputViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -3659,10 +3757,10 @@ message InputViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
 }
 
 message Inset2Proto {
@@ -3693,11 +3791,14 @@ message InviteProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   NodeReferenceProto member_ptr = 110;
   optional NodeReferenceProto role_ptr = 111;
   optional RoleTypeProto role_type = 112;
@@ -3825,7 +3926,7 @@ message InviteSentEventProto {
 message JoinProto {
   StructTypeProto metatype = 1;
   JoinTypeProto type = 100;
-  optional NodeDefinitionReferenceProto definition = 101;
+  optional NodeDefinitionReferenceProto custom_definition = 101;
   bool recursive = 102;
   optional int64 depth = 103 [jstype = JS_NUMBER];
   optional ConditionProto on = 104;
@@ -3848,10 +3949,7 @@ message KeyDownEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3880,10 +3978,7 @@ message KeyEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3912,10 +4007,7 @@ message KeyPressEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3944,10 +4036,7 @@ message KeyUpEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3978,10 +4067,14 @@ message LabelViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -3997,10 +4090,10 @@ message LabelViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
@@ -4032,18 +4125,21 @@ message LayerProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   LayerTypeProto type = 100;
   optional IconProto icon = 102;
   optional bool is_visible = 140;
   optional double opacity = 141;
 }
 
-// A Layout View defines how its children Views are laid out.
+// A Layout View defines how its children  are laid out.
 message LayoutViewProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4062,10 +4158,14 @@ message LayoutViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -4081,10 +4181,10 @@ message LayoutViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
@@ -4129,10 +4229,14 @@ message LineShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -4189,25 +4293,29 @@ message MachineProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  ResourceStatusProto status = 40;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   MachineTypeProto type = 100;
-  string version = 110;
-  optional string external_name = 112;
-  optional string external_id = 113;
-  optional string image_id = 114;
-  optional string grpc_url = 115;
-  optional string vnc_url = 116;
-  optional NodeReferenceProto client_ptr = 119;
-  double cpu = 120;
-  double ram = 121;
-  int64 width = 122 [jstype = JS_NUMBER];
-  int64 height = 123 [jstype = JS_NUMBER];
-  bool is_headless = 124;
+  optional ResourceStatusProto status = 110;
+  optional RegionProto region = 111;
+  string version = 120;
+  optional string external_name = 121;
+  optional string external_id = 122;
+  optional string image_id = 123;
+  optional string grpc_url = 124;
+  optional string vnc_url = 125;
+  optional NodeReferenceProto client_ptr = 126;
+  double cpu = 130;
+  double ram = 131;
+  int64 width = 132 [jstype = JS_NUMBER];
+  int64 height = 133 [jstype = JS_NUMBER];
+  bool is_headless = 134;
 }
 
 // An Event that represents a Measurement.
@@ -4250,11 +4358,14 @@ message MembershipProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   NodeReferenceProto member_ptr = 110;
   optional NodeReferenceProto role_ptr = 111;
   optional RoleTypeProto role_type = 112;
@@ -4350,11 +4461,14 @@ message MethodProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   MethodTypeProto type = 100;
   optional TextProto text = 104;
   MethodCardinalityProto cardinality = 110;
@@ -4394,10 +4508,14 @@ message MetricProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -4420,7 +4538,14 @@ message MigrationProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   MigrationTypeProto type = 100;
 }
 
@@ -4452,7 +4577,14 @@ message MigrationOperationProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 message MigrationOperationDefinitionProto {
@@ -4480,10 +4612,7 @@ message MouseEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -4583,11 +4712,14 @@ message NotificationProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string title = 101;
   NotificationStatusProto status = 110;
   optional TextProto text = 120;
@@ -4748,10 +4880,14 @@ message NumberInputViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -4767,10 +4903,10 @@ message NumberInputViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional double value = 250;
   optional string placeholder = 251;
 }
@@ -4781,7 +4917,7 @@ message ObjectDefinitionReferenceProto {
   optional NodeTypeProto node_type = 101;
   optional TraitTypeProto trait_type = 102;
   optional StructTypeProto struct_type = 103;
-  optional NodeReferenceProto definition_ptr = 105;
+  optional NodeReferenceProto custom_definition_ptr = 105;
 }
 
 message Offset2Proto {
@@ -4821,9 +4957,14 @@ message OrganizationProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string slug = 101;
   OrganizationStatusProto status = 102;
   optional NodeReferenceProto handle_ptr = 111;
@@ -4848,10 +4989,14 @@ message PaletteProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -4872,10 +5017,7 @@ message PasteEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -4904,10 +5046,14 @@ message PathShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -4938,10 +5084,14 @@ message PermissionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 message PermissionDefinitionProto {
@@ -4969,10 +5119,7 @@ message PointerDownEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -4999,10 +5146,7 @@ message PointerEnterEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5029,10 +5173,7 @@ message PointerEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5059,10 +5200,7 @@ message PointerLeaveEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5089,10 +5227,7 @@ message PointerLongPressEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5119,10 +5254,7 @@ message PointerMoveEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5149,10 +5281,7 @@ message PointerOverEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5179,10 +5308,7 @@ message PointerUpEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -5217,10 +5343,14 @@ message PolygonShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -5266,7 +5396,7 @@ message PropertyDefinitionProto {
   bool is_repr = 162;
   bool is_hash = 163;
   bool is_eq = 164;
-  bool is_managed = 165;
+  bool is_internal = 165;
 }
 
 message PropertyReferenceProto {
@@ -5357,8 +5487,14 @@ message ReactionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string content = 101;
 }
 
@@ -5444,11 +5580,14 @@ message RecordProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 message Rectangle2DProto {
@@ -5477,10 +5616,14 @@ message RectangleShape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -5513,12 +5656,16 @@ message ResourceProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  ResourceStatusProto status = 40;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
+  optional ResourceStatusProto status = 110;
+  optional RegionProto region = 111;
 }
 
 // A Role for Actors to take.
@@ -5540,10 +5687,14 @@ message RoleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   RoleTypeProto type = 100;
   optional IconProto icon = 102;
 }
@@ -5633,9 +5784,14 @@ message RouteProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 // Run of a Runnable.
@@ -5657,8 +5813,14 @@ message RunProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional NodeReferenceProto target_ptr = 111;
   RunStatusProto status = 112;
   optional google.protobuf.Duration duration = 113;
@@ -5886,10 +6048,14 @@ message SanctionProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   SanctionTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -6019,12 +6185,14 @@ message SceneProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
   optional NodeReferenceProto root_view_ptr = 200;
 }
@@ -6089,8 +6257,14 @@ message ScreenCursorProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
   optional Vector2iProto position = 120;
@@ -6115,9 +6289,14 @@ message ScriptProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string code = 110;
 }
 
@@ -6146,14 +6325,14 @@ message ServiceProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -6188,10 +6367,14 @@ message ShadowStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   ShadowTypeProto type = 100;
   optional ColorProto color = 200;
   ShadowPositionProto position = 201;
@@ -6220,10 +6403,14 @@ message Shape2DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -6253,10 +6440,14 @@ message Shape3DProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector3Proto position = 110;
   optional Vector3Proto scale = 111;
   optional QuaternionProto rotation = 112;
@@ -6282,10 +6473,7 @@ message SignalProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -6306,10 +6494,7 @@ message SingleClickEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -6339,10 +6524,14 @@ message SliderInputViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -6358,10 +6547,10 @@ message SliderInputViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional double value = 250;
   optional double min_value = 251;
   optional double max_value = 252;
@@ -6391,8 +6580,14 @@ message SnapshotProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   SnapshotTypeProto type = 100;
   SnapshotStatusProto status = 110;
 }
@@ -6423,10 +6618,14 @@ message SpaceProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string slug = 102;
   SpaceStatusProto status = 110;
   optional NodeReferenceProto handle_ptr = 111;
@@ -6477,10 +6676,14 @@ message SplitViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -6496,10 +6699,10 @@ message SplitViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional LayoutProto layout = 150;
   optional DirectionProto direction = 151;
   optional DistributeProto distribute = 152;
@@ -6531,11 +6734,14 @@ message StageProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 // A Star is a relationship between a Actor and a Starred Node.
@@ -6557,8 +6763,14 @@ message StarProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 message StarAddedEventProto {
@@ -6684,10 +6896,14 @@ message StrokeStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   StrokeTypeProto type = 100;
   int64 size = 200 [jstype = JS_NUMBER];
   double thinning = 201;
@@ -6749,10 +6965,14 @@ message StyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 // A Tag to tag an Entity with (in a Tagging).
@@ -6774,13 +6994,14 @@ message TagProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -6803,8 +7024,14 @@ message TaggingProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   NodeReferenceProto tag_ptr = 110;
 }
 
@@ -6827,9 +7054,14 @@ message TeamProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string slug = 102;
 }
 
@@ -6875,10 +7107,14 @@ message TextViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -6894,10 +7130,10 @@ message TextViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
   optional FontProto font = 201;
   optional FillProto color = 202;
   optional TextProto text = 250;
@@ -6922,10 +7158,14 @@ message ThemeProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
 }
 
 // A Timer.
@@ -6947,10 +7187,14 @@ message TimerProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   TimerTypeProto type = 100;
   optional ScheduleProto schedule = 110;
 }
@@ -7090,9 +7334,6 @@ message TraitDefinitionProto {
   optional string description = 103;
   string alias = 110;
   bool is_extensible = 111;
-  repeated PropertyDefinitionProto properties = 120;
-  repeated IndexDefinitionProto indexes = 121;
-  repeated ConstraintDefinitionProto constraints = 122;
   repeated PermissionDefinitionProto permissions = 123;
   repeated TraitTypeProto base_traits = 130;
   repeated TraitTypeProto traits = 131;
@@ -7135,10 +7376,14 @@ message TransitionStyleProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   TransitionTypeProto type = 100;
   optional double delay = 102;
   optional double duration = 103;
@@ -7169,10 +7414,14 @@ message TriggerProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  string order_key = 31;
-  string name = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
   optional NodeDefinitionReferenceProto event = 110;
   optional ConditionProto where = 111;
@@ -7218,10 +7467,7 @@ message TripleClickEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -7241,7 +7487,7 @@ message TypeProto {
   optional EnumTypeProto enum_type = 113;
   optional NodeTypeProto node_type = 114;
   optional StructTypeProto struct_type = 115;
-  optional NodeReferenceProto definition_ptr = 116;
+  optional NodeReferenceProto custom_definition_ptr = 116;
   optional TypeProto key_type = 117;
   optional ValueProto value = 130;
   optional ValueFactoryProto value_factory = 131;
@@ -7272,9 +7518,14 @@ message UserProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   string slug = 102;
   UserStatusProto status = 110;
   optional google.protobuf.Timestamp last_logged_in_at = 111;
@@ -7311,11 +7562,14 @@ message VariantProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  optional NodeReferenceProto owned_by_ptr = 32;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional IconProto icon = 102;
 }
 
@@ -7380,10 +7634,14 @@ message ViewProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
-  map<string, ValueProto> custom_values = 30;
-  string name = 50;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
+  optional NodeReferenceProto owned_by_ptr = 30;
+  string name = 40;
+  string order_key = 41;
+  map<string, ValueProto> custom_values = 45;
+  optional NodeReferenceProto script_ptr = 46;
+  optional bool is_extensible = 50;
+  optional NodeReferenceProto source_ptr = 80;
+  optional string key = 85;
   optional Vector2Proto position = 110;
   optional Offset2Proto offset = 111;
   optional Vector2Proto scale = 112;
@@ -7399,10 +7657,10 @@ message ViewProto {
   optional LengthProto max_height = 125;
   optional bool is_visible = 130;
   optional double opacity = 131;
-  optional FillProto fill = 132;
-  optional ShadowProto shadow = 136;
-  optional BorderProto border = 137;
-  optional Corner2Proto radius = 138;
+  optional FillProto fill = 140;
+  optional ShadowProto shadow = 141;
+  optional BorderProto border = 142;
+  optional Corner2Proto radius = 143;
 }
 
 // A Event regarding a View.
@@ -7443,10 +7701,7 @@ message WheelEventProto {
   optional string client_nonce = 24;
   google.protobuf.Timestamp client_created_at = 25;
   int64 client_epoch = 26 [jstype = JS_NUMBER];
-  map<string, ValueProto> custom_values = 30;
   EventStatusProto status = 40;
-  optional NodeReferenceProto script_ptr = 80;
-  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2Proto position = 110;
   optional double pressure = 111;
@@ -7460,24 +7715,24 @@ message WheelEventProto {
 
 message SomeNodeProto {
   oneof node {
-    TagProto tag = 12600;
-    TaggingProto tagging = 12700;
+    TagProto tag = 12000;
+    TaggingProto tagging = 12100;
     CustomEventProto custom_event = 20000;
-    EditEventProto edit_event = 50100;
-    MethodProto method = 35000;
-    ActionProto action = 35100;
+    EditEventProto edit_event = 90100;
+    MethodProto method = 40000;
+    ActionProto action = 40100;
     CustomEnumProto custom_enum = 20200;
     CustomOptionProto custom_option = 20400;
     IndexProto index = 30100;
     ConstraintProto constraint = 30200;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
-    PermissionProto permission = 40000;
+    PermissionProto permission = 50000;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 10100;
+    SpaceProto space = 1000;
     CustomStructProto custom_struct = 20100;
-    BranchProto branch = 11000;
-    SnapshotProto snapshot = 11100;
+    BranchProto branch = 2000;
+    SnapshotProto snapshot = 2100;
     EntitlementRequestedEventProto entitlement_requested_event = 360502;
     EntitlementGrantedEventProto entitlement_granted_event = 360503;
     EntitlementRevokedEventProto entitlement_revoked_event = 360504;
@@ -7558,7 +7813,7 @@ message SomeNodeProto {
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 12400;
+    ServiceProto service = 10300;
     TimerStartedEventProto timer_started_event = 705102;
     TimerPausedEventProto timer_paused_event = 705103;
     TimerResumedEventProto timer_resumed_event = 705104;
@@ -7610,23 +7865,23 @@ message SomeNodeProto {
 
 message SomeEntityProto {
   oneof node {
-    TagProto tag = 12600;
-    TaggingProto tagging = 12700;
+    TagProto tag = 12000;
+    TaggingProto tagging = 12100;
     CustomEventProto custom_event = 20000;
-    MethodProto method = 35000;
-    ActionProto action = 35100;
+    MethodProto method = 40000;
+    ActionProto action = 40100;
     CustomEnumProto custom_enum = 20200;
     CustomOptionProto custom_option = 20400;
     IndexProto index = 30100;
     ConstraintProto constraint = 30200;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
-    PermissionProto permission = 40000;
+    PermissionProto permission = 50000;
     CustomPropertyProto custom_property = 20300;
-    SpaceProto space = 10100;
+    SpaceProto space = 1000;
     CustomStructProto custom_struct = 20100;
-    BranchProto branch = 11000;
-    SnapshotProto snapshot = 11100;
+    BranchProto branch = 2000;
+    SnapshotProto snapshot = 2100;
     EntitlementProto entitlement = 360500;
     InviteProto invite = 360100;
     MembershipProto membership = 360000;
@@ -7656,7 +7911,7 @@ message SomeEntityProto {
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 12400;
+    ServiceProto service = 10300;
     TimerProto timer = 705100;
     TriggerProto trigger = 705000;
     GaugeMetricProto gauge_metric = 1200000;
@@ -7686,7 +7941,7 @@ message SomeEntityProto {
 
 message SomeEventProto {
   oneof node {
-    EditEventProto edit_event = 50100;
+    EditEventProto edit_event = 90100;
     EntitlementRequestedEventProto entitlement_requested_event = 360502;
     EntitlementGrantedEventProto entitlement_granted_event = 360503;
     EntitlementRevokedEventProto entitlement_revoked_event = 360504;

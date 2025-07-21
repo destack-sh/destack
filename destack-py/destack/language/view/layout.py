@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.LAYOUT_VIEW,
+    is_extensible=True,
     is_abstract=True,
     expected_descendant_types=(NodeType.VIEW,),
 )

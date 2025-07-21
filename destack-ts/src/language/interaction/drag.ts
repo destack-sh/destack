@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
-  CustomEvent,
   Graph,
   IsActor,
   NodeReference,
@@ -10,7 +9,6 @@ import type {
   Snapshot,
   Space,
   Supergraph,
-  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -25,7 +23,6 @@ import {
 } from "@destack/language/core";
 import type { Vector2 } from "@destack/language/geometry";
 import { InputEvent } from "@destack/language/interaction/input";
-import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import {
@@ -38,7 +35,7 @@ import {
   EventStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashInt, hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000400 ==== */
@@ -57,7 +54,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * The definition this Event is an instance of.
    */
-  abstract get definition(): CustomEvent | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -122,25 +119,9 @@ export abstract class DragEvent extends InputEvent {
   declare readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  declare readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  abstract get script(): Script | null;
-  declare readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -182,10 +163,10 @@ export class DragStartEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -289,31 +270,9 @@ export class DragStartEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -335,7 +294,7 @@ export class DragStartEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -347,10 +306,7 @@ export class DragStartEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -443,11 +399,6 @@ export class DragStartEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -456,19 +407,6 @@ export class DragStartEvent extends DragEvent {
       throw new Error(`DragStartEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DragStartEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -521,9 +459,6 @@ export class DragStartEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -554,22 +489,8 @@ export class DragStartEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -581,7 +502,6 @@ export class DragStartEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -607,17 +527,8 @@ export class DragStartEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -632,9 +543,9 @@ export class DragStartEvent extends DragEvent {
       type: NodeType.DRAG_START_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -700,18 +611,7 @@ export class DragStartEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -726,7 +626,6 @@ export class DragStartEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragStartEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -761,27 +660,9 @@ export class DragStartEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DragStartEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -801,10 +682,8 @@ export class DragStartEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -853,17 +732,7 @@ export class DragStartEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -878,18 +747,8 @@ export class DragStartEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragStartEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DragStartEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -908,7 +767,6 @@ export class DragStartEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -979,16 +837,6 @@ export class DragStartEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -997,7 +845,6 @@ export class DragStartEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1049,10 +896,10 @@ export class DragEndEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1156,31 +1003,9 @@ export class DragEndEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1202,7 +1027,7 @@ export class DragEndEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -1214,10 +1039,7 @@ export class DragEndEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -1310,11 +1132,6 @@ export class DragEndEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -1323,19 +1140,6 @@ export class DragEndEvent extends DragEvent {
       throw new Error(`DragEndEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DragEndEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1388,9 +1192,6 @@ export class DragEndEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -1421,22 +1222,8 @@ export class DragEndEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -1448,7 +1235,6 @@ export class DragEndEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -1474,17 +1260,8 @@ export class DragEndEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -1499,9 +1276,9 @@ export class DragEndEvent extends DragEvent {
       type: NodeType.DRAG_END_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1567,18 +1344,7 @@ export class DragEndEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -1593,7 +1359,6 @@ export class DragEndEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEndEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -1628,27 +1393,9 @@ export class DragEndEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DragEndEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -1668,10 +1415,8 @@ export class DragEndEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1720,17 +1465,7 @@ export class DragEndEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1745,18 +1480,8 @@ export class DragEndEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEndEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DragEndEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -1775,7 +1500,6 @@ export class DragEndEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -1846,16 +1570,6 @@ export class DragEndEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1864,7 +1578,6 @@ export class DragEndEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1916,10 +1629,10 @@ export class DragOverEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2023,31 +1736,9 @@ export class DragOverEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -2069,7 +1760,7 @@ export class DragOverEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2081,10 +1772,7 @@ export class DragOverEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -2177,11 +1865,6 @@ export class DragOverEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -2190,19 +1873,6 @@ export class DragOverEvent extends DragEvent {
       throw new Error(`DragOverEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DragOverEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2255,9 +1925,6 @@ export class DragOverEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -2288,22 +1955,8 @@ export class DragOverEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -2315,7 +1968,6 @@ export class DragOverEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -2341,17 +1993,8 @@ export class DragOverEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -2366,9 +2009,9 @@ export class DragOverEvent extends DragEvent {
       type: NodeType.DRAG_OVER_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2434,18 +2077,7 @@ export class DragOverEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -2460,7 +2092,6 @@ export class DragOverEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragOverEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -2495,27 +2126,9 @@ export class DragOverEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DragOverEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -2535,10 +2148,8 @@ export class DragOverEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2587,17 +2198,7 @@ export class DragOverEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2612,18 +2213,8 @@ export class DragOverEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragOverEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DragOverEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -2642,7 +2233,6 @@ export class DragOverEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -2713,16 +2303,6 @@ export class DragOverEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -2731,7 +2311,6 @@ export class DragOverEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2783,10 +2362,10 @@ export class DragEnterEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2890,31 +2469,9 @@ export class DragEnterEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -2936,7 +2493,7 @@ export class DragEnterEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -2948,10 +2505,7 @@ export class DragEnterEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -3044,11 +2598,6 @@ export class DragEnterEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -3057,19 +2606,6 @@ export class DragEnterEvent extends DragEvent {
       throw new Error(`DragEnterEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DragEnterEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3122,9 +2658,6 @@ export class DragEnterEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -3155,22 +2688,8 @@ export class DragEnterEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -3182,7 +2701,6 @@ export class DragEnterEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -3208,17 +2726,8 @@ export class DragEnterEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -3233,9 +2742,9 @@ export class DragEnterEvent extends DragEvent {
       type: NodeType.DRAG_ENTER_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3301,18 +2810,7 @@ export class DragEnterEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -3327,7 +2825,6 @@ export class DragEnterEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEnterEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -3362,27 +2859,9 @@ export class DragEnterEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DragEnterEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -3402,10 +2881,8 @@ export class DragEnterEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3454,17 +2931,7 @@ export class DragEnterEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -3479,18 +2946,8 @@ export class DragEnterEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragEnterEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DragEnterEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -3509,7 +2966,6 @@ export class DragEnterEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -3580,16 +3036,6 @@ export class DragEnterEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3598,7 +3044,6 @@ export class DragEnterEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3650,10 +3095,10 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3757,31 +3202,9 @@ export class DragLeaveEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -3803,7 +3226,7 @@ export class DragLeaveEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -3815,10 +3238,7 @@ export class DragLeaveEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -3911,11 +3331,6 @@ export class DragLeaveEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -3924,19 +3339,6 @@ export class DragLeaveEvent extends DragEvent {
       throw new Error(`DragLeaveEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DragLeaveEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3989,9 +3391,6 @@ export class DragLeaveEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -4022,22 +3421,8 @@ export class DragLeaveEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -4049,7 +3434,6 @@ export class DragLeaveEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -4075,17 +3459,8 @@ export class DragLeaveEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -4100,9 +3475,9 @@ export class DragLeaveEvent extends DragEvent {
       type: NodeType.DRAG_LEAVE_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -4168,18 +3543,7 @@ export class DragLeaveEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -4194,7 +3558,6 @@ export class DragLeaveEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragLeaveEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -4229,27 +3592,9 @@ export class DragLeaveEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DragLeaveEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -4269,10 +3614,8 @@ export class DragLeaveEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4321,17 +3664,7 @@ export class DragLeaveEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -4346,18 +3679,8 @@ export class DragLeaveEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DragLeaveEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DragLeaveEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -4376,7 +3699,6 @@ export class DragLeaveEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -4447,16 +3769,6 @@ export class DragLeaveEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -4465,7 +3777,6 @@ export class DragLeaveEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4517,10 +3828,10 @@ export class DropEvent extends DragEvent {
   /**
    * The definition this Event is an instance of.
    */
-  get definition(): CustomEvent | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -4624,31 +3935,9 @@ export class DropEvent extends DragEvent {
   readonly clientEpoch: number;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  readonly customValues: { readonly [key: string]: Value };
-
-  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
-
-  /**
-   * The main / root Script of this Node.
-   */
-  get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly scriptPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -4670,7 +3959,7 @@ export class DropEvent extends DragEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: CustomEvent | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
@@ -4682,10 +3971,7 @@ export class DropEvent extends DragEvent {
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
-    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -4778,11 +4064,6 @@ export class DropEvent extends DragEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -4791,19 +4072,6 @@ export class DropEvent extends DragEvent {
       throw new Error(`DropEvent.status is required`);
     }
     this.status = _status;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this.scriptPtr = _script;
-    let _isExtensible = options.isExtensible ?? null;
-    if (_isExtensible === null) {
-      _isExtensible = false;
-    }
-    if (_isExtensible === null) {
-      throw new Error(`DropEvent.isExtensible is required`);
-    }
-    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -4856,9 +4124,6 @@ export class DropEvent extends DragEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.isExtensible === other.isExtensible)) {
-      return false;
-    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -4889,22 +4154,8 @@ export class DropEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
-    }
-    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
-      return false;
-    }
-    for (const key in this.customValues) {
-      if (!(key in other.customValues)) {
-        return false;
-      }
-      if (!this.customValues[key].equals(other.customValues[key])) {
-        return false;
-      }
     }
     return true;
   }
@@ -4916,7 +4167,6 @@ export class DropEvent extends DragEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -4942,17 +4192,8 @@ export class DropEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    if (this.customValues && Object.keys(this.customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this.customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
 
     return h;
   }
@@ -4967,9 +4208,9 @@ export class DropEvent extends DragEvent {
       type: NodeType.DROP_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
-      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -5035,18 +4276,7 @@ export class DropEvent extends DragEvent {
     }
     objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
     objectCson["26"] = object.clientEpoch;
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["30"] = packedCustomValues;
-    }
     objectCson["40"] = object.status;
-    if (object.scriptPtr != null) {
-      objectCson["80"] = object.scriptPtr.toCson();
-    }
-    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectCson["101"] = object.nodePtr.toCson();
     }
@@ -5061,7 +4291,6 @@ export class DropEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DropEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
@@ -5096,27 +4325,9 @@ export class DropEvent extends DragEvent {
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectCson["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
     return new DropEvent({
       position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
       snapshot: _NodeReference.fromCson(
@@ -5136,10 +4347,8 @@ export class DropEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
-      script: unpackedScriptPtr,
       id: String(objectCson["2"]),
       space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -5188,17 +4397,7 @@ export class DropEvent extends DragEvent {
     }
     objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
     objectProto.clientEpoch = object.clientEpoch;
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.scriptPtr != null) {
-      objectProto.scriptPtr = object.scriptPtr.toProto();
-    }
-    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -5213,18 +4412,8 @@ export class DropEvent extends DragEvent {
     _graph?: any | null,
     _connection?: any | null,
   ): DropEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
     return new DropEvent({
       position: _Vector2.fromProto(
         objectProto.position!,
@@ -5243,7 +4432,6 @@ export class DropEvent extends DragEvent {
               _connection,
             )
           : null,
-      isExtensible: objectProto.isExtensible,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -5314,16 +4502,6 @@ export class DropEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -5332,7 +4510,6 @@ export class DropEvent extends DragEvent {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

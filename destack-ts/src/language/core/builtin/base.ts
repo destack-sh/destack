@@ -1,13 +1,13 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import type { Region, ResourceStatus } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor } from "@destack/language/core/builtin/trait";
-import { BuiltinDefinition } from "@destack/language/core/common/definition";
+import type { IsActor, IsOrdered, IsOwnable } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -15,603 +15,546 @@ import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
+import type { Anchor, Offset2, Quaternion, Vector2, Vector3 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
-import {
-  STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
-  registerNodeClass,
-  registerStructClass,
-} from "@destack/language/registry";
-import {
-  MaterializationProto,
-  MigrationDefinitionProto,
-  MigrationOperationDefinitionProto,
-  MigrationOperationProto,
-  MigrationProto,
-  MigrationTypeProto,
-} from "@destack/proto";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { MaterializationProto, TagProto, TaggingProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:31000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 /**
- * MigrationType
+ * A generic Record instance of a CustomEntity.
  */
-export enum MigrationType {
-  CREATE = 1,
+export abstract class Record extends Entity implements IsOwnable {
+  static metatype: NodeType = NodeType.RECORD;
+
+  /**
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
+   */
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
+   * The definition this Entity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
+
+  /**
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+   */
+  abstract get precededBy(): Record | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
+
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
+
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.MIGRATION_TYPE, MigrationType);
-/* ==== DESTACK_GENERATED_END:ENUM:31000 ==== */
+registerNodeClass(NodeType.RECORD, Record);
+/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:31000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
 /**
- * Definition of a builtin Migration.
+ * A Resource represents an external asset outside of Destack.
+ * The lifecycle of a Resource may be managed by some Provisioner (Service).
  */
-export class MigrationDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.MIGRATION_DEFINITION;
-  static __isFrozen__: boolean = true;
+export abstract class Resource extends Entity implements IsOwnable {
+  static metatype: NodeType = NodeType.RESOURCE;
 
   /**
-   * BuiltinDefinition.id
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  readonly id: number;
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
-   * MigrationDefinition.type
+   * The Space this Node is in.
    */
-  readonly type: MigrationType;
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
-   * BuiltinDefinition.name
+   * Entity.materialization
    */
-  readonly name: string;
+  declare readonly materialization: Materialization;
 
   /**
-   * BuiltinDefinition.icon
+   * The definition this Entity is an instance of.
    */
-  readonly icon: Icon | null;
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
-   * BuiltinDefinition.description
+   * The Branch this Entity is part of.
    */
-  readonly description: string | null;
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
-  constructor(options: {
-    id: number;
-    type: MigrationType;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
 
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MigrationDefinition.id is required`);
-    }
-    this.id = _id;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`MigrationDefinition.type is required`);
-    }
-    this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`MigrationDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
+  /**
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+   */
+  abstract get precededBy(): Resource | null;
+  declare readonly precededByPtr: NodeReference | null;
 
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
-  }
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
 
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
 
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${MigrationType[this.type]}`);
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<MigrationDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
 
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
 
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = MigrationDefinition.__packCson__(this);
-    }
-    return this._cson;
-  }
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
-  static __packCson__(object: MigrationDefinition): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 31000;
-    objectCson["2"] = object.id;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.name;
-    if (object.icon != null) {
-      objectCson["102"] = object.icon.toCson();
-    }
-    if (object.description != null) {
-      objectCson["103"] = object.description;
-    }
-    return objectCson;
-  }
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectCson["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectCson["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new MigrationDefinition({
-      type: Number(objectCson["100"]),
-      id: Number(objectCson["2"]),
-      name: objectCson["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _cson: objectCson,
-      _supergraph,
-    });
-  }
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    return MigrationDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
 
-  toProto(): MigrationDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = MigrationDefinition.__packProto__(this);
-    }
-    return this._proto as MigrationDefinitionProto;
-  }
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
-  static __packProto__(object: MigrationDefinition): MigrationDefinitionProto {
-    const objectProto: Partial<MigrationDefinitionProto> = { metatype: 31000 };
-    objectProto.id = object.id;
-    objectProto.type = Number(object.type) as MigrationTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as MigrationDefinitionProto;
-  }
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
 
-  static __unpackProto__(
-    objectProto: MigrationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new MigrationDefinition({
-      type: Number(objectProto.type) as MigrationType,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
 
-  static fromProto(
-    objectProto: MigrationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    return MigrationDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
 
-  static fromProtoString(packedProtoString: string): MigrationDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
+   * Resource.status
+   */
+  /**
+   * Resource.status
+   */
+  abstract get status(): ResourceStatus | null;
+  abstract set status(value: ResourceStatus | null);
+
+  /**
+   * Resource.region
+   */
+  /**
+   * Resource.region
+   */
+  abstract get region(): Region | null;
+  abstract set region(value: Region | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.MIGRATION_DEFINITION, MigrationDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:31000 ==== */
+registerNodeClass(NodeType.RESOURCE, Resource);
+/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:31100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
 /**
- * Definition of a builtin MigrationOperation.
+ * A Variant is an alternative version of an Entity.
  */
-export class MigrationOperationDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.MIGRATION_OPERATION_DEFINITION;
-  static __isFrozen__: boolean = true;
+export abstract class Variant extends Entity implements IsOwnable {
+  static metatype: NodeType = NodeType.VARIANT;
 
   /**
-   * BuiltinDefinition.id
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  readonly id: number;
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
 
   /**
-   * BuiltinDefinition.name
+   * The Space this Node is in.
    */
-  readonly name: string;
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
-   * BuiltinDefinition.icon
+   * Entity.materialization
    */
-  readonly icon: Icon | null;
+  declare readonly materialization: Materialization;
 
   /**
-   * BuiltinDefinition.description
+   * The definition this Entity is an instance of.
    */
-  readonly description: string | null;
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
 
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MigrationOperationDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`MigrationOperationDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
 
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
-  }
+  /**
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+   */
+  abstract get precededBy(): Variant | null;
+  declare readonly precededByPtr: NodeReference | null;
 
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
 
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<MigrationOperationDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
 
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
 
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = MigrationOperationDefinition.__packCson__(this);
-    }
-    return this._cson;
-  }
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
 
-  static __packCson__(object: MigrationOperationDefinition): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 31100;
-    objectCson["2"] = object.id;
-    objectCson["101"] = object.name;
-    if (object.icon != null) {
-      objectCson["102"] = object.icon.toCson();
-    }
-    if (object.description != null) {
-      objectCson["103"] = object.description;
-    }
-    return objectCson;
-  }
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectCson["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectCson["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new MigrationOperationDefinition({
-      id: Number(objectCson["2"]),
-      name: objectCson["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _cson: objectCson,
-      _supergraph,
-    });
-  }
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    return MigrationOperationDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
-  toProto(): MigrationOperationDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = MigrationOperationDefinition.__packProto__(this);
-    }
-    return this._proto as MigrationOperationDefinitionProto;
-  }
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
 
-  static __packProto__(object: MigrationOperationDefinition): MigrationOperationDefinitionProto {
-    const objectProto: Partial<MigrationOperationDefinitionProto> = { metatype: 31100 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as MigrationOperationDefinitionProto;
-  }
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
-  static __unpackProto__(
-    objectProto: MigrationOperationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new MigrationOperationDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
 
-  static fromProto(
-    objectProto: MigrationOperationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    return MigrationOperationDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
 
-  static fromProtoString(packedProtoString: string): MigrationOperationDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationOperationDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
+   * Variant.icon
+   */
+  /**
+   * Variant.icon
+   */
+  abstract get icon(): Icon | null;
+  abstract set icon(value: Icon | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.MIGRATION_OPERATION_DEFINITION, MigrationOperationDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:31100 ==== */
+registerNodeClass(NodeType.VARIANT, Variant);
+/* ==== DESTACK_GENERATED_END:NODE:10400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:31000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
 /**
- * Migration of an Entity.
+ * A Tag to tag an Entity with (in a Tagging).
  */
-export class Migration extends Entity {
-  static metatype: NodeType = NodeType.MIGRATION;
+export class Tag extends Entity implements IsOrdered {
+  static metatype: NodeType = NodeType.TAG;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -682,10 +625,10 @@ export class Migration extends Entity {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): Migration | null {
+  get precededBy(): Tag | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Migration | null;
+      return this._supergraph.get(nodePtr.id) as Tag | null;
     }
     return null;
   }
@@ -885,20 +828,20 @@ export class Migration extends Entity {
   _key: string | null;
 
   /**
-   * Migration.type
+   * Tag.icon
    */
   /**
-   * Migration.type
+   * Tag.icon
    */
-  get type(): MigrationType {
-    return this._type;
+  get icon(): Icon | null {
+    return this._icon;
   }
-  set type(value: MigrationType) {
-    const prop = (this.constructor as NodeClass).__properties__["type"];
+  set icon(value: Icon | null) {
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
     this._session.updateSetProperty(this, prop, value);
-    this._type = value;
+    this._icon = value;
   }
-  _type: MigrationType;
+  _icon: Icon | null;
 
   constructor(options: {
     id?: string;
@@ -908,7 +851,7 @@ export class Migration extends Entity {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: Migration | NodeReference | null;
+    precededBy?: Tag | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -925,7 +868,7 @@ export class Migration extends Entity {
     isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
-    type: MigrationType;
+    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -965,12 +908,12 @@ export class Migration extends Entity {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for Migration`);
+        throw new Error(`no active Space for Tag`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`Migration.space is required`);
+      throw new Error(`Tag.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -978,7 +921,7 @@ export class Migration extends Entity {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`Migration.materialization is required`);
+      throw new Error(`Tag.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -993,12 +936,12 @@ export class Migration extends Entity {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for Migration`);
+        throw new Error(`no active Branch for Tag`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`Migration.branch is required`);
+      throw new Error(`Tag.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -1008,12 +951,12 @@ export class Migration extends Entity {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for Migration`);
+        throw new Error(`no active Snapshot for Tag`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`Migration.snapshot is required`);
+      throw new Error(`Tag.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1035,10 +978,10 @@ export class Migration extends Entity {
     this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "Migration";
+      _name = "Tag";
     }
     if (_name === null) {
-      throw new Error(`Migration.name is required`);
+      throw new Error(`Tag.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
@@ -1046,7 +989,7 @@ export class Migration extends Entity {
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Migration.orderKey is required`);
+      throw new Error(`Tag.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
@@ -1068,11 +1011,8 @@ export class Migration extends Entity {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Migration.type is required`);
-    }
-    this._type = _type;
+    let _icon = options.icon ?? null;
+    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -1091,9 +1031,7 @@ export class Migration extends Entity {
         options.createdEpoch == null ||
         options.updatedEpoch == null
       ) {
-        throw new Error(
-          `Migration.createdAt and Migration.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Tag.createdAt and Tag.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
@@ -1118,7 +1056,10 @@ export class Migration extends Entity {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._type === other._type)) {
+    if (
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
+    ) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1162,7 +1103,9 @@ export class Migration extends Entity {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._icon != null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
+    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1216,7 +1159,7 @@ export class Migration extends Entity {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.MIGRATION,
+      type: NodeType.TAG,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
@@ -1248,21 +1191,20 @@ export class Migration extends Entity {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${MigrationType[this.type]}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Migration "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Tag "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return Migration.__packCson__(this);
+    return Tag.__packCson__(this);
   }
 
-  static __packCson__(object: Migration): { [key: string]: any } {
+  static __packCson__(object: Tag): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 31000;
+    objectCson["1"] = 12000;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -1317,7 +1259,9 @@ export class Migration extends Entity {
     if (object._key != null) {
       objectCson["85"] = object._key;
     }
-    objectCson["100"] = object._type;
+    if (object._icon != null) {
+      objectCson["102"] = object._icon.toCson();
+    }
     return objectCson;
   }
 
@@ -1327,9 +1271,15 @@ export class Migration extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
+  ): Tag {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const iconValue = objectCson["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1396,8 +1346,8 @@ export class Migration extends Entity {
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new Migration({
-      type: Number(objectCson["100"]),
+    return new Tag({
+      icon: unpackedIcon,
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -1440,16 +1390,16 @@ export class Migration extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
-    return Migration.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Tag {
+    return Tag.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): MigrationProto {
-    return Migration.__packProto__(this);
+  toProto(): TagProto {
+    return Tag.__packProto__(this);
   }
 
-  static __packProto__(object: Migration): MigrationProto {
-    const objectProto: Partial<MigrationProto> = { metatype: 31000 };
+  static __packProto__(object: Tag): TagProto {
+    const objectProto: Partial<TagProto> = { metatype: 12000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1503,19 +1453,22 @@ export class Migration extends Entity {
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.type = Number(object._type) as MigrationTypeProto;
-    return objectProto as MigrationProto;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
+    }
+    return objectProto as TagProto;
   }
 
   static __unpackProto__(
-    objectProto: MigrationProto,
+    objectProto: TagProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
+  ): Tag {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1525,8 +1478,11 @@ export class Migration extends Entity {
         );
       }
     }
-    return new Migration({
-      type: Number(objectProto.type) as MigrationType,
+    return new Tag({
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1658,18 +1614,18 @@ export class Migration extends Entity {
   }
 
   static fromProto(
-    objectProto: MigrationProto,
+    objectProto: TagProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
-    return Migration.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Tag {
+    return Tag.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Migration {
+  static fromProtoString(packedProtoString: string): Tag {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationProto.fromBinary(packedProtoBytes);
+    const packedProto = TagProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1677,15 +1633,15 @@ export class Migration extends Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.MIGRATION, Migration);
-/* ==== DESTACK_GENERATED_END:NODE:31000 ==== */
+registerNodeClass(NodeType.TAG, Tag);
+/* ==== DESTACK_GENERATED_END:NODE:12000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:31100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12100 ==== */
 /**
- * MigrationOperation of an Entity.
+ * A Tagging of a Node by a Tag.
  */
-export class MigrationOperation extends Entity {
-  static metatype: NodeType = NodeType.MIGRATION_OPERATION;
+export class Tagging extends Entity implements IsOrdered {
+  static metatype: NodeType = NodeType.TAGGING;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -1756,10 +1712,10 @@ export class MigrationOperation extends Entity {
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): MigrationOperation | null {
+  get precededBy(): Tagging | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as MigrationOperation | null;
+      return this._supergraph.get(nodePtr.id) as Tagging | null;
     }
     return null;
   }
@@ -1958,6 +1914,32 @@ export class MigrationOperation extends Entity {
   }
   _key: string | null;
 
+  /**
+   * Tagging.tag
+   */
+  get tag(): Tag | null {
+    const nodePtr: NodeReference | null = this.tagPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Tag | null;
+    }
+    return null;
+  }
+  set tag(node: Tag) {
+    this.tagPtr = node.toRef();
+  }
+  /**
+   * Tagging.tag
+   */
+  get tagPtr(): NodeReference {
+    return this._tagPtr;
+  }
+  set tagPtr(value: NodeReference) {
+    const prop = (this.constructor as NodeClass).__properties__["tag"];
+    this._session.updateSetProperty(this, prop, value);
+    this._tagPtr = value;
+  }
+  _tagPtr: NodeReference;
+
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -1966,7 +1948,7 @@ export class MigrationOperation extends Entity {
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: MigrationOperation | NodeReference | null;
+    precededBy?: Tagging | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -1983,6 +1965,7 @@ export class MigrationOperation extends Entity {
     isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
+    tag: Tag | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2022,12 +2005,12 @@ export class MigrationOperation extends Entity {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for MigrationOperation`);
+        throw new Error(`no active Space for Tagging`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`MigrationOperation.space is required`);
+      throw new Error(`Tagging.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -2035,7 +2018,7 @@ export class MigrationOperation extends Entity {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`MigrationOperation.materialization is required`);
+      throw new Error(`Tagging.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -2050,12 +2033,12 @@ export class MigrationOperation extends Entity {
     if (_branch === null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch === null) {
-        throw new Error(`no active Branch for MigrationOperation`);
+        throw new Error(`no active Branch for Tagging`);
       }
       _branch = _branch.toRef();
     }
     if (_branch === null) {
-      throw new Error(`MigrationOperation.branch is required`);
+      throw new Error(`Tagging.branch is required`);
     }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
@@ -2065,12 +2048,12 @@ export class MigrationOperation extends Entity {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for MigrationOperation`);
+        throw new Error(`no active Snapshot for Tagging`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`MigrationOperation.snapshot is required`);
+      throw new Error(`Tagging.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2092,10 +2075,10 @@ export class MigrationOperation extends Entity {
     this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "MigrationOperation";
+      _name = "Tagging";
     }
     if (_name === null) {
-      throw new Error(`MigrationOperation.name is required`);
+      throw new Error(`Tagging.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
@@ -2103,7 +2086,7 @@ export class MigrationOperation extends Entity {
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`MigrationOperation.orderKey is required`);
+      throw new Error(`Tagging.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
@@ -2125,6 +2108,14 @@ export class MigrationOperation extends Entity {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
+    let _tag = options.tag;
+    if (_tag != null && _tag.metatype != StructType.NODE_REFERENCE) {
+      _tag = (_tag as Node).toRef();
+    }
+    if (_tag === null) {
+      throw new Error(`Tagging.tag is required`);
+    }
+    this._tagPtr = _tag;
 
     // identity
     if (options.id == null) {
@@ -2143,9 +2134,7 @@ export class MigrationOperation extends Entity {
         options.createdEpoch == null ||
         options.updatedEpoch == null
       ) {
-        throw new Error(
-          `MigrationOperation.createdAt and MigrationOperation.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Tagging.createdAt and Tagging.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
@@ -2168,6 +2157,9 @@ export class MigrationOperation extends Entity {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this._tagPtr.id === other._tagPtr.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -2211,6 +2203,7 @@ export class MigrationOperation extends Entity {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this._tagPtr.id)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -2264,7 +2257,7 @@ export class MigrationOperation extends Entity {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.MIGRATION_OPERATION,
+      type: NodeType.TAGGING,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
@@ -2300,16 +2293,16 @@ export class MigrationOperation extends Entity {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<MigrationOperation "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Tagging "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toCson(): { [key: string]: any } {
-    return MigrationOperation.__packCson__(this);
+    return Tagging.__packCson__(this);
   }
 
-  static __packCson__(object: MigrationOperation): { [key: string]: any } {
+  static __packCson__(object: Tagging): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 31100;
+    objectCson["1"] = 12100;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -2364,6 +2357,7 @@ export class MigrationOperation extends Entity {
     if (object._key != null) {
       objectCson["85"] = object._key;
     }
+    objectCson["110"] = object._tagPtr.toCson();
     return objectCson;
   }
 
@@ -2373,7 +2367,7 @@ export class MigrationOperation extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MigrationOperation {
+  ): Tagging {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectCson["3"];
@@ -2442,7 +2436,8 @@ export class MigrationOperation extends Entity {
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new MigrationOperation({
+    return new Tagging({
+      tag: _NodeReference.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
@@ -2485,22 +2480,16 @@ export class MigrationOperation extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MigrationOperation {
-    return MigrationOperation.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): Tagging {
+    return Tagging.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): MigrationOperationProto {
-    return MigrationOperation.__packProto__(this);
+  toProto(): TaggingProto {
+    return Tagging.__packProto__(this);
   }
 
-  static __packProto__(object: MigrationOperation): MigrationOperationProto {
-    const objectProto: Partial<MigrationOperationProto> = { metatype: 31100 };
+  static __packProto__(object: Tagging): TaggingProto {
+    const objectProto: Partial<TaggingProto> = { metatype: 12100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2554,16 +2543,17 @@ export class MigrationOperation extends Entity {
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    return objectProto as MigrationOperationProto;
+    objectProto.tagPtr = object._tagPtr.toProto();
+    return objectProto as TaggingProto;
   }
 
   static __unpackProto__(
-    objectProto: MigrationOperationProto,
+    objectProto: TaggingProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MigrationOperation {
+  ): Tagging {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedCustomValues = {} as any;
@@ -2575,7 +2565,14 @@ export class MigrationOperation extends Entity {
         );
       }
     }
-    return new MigrationOperation({
+    return new Tagging({
+      tag: _NodeReference.fromProto(
+        objectProto.tagPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2707,24 +2704,18 @@ export class MigrationOperation extends Entity {
   }
 
   static fromProto(
-    objectProto: MigrationOperationProto,
+    objectProto: TaggingProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MigrationOperation {
-    return MigrationOperation.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): Tagging {
+    return Tagging.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): MigrationOperation {
+  static fromProtoString(packedProtoString: string): Tagging {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationOperationProto.fromBinary(packedProtoBytes);
+    const packedProto = TaggingProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -2732,5 +2723,445 @@ export class MigrationOperation extends Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.MIGRATION_OPERATION, MigrationOperation);
-/* ==== DESTACK_GENERATED_END:NODE:31100 ==== */
+registerNodeClass(NodeType.TAGGING, Tagging);
+/* ==== DESTACK_GENERATED_END:NODE:12100 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
+/**
+ * An Entity in 2D space.
+ */
+export abstract class Entity2D extends Entity {
+  static metatype: NodeType = NodeType.ENTITY2D;
+
+  /**
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
+   */
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
+   * The definition this Entity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
+
+  /**
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+   */
+  abstract get precededBy(): Entity2D | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
+
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
+
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
+   * Entity2D.position
+   */
+  /**
+   * Entity2D.position
+   */
+  abstract get position(): Vector2 | null;
+  abstract set position(value: Vector2 | null);
+
+  /**
+   * Entity2D.offset
+   */
+  /**
+   * Entity2D.offset
+   */
+  abstract get offset(): Offset2 | null;
+  abstract set offset(value: Offset2 | null);
+
+  /**
+   * Entity2D.scale
+   */
+  /**
+   * Entity2D.scale
+   */
+  abstract get scale(): Vector2 | null;
+  abstract set scale(value: Vector2 | null);
+
+  /**
+   * Entity2D.rotation
+   */
+  /**
+   * Entity2D.rotation
+   */
+  abstract get rotation(): Vector2 | null;
+  abstract set rotation(value: Vector2 | null);
+
+  /**
+   * Entity2D.skew
+   */
+  /**
+   * Entity2D.skew
+   */
+  abstract get skew(): Vector2 | null;
+  abstract set skew(value: Vector2 | null);
+
+  /**
+   * Entity2D.origin
+   */
+  /**
+   * Entity2D.origin
+   */
+  abstract get origin(): Vector2 | null;
+  abstract set origin(value: Vector2 | null);
+
+  /**
+   * Entity2D.anchor
+   */
+  /**
+   * Entity2D.anchor
+   */
+  abstract get anchor(): Anchor | null;
+  abstract set anchor(value: Anchor | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ENTITY2D, Entity2D);
+/* ==== DESTACK_GENERATED_END:NODE:11000 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:11100 ==== */
+/**
+ * An Entity in 3D space.
+ */
+export abstract class Entity3D extends Entity {
+  static metatype: NodeType = NodeType.ENTITY3D;
+
+  /**
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
+   */
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
+   * The definition this Entity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
+
+  /**
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+   */
+  abstract get precededBy(): Entity3D | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instance(): Entity | null;
+  declare readonly instancePtr: NodeReference | null;
+
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
+
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * Entity.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
+   * The absolute order key of this Entity in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  /**
+   * The custom Values of this Entity, keyed by custom Property id..
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * The Script of this Entity.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The Script of this Entity.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Entity can be instanced.
+   */
+  declare readonly isExtensible: boolean | null;
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
+   * Entity3D.position
+   */
+  /**
+   * Entity3D.position
+   */
+  abstract get position(): Vector3 | null;
+  abstract set position(value: Vector3 | null);
+
+  /**
+   * Entity3D.scale
+   */
+  /**
+   * Entity3D.scale
+   */
+  abstract get scale(): Vector3 | null;
+  abstract set scale(value: Vector3 | null);
+
+  /**
+   * Entity3D.rotation
+   */
+  /**
+   * Entity3D.rotation
+   */
+  abstract get rotation(): Quaternion | null;
+  abstract set rotation(value: Quaternion | null);
+
+  /**
+   * Entity3D.skew
+   */
+  /**
+   * Entity3D.skew
+   */
+  abstract get skew(): Vector3 | null;
+  abstract set skew(value: Vector3 | null);
+
+  /**
+   * Entity3D.origin
+   */
+  /**
+   * Entity3D.origin
+   */
+  abstract get origin(): Vector3 | null;
+  abstract set origin(value: Vector3 | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.ENTITY3D, Entity3D);
+/* ==== DESTACK_GENERATED_END:NODE:11100 ==== */

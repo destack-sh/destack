@@ -1,3 +1,4 @@
+export * from "@destack/language/core/builtin/base";
 export * from "@destack/language/core/builtin/common";
 export * from "@destack/language/core/builtin/const";
 export * from "@destack/language/core/builtin/edit";
