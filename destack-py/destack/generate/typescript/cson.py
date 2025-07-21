@@ -347,6 +347,14 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
             return str(value)
         elif type.primitive_type == PrimitiveType.STRING:
             return f'"{value}"'
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return f"Temporal.Instant.from(\"{value}\").toZonedDateTimeISO('UTC')"
+        elif type.primitive_type == PrimitiveType.DATE:
+            return f'Temporal.PlainDate.from("{value}")'
+        elif type.primitive_type == PrimitiveType.TIME:
+            return f'Temporal.PlainTime.from("{value}")'
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return f'Temporal.Duration.from("{value}")'
         else:
             raise ValueError(f"unsupported primitive type {type.primitive_type!r}: {type!r}")
     elif type.scalar_type == ScalarType.ENUM:

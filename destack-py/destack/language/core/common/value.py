@@ -53,7 +53,12 @@ class Value(StructFrozen[ValueProto]):
         return cast(T, self._unpacked)
 
 
-def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: bool = False) -> Value:
+def to_value(
+    value_unpacked: Any,
+    type: "Type | None" = None,
+    is_required: bool = False,
+    node_as_value: bool = False,
+) -> Value:
     """
     Convert an arbitrary (legal) value to a Value.
     If Type isn't provided, it will be inferred from the value.
@@ -65,6 +70,8 @@ def to_value(value_unpacked: Any, type: "Type | None" = None, node_as_value: boo
         if value_unpacked is None:
             raise ValueError("cannot infer type for None")
         type = to_type(value_unpacked, node_as_value=node_as_value)
+        if is_required:
+            type = type.clone(is_required=True)
     # coerce nodes into node references
     if type.scalar_type == ScalarType.NODE_REFERENCE:
         if type.cardinality == TypeCardinality.SCALAR and isinstance(value_unpacked, Node):

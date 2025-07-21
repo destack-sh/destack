@@ -5,11 +5,12 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
+import { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import { PropertyDefinition, Type } from "@destack/language/core/common";
+import { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";

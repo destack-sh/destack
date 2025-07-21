@@ -113,29 +113,30 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
     )
 
 
-def _generate_property_scalar_type(
-    prop: PropertyDeclaration | TypeDeclaration, as_ptr: bool = True
+def _generate_type_scalar(
+    prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True
 ) -> str:
     """Generate a scalar property Typescript type annotation."""
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         if as_ptr:
             return "NodeReference"
-        else:
-            resolved_node_types = expand_node_types(prop.node_types, expand_inheritance=False)
-            if not resolved_node_types or len(resolved_node_types) == len(NodeType):
-                if isinstance(prop, PropertyDeclaration) and prop.edge_type == EdgeType.PARENT:
-                    return "Entity"
-                else:
-                    return "Node"
-            node_classes: list[str] = []
-            for node_type in prop.node_types or ():
-                if isinstance(node_type, NodeType):
-                    node_classes.append(NODE_CLASS_BY_TYPE[node_type].__name__)
-                elif isinstance(node_type, TraitType):
-                    node_classes.append(f"(Entity & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
-                else:
-                    assert_never(node_type)
-            return " | ".join(node_classes)
+        if isinstance(prop, Type):
+            return "Node"  # don't know
+        resolved_node_types = expand_node_types(prop.node_types, expand_inheritance=False)
+        if not resolved_node_types or len(resolved_node_types) == len(NodeType):
+            if isinstance(prop, PropertyDeclaration) and prop.edge_type == EdgeType.PARENT:
+                return "Entity"
+            else:
+                return "Node"
+        node_classes: list[str] = []
+        for node_type in prop.node_types or ():
+            if isinstance(node_type, NodeType):
+                node_classes.append(NODE_CLASS_BY_TYPE[node_type].__name__)
+            elif isinstance(node_type, TraitType):
+                node_classes.append(f"(Entity & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
+            else:
+                assert_never(node_type)
+        return " | ".join(node_classes)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum_type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
@@ -153,17 +154,17 @@ def _generate_property_scalar_type(
         assert_never(prop.scalar_type)
 
 
-def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> str:
+def _generate_type(prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True) -> str:
     """Generate a property Typescript type annotation."""
-    type_str = _generate_property_scalar_type(prop, as_ptr=as_ptr)
+    type_str = _generate_type_scalar(prop, as_ptr=as_ptr)
     if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_optional:
+        if not prop.is_required:
             type_str = f"{type_str} | null"
     elif prop.cardinality == TypeCardinality.LIST:
         type_str = f"readonly {type_str}[]"
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key_type for {prop!r}"
-        key_type_str = _generate_property_scalar_type(prop.key_type)
+        key_type_str = _generate_type_scalar(prop.key_type)
         type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }}"
     else:
         assert_never(prop.cardinality)
@@ -200,7 +201,7 @@ def _generate_property(
         wrapped_ts_name = prop_ts_name
         prop_ts_name = f"{prop_ts_name}Ptr"
         internal_prop_ts_name = f"{internal_prop_ts_name}Ptr"
-        wrapped_node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
+        wrapped_node_type_str = _generate_type_scalar(prop, as_ptr=False)
         if prop.is_optional:
             wrapped_node_type_str = f"{wrapped_node_type_str} | null"
 
@@ -287,11 +288,11 @@ set {wrapped_ts_name}(value: {wrapped_node_type_str}) {{
                     wrapped_prefix_str = f"{wrapped_node_getter_str}\n{wrapped_node_setter_str}"
                 else:
                     wrapped_prefix_str = wrapped_node_getter_str
-        prop_type_str = _generate_property_type(prop, as_ptr=True)
+        prop_type_str = _generate_type(prop, as_ptr=True)
     else:
         # regular property
         wrapped_prefix_str = ""
-        prop_type_str = _generate_property_type(prop)
+        prop_type_str = _generate_type(prop)
 
     # main property
     prop_str = f"{internal_prop_ts_name}: {prop_type_str}"
@@ -379,14 +380,14 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
         ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # can be passed either as Node or NodeReference
-            node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
-            ptr_type_str = _generate_property_scalar_type(prop, as_ptr=True)
+            node_type_str = _generate_type_scalar(prop, as_ptr=False)
+            ptr_type_str = _generate_type_scalar(prop, as_ptr=True)
             type_str = f"{node_type_str} | {ptr_type_str}"
             if prop.is_optional:
                 type_str = f"{type_str} | null"
         else:
             # can be passed as value
-            type_str = _generate_property_type(prop)
+            type_str = _generate_type(prop)
         if _is_property_required(prop):
             header_parts.append(f"{ts_name_in}: {type_str}")
         else:
@@ -1332,6 +1333,13 @@ def _generate_node(definition: NodeDefinition) -> str:
     ]
     node_parts.append("\n".join(node_meta_parts))
 
+    # constants
+    constant_parts: list[str] = []
+    for constant in node_cls.__constants__:
+        constant_str = _generate_constant_member(constant)
+        constant_parts.append(constant_str)
+    node_parts.append("\n\n".join(constant_parts))
+
     # properties
     prop_parts: list[str] = []
     for prop in _get_properties(node_cls):
@@ -1404,12 +1412,20 @@ registerNodeClass(NodeType.{definition.type.name}, {definition.name});
     return node_str.strip()
 
 
-def _generate_constant(definition: ConstantDefinition) -> str:
-    """Generate a Typescript Constant definition."""
+def _generate_constant_member(definition: ConstantDefinition) -> str:
+    """
+    Generate a Typescript Constant definition inside a Node/Struct class.
+    Deferred constants will be filled in during finalization.
+    """
+    type_str = _generate_type(definition.value.type)
+    if definition._is_deferred:
+        value_str = "undefined as any // (deferred)"
+    else:
+        value_str = generate_cson(definition.value.type, definition.value.unpack())
+
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-// prettier-ignore
-export const {definition.name} = {generate_cson(definition.value.type, definition.value.unpack())};
+static readonly {definition.name}: {type_str} = {value_str};
 """
 
 
@@ -1481,6 +1497,15 @@ def _get_builtin_object_dependencies(
                 else:
                     assert_never(super_type)
 
+    # constants
+    if issubclass(cls, (Struct, Node)):
+        for constant in cls.__constants__:
+            constant_dependencies, _ = _get_type_dependencies(
+                constant.value.type,
+                is_abstract=True,
+            )
+            dependencies.update(constant_dependencies)
+
     # properties
     for prop in _get_properties(cls):
         prop_dependencies, prop_value_dependencies = _get_type_dependencies(
@@ -1531,16 +1556,6 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         name = definition.name
         dependencies, value_dependencies = _get_builtin_object_dependencies(
             cast(type[BuiltinObject], cls), is_abstract=cls.__is_abstract__
-        )
-    elif isinstance(definition, ConstantDefinition):
-        kind = "CONSTANT"
-        alias = definition.name
-        assert definition._declaration is not None, f"missing declaration for {definition.name}"
-        module = definition._declaration.module
-        definition_str = _generate_constant(definition)
-        name = definition.name
-        dependencies, value_dependencies = _get_type_dependencies(
-            definition.value.type, is_abstract=False, is_value=True
         )
     else:
         assert_never(definition)
@@ -1959,7 +1974,52 @@ def _generate_file(
     return new_str
 
 
-def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> str:
+def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) -> str:
+    """Generate the global constants with all the deferred constants filled in."""
+
+    # constants
+    constants_parts: list[str] = []
+
+    # collect imports
+    import_parts: list[str] = []
+    dependencies: set[str] = set()
+    value_dependencies: set[str] = set()
+    for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        for constant in object_cls.__constants__:
+            if constant._is_deferred:
+                dependencies.add(object_cls.__name__)
+                value_dependencies.add(object_cls.__name__)
+                constant_dependencies, constant_value_dependencies = _get_type_dependencies(
+                    constant.value.type,
+                    is_abstract=True,
+                    is_value=True,
+                )
+                dependencies.update(constant_dependencies)
+                value_dependencies.update(constant_value_dependencies)
+    for dependency_name in dependencies:
+        import_parts.append(f"import {{ {dependency_name} }} from '@destack/language';")
+    constants_parts.append("\n".join(import_parts))
+
+    # set all the constants
+    for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        for constant in object_cls.__constants__:
+            constant_name = f"_{object_cls.__name__}_{constant.name}"
+            if constant._is_deferred:
+                value_str = generate_cson(constant.value.type, constant.value.unpack())
+                constants_parts.append(f"""\
+{_generate_multiline_doc(constant.description or constant.name)}
+// prettier-ignore
+const {constant_name} = {value_str};
+// @ts-expect-error (readonly)
+{object_cls.__name__}.{constant.name} = {constant_name};
+""")
+
+    constants_str = "\n".join(constants_parts)
+
+    return constants_str
+
+
+def _generate_mapping(definitions_by_name: dict[str, TypescriptDefinition]) -> str:
     """Generate the global mapping file."""
 
     # mappings
@@ -2091,9 +2151,14 @@ def generate():
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
 
+    # write constants file
+    constants_path = Path(GENERATION_PATH) / "constants.ts"
+    constants_str = _generate_constants(definitions_by_name)
+    constants_path.write_text(constants_str)
+
     # update mapping files
     mapping_path = Path(GENERATION_PATH) / "mapping.ts"
-    mapping_str = _generate_global(definitions_by_name)
+    mapping_str = _generate_mapping(definitions_by_name)
     mapping_path.write_text(mapping_str)
 
     # write index files
