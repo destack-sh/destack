@@ -102,10 +102,10 @@ export class NodeDefinitionReference extends StructFrozen {
     }
     this.nodeType = _nodeType;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
 
     // identity
     // @ts-expect-error(readonly)
@@ -463,10 +463,10 @@ export class PropertyReference extends StructFrozen {
     let _id = options.id ?? null;
     this.id = _id;
     let _customProperty = options.customProperty ?? null;
-    if (_customProperty != null && _customProperty.metatype != StructType.NODE_REFERENCE) {
+    if (_customProperty != null && _customProperty.constructor.name != "NodeReference") {
       _customProperty = (_customProperty as Node).toRef();
     }
-    this.customPropertyPtr = _customProperty;
+    this.customPropertyPtr = _customProperty as NodeReference | null;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1261,10 +1261,10 @@ export class ObjectDefinitionReference extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _customDefinition = options.customDefinition ?? null;
-    if (_customDefinition != null && _customDefinition.metatype != StructType.NODE_REFERENCE) {
+    if (_customDefinition != null && _customDefinition.constructor.name != "NodeReference") {
       _customDefinition = (_customDefinition as Node).toRef();
     }
-    this.customDefinitionPtr = _customDefinition;
+    this.customDefinitionPtr = _customDefinition as NodeReference | null;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1576,13 +1576,13 @@ export class StructDefinitionReference extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _definition = options.definition;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
       throw new Error(`StructDefinitionReference.definition is required`);
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference;
 
     // identity
     // @ts-expect-error(readonly)

@@ -1352,10 +1352,10 @@ export class Type extends StructFrozen {
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _customDefinition = options.customDefinition ?? null;
-    if (_customDefinition != null && _customDefinition.metatype != StructType.NODE_REFERENCE) {
+    if (_customDefinition != null && _customDefinition.constructor.name != "NodeReference") {
       _customDefinition = (_customDefinition as Node).toRef();
     }
-    this.customDefinitionPtr = _customDefinition;
+    this.customDefinitionPtr = _customDefinition as NodeReference | null;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
     let _value = options.value ?? null;

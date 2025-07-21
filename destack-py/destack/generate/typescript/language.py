@@ -415,7 +415,7 @@ super(options);
         parent_str = (
             """\
 options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
+        ? options.parent.constructor.name == "NodeReference"
             ? (options.parent as NodeReference)
             : (options.parent as Node).toRef()
         : null
@@ -439,7 +439,7 @@ super(
     options._graph ?? null,
     // connection
     options._connection ?? null,
-    // is_new
+    // _isNew
     options.id == null,
 );
 """
@@ -478,9 +478,10 @@ super(
         # convert node to node reference
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             body_parts.append(f"""\
-if (_{ts_name_in} != null && _{ts_name_in}.metatype != StructType.NODE_REFERENCE) {{
+if (_{ts_name_in} != null && _{ts_name_in}.constructor.name != "NodeReference") {{
     _{ts_name_in} = (_{ts_name_in} as Node).toRef();
 }}""")
+
         # init non-scalars if unset
         if prop.cardinality == TypeCardinality.LIST:
             body_parts.append(f"""\
@@ -567,7 +568,12 @@ if (_{ts_name_in} === null) {{
     throw new Error(`{cls.__name__}.{ts_name_in} is required`);
 }}""")
 
-        body_parts.append(f"this.{ts_name_self} = _{ts_name_in};")
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            cast_str = " as NodeReference" if prop.is_required else " as NodeReference | null"
+        else:
+            cast_str = ""
+
+        body_parts.append(f"this.{ts_name_self} = _{ts_name_in}{cast_str};")
 
     body_str = "\n".join(body_parts)
 
@@ -594,10 +600,10 @@ if (options.id == null) {{
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
   this.updatedAt = options.updatedAt;
   this.updatedEpoch = options.updatedEpoch;
-  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.constructor.name == "NodeReference" ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
 }}
 """
         elif issubclass(cls, Event):
@@ -616,7 +622,7 @@ if (options.id == null) {{
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
   this.clientCreatedAt = options.clientCreatedAt;
   this.clientEpoch = options.clientEpoch;
 }}

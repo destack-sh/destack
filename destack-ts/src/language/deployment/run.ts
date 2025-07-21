@@ -365,13 +365,13 @@ export class RunStartedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -384,14 +384,14 @@ export class RunStartedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunStartedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -404,9 +404,9 @@ export class RunStartedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunStartedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -419,22 +419,22 @@ export class RunStartedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunStartedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -446,18 +446,18 @@ export class RunStartedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunStartedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -481,7 +481,7 @@ export class RunStartedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1105,13 +1105,13 @@ export class RunPauseRequestedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1124,14 +1124,14 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunPauseRequestedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1144,9 +1144,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunPauseRequestedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1159,22 +1159,22 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunPauseRequestedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1186,18 +1186,18 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunPauseRequestedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -1221,7 +1221,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -1857,13 +1857,13 @@ export class RunPausedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1876,14 +1876,14 @@ export class RunPausedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunPausedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1896,9 +1896,9 @@ export class RunPausedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunPausedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1911,22 +1911,22 @@ export class RunPausedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunPausedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -1938,18 +1938,18 @@ export class RunPausedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunPausedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -1973,7 +1973,7 @@ export class RunPausedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -2597,13 +2597,13 @@ export class RunResumeRequestedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -2616,14 +2616,14 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunResumeRequestedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -2636,9 +2636,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunResumeRequestedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -2651,22 +2651,22 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunResumeRequestedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -2678,18 +2678,18 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunResumeRequestedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -2713,7 +2713,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -3349,13 +3349,13 @@ export class RunResumedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -3368,14 +3368,14 @@ export class RunResumedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunResumedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -3388,9 +3388,9 @@ export class RunResumedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunResumedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -3403,22 +3403,22 @@ export class RunResumedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunResumedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -3430,18 +3430,18 @@ export class RunResumedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunResumedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -3465,7 +3465,7 @@ export class RunResumedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -4089,13 +4089,13 @@ export class RunStopRequestedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -4108,14 +4108,14 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunStopRequestedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -4128,9 +4128,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunStopRequestedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -4143,22 +4143,22 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunStopRequestedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -4170,18 +4170,18 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunStopRequestedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -4205,7 +4205,7 @@ export class RunStopRequestedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -4841,13 +4841,13 @@ export class RunFailedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -4860,14 +4860,14 @@ export class RunFailedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunFailedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -4880,9 +4880,9 @@ export class RunFailedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunFailedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -4895,22 +4895,22 @@ export class RunFailedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunFailedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -4922,18 +4922,18 @@ export class RunFailedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunFailedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -4957,7 +4957,7 @@ export class RunFailedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -5581,13 +5581,13 @@ export class RunCompletedEvent extends RunEvent {
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -5600,14 +5600,14 @@ export class RunCompletedEvent extends RunEvent {
     if (_space === null) {
       throw new Error(`RunCompletedEvent.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -5620,9 +5620,9 @@ export class RunCompletedEvent extends RunEvent {
     if (_branch === null) {
       throw new Error(`RunCompletedEvent.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -5635,22 +5635,22 @@ export class RunCompletedEvent extends RunEvent {
     if (_snapshot === null) {
       throw new Error(`RunCompletedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy;
+    this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+    if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client;
+    this.clientPtr = _client as NodeReference | null;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
@@ -5662,18 +5662,18 @@ export class RunCompletedEvent extends RunEvent {
     }
     this.status = _status;
     let _node = options.node;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+    if (_node != null && _node.constructor.name != "NodeReference") {
       _node = (_node as Node).toRef();
     }
     if (_node === null) {
       throw new Error(`RunCompletedEvent.node is required`);
     }
-    this.nodePtr = _node;
+    this.nodePtr = _node as NodeReference;
     let _target = options.target ?? null;
-    if (_target != null && _target.metatype != StructType.NODE_REFERENCE) {
+    if (_target != null && _target.constructor.name != "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    this.targetPtr = _target;
+    this.targetPtr = _target as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -5697,7 +5697,7 @@ export class RunCompletedEvent extends RunEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;

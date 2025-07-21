@@ -639,7 +639,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       options.id ?? null,
       // parent
       options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
+        ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
@@ -651,18 +651,18 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       options._graph ?? null,
       // connection
       options._connection ?? null,
-      // is_new
+      // _isNew
       options.id == null,
     );
 
     // properties
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+    if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
-    this.parentPtr = _parent;
+    this.parentPtr = _parent as NodeReference | null;
     let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+    if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -671,7 +671,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_space === null) {
       throw new Error(`Space.space is required`);
     }
-    this.spacePtr = _space;
+    this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 11 /* Materialization.ROOT */;
@@ -681,12 +681,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+    if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition;
+    this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -699,9 +699,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_branch === null) {
       throw new Error(`Space.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -714,24 +714,24 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_snapshot === null) {
       throw new Error(`Space.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy;
+    this.precededByPtr = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
-    if (_instance != null && _instance.metatype != StructType.NODE_REFERENCE) {
+    if (_instance != null && _instance.constructor.name != "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
-    this.instancePtr = _instance;
+    this.instancePtr = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+    if (_ownedBy != null && _ownedBy.constructor.name != "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Space";
@@ -754,17 +754,17 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+    if (_script != null && _script.constructor.name != "NodeReference") {
       _script = (_script as Node).toRef();
     }
-    this._scriptPtr = _script;
+    this._scriptPtr = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+    if (_source != null && _source.constructor.name != "NodeReference") {
       _source = (_source as Node).toRef();
     }
-    this.sourcePtr = _source;
+    this.sourcePtr = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
     let _slug = options.slug;
@@ -778,20 +778,20 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     this._status = _status;
     let _handle = options.handle ?? null;
-    if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
+    if (_handle != null && _handle.constructor.name != "NodeReference") {
       _handle = (_handle as Node).toRef();
     }
-    this._handlePtr = _handle;
+    this._handlePtr = _handle as NodeReference | null;
     let _systemFolder = options.systemFolder ?? null;
-    if (_systemFolder != null && _systemFolder.metatype != StructType.NODE_REFERENCE) {
+    if (_systemFolder != null && _systemFolder.constructor.name != "NodeReference") {
       _systemFolder = (_systemFolder as Node).toRef();
     }
-    this._systemFolderPtr = _systemFolder;
+    this._systemFolderPtr = _systemFolder as NodeReference | null;
     let _homeFolder = options.homeFolder ?? null;
-    if (_homeFolder != null && _homeFolder.metatype != StructType.NODE_REFERENCE) {
+    if (_homeFolder != null && _homeFolder.constructor.name != "NodeReference") {
       _homeFolder = (_homeFolder as Node).toRef();
     }
-    this._homeFolderPtr = _homeFolder;
+    this._homeFolderPtr = _homeFolder as NodeReference | null;
     let _region = options.region;
     if (_region === null) {
       throw new Error(`Space.region is required`);
@@ -800,10 +800,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     let _galaxyName = options.galaxyName ?? null;
     this._galaxyName = _galaxyName;
     let _database = options.database ?? null;
-    if (_database != null && _database.metatype != StructType.NODE_REFERENCE) {
+    if (_database != null && _database.constructor.name != "NodeReference") {
       _database = (_database as Node).toRef();
     }
-    this._databasePtr = _database;
+    this._databasePtr = _database as NodeReference | null;
 
     // identity
     if (options.id == null) {
@@ -828,7 +828,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -836,7 +836,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+          ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
           : null;

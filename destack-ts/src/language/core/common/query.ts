@@ -2471,7 +2471,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     let _offset = options.offset ?? null;
     this.offset = _offset;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+    if (_branch != null && _branch.constructor.name != "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -2484,9 +2484,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (_branch === null) {
       throw new Error(`Query.branch is required`);
     }
-    this.branchPtr = _branch;
+    this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -2499,7 +2499,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (_snapshot === null) {
       throw new Error(`Query.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot;
+    this.snapshotPtr = _snapshot as NodeReference;
 
     // identity
     // @ts-expect-error(readonly)
