@@ -72,7 +72,7 @@ def __unpack_proto__(cls,
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
     _supergraph: "Supergraph | None" = None,
-    _connection: "QueryConnection | None" = None,
+    _connection: "GraphConnection | None" = None,
 ) -> "Self":
 {textwrap.indent(unpack_proto, "  ")}
 

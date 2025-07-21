@@ -505,7 +505,7 @@ class NodeType(Enum):
 
     # space
     # nocheckin: Context (as local instance?)
-    #  (local info, stacked context with mode/logging/tracing/baggage/custom stuff, tree down?)
+    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?)
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
     SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
     # CONTEXT?

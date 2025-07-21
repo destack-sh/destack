@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         ConstraintDefinition,
         ExpressionIn,
         Graph,
+        GraphConnection,
         IndexDeclaration,
         IndexDefinition,
         JoinIn,
@@ -49,11 +50,9 @@ if TYPE_CHECKING:
         PermissionDeclaration,
         PermissionDefinition,
         Query,
-        QueryConnection,
         Session,
         Sort,
         Space,
-        Supergraph,
         TagDefinition,
     )
 
@@ -314,15 +313,13 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # 100+ for general properties
     # ...
 
-    """The current Session this Node is in."""
+    """The Session this Node is in."""
     _session: "Session" = builtin_property_runtime()
-    """The Supergraph this Node is part of."""
-    _supergraph: "Supergraph" = builtin_property_runtime()
-    """The specific Graph this Node is part of."""
-    _graph: "Graph" = builtin_property_runtime(default=None)
-    """The QueryConnection this Node is from (if any)."""
-    _connection: "QueryConnection | None" = builtin_property_runtime(default=None)
-    """The cached reference to this Node."""
+    """The Graph this Node is part of."""
+    _graph: "Graph" = builtin_property_runtime()
+    """The GraphConnection this Node is from."""
+    _connection: "GraphConnection" = builtin_property_runtime()
+    """The cached reference to this Node instance."""
     _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
     """Whether this Node is new."""
     _is_new: bool = builtin_property_runtime(default=False)
@@ -357,16 +354,14 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         cls,
         _object_cson: "Cson",
         _session: "Session | None" = None,
-        _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
-        _connection: "QueryConnection | None" = None,
+        _connection: "GraphConnection | None" = None,
     ) -> Self:
         node_type = NodeType(_object_cson["1"])
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node = node_cls.from_cson(
             _object_cson,
             _session=_session,
-            _supergraph=_supergraph,
             _graph=_graph,
             _connection=_connection,
         )
