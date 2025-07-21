@@ -1,4 +1,4 @@
-from ..core.common.space import Space, SpaceStatus
+from ..core.common.space import Space
 from .client import Client, ClientType
 from .handle import Handle
 from .organization import Organization
@@ -11,7 +11,6 @@ __all__ = [
     "Handle",
     "Organization",
     "Space",
-    "SpaceStatus",
     "Team",
     "User",
     "UserStatus",

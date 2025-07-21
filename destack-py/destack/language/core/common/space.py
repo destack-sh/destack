@@ -8,8 +8,6 @@ from destack.language.core import (
     EPSILON,
     VERSION,
     Entity,
-    Enum,
-    EnumType,
     IsFollowable,
     IsJoinable,
     IsOwnable,
@@ -18,7 +16,6 @@ from destack.language.core import (
     Region,
     ValueFactory,
     builtin_constant,
-    builtin_enum,
     builtin_node,
     builtin_property,
 )
@@ -33,8 +30,6 @@ from destack.utils.uuid import UUID, uuid4
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
-        Database,
-        Folder,
         Handle,
         IsActor,
         NodeReference,
@@ -87,14 +82,6 @@ class Universe(Entity):
     )
 
 
-@builtin_enum(EnumType.SPACE_STATUS)
-class SpaceStatus(Enum):
-    """The status of a Space"""
-
-    CREATING = 1
-    ACTIVE = 10
-
-
 @builtin_node(NodeType.SPACE)
 class Space(
     IsFollowable,
@@ -119,22 +106,11 @@ class Space(
 
     slug: str = builtin_property(102, is_repr=True)
 
-    status: SpaceStatus = builtin_property(110, is_repr=True)
     handle: Optional["Handle"] = builtin_property(111)
-    system_folder: Optional["Folder"] = builtin_property(112, description="The system Folder.")
-    home_folder: Optional["Folder"] = builtin_property(113, description="The home Folder.")
-    if TYPE_CHECKING:
-        handle_ptr: Optional[NodeReference] = None
-        root_folder_ptr: Optional[NodeReference] = None
-        home_folder_ptr: Optional[NodeReference] = None
+    # system_folder, home_folder, ...
 
     # infra
     region: Region = builtin_property(120)
-    galaxy_name: str | None = builtin_property(121)  # -> Galaxy?
-    database: Optional["Database"] = builtin_property(122)
-    # search, analytics, vault, cache, ...
-    if TYPE_CHECKING:
-        database_ptr: Optional[NodeReference] = None
 
     @contextmanager
     def active(self: "Space") -> Generator["Space", None, None]:
@@ -218,7 +194,6 @@ def create_space(
         id=space_id,
         name=name,
         slug=slug,
-        status=SpaceStatus.ACTIVE,
         region=REGION,
         branch_ptr=branch_ptr,
         snapshot_ptr=snapshot_ptr,

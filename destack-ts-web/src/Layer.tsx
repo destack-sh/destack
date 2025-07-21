@@ -2,12 +2,14 @@ import { useSession, useSupergraph } from "@destack-web/language";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import {
   Easing,
+  Event,
   Layer,
   NodeReference,
   PathShape2D,
   PointerMoveEvent,
   Stroke,
   StrokeType,
+  Universe,
   Vector2,
 } from "destack";
 import React, { useRef, useState } from "react";
@@ -25,6 +27,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   const session = useSession();
   const supergraph = useSupergraph();
   const layer = supergraph.getOrError(layerPtr.id) as Layer;
+  const [events, setEvents] = useState<Event[]>([]);
   const lines = layer.getChildren(PathShape2D);
 
   const [currentLine, setCurrentLine] = useState<PathShape2D | null>(null);
@@ -50,6 +53,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
     const line = new PathShape2D({ name: "PathShape2D", points: [point] });
     setCurrentLine(line);
     layer.addChild(line);
+    setEvents([...events, ...session.pendingEvents]);
     session.commit();
   };
 
@@ -71,6 +75,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
       metaKey: event.metaKey,
     });
     session.append(mouseEvent);
+    setEvents([...events, ...session.pendingEvents]);
     session.commit();
   };
 
@@ -95,6 +100,8 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
           flexDirection: "column",
         }}
       >
+        <span>Version: {Universe.VERSION}</span>
+        <span>Events: {events.length}</span>
         <span>Lines: {lines.length}</span>
       </div>
 
@@ -129,9 +136,9 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
       {/* Events */}
       <div style={{ height: "100px", overflow: "auto", background: "gray" }}>
         {/* render events */}
-        {/* {events.value.slice(-3).map((event, index) => (
+        {events.slice(-3).map((event, index) => (
           <div key={index}>{event.repr()}</div>
-        ))} */}
+        ))}
       </div>
     </div>
   );

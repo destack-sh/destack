@@ -802,7 +802,7 @@ export class Effect extends StructFrozen {
 registerStructClass(StructType.EFFECT, Effect);
 /* ==== DESTACK_GENERATED_END:STRUCT:2200100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2101000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2200100 ==== */
 /**
  * An effect style.
  */
@@ -1888,7 +1888,7 @@ export class EffectStyle extends Style {
 
   static __packCson__(object: EffectStyle): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101000;
+    objectCson["1"] = 2200100;
     objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectCson["3"] = object.parentPtr.toCson();
@@ -2174,7 +2174,7 @@ export class EffectStyle extends Style {
   }
 
   static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 2101000 };
+    const objectProto: Partial<EffectStyleProto> = { metatype: 2200100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2483,4 +2483,4 @@ export class EffectStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
-/* ==== DESTACK_GENERATED_END:NODE:2101000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2200100 ==== */

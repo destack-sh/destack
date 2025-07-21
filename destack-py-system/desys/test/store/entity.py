@@ -22,7 +22,6 @@ from destack.language import (
     Reaction,
     Session,
     Space,
-    SpaceStatus,
     Star,
     TextView,
     User,
@@ -419,7 +418,7 @@ async def test_instantiation(session: Session, space: Space):
 async def test_branching(session: Session):
     """Create a Branch and query it."""
 
-    space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
+    space = Space(name="Test", slug="test", region=REGION)
     user = User(name="Alice", slug="alice", space=space)
     session.create(user)
     await session.commit()

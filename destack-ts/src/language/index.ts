@@ -4,7 +4,6 @@ export * from "@destack/language/constants";
 export * from "@destack/language/core";
 export * from "@destack/language/data";
 export * from "@destack/language/deployment";
-export * from "@destack/language/drawing";
 export * from "@destack/language/finalize";
 export * from "@destack/language/geometry";
 export * from "@destack/language/infrastructure";

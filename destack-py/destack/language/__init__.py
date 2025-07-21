@@ -3,7 +3,6 @@ from .animation import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403
 from .deployment import *  # noqa: F403
-from .drawing import *  # noqa: F403
 from .finalize import finalize
 from .finance import *  # noqa: F403
 from .geometry import *  # noqa: F403
@@ -12,7 +11,6 @@ from .intelligence import *  # noqa: F403
 from .interaction import *  # noqa: F403
 from .logic import *  # noqa: F403
 from .observability import *  # noqa: F403
-from .optimization import *  # noqa: F403
 from .registry import (
     ENUM_CLASS_BY_TYPE,  # noqa: F401
     ENUM_TYPE_BY_CLASS,  # noqa: F401

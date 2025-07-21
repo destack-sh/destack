@@ -69,7 +69,7 @@ class EnumType(Enum):
     SNAPSHOT_STATUS = 2_101
 
     # space
-    SPACE_STATUS = 1_101
+    # ...
 
     # base
     RESOURCE_STATUS = 10_101
@@ -160,7 +160,7 @@ class EnumType(Enum):
     # view [1_800_000-1_900_000]
     # ...
 
-    # drawing [1_900_000-2_000_000]
+    # paint [1_900_000-2_000_000]
     # ...
 
     # interaction [2_000_000-2_100_000]
@@ -189,13 +189,13 @@ class EnumType(Enum):
     STROKE_TYPE = 2_100_213
     TEXT_SPLIT_TYPE = 2_100_223
     OFFSCREEN_BEHAVIOR = 2_100_224
-    EASING = 2_100_225
 
     # animation [2_200_000-2_300_000]
     TRANSITION_TYPE = 2_200_000
     SPRING_TYPE = 2_200_001
     EFFECT_TYPE = 2_200_002
     REPEAT_TYPE = 2_200_003
+    EASING = 2_100_004
 
     # audio [2_300_000-2_400_000]
     # ...
@@ -336,7 +336,7 @@ class StructType(Enum):
     # view [1_800_000-1_900_000]
     # ...
 
-    # drawing [1_900_000-2_000_000]
+    # paint [1_900_000-2_000_000]
     # ...
 
     # interaction [2_000_000-2_100_000]
@@ -464,7 +464,7 @@ class TraitType(Enum):
     # view [1_800_000-1_900_000]
     # ANIMATABLE/TWEENABLE, ...
 
-    # drawing [1_900_000-2_000_000]
+    # paint [1_900_000-2_000_000]
 
     # interaction [2_000_000-2_100_000]
     INTERACTIVE = 2_000_000, "Interactive", "Can be interacted with", "fas fa-mouse-pointer"
@@ -504,7 +504,8 @@ class NodeType(Enum):
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
 
     # space
-    # nocheckin: Universe (singleton, global constants), Context (local info)
+    # nocheckin: Context (as local instance?)
+    #  (local info, stacked context with mode/logging/tracing/baggage/custom stuff, tree down?)
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
     SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
     # CONTEXT?
@@ -622,8 +623,6 @@ class NodeType(Enum):
     # media [500_000-600_000]
     # STREAM, ...
     # ENCODING, ...
-    # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
-    # TEXTURE, ...
 
     # localization [600_000-700_000]
     # LOCALIZATION, STRING, TRANSLATION, ...
@@ -772,9 +771,11 @@ class NodeType(Enum):
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
-    # drawing [1_900_000-2_000_000]
+    # paint [1_900_000-2_000_000]
     # RASTER/BITMAP, ...
     # DAB, PAINT, BRUSH, ...
+    # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
+    # TEXTURE, ...
 
     # interaction [2_000_000-2_100_000]
     INPUT_EVENT = 2_000_000, "Input Event", None, "fas fa-mouse-pointer"
@@ -833,13 +834,13 @@ class NodeType(Enum):
     BORDER_STYLE = 2_100_600, "Border Style", None, "fas fa-border-outer"
     SHADOW_STYLE = 2_100_700, "Shadow Style", None, "fas fa-eclipse"
     GRADIENT_STYLE = 2_100_800, "Gradient Style", None, "fas fa-gradient"
-    TRANSITION_STYLE = 2_100_900, "Transition Style", None, "fas fa-bezier-curve"
-    EFFECT_STYLE = 2_101_000, "Effect Style", None, "fas fa-sparkle"
     STROKE_STYLE = 2_101_100, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 
     # animation [2_200_000-2_300_000]
+    TRANSITION_STYLE = 2_200_000, "Transition Style", None, "fas fa-bezier-curve"
+    EFFECT_STYLE = 2_200_100, "Effect Style", None, "fas fa-sparkle"
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
     # KEYFRAME_VARIANT, ...
     # RIG, ...
@@ -901,12 +902,12 @@ class UniverseCategory(Enum):
     FINANCE = 1_500_000, "Finance", "Financial operations"
     SCENE = 1_700_000, "Scene", "Stage building"
     VIEW = 1_800_000, "View", "View building"
-    DRAWING = 1_900_000, "Drawing", "Drawing and painting"
+    PAINT = 1_900_000, "Paint", "Drawing, rendering and painting"
     INTERACTION = 2_000_000, "Interaction", "Interaction design"
-    STYLE = 2_100_000, "Style", "Style views"
+    STYLE = 2_100_000, "Style", "Appearance and materials"
     ANIMATION = 2_200_000, "Animation", "Motion design"
     AUDIO = 2_300_000, "Audio", "Audio management"
-    GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and surface modeling"
+    GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and maths"
     PHYSICS = 2_500_000, "Physics", "Physics simulation"
     LIGHTING = 2_600_000, "Lighting", "Lighting and shadows"
     EDITOR = 3_000_000, "Editor", "Editor and studio"

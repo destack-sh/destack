@@ -347,7 +347,6 @@ enum EnumTypeProto {
   ENUM_TYPE_BRANCH_TYPE = 2000;
   ENUM_TYPE_SNAPSHOT_TYPE = 2100;
   ENUM_TYPE_SNAPSHOT_STATUS = 2101;
-  ENUM_TYPE_SPACE_STATUS = 1101;
   ENUM_TYPE_RESOURCE_STATUS = 10101;
   ENUM_TYPE_INDEX_TYPE = 30100;
   ENUM_TYPE_CONSTRAINT_TYPE = 30200;
@@ -409,11 +408,11 @@ enum EnumTypeProto {
   ENUM_TYPE_STROKE_TYPE = 2100213;
   ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223;
   ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224;
-  ENUM_TYPE_EASING = 2100225;
   ENUM_TYPE_TRANSITION_TYPE = 2200000;
   ENUM_TYPE_SPRING_TYPE = 2200001;
   ENUM_TYPE_EFFECT_TYPE = 2200002;
   ENUM_TYPE_REPEAT_TYPE = 2200003;
+  ENUM_TYPE_EASING = 2100004;
   ENUM_TYPE_ANCHOR = 2400000;
   ENUM_TYPE_LENGTH_TYPE = 2400001;
   ENUM_TYPE_LAYOUT = 2400002;
@@ -978,9 +977,9 @@ enum NodeTypeProto {
   NODE_TYPE_BORDER_STYLE = 2100600;
   NODE_TYPE_SHADOW_STYLE = 2100700;
   NODE_TYPE_GRADIENT_STYLE = 2100800;
-  NODE_TYPE_TRANSITION_STYLE = 2100900;
-  NODE_TYPE_EFFECT_STYLE = 2101000;
   NODE_TYPE_STROKE_STYLE = 2101100;
+  NODE_TYPE_TRANSITION_STYLE = 2200000;
+  NODE_TYPE_EFFECT_STYLE = 2200100;
   NODE_TYPE_SHAPE2D = 2410000;
   NODE_TYPE_LINE_SHAPE2D = 2410100;
   NODE_TYPE_ARROW_SHAPE2D = 2410200;
@@ -1271,13 +1270,6 @@ enum SortTypeProto {
   SORT_TYPE_DESCENDING = 2;
 }
 
-// The status of a Space
-enum SpaceStatusProto {
-  SPACE_STATUS_UNSPECIFIED = 0;
-  SPACE_STATUS_CREATING = 1;
-  SPACE_STATUS_ACTIVE = 10;
-}
-
 // Built-in spring types.
 enum SpringTypeProto {
   SPRING_TYPE_UNSPECIFIED = 0;
@@ -1539,7 +1531,7 @@ enum UniverseCategoryProto {
   UNIVERSE_CATEGORY_FINANCE = 1500000;
   UNIVERSE_CATEGORY_SCENE = 1700000;
   UNIVERSE_CATEGORY_VIEW = 1800000;
-  UNIVERSE_CATEGORY_DRAWING = 1900000;
+  UNIVERSE_CATEGORY_PAINT = 1900000;
   UNIVERSE_CATEGORY_INTERACTION = 2000000;
   UNIVERSE_CATEGORY_STYLE = 2100000;
   UNIVERSE_CATEGORY_ANIMATION = 2200000;
@@ -6642,13 +6634,8 @@ message SpaceProto {
   optional NodeReferenceProto source_ptr = 80;
   optional string key = 85;
   string slug = 102;
-  SpaceStatusProto status = 110;
   optional NodeReferenceProto handle_ptr = 111;
-  optional NodeReferenceProto system_folder_ptr = 112;
-  optional NodeReferenceProto home_folder_ptr = 113;
   RegionProto region = 120;
-  optional string galaxy_name = 121;
-  optional NodeReferenceProto database_ptr = 122;
 }
 
 // A Span is a trace inside a Run.
@@ -7820,8 +7807,8 @@ message SomeNodeProto {
     ShadowStyleProto shadow_style = 2100700;
     StrokeStyleProto stroke_style = 2101100;
     ThemeProto theme = 2100000;
-    TransitionStyleProto transition_style = 2100900;
-    EffectStyleProto effect_style = 2101000;
+    TransitionStyleProto transition_style = 2200000;
+    EffectStyleProto effect_style = 2200100;
     FileProto file = 480000;
     EnvironmentProto environment = 1100000;
     LogEventProto log_event = 1110011;
@@ -7953,8 +7940,8 @@ message SomeEntityProto {
     ShadowStyleProto shadow_style = 2100700;
     StrokeStyleProto stroke_style = 2101100;
     ThemeProto theme = 2100000;
-    TransitionStyleProto transition_style = 2100900;
-    EffectStyleProto effect_style = 2101000;
+    TransitionStyleProto transition_style = 2200000;
+    EffectStyleProto effect_style = 2200100;
     FileProto file = 480000;
     EnvironmentProto environment = 1100000;
     ArrowShape2DProto arrow_shape2d = 2410200;

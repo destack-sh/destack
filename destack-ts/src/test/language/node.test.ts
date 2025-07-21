@@ -1,5 +1,5 @@
-import { ACTIVE_SPACE, Folder, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
-import { expect, test, beforeEach, afterEach } from "bun:test";
+import { ACTIVE_SPACE, Folder, Region, Session, Space, Tag } from "@destack/language";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 
 let session: Session;
 
@@ -17,7 +17,6 @@ test("node space ptr", async () => {
   const space = new Space({
     name: "MySpace",
     slug: "my-space",
-    status: SpaceStatus.ACTIVE,
     region: Region.ZURICH,
   });
   ACTIVE_SPACE.set(space);

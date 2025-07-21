@@ -179,7 +179,7 @@ import type {
   SortMode,
   SortType,
 } from "@destack/language/core/common/query";
-import type { Space, SpaceStatus, Universe } from "@destack/language/core/common/space";
+import type { Space, Universe } from "@destack/language/core/common/space";
 import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
@@ -771,7 +771,6 @@ export type EnumTypeMapping = {
   [EnumType.JOIN_TYPE]: JoinType;
   [EnumType.QUERY_TYPE]: QueryType;
   [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
-  [EnumType.SPACE_STATUS]: SpaceStatus;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
   [EnumType.BRANCH_TYPE]: BranchType;
   [EnumType.SNAPSHOT_TYPE]: SnapshotType;
