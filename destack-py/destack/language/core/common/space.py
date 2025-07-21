@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     ACTIVE_SPACE,
     BEGINNING_OF_TIME,
-    FLOAT_EPSILON,
+    EPSILON,
     VERSION,
     Entity,
     Enum,
@@ -54,9 +54,9 @@ class Universe(Entity):
         value=VERSION,
         description="The current version of Destack.",
     )
-    FLOAT_EPSILON = builtin_constant(
+    EPSILON = builtin_constant(
         2,
-        value=FLOAT_EPSILON,
+        value=EPSILON,
         description="The float epsilon used for floating point comparisons.",
     )
     BEGINNING_OF_TIME = builtin_constant(

@@ -1,6 +1,12 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, Region, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/const";
+import type {
+  EnumDefinition,
+  NodeDefinition,
+  StructDefinition,
+  TraitDefinition,
+} from "@destack/language/core/builtin/definition";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
@@ -125,6 +131,43 @@ export function createSpace(options: {
  */
 export abstract class Universe extends Entity {
   static metatype: NodeType = NodeType.UNIVERSE;
+
+  /**
+   * The current version of Destack.
+   */
+  static readonly VERSION: string = "2025.07.21.0";
+
+  /**
+   * The float epsilon used for floating point comparisons.
+   */
+  static readonly EPSILON: number = 1e-6;
+
+  /**
+   * The beginning of time. (1970-01-01T00:00:00+00:00)
+   */
+  static readonly BEGINNING_OF_TIME: Temporal.ZonedDateTime = Temporal.Instant.from(
+    "1970-01-01 00:00:00+00:00",
+  ).toZonedDateTimeISO("UTC");
+
+  /**
+   * All Node definitions.
+   */
+  static readonly NODES: readonly NodeDefinition[] = undefined as any; // (deferred);
+
+  /**
+   * All Trait definitions.
+   */
+  static readonly TRAITS: readonly TraitDefinition[] = undefined as any; // (deferred);
+
+  /**
+   * All Struct definitions.
+   */
+  static readonly STRUCTS: readonly StructDefinition[] = undefined as any; // (deferred);
+
+  /**
+   * All Enum definitions.
+   */
+  static readonly ENUMS: readonly EnumDefinition[] = undefined as any; // (deferred);
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.

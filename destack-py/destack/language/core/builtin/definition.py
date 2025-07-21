@@ -796,7 +796,7 @@ class ConstantDefinition(BuiltinDefinition):
             id=declaration.id,
             name=declaration.name,
             description=declaration.description,
-            value=to_value(declaration.value),
+            value=to_value(declaration.value, is_required=True),
             _is_deferred=declaration.is_deferred,
         )
 

@@ -1,18 +1,16 @@
 import {
-  NODE_DEFINITIONS,
   NodeClass,
   NodeDefinition,
   NodeDefinitionReference,
   NodeType,
   ScalarType,
-  STRUCT_DEFINITIONS,
   StructClass,
   StructDefinition,
   StructType,
-  TRAIT_DEFINITIONS,
   TraitType,
   Type,
   TypeCardinality,
+  Universe,
 } from "@destack/language";
 import {
   NODE_CLASS_BY_TYPE,
@@ -71,7 +69,7 @@ export function finalize(): void {
   __isFinalized__ = true;
 
   // nodes
-  for (const nodeDefinition of NODE_DEFINITIONS) {
+  for (const nodeDefinition of Universe.NODES) {
     const nodeClass = NODE_CLASS_BY_TYPE[nodeDefinition.type];
     if (!nodeClass) {
       throw new Error(
@@ -99,7 +97,7 @@ export function finalize(): void {
   }
 
   // index node parent types
-  for (const nodeDefinition of NODE_DEFINITIONS) {
+  for (const nodeDefinition of Universe.NODES) {
     const parentTypes: NodeType[] = [];
     for (const parentType of nodeDefinition.parentTypes) {
       const parentDefinition = NODE_CLASS_BY_TYPE[parentType].__definition__;
@@ -125,7 +123,7 @@ export function finalize(): void {
   }
 
   // traits
-  for (const traitDefinition of TRAIT_DEFINITIONS) {
+  for (const traitDefinition of Universe.TRAITS) {
     const traitClass = TRAIT_CLASS_BY_TYPE[traitDefinition.type];
     if (!traitClass) {
       throw new Error(
@@ -140,7 +138,7 @@ export function finalize(): void {
   }
 
   // structs
-  for (const structDefinition of STRUCT_DEFINITIONS) {
+  for (const structDefinition of Universe.STRUCTS) {
     const structClass = STRUCT_CLASS_BY_TYPE[structDefinition.type];
     if (!structClass) {
       throw new Error(
