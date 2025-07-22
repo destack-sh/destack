@@ -1,4 +1,9 @@
+import { CsonEncoder } from "@destack/encoder/cson/encoder";
+import { ProtoEncoder } from "@destack/encoder/proto";
 import {
+  ENCODERS,
+  Encoding,
+  loadConstants,
   NodeClass,
   NodeDefinition,
   NodeDefinitionReference,
@@ -67,6 +72,13 @@ export function finalize(): void {
     return;
   }
   __isFinalized__ = true;
+
+  // encoders
+  ENCODERS[Encoding.CSON] = new CsonEncoder();
+  ENCODERS[Encoding.PROTO] = new ProtoEncoder();
+
+  // constants
+  loadConstants();
 
   // nodes
   for (const nodeDefinition of Universe.NODES) {
