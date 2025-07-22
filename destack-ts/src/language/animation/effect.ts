@@ -1,9 +1,3 @@
-import {
-  packProtoDuration,
-  packProtoTimestamp,
-  unpackProtoDuration,
-  unpackProtoTimestamp,
-} from "@destack/grpc";
 import type { Transition } from "@destack/language/animation/transition";
 import type {
   Branch,
@@ -12,10 +6,10 @@ import type {
   IsActor,
   NodeClass,
   NodeReference,
+  PackedCache,
   Session,
   Snapshot,
   Space,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import {
@@ -40,16 +34,6 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import { Style } from "@destack/language/style";
-import {
-  EffectProto,
-  EffectStyleProto,
-  EffectTypeProto,
-  MaterializationProto,
-  OffscreenBehaviorProto,
-  RepeatTypeProto,
-  TextSplitTypeProto,
-} from "@destack/proto";
-import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -237,20 +221,20 @@ export class Effect extends StructFrozen {
     offscreen?: OffscreenBehavior | null;
     transition?: Transition | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Effect.type is required`);
@@ -290,7 +274,7 @@ export class Effect extends StructFrozen {
     let _transition = options.transition ?? null;
     this.transition = _transition;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -440,7 +424,7 @@ export class Effect extends StructFrozen {
       if (this.transition != null) {
         propertyReprs.push(`transition=${this.transition.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Effect ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -505,272 +489,6 @@ export class Effect extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Effect.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Effect): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2200100;
-    objectCson["100"] = object.type;
-    if (object.stylePtr != null) {
-      objectCson["101"] = object.stylePtr.toCson();
-    }
-    if (object.opacity != null) {
-      objectCson["102"] = object.opacity;
-    }
-    if (object.offset != null) {
-      objectCson["103"] = object.offset.toCson();
-    }
-    if (object.scale != null) {
-      objectCson["104"] = object.scale;
-    }
-    if (object.rotate != null) {
-      objectCson["105"] = object.rotate.toCson();
-    }
-    if (object.skew != null) {
-      objectCson["106"] = object.skew.toCson();
-    }
-    if (object.perspective != null) {
-      objectCson["107"] = object.perspective;
-    }
-    if (object.delay != null) {
-      objectCson["108"] = timedeltaToISOFormat(object.delay);
-    }
-    if (object.duration != null) {
-      objectCson["109"] = object.duration;
-    }
-    if (object.threshold != null) {
-      objectCson["110"] = object.threshold;
-    }
-    if (object.once != null) {
-      objectCson["111"] = object.once;
-    }
-    if (object.repeat != null) {
-      objectCson["112"] = object.repeat;
-    }
-    if (object.split != null) {
-      objectCson["113"] = object.split;
-    }
-    if (object.offscreen != null) {
-      objectCson["114"] = object.offscreen;
-    }
-    if (object.transition != null) {
-      objectCson["115"] = object.transition.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Effect {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const stylePtrValue = objectCson["101"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? _NodeReference.fromCson(stylePtrValue, _session, _graph, _connection)
-        : null;
-    const opacityValue = objectCson["102"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectCson["103"];
-    const unpackedOffset =
-      offsetValue != undefined
-        ? _Vector2.fromCson(offsetValue, _session, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["104"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectCson["105"];
-    const unpackedRotate =
-      rotateValue != undefined ? _Axis3.fromCson(rotateValue, _session, _graph, _connection) : null;
-    const skewValue = objectCson["106"];
-    const unpackedSkew =
-      skewValue != undefined ? _Vector2.fromCson(skewValue, _session, _graph, _connection) : null;
-    const perspectiveValue = objectCson["107"];
-    const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectCson["108"];
-    const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectCson["109"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectCson["110"];
-    const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectCson["111"];
-    const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectCson["112"];
-    const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectCson["113"];
-    const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectCson["114"];
-    const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectCson["115"];
-    const unpackedTransition =
-      transitionValue != undefined
-        ? _Transition.fromCson(transitionValue, _session, _graph, _connection)
-        : null;
-    return new Effect({
-      type: Number(objectCson["100"]),
-      style: unpackedStylePtr,
-      opacity: unpackedOpacity,
-      offset: unpackedOffset,
-      scale: unpackedScale,
-      rotate: unpackedRotate,
-      skew: unpackedSkew,
-      perspective: unpackedPerspective,
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      threshold: unpackedThreshold,
-      once: unpackedOnce,
-      repeat: unpackedRepeat,
-      split: unpackedSplit,
-      offscreen: unpackedOffscreen,
-      transition: unpackedTransition,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Effect {
-    return Effect.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): EffectProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Effect.__packProto__(this);
-    }
-    return this._proto as EffectProto;
-  }
-
-  static __packProto__(object: Effect): EffectProto {
-    const objectProto: Partial<EffectProto> = { metatype: 2200100 };
-    objectProto.type = Number(object.type) as EffectTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.opacity != null) {
-      objectProto.opacity = object.opacity;
-    }
-    if (object.offset != null) {
-      objectProto.offset = object.offset.toProto();
-    }
-    if (object.scale != null) {
-      objectProto.scale = object.scale;
-    }
-    if (object.rotate != null) {
-      objectProto.rotate = object.rotate.toProto();
-    }
-    if (object.skew != null) {
-      objectProto.skew = object.skew.toProto();
-    }
-    if (object.perspective != null) {
-      objectProto.perspective = object.perspective;
-    }
-    if (object.delay != null) {
-      objectProto.delay = packProtoDuration(object.delay);
-    }
-    if (object.duration != null) {
-      objectProto.duration = object.duration;
-    }
-    if (object.threshold != null) {
-      objectProto.threshold = object.threshold;
-    }
-    if (object.once != null) {
-      objectProto.once = object.once;
-    }
-    if (object.repeat != null) {
-      objectProto.repeat = Number(object.repeat) as RepeatTypeProto;
-    }
-    if (object.split != null) {
-      objectProto.split = Number(object.split) as TextSplitTypeProto;
-    }
-    if (object.offscreen != null) {
-      objectProto.offscreen = Number(object.offscreen) as OffscreenBehaviorProto;
-    }
-    if (object.transition != null) {
-      objectProto.transition = object.transition.toProto();
-    }
-    return objectProto as EffectProto;
-  }
-
-  static __unpackProto__(
-    objectProto: EffectProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Effect {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    return new Effect({
-      type: Number(objectProto.type) as EffectType,
-      style:
-        objectProto.stylePtr != undefined
-          ? _NodeReference.fromProto(objectProto.stylePtr!, _session, _graph, _graph, _connection)
-          : null,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      offset:
-        objectProto.offset != undefined
-          ? _Vector2.fromProto(objectProto.offset!, _session, _graph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
-      rotate:
-        objectProto.rotate != undefined
-          ? _Axis3.fromProto(objectProto.rotate!, _session, _graph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _graph, _graph, _connection)
-          : null,
-      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
-      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
-      once: objectProto.once != undefined ? objectProto.once : null,
-      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
-      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
-      offscreen:
-        objectProto.offscreen != undefined
-          ? (Number(objectProto.offscreen) as OffscreenBehavior)
-          : null,
-      transition:
-        objectProto.transition != undefined
-          ? _Transition.fromProto(objectProto.transition!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: EffectProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Effect {
-    return Effect.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Effect {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = EffectProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1339,32 +1057,30 @@ export class EffectStyle extends Style {
     offscreen?: OffscreenBehavior | null;
     transition?: Transition | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -1514,7 +1230,7 @@ export class EffectStyle extends Style {
     let _transition = options.transition ?? null;
     this._transition = _transition;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1858,551 +1574,6 @@ export class EffectStyle extends Style {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<EffectStyle "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return EffectStyle.__packCson__(this);
-  }
-
-  static __packCson__(object: EffectStyle): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2200100;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    objectCson["100"] = object._type;
-    if (object._opacity != null) {
-      objectCson["200"] = object._opacity;
-    }
-    if (object._offset != null) {
-      objectCson["201"] = object._offset.toCson();
-    }
-    if (object._scale != null) {
-      objectCson["202"] = object._scale;
-    }
-    if (object._rotate != null) {
-      objectCson["203"] = object._rotate.toCson();
-    }
-    if (object._skew != null) {
-      objectCson["204"] = object._skew.toCson();
-    }
-    if (object._perspective != null) {
-      objectCson["205"] = object._perspective;
-    }
-    if (object._delay != null) {
-      objectCson["206"] = timedeltaToISOFormat(object._delay);
-    }
-    if (object._duration != null) {
-      objectCson["207"] = object._duration;
-    }
-    if (object._threshold != null) {
-      objectCson["208"] = object._threshold;
-    }
-    if (object._once != null) {
-      objectCson["209"] = object._once;
-    }
-    if (object._repeat != null) {
-      objectCson["210"] = object._repeat;
-    }
-    if (object._split != null) {
-      objectCson["211"] = object._split;
-    }
-    if (object._offscreen != null) {
-      objectCson["212"] = object._offscreen;
-    }
-    if (object._transition != null) {
-      objectCson["213"] = object._transition.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): EffectStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const opacityValue = objectCson["200"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectCson["201"];
-    const unpackedOffset =
-      offsetValue != undefined
-        ? _Vector2.fromCson(offsetValue, _session, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["202"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectCson["203"];
-    const unpackedRotate =
-      rotateValue != undefined ? _Axis3.fromCson(rotateValue, _session, _graph, _connection) : null;
-    const skewValue = objectCson["204"];
-    const unpackedSkew =
-      skewValue != undefined ? _Vector2.fromCson(skewValue, _session, _graph, _connection) : null;
-    const perspectiveValue = objectCson["205"];
-    const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectCson["206"];
-    const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectCson["207"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectCson["208"];
-    const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectCson["209"];
-    const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectCson["210"];
-    const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectCson["211"];
-    const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectCson["212"];
-    const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectCson["213"];
-    const unpackedTransition =
-      transitionValue != undefined
-        ? _Transition.fromCson(transitionValue, _session, _graph, _connection)
-        : null;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new EffectStyle({
-      type: Number(objectCson["100"]),
-      opacity: unpackedOpacity,
-      offset: unpackedOffset,
-      scale: unpackedScale,
-      rotate: unpackedRotate,
-      skew: unpackedSkew,
-      perspective: unpackedPerspective,
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      threshold: unpackedThreshold,
-      once: unpackedOnce,
-      repeat: unpackedRepeat,
-      split: unpackedSplit,
-      offscreen: unpackedOffscreen,
-      transition: unpackedTransition,
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): EffectStyle {
-    return EffectStyle.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): EffectStyleProto {
-    return EffectStyle.__packProto__(this);
-  }
-
-  static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 2200100 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    objectProto.type = Number(object._type) as EffectTypeProto;
-    if (object._opacity != null) {
-      objectProto.opacity = object._opacity;
-    }
-    if (object._offset != null) {
-      objectProto.offset = object._offset.toProto();
-    }
-    if (object._scale != null) {
-      objectProto.scale = object._scale;
-    }
-    if (object._rotate != null) {
-      objectProto.rotate = object._rotate.toProto();
-    }
-    if (object._skew != null) {
-      objectProto.skew = object._skew.toProto();
-    }
-    if (object._perspective != null) {
-      objectProto.perspective = object._perspective;
-    }
-    if (object._delay != null) {
-      objectProto.delay = packProtoDuration(object._delay);
-    }
-    if (object._duration != null) {
-      objectProto.duration = object._duration;
-    }
-    if (object._threshold != null) {
-      objectProto.threshold = object._threshold;
-    }
-    if (object._once != null) {
-      objectProto.once = object._once;
-    }
-    if (object._repeat != null) {
-      objectProto.repeat = Number(object._repeat) as RepeatTypeProto;
-    }
-    if (object._split != null) {
-      objectProto.split = Number(object._split) as TextSplitTypeProto;
-    }
-    if (object._offscreen != null) {
-      objectProto.offscreen = Number(object._offscreen) as OffscreenBehaviorProto;
-    }
-    if (object._transition != null) {
-      objectProto.transition = object._transition.toProto();
-    }
-    return objectProto as EffectStyleProto;
-  }
-
-  static __unpackProto__(
-    objectProto: EffectStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): EffectStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new EffectStyle({
-      type: Number(objectProto.type) as EffectType,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      offset:
-        objectProto.offset != undefined
-          ? _Vector2.fromProto(objectProto.offset!, _session, _graph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
-      rotate:
-        objectProto.rotate != undefined
-          ? _Axis3.fromProto(objectProto.rotate!, _session, _graph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _graph, _graph, _connection)
-          : null,
-      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
-      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
-      once: objectProto.once != undefined ? objectProto.once : null,
-      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
-      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
-      offscreen:
-        objectProto.offscreen != undefined
-          ? (Number(objectProto.offscreen) as OffscreenBehavior)
-          : null,
-      transition:
-        objectProto.transition != undefined
-          ? _Transition.fromProto(objectProto.transition!, _session, _graph, _graph, _connection)
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: EffectStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): EffectStyle {
-    return EffectStyle.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): EffectStyle {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = EffectStyleProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

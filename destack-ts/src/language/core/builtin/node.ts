@@ -1,7 +1,6 @@
 import type {
   Aggregation,
   Condition,
-  Entity,
   Expression,
   ExpressionIn,
   Join,
@@ -13,6 +12,7 @@ import type {
 } from "@destack/language";
 import {
   NodeType,
+  ObjectKind,
   StoreDomain,
   StructType,
   TraitType,
@@ -21,7 +21,7 @@ import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { isStruct } from "@destack/language/core/builtin/struct";
 import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
-import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
+import { Graph, GraphConnection, Session } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";
@@ -30,6 +30,7 @@ import { uuid4, uuid7 } from "@destack/utils/uuid";
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
   static readonly metatype: NodeType = NodeType.NODE;
+  static readonly __kind__: ObjectKind = ObjectKind.NODE;
   static readonly __isNode__: boolean = true;
   static readonly __definition__: NodeDefinition;
   static readonly __definitionReference: NodeDefinitionReference;
@@ -37,15 +38,12 @@ export abstract class Node extends BuiltinObject {
   readonly id: string;
   readonly parentPtr: NodeReference | null = null;
 
-  // runtime
-  /* The current Session this Node is in. */
+  /* The Session this Node is in. */
   _session: Session;
-  /* The Supergraph this Node is part of. */
-  _supergraph: Supergraph;
-  /* The specific Graph this Node is part of. */
+  /* The Graph this Node is in. */
   _graph: Graph;
-  /* The QueryConnection this Node is from (if any). */
-  _connection: QueryConnection | null;
+  /* The GraphConnection this Node is from (if any). */
+  _connection: GraphConnection | null;
   /* The hash of this Node. */
   _hash: string | null;
   /* The cached reference to this Node. */
@@ -57,30 +55,17 @@ export abstract class Node extends BuiltinObject {
     id: string | null,
     parentPtr: NodeReference | null,
     _session: Session | null,
-    _supergraph: Supergraph | null,
     _graph: Graph | null,
-    _connection: QueryConnection | null,
+    _connection: GraphConnection | null,
     _isNew: boolean,
   ) {
-    super(_supergraph);
+    super(_session, _graph);
     const isEvent = this.__definition__.storeDomain == StoreDomain.EVENT;
     this.id = id ?? (isEvent ? uuid7() : uuid4());
     this.parentPtr = parentPtr; // is assigned again in subclasses but needed for adding to Graph
     this._session = _session ?? activeSession();
-    this._supergraph = _supergraph ?? this._session.supergraph;
-    if (isEvent) {
-      if (_graph == null) {
-        _graph = this._session.eventGraph;
-      }
-      _graph.add(this);
-    } else {
-      if (_graph == null) {
-        _graph = this._supergraph.createEntitySingletonGraph(this as unknown as Entity);
-      } else {
-        _graph.add(this);
-      }
-    }
-    this._graph = _graph;
+    this._graph = _graph ?? this._session.graph;
+    this._graph.add(this);
     this._connection = _connection;
     this._hash = this.id;
     this._ref = null;
@@ -153,7 +138,6 @@ export abstract class Node extends BuiltinObject {
       where?: Condition;
       name?: string;
       join?: Join;
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
@@ -163,7 +147,7 @@ export abstract class Node extends BuiltinObject {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const { where, name, join, includeDeleted, ...subqueries } = options ?? {};
+    const { where, name, join, ...subqueries } = options ?? {};
     const query = new _Query<T>({
       type: QueryType.NODE,
       domain: this.__definition__.storeDomain,
@@ -171,7 +155,6 @@ export abstract class Node extends BuiltinObject {
       name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -187,7 +170,6 @@ export abstract class Node extends BuiltinObject {
       having?: Condition;
       groupBy?: ExpressionIn[];
       sort?: Sort[];
-      includeDeleted?: boolean;
       limit?: number;
       offset?: number;
     }>,
@@ -195,18 +177,8 @@ export abstract class Node extends BuiltinObject {
     if (this.__definition__.storeDomain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
-    const {
-      where,
-      name,
-      join,
-      having,
-      groupBy,
-      sort,
-      limit,
-      offset,
-      includeDeleted,
-      ...subqueries
-    } = options ?? {};
+    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } =
+      options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -224,7 +196,6 @@ export abstract class Node extends BuiltinObject {
       sort,
       limit,
       offset,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -237,13 +208,12 @@ export abstract class Node extends BuiltinObject {
       where?: Condition;
       name?: string;
       join?: Join;
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
-    const { where, name, join, includeDeleted, ...subqueries } = options ?? {};
+    const { where, name, join, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -257,7 +227,6 @@ export abstract class Node extends BuiltinObject {
       join,
       where,
       aggregation: _Aggregation.of(AggregationType.EXISTS),
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -273,14 +242,12 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
-    const { where, name, join, groupBy, having, sort, includeDeleted, ...subqueries } =
-      options ?? {};
+    const { where, name, join, groupBy, having, sort, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -298,7 +265,6 @@ export abstract class Node extends BuiltinObject {
       groupBy: groupBy?.map(_Expression.of),
       aggregation: _Aggregation.of(AggregationType.COUNT),
       sort,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -315,7 +281,6 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
@@ -327,8 +292,7 @@ export abstract class Node extends BuiltinObject {
     ] as typeof NodeDefinitionReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const { expression, where, name, join, groupBy, having, sort, includeDeleted, ...subqueries } =
-      options;
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
       domain: this.__definition__.storeDomain,
@@ -340,7 +304,6 @@ export abstract class Node extends BuiltinObject {
       groupBy: groupBy?.map(_Expression.of),
       aggregation: _Aggregation.of(AggregationType.MIN, _Expression.of(expression)),
       sort,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -357,14 +320,12 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
-    const { expression, where, name, join, groupBy, having, sort, includeDeleted, ...subqueries } =
-      options;
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -382,7 +343,6 @@ export abstract class Node extends BuiltinObject {
       groupBy: groupBy?.map(_Expression.of),
       aggregation: _Aggregation.of(AggregationType.MAX, _Expression.of(expression)),
       sort,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -399,14 +359,12 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-      includeDeleted?: boolean;
     }>,
   ): Query<T> {
     if (this.__definition__.storeDomain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
-    const { expression, where, name, join, groupBy, having, sort, includeDeleted, ...subqueries } =
-      options;
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -424,7 +382,6 @@ export abstract class Node extends BuiltinObject {
       groupBy: groupBy?.map(_Expression.of),
       aggregation: _Aggregation.of(AggregationType.SUM, _Expression.of(expression)),
       sort,
-      includeDeleted,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -436,7 +393,7 @@ registerNodeClass(NodeType.NODE, Node);
 type NodeConstructor<N extends Node = Node> = new (...args: any[]) => N;
 type AbstractNodeConstructor<N extends Node = Node> = abstract new (...args: any[]) => N;
 export type NodeClass<N extends Node = Node> = (NodeConstructor<N> | AbstractNodeConstructor<N>) &
-  (BuiltinObjectClass<any, any> & {
+  (BuiltinObjectClass<any> & {
     metatype: NodeType;
     __definition__: NodeDefinition;
     __definitionReference: NodeDefinitionReference;

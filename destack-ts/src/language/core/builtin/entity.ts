@@ -7,12 +7,9 @@ import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
-import type { Graph } from "@destack/language/core/runtime/graph";
-import { EntitySingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Script } from "@destack/language/logic";
 import {
   NODE_CLASS_BY_TYPE,
-  PARENT_TYPES_BY_NODE_TYPE,
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
@@ -244,72 +241,12 @@ export abstract class Entity extends Node {
     const { after, before } = options || {};
 
     // prepare graph & nodes
-    const supergraph = this._supergraph;
-    const oldGraph = this._graph;
-    let newGraph: Graph<Entity>;
-    let parentPtr: NodeReference | null;
-
-    if (parent !== null) {
-      // move to new parent
-      if (oldGraph.supergraph !== parent._supergraph) {
-        throw new Error(`${this.repr()} is not in supergraph of ${parent.repr()}`);
-      }
-
-      if (!PARENT_TYPES_BY_NODE_TYPE[this.metatype].includes(parent.metatype)) {
-        throw new Error(
-          `${parent.repr()} cannot parent ${this.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
-            this.metatype
-          ]
-            .map((type) => NodeType[type])
-            .join(", ")})`,
-        );
-      }
-
-      // check space
-      if (this.spacePtr!.id !== parent.spacePtr!.id) {
-        throw new Error(`cannot move ${this.repr()} to ${parent.repr()} (different Space)`);
-      }
-
-      newGraph = parent._graph as Graph<Entity>; // has to be an Entity's Graph
-      parentPtr = parent.toRef();
-
-      // promote parent to polygraph if needed
-      if (newGraph instanceof EntitySingletonGraph) {
-        newGraph = supergraph.promoteToPolygraph(newGraph);
-        parent._graph = newGraph;
-      }
-    } else {
-      // detach from parent
-      if (this.parentPtr === null) {
-        return; // nothing to do
-      }
-      newGraph = supergraph.createEntityGraph();
-      parentPtr = null;
-    }
-
     const session = this._session;
     const nodes: Entity[] = [this, ...(this._graph.getDescendants({ node: this }) as Entity[])];
 
     // assign order
     if (parent !== null && hasTrait(this, TraitType.ORDERED)) {
       parent._assignOrder(this, after, before);
-    }
-
-    // move to new graph
-    (this as any).parentPtr = parentPtr;
-    if (oldGraph !== newGraph) {
-      if (nodes.length === oldGraph.size) {
-        // all nodes were moved
-        supergraph.removeGraph(oldGraph);
-      } else {
-        for (const node of nodes) {
-          oldGraph.remove(node);
-        }
-      }
-      for (const node of nodes) {
-        node._graph = newGraph;
-        newGraph.add(node);
-      }
     }
 
     // create new nodes

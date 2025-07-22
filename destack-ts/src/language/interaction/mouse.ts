@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  Supergraph,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -30,15 +28,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import {
-  DoubleClickEventProto,
-  EventStatusProto,
-  MouseButtonProto,
-  SingleClickEventProto,
-  TripleClickEventProto,
-  WheelEventProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -529,28 +518,26 @@ export class SingleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -664,7 +651,7 @@ export class SingleClickEvent extends ClickEvent {
     }
     this.button = _button;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -856,291 +843,6 @@ export class SingleClickEvent extends ClickEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SingleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return SingleClickEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: SingleClickEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000202;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    objectCson["110"] = object.position.toCson();
-    if (object.pressure != null) {
-      objectCson["111"] = object.pressure;
-    }
-    objectCson["120"] = object.shiftKey;
-    objectCson["121"] = object.altKey;
-    objectCson["122"] = object.ctrlKey;
-    objectCson["123"] = object.metaKey;
-    objectCson["130"] = object.button;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): SingleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const pressureValue = objectCson["111"];
-    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new SingleClickEvent({
-      button: Number(objectCson["130"]),
-      position: _Vector2.fromCson(objectCson["110"], _session, _graph, _connection),
-      pressure: unpackedPressure,
-      shiftKey: objectCson["120"],
-      altKey: objectCson["121"],
-      ctrlKey: objectCson["122"],
-      metaKey: objectCson["123"],
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): SingleClickEvent {
-    return SingleClickEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): SingleClickEventProto {
-    return SingleClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: SingleClickEvent): SingleClickEventProto {
-    const objectProto: Partial<SingleClickEventProto> = { metatype: 2000202 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    if (object.pressure != null) {
-      objectProto.pressure = object.pressure;
-    }
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as SingleClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: SingleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): SingleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new SingleClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection),
-      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: SingleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): SingleClickEvent {
-    return SingleClickEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): SingleClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = SingleClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1355,28 +1057,26 @@ export class DoubleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -1490,7 +1190,7 @@ export class DoubleClickEvent extends ClickEvent {
     }
     this.button = _button;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1682,291 +1382,6 @@ export class DoubleClickEvent extends ClickEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DoubleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return DoubleClickEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: DoubleClickEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000203;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    objectCson["110"] = object.position.toCson();
-    if (object.pressure != null) {
-      objectCson["111"] = object.pressure;
-    }
-    objectCson["120"] = object.shiftKey;
-    objectCson["121"] = object.altKey;
-    objectCson["122"] = object.ctrlKey;
-    objectCson["123"] = object.metaKey;
-    objectCson["130"] = object.button;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): DoubleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const pressureValue = objectCson["111"];
-    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new DoubleClickEvent({
-      button: Number(objectCson["130"]),
-      position: _Vector2.fromCson(objectCson["110"], _session, _graph, _connection),
-      pressure: unpackedPressure,
-      shiftKey: objectCson["120"],
-      altKey: objectCson["121"],
-      ctrlKey: objectCson["122"],
-      metaKey: objectCson["123"],
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): DoubleClickEvent {
-    return DoubleClickEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): DoubleClickEventProto {
-    return DoubleClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: DoubleClickEvent): DoubleClickEventProto {
-    const objectProto: Partial<DoubleClickEventProto> = { metatype: 2000203 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    if (object.pressure != null) {
-      objectProto.pressure = object.pressure;
-    }
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as DoubleClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: DoubleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): DoubleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new DoubleClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection),
-      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: DoubleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): DoubleClickEvent {
-    return DoubleClickEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): DoubleClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = DoubleClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -2181,28 +1596,26 @@ export class TripleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -2316,7 +1729,7 @@ export class TripleClickEvent extends ClickEvent {
     }
     this.button = _button;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -2508,291 +1921,6 @@ export class TripleClickEvent extends ClickEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<TripleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return TripleClickEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: TripleClickEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000204;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    objectCson["110"] = object.position.toCson();
-    if (object.pressure != null) {
-      objectCson["111"] = object.pressure;
-    }
-    objectCson["120"] = object.shiftKey;
-    objectCson["121"] = object.altKey;
-    objectCson["122"] = object.ctrlKey;
-    objectCson["123"] = object.metaKey;
-    objectCson["130"] = object.button;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): TripleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const pressureValue = objectCson["111"];
-    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new TripleClickEvent({
-      button: Number(objectCson["130"]),
-      position: _Vector2.fromCson(objectCson["110"], _session, _graph, _connection),
-      pressure: unpackedPressure,
-      shiftKey: objectCson["120"],
-      altKey: objectCson["121"],
-      ctrlKey: objectCson["122"],
-      metaKey: objectCson["123"],
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): TripleClickEvent {
-    return TripleClickEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): TripleClickEventProto {
-    return TripleClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: TripleClickEvent): TripleClickEventProto {
-    const objectProto: Partial<TripleClickEventProto> = { metatype: 2000204 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    if (object.pressure != null) {
-      objectProto.pressure = object.pressure;
-    }
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as TripleClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: TripleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): TripleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new TripleClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection),
-      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: TripleClickEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): TripleClickEvent {
-    return TripleClickEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): TripleClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TripleClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -3013,28 +2141,26 @@ export class WheelEvent extends MouseEvent {
     button: MouseButton;
     delta: Vector2;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -3153,7 +2279,7 @@ export class WheelEvent extends MouseEvent {
     }
     this.delta = _delta;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -3349,295 +2475,6 @@ export class WheelEvent extends MouseEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<WheelEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return WheelEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: WheelEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000210;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    objectCson["110"] = object.position.toCson();
-    if (object.pressure != null) {
-      objectCson["111"] = object.pressure;
-    }
-    objectCson["120"] = object.shiftKey;
-    objectCson["121"] = object.altKey;
-    objectCson["122"] = object.ctrlKey;
-    objectCson["123"] = object.metaKey;
-    objectCson["130"] = object.button;
-    objectCson["140"] = object.delta.toCson();
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): WheelEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const pressureValue = objectCson["111"];
-    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new WheelEvent({
-      delta: _Vector2.fromCson(objectCson["140"], _session, _graph, _connection),
-      button: Number(objectCson["130"]),
-      position: _Vector2.fromCson(objectCson["110"], _session, _graph, _connection),
-      pressure: unpackedPressure,
-      shiftKey: objectCson["120"],
-      altKey: objectCson["121"],
-      ctrlKey: objectCson["122"],
-      metaKey: objectCson["123"],
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): WheelEvent {
-    return WheelEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): WheelEventProto {
-    return WheelEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: WheelEvent): WheelEventProto {
-    const objectProto: Partial<WheelEventProto> = { metatype: 2000210 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    if (object.pressure != null) {
-      objectProto.pressure = object.pressure;
-    }
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    objectProto.delta = object.delta.toProto();
-    return objectProto as WheelEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: WheelEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): WheelEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new WheelEvent({
-      delta: _Vector2.fromProto(objectProto.delta!, _session, _graph, _graph, _connection),
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection),
-      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: WheelEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): WheelEvent {
-    return WheelEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): WheelEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = WheelEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

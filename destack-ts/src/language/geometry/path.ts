@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
@@ -6,10 +5,10 @@ import type {
   IsActor,
   NodeClass,
   NodeReference,
+  PackedCache,
   Session,
   Snapshot,
   Space,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import {
@@ -35,8 +34,6 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Stroke } from "@destack/language/style";
-import { AnchorProto, MaterializationProto, Path2DProto, PathShape2DProto } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -62,20 +59,20 @@ export class Path2D extends StructFrozen {
     stroke?: Stroke | null;
     points?: readonly Vector2[];
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _stroke = options.stroke ?? null;
     this.stroke = _stroke;
     let _points = options.points ?? null;
@@ -84,7 +81,7 @@ export class Path2D extends StructFrozen {
     }
     this.points = _points;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -123,10 +120,10 @@ export class Path2D extends StructFrozen {
         propertyReprs.push(`stroke=${this.stroke.repr()}`);
       }
       if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<Path2D ${propertyReprs.join(" ")}>`;
       } else {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<Path2D>`;
       }
     }
@@ -154,129 +151,6 @@ export class Path2D extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Path2D.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Path2D): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2411600;
-    if (object.stroke != null) {
-      objectCson["200"] = object.stroke.toCson();
-    }
-    if (object.points.length > 0) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toCson());
-      }
-      objectCson["210"] = packedPoints;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Path2D {
-    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const strokeValue = objectCson["200"];
-    const unpackedStroke =
-      strokeValue != undefined
-        ? _Stroke.fromCson(strokeValue, _session, _graph, _connection)
-        : null;
-    const unpackedPoints: any[] = [];
-    if (objectCson["210"] != undefined) {
-      for (const item of objectCson["210"]) {
-        unpackedPoints.push(_Vector2.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    return new Path2D({
-      stroke: unpackedStroke,
-      points: unpackedPoints,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Path2D {
-    return Path2D.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Path2DProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Path2D.__packProto__(this);
-    }
-    return this._proto as Path2DProto;
-  }
-
-  static __packProto__(object: Path2D): Path2DProto {
-    const objectProto: Partial<Path2DProto> = { metatype: 2411600 };
-    if (object.stroke != null) {
-      objectProto.stroke = object.stroke.toProto();
-    }
-    if (object.points) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toProto());
-      }
-      objectProto.points = packedPoints;
-    }
-    return objectProto as Path2DProto;
-  }
-
-  static __unpackProto__(
-    objectProto: Path2DProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Path2D {
-    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const unpackedPoints: any[] = [];
-    if (objectProto.points) {
-      for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    return new Path2D({
-      stroke:
-        objectProto.stroke != undefined
-          ? _Stroke.fromProto(objectProto.stroke!, _session, _graph, _graph, _connection)
-          : null,
-      points: unpackedPoints,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Path2DProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Path2D {
-    return Path2D.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Path2D {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Path2DProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -743,32 +617,30 @@ export class PathShape2D extends Shape2D {
     stroke?: Stroke | null;
     points?: readonly Vector2[];
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -906,7 +778,7 @@ export class PathShape2D extends Shape2D {
     }
     this._points = _points;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1166,530 +1038,6 @@ export class PathShape2D extends Shape2D {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<PathShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return PathShape2D.__packCson__(this);
-  }
-
-  static __packCson__(object: PathShape2D): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2410600;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    if (object._position != null) {
-      objectCson["110"] = object._position.toCson();
-    }
-    if (object._offset != null) {
-      objectCson["111"] = object._offset.toCson();
-    }
-    if (object._scale != null) {
-      objectCson["112"] = object._scale.toCson();
-    }
-    if (object._rotation != null) {
-      objectCson["113"] = object._rotation.toCson();
-    }
-    if (object._skew != null) {
-      objectCson["114"] = object._skew.toCson();
-    }
-    if (object._origin != null) {
-      objectCson["115"] = object._origin.toCson();
-    }
-    if (object._anchor != null) {
-      objectCson["116"] = object._anchor;
-    }
-    if (object._stroke != null) {
-      objectCson["180"] = object._stroke.toCson();
-    }
-    if (object._points.length > 0) {
-      const packedPoints: any[] = [];
-      for (const item of object._points) {
-        packedPoints.push(item.toCson());
-      }
-      objectCson["200"] = packedPoints;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): PathShape2D {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
-    const unpackedPoints: any[] = [];
-    if (objectCson["200"] != undefined) {
-      for (const item of objectCson["200"]) {
-        unpackedPoints.push(_Vector2.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    const strokeValue = objectCson["180"];
-    const unpackedStroke =
-      strokeValue != undefined
-        ? _Stroke.fromCson(strokeValue, _session, _graph, _connection)
-        : null;
-    const positionValue = objectCson["110"];
-    const unpackedPosition =
-      positionValue != undefined
-        ? _Vector2.fromCson(positionValue, _session, _graph, _connection)
-        : null;
-    const offsetValue = objectCson["111"];
-    const unpackedOffset =
-      offsetValue != undefined
-        ? _Offset2.fromCson(offsetValue, _session, _graph, _connection)
-        : null;
-    const scaleValue = objectCson["112"];
-    const unpackedScale =
-      scaleValue != undefined ? _Vector2.fromCson(scaleValue, _session, _graph, _connection) : null;
-    const rotationValue = objectCson["113"];
-    const unpackedRotation =
-      rotationValue != undefined
-        ? _Vector2.fromCson(rotationValue, _session, _graph, _connection)
-        : null;
-    const skewValue = objectCson["114"];
-    const unpackedSkew =
-      skewValue != undefined ? _Vector2.fromCson(skewValue, _session, _graph, _connection) : null;
-    const originValue = objectCson["115"];
-    const unpackedOrigin =
-      originValue != undefined
-        ? _Vector2.fromCson(originValue, _session, _graph, _connection)
-        : null;
-    const anchorValue = objectCson["116"];
-    const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : null;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new PathShape2D({
-      points: unpackedPoints,
-      stroke: unpackedStroke,
-      position: unpackedPosition,
-      offset: unpackedOffset,
-      scale: unpackedScale,
-      rotation: unpackedRotation,
-      skew: unpackedSkew,
-      origin: unpackedOrigin,
-      anchor: unpackedAnchor,
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): PathShape2D {
-    return PathShape2D.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): PathShape2DProto {
-    return PathShape2D.__packProto__(this);
-  }
-
-  static __packProto__(object: PathShape2D): PathShape2DProto {
-    const objectProto: Partial<PathShape2DProto> = { metatype: 2410600 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    if (object._position != null) {
-      objectProto.position = object._position.toProto();
-    }
-    if (object._offset != null) {
-      objectProto.offset = object._offset.toProto();
-    }
-    if (object._scale != null) {
-      objectProto.scale = object._scale.toProto();
-    }
-    if (object._rotation != null) {
-      objectProto.rotation = object._rotation.toProto();
-    }
-    if (object._skew != null) {
-      objectProto.skew = object._skew.toProto();
-    }
-    if (object._origin != null) {
-      objectProto.origin = object._origin.toProto();
-    }
-    if (object._anchor != null) {
-      objectProto.anchor = Number(object._anchor) as AnchorProto;
-    }
-    if (object._stroke != null) {
-      objectProto.stroke = object._stroke.toProto();
-    }
-    if (object._points) {
-      const packedPoints: any[] = [];
-      for (const item of object._points) {
-        packedPoints.push(item.toProto());
-      }
-      objectProto.points = packedPoints;
-    }
-    return objectProto as PathShape2DProto;
-  }
-
-  static __unpackProto__(
-    objectProto: PathShape2DProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): PathShape2D {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    const _Offset2 = STRUCT_CLASS_BY_TYPE[StructType.OFFSET2] as typeof Offset2;
-    const unpackedPoints: any[] = [];
-    if (objectProto.points) {
-      for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new PathShape2D({
-      points: unpackedPoints,
-      stroke:
-        objectProto.stroke != undefined
-          ? _Stroke.fromProto(objectProto.stroke!, _session, _graph, _graph, _connection)
-          : null,
-      position:
-        objectProto.position != undefined
-          ? _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection)
-          : null,
-      offset:
-        objectProto.offset != undefined
-          ? _Offset2.fromProto(objectProto.offset!, _session, _graph, _graph, _connection)
-          : null,
-      scale:
-        objectProto.scale != undefined
-          ? _Vector2.fromProto(objectProto.scale!, _session, _graph, _graph, _connection)
-          : null,
-      rotation:
-        objectProto.rotation != undefined
-          ? _Vector2.fromProto(objectProto.rotation!, _session, _graph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _graph, _graph, _connection)
-          : null,
-      origin:
-        objectProto.origin != undefined
-          ? _Vector2.fromProto(objectProto.origin!, _session, _graph, _graph, _connection)
-          : null,
-      anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: PathShape2DProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): PathShape2D {
-    return PathShape2D.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): PathShape2D {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PathShape2DProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

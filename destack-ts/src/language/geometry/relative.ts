@@ -1,23 +1,6 @@
-import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
+import type { Graph, PackedCache, Session } from "@destack/language/core";
 import { EnumType, StructFrozen, StructType } from "@destack/language/core";
-import {
-  STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
-  registerStructClass,
-} from "@destack/language/registry";
-import {
-  AnchorProto,
-  Axis2Proto,
-  Axis3Proto,
-  Corner2Proto,
-  Grid2Proto,
-  GridSpan2Proto,
-  Inset2Proto,
-  LengthProto,
-  LengthTypeProto,
-  Offset2Proto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2400002 ==== */
@@ -159,20 +142,20 @@ export class Length extends StructFrozen {
     unit: LengthType;
     value: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _unit = options.unit;
     if (_unit === null) {
       throw new Error(`Length.unit is required`);
@@ -184,7 +167,7 @@ export class Length extends StructFrozen {
     }
     this.value = _value;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -213,7 +196,7 @@ export class Length extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`unit=${LengthType[this.unit]}`);
       propertyReprs.push(`value=${this.value}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Length ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -234,89 +217,6 @@ export class Length extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Length.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Length): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1800001;
-    objectCson["101"] = object.unit;
-    objectCson["102"] = object.value;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Length {
-    return new Length({
-      unit: Number(objectCson["101"]),
-      value: objectCson["102"],
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Length {
-    return Length.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): LengthProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Length.__packProto__(this);
-    }
-    return this._proto as LengthProto;
-  }
-
-  static __packProto__(object: Length): LengthProto {
-    const objectProto: Partial<LengthProto> = { metatype: 1800001 };
-    objectProto.unit = Number(object.unit) as LengthTypeProto;
-    objectProto.value = object.value;
-    return objectProto as LengthProto;
-  }
-
-  static __unpackProto__(
-    objectProto: LengthProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Length {
-    return new Length({
-      unit: Number(objectProto.unit) as LengthType,
-      value: objectProto.value,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: LengthProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Length {
-    return Length.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Length {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LengthProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -366,20 +266,20 @@ export class Offset2 extends StructFrozen {
     width?: Length | null;
     height?: Length | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Offset2.type is required`);
@@ -394,7 +294,7 @@ export class Offset2 extends StructFrozen {
     let _height = options.height ?? null;
     this.height = _height;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -455,7 +355,7 @@ export class Offset2 extends StructFrozen {
       if (this.height != null) {
         propertyReprs.push(`height=${this.height.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Offset2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -487,145 +387,6 @@ export class Offset2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Offset2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Offset2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400020;
-    objectCson["100"] = object.type;
-    if (object.top != null) {
-      objectCson["101"] = object.top.toCson();
-    }
-    if (object.left != null) {
-      objectCson["102"] = object.left.toCson();
-    }
-    if (object.width != null) {
-      objectCson["103"] = object.width.toCson();
-    }
-    if (object.height != null) {
-      objectCson["104"] = object.height.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Offset2 {
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const topValue = objectCson["101"];
-    const unpackedTop =
-      topValue != undefined ? _Length.fromCson(topValue, _session, _graph, _connection) : null;
-    const leftValue = objectCson["102"];
-    const unpackedLeft =
-      leftValue != undefined ? _Length.fromCson(leftValue, _session, _graph, _connection) : null;
-    const widthValue = objectCson["103"];
-    const unpackedWidth =
-      widthValue != undefined ? _Length.fromCson(widthValue, _session, _graph, _connection) : null;
-    const heightValue = objectCson["104"];
-    const unpackedHeight =
-      heightValue != undefined
-        ? _Length.fromCson(heightValue, _session, _graph, _connection)
-        : null;
-    return new Offset2({
-      type: Number(objectCson["100"]),
-      top: unpackedTop,
-      left: unpackedLeft,
-      width: unpackedWidth,
-      height: unpackedHeight,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Offset2 {
-    return Offset2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Offset2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Offset2.__packProto__(this);
-    }
-    return this._proto as Offset2Proto;
-  }
-
-  static __packProto__(object: Offset2): Offset2Proto {
-    const objectProto: Partial<Offset2Proto> = { metatype: 2400020 };
-    objectProto.type = Number(object.type) as AnchorProto;
-    if (object.top != null) {
-      objectProto.top = object.top.toProto();
-    }
-    if (object.left != null) {
-      objectProto.left = object.left.toProto();
-    }
-    if (object.width != null) {
-      objectProto.width = object.width.toProto();
-    }
-    if (object.height != null) {
-      objectProto.height = object.height.toProto();
-    }
-    return objectProto as Offset2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Offset2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Offset2 {
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    return new Offset2({
-      type: Number(objectProto.type) as Anchor,
-      top:
-        objectProto.top != undefined
-          ? _Length.fromProto(objectProto.top!, _session, _graph, _graph, _connection)
-          : null,
-      left:
-        objectProto.left != undefined
-          ? _Length.fromProto(objectProto.left!, _session, _graph, _graph, _connection)
-          : null,
-      width:
-        objectProto.width != undefined
-          ? _Length.fromProto(objectProto.width!, _session, _graph, _graph, _connection)
-          : null,
-      height:
-        objectProto.height != undefined
-          ? _Length.fromProto(objectProto.height!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Offset2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Offset2 {
-    return Offset2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Offset2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Offset2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -675,20 +436,20 @@ export class Inset2 extends StructFrozen {
     right?: number | null;
     bottom?: number | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _base = options.base ?? null;
     if (_base === null) {
       _base = 0;
@@ -706,7 +467,7 @@ export class Inset2 extends StructFrozen {
     let _bottom = options.bottom ?? null;
     this.bottom = _bottom;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -755,7 +516,7 @@ export class Inset2 extends StructFrozen {
       if (this.bottom != null) {
         propertyReprs.push(`bottom=${this.bottom}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Inset2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -787,125 +548,6 @@ export class Inset2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Inset2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Inset2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400023;
-    objectCson["101"] = object.base;
-    if (object.top != null) {
-      objectCson["102"] = object.top;
-    }
-    if (object.left != null) {
-      objectCson["103"] = object.left;
-    }
-    if (object.right != null) {
-      objectCson["104"] = object.right;
-    }
-    if (object.bottom != null) {
-      objectCson["105"] = object.bottom;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Inset2 {
-    const topValue = objectCson["102"];
-    const unpackedTop = topValue != undefined ? Number(topValue) : null;
-    const leftValue = objectCson["103"];
-    const unpackedLeft = leftValue != undefined ? Number(leftValue) : null;
-    const rightValue = objectCson["104"];
-    const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
-    const bottomValue = objectCson["105"];
-    const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
-    return new Inset2({
-      base: Number(objectCson["101"]),
-      top: unpackedTop,
-      left: unpackedLeft,
-      right: unpackedRight,
-      bottom: unpackedBottom,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Inset2 {
-    return Inset2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Inset2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Inset2.__packProto__(this);
-    }
-    return this._proto as Inset2Proto;
-  }
-
-  static __packProto__(object: Inset2): Inset2Proto {
-    const objectProto: Partial<Inset2Proto> = { metatype: 2400023 };
-    objectProto.base = object.base;
-    if (object.top != null) {
-      objectProto.top = object.top;
-    }
-    if (object.left != null) {
-      objectProto.left = object.left;
-    }
-    if (object.right != null) {
-      objectProto.right = object.right;
-    }
-    if (object.bottom != null) {
-      objectProto.bottom = object.bottom;
-    }
-    return objectProto as Inset2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Inset2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Inset2 {
-    return new Inset2({
-      base: Number(objectProto.base),
-      top: objectProto.top != undefined ? Number(objectProto.top) : null,
-      left: objectProto.left != undefined ? Number(objectProto.left) : null,
-      right: objectProto.right != undefined ? Number(objectProto.right) : null,
-      bottom: objectProto.bottom != undefined ? Number(objectProto.bottom) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Inset2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Inset2 {
-    return Inset2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Inset2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Inset2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -955,20 +597,20 @@ export class Corner2 extends StructFrozen {
     bottomLeft?: number | null;
     bottomRight?: number | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _base = options.base ?? null;
     if (_base === null) {
       _base = 0;
@@ -986,7 +628,7 @@ export class Corner2 extends StructFrozen {
     let _bottomRight = options.bottomRight ?? null;
     this.bottomRight = _bottomRight;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1035,7 +677,7 @@ export class Corner2 extends StructFrozen {
       if (this.bottomRight != null) {
         propertyReprs.push(`bottomRight=${this.bottomRight}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Corner2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1067,125 +709,6 @@ export class Corner2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Corner2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Corner2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400024;
-    objectCson["101"] = object.base;
-    if (object.topLeft != null) {
-      objectCson["102"] = object.topLeft;
-    }
-    if (object.topRight != null) {
-      objectCson["103"] = object.topRight;
-    }
-    if (object.bottomLeft != null) {
-      objectCson["104"] = object.bottomLeft;
-    }
-    if (object.bottomRight != null) {
-      objectCson["105"] = object.bottomRight;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Corner2 {
-    const topLeftValue = objectCson["102"];
-    const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
-    const topRightValue = objectCson["103"];
-    const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : null;
-    const bottomLeftValue = objectCson["104"];
-    const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
-    const bottomRightValue = objectCson["105"];
-    const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
-    return new Corner2({
-      base: Number(objectCson["101"]),
-      topLeft: unpackedTopLeft,
-      topRight: unpackedTopRight,
-      bottomLeft: unpackedBottomLeft,
-      bottomRight: unpackedBottomRight,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Corner2 {
-    return Corner2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Corner2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Corner2.__packProto__(this);
-    }
-    return this._proto as Corner2Proto;
-  }
-
-  static __packProto__(object: Corner2): Corner2Proto {
-    const objectProto: Partial<Corner2Proto> = { metatype: 2400024 };
-    objectProto.base = object.base;
-    if (object.topLeft != null) {
-      objectProto.topLeft = object.topLeft;
-    }
-    if (object.topRight != null) {
-      objectProto.topRight = object.topRight;
-    }
-    if (object.bottomLeft != null) {
-      objectProto.bottomLeft = object.bottomLeft;
-    }
-    if (object.bottomRight != null) {
-      objectProto.bottomRight = object.bottomRight;
-    }
-    return objectProto as Corner2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Corner2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Corner2 {
-    return new Corner2({
-      base: Number(objectProto.base),
-      topLeft: objectProto.topLeft != undefined ? Number(objectProto.topLeft) : null,
-      topRight: objectProto.topRight != undefined ? Number(objectProto.topRight) : null,
-      bottomLeft: objectProto.bottomLeft != undefined ? Number(objectProto.bottomLeft) : null,
-      bottomRight: objectProto.bottomRight != undefined ? Number(objectProto.bottomRight) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Corner2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Corner2 {
-    return Corner2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Corner2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Corner2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1223,20 +746,20 @@ export class Axis2 extends StructFrozen {
     x?: number | null;
     y?: number | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _base = options.base ?? null;
     if (_base === null) {
       _base = 0;
@@ -1250,7 +773,7 @@ export class Axis2 extends StructFrozen {
     let _y = options.y ?? null;
     this.y = _y;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1293,7 +816,7 @@ export class Axis2 extends StructFrozen {
       if (this.y != null) {
         propertyReprs.push(`y=${this.y}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Axis2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1319,105 +842,6 @@ export class Axis2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Axis2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Axis2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400025;
-    objectCson["101"] = object.base;
-    if (object.x != null) {
-      objectCson["102"] = object.x;
-    }
-    if (object.y != null) {
-      objectCson["103"] = object.y;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Axis2 {
-    const xValue = objectCson["102"];
-    const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectCson["103"];
-    const unpackedY = yValue != undefined ? yValue : null;
-    return new Axis2({
-      base: objectCson["101"],
-      x: unpackedX,
-      y: unpackedY,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Axis2 {
-    return Axis2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Axis2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Axis2.__packProto__(this);
-    }
-    return this._proto as Axis2Proto;
-  }
-
-  static __packProto__(object: Axis2): Axis2Proto {
-    const objectProto: Partial<Axis2Proto> = { metatype: 2400025 };
-    objectProto.base = object.base;
-    if (object.x != null) {
-      objectProto.x = object.x;
-    }
-    if (object.y != null) {
-      objectProto.y = object.y;
-    }
-    return objectProto as Axis2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Axis2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Axis2 {
-    return new Axis2({
-      base: objectProto.base,
-      x: objectProto.x != undefined ? objectProto.x : null,
-      y: objectProto.y != undefined ? objectProto.y : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Axis2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Axis2 {
-    return Axis2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Axis2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Axis2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1461,20 +885,20 @@ export class Axis3 extends StructFrozen {
     y?: number | null;
     z?: number | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _base = options.base ?? null;
     if (_base === null) {
       _base = 0;
@@ -1490,7 +914,7 @@ export class Axis3 extends StructFrozen {
     let _z = options.z ?? null;
     this.z = _z;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1542,7 +966,7 @@ export class Axis3 extends StructFrozen {
       if (this.z != null) {
         propertyReprs.push(`z=${this.z}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Axis3 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1571,115 +995,6 @@ export class Axis3 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Axis3.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Axis3): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400026;
-    objectCson["101"] = object.base;
-    if (object.x != null) {
-      objectCson["102"] = object.x;
-    }
-    if (object.y != null) {
-      objectCson["103"] = object.y;
-    }
-    if (object.z != null) {
-      objectCson["104"] = object.z;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Axis3 {
-    const xValue = objectCson["102"];
-    const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectCson["103"];
-    const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectCson["104"];
-    const unpackedZ = zValue != undefined ? zValue : null;
-    return new Axis3({
-      base: objectCson["101"],
-      x: unpackedX,
-      y: unpackedY,
-      z: unpackedZ,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Axis3 {
-    return Axis3.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Axis3Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Axis3.__packProto__(this);
-    }
-    return this._proto as Axis3Proto;
-  }
-
-  static __packProto__(object: Axis3): Axis3Proto {
-    const objectProto: Partial<Axis3Proto> = { metatype: 2400026 };
-    objectProto.base = object.base;
-    if (object.x != null) {
-      objectProto.x = object.x;
-    }
-    if (object.y != null) {
-      objectProto.y = object.y;
-    }
-    if (object.z != null) {
-      objectProto.z = object.z;
-    }
-    return objectProto as Axis3Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Axis3Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Axis3 {
-    return new Axis3({
-      base: objectProto.base,
-      x: objectProto.x != undefined ? objectProto.x : null,
-      y: objectProto.y != undefined ? objectProto.y : null,
-      z: objectProto.z != undefined ? objectProto.z : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Axis3Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Axis3 {
-    return Axis3.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Axis3 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Axis3Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1729,20 +1044,20 @@ export class Grid2 extends StructFrozen {
     columnMinWidth?: Length | null;
     rowHeight?: Length | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _columns = options.columns;
     if (_columns === null) {
       throw new Error(`Grid2.columns is required`);
@@ -1760,7 +1075,7 @@ export class Grid2 extends StructFrozen {
     let _rowHeight = options.rowHeight ?? null;
     this.rowHeight = _rowHeight;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1816,7 +1131,7 @@ export class Grid2 extends StructFrozen {
       if (this.rowHeight != null) {
         propertyReprs.push(`rowHeight=${this.rowHeight.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Grid2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1848,139 +1163,6 @@ export class Grid2 extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Grid2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Grid2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400021;
-    objectCson["101"] = object.columns;
-    objectCson["102"] = object.rows;
-    if (object.columnWidth != null) {
-      objectCson["103"] = object.columnWidth.toCson();
-    }
-    if (object.columnMinWidth != null) {
-      objectCson["104"] = object.columnMinWidth.toCson();
-    }
-    if (object.rowHeight != null) {
-      objectCson["105"] = object.rowHeight.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Grid2 {
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    const columnWidthValue = objectCson["103"];
-    const unpackedColumnWidth =
-      columnWidthValue != undefined
-        ? _Length.fromCson(columnWidthValue, _session, _graph, _connection)
-        : null;
-    const columnMinWidthValue = objectCson["104"];
-    const unpackedColumnMinWidth =
-      columnMinWidthValue != undefined
-        ? _Length.fromCson(columnMinWidthValue, _session, _graph, _connection)
-        : null;
-    const rowHeightValue = objectCson["105"];
-    const unpackedRowHeight =
-      rowHeightValue != undefined
-        ? _Length.fromCson(rowHeightValue, _session, _graph, _connection)
-        : null;
-    return new Grid2({
-      columns: Number(objectCson["101"]),
-      rows: Number(objectCson["102"]),
-      columnWidth: unpackedColumnWidth,
-      columnMinWidth: unpackedColumnMinWidth,
-      rowHeight: unpackedRowHeight,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Grid2 {
-    return Grid2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Grid2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Grid2.__packProto__(this);
-    }
-    return this._proto as Grid2Proto;
-  }
-
-  static __packProto__(object: Grid2): Grid2Proto {
-    const objectProto: Partial<Grid2Proto> = { metatype: 2400021 };
-    objectProto.columns = object.columns;
-    objectProto.rows = object.rows;
-    if (object.columnWidth != null) {
-      objectProto.columnWidth = object.columnWidth.toProto();
-    }
-    if (object.columnMinWidth != null) {
-      objectProto.columnMinWidth = object.columnMinWidth.toProto();
-    }
-    if (object.rowHeight != null) {
-      objectProto.rowHeight = object.rowHeight.toProto();
-    }
-    return objectProto as Grid2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Grid2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Grid2 {
-    const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
-    return new Grid2({
-      columns: Number(objectProto.columns),
-      rows: Number(objectProto.rows),
-      columnWidth:
-        objectProto.columnWidth != undefined
-          ? _Length.fromProto(objectProto.columnWidth!, _session, _graph, _graph, _connection)
-          : null,
-      columnMinWidth:
-        objectProto.columnMinWidth != undefined
-          ? _Length.fromProto(objectProto.columnMinWidth!, _session, _graph, _graph, _connection)
-          : null,
-      rowHeight:
-        objectProto.rowHeight != undefined
-          ? _Length.fromProto(objectProto.rowHeight!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Grid2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Grid2 {
-    return Grid2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Grid2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Grid2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2010,20 +1192,20 @@ export class GridSpan2 extends StructFrozen {
     columns: number;
     rows: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _columns = options.columns;
     if (_columns === null) {
       throw new Error(`GridSpan2.columns is required`);
@@ -2035,7 +1217,7 @@ export class GridSpan2 extends StructFrozen {
     }
     this.rows = _rows;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -2064,7 +1246,7 @@ export class GridSpan2 extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`columns=${this.columns}`);
       propertyReprs.push(`rows=${this.rows}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<GridSpan2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2085,89 +1267,6 @@ export class GridSpan2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = GridSpan2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: GridSpan2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400022;
-    objectCson["101"] = object.columns;
-    objectCson["102"] = object.rows;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): GridSpan2 {
-    return new GridSpan2({
-      columns: Number(objectCson["101"]),
-      rows: Number(objectCson["102"]),
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): GridSpan2 {
-    return GridSpan2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): GridSpan2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = GridSpan2.__packProto__(this);
-    }
-    return this._proto as GridSpan2Proto;
-  }
-
-  static __packProto__(object: GridSpan2): GridSpan2Proto {
-    const objectProto: Partial<GridSpan2Proto> = { metatype: 2400022 };
-    objectProto.columns = object.columns;
-    objectProto.rows = object.rows;
-    return objectProto as GridSpan2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: GridSpan2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): GridSpan2 {
-    return new GridSpan2({
-      columns: Number(objectProto.columns),
-      rows: Number(objectProto.rows),
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: GridSpan2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): GridSpan2 {
-    return GridSpan2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): GridSpan2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = GridSpan2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -1,18 +1,15 @@
-import { packProtoJson, unpackProtoJson } from "@destack/grpc";
+import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
 import { ScalarType, StructType, TypeCardinality } from "@destack/language/core/builtin/common";
 import { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { isNode } from "@destack/language/core/builtin/node";
+import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { packCson, unpackCson } from "@destack/language/core/common/cson";
 import { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";
-import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/registry";
-import { ValueProto } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
@@ -38,20 +35,20 @@ export class Value extends StructFrozen {
     type: Type;
     value?: any | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Value.type is required`);
@@ -60,7 +57,7 @@ export class Value extends StructFrozen {
     let _value = options.value ?? null;
     this.value = _value;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -88,7 +85,7 @@ export class Value extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${this.type.repr()}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Value ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -111,97 +108,6 @@ export class Value extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Value.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Value): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 100;
-    objectCson["100"] = object.type.toCson();
-    if (object.value != null) {
-      objectCson["110"] = object.value;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Value {
-    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
-    const valueValue = objectCson["110"];
-    const unpackedValue = valueValue != undefined ? valueValue : null;
-    return new Value({
-      type: _Type.fromCson(objectCson["100"], _session, _graph, _connection),
-      value: unpackedValue,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Value {
-    return Value.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): ValueProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Value.__packProto__(this);
-    }
-    return this._proto as ValueProto;
-  }
-
-  static __packProto__(object: Value): ValueProto {
-    const objectProto: Partial<ValueProto> = { metatype: 100 };
-    objectProto.type = object.type.toProto();
-    if (object.value != null) {
-      objectProto.value = packProtoJson(object.value);
-    }
-    return objectProto as ValueProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ValueProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Value {
-    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
-    return new Value({
-      type: _Type.fromProto(objectProto.type!, _session, _graph, _graph, _connection),
-      value: objectProto.value != undefined ? unpackProtoJson(objectProto.value!) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ValueProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Value {
-    return Value.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Value {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ValueProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

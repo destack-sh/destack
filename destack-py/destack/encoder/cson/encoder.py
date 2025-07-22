@@ -67,8 +67,8 @@ class CsonEncoder(Encoder[Cson]):
         type: Type,
         value: Cson,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> Any:
         return unpack_cson(value, type, session, graph, connection)
@@ -79,8 +79,8 @@ class CsonEncoder(Encoder[Cson]):
         type: Type,
         value: bytes,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> Any:
         value_decoded = json.loads(value.decode("utf-8"))
@@ -93,8 +93,8 @@ class CsonEncoder(Encoder[Cson]):
         metatype: NodeType | StructType,
         value: Cson,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = CSON_OBJECT_ENCODERS[kind, metatype]
@@ -107,8 +107,8 @@ class CsonEncoder(Encoder[Cson]):
         metatype: NodeType | StructType,
         value: bytes,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = CSON_OBJECT_ENCODERS[kind, metatype]

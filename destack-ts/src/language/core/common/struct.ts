@@ -1,10 +1,10 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
+import type { PackedCache } from "@destack/language/core/builtin/object";
 import type {
   NodeReference,
   StructDefinitionReference,
@@ -16,7 +16,7 @@ import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -24,13 +24,6 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import {
-  CustomStructProto,
-  DatumMutableProto,
-  DatumProto,
-  MaterializationProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -66,20 +59,20 @@ export class Datum extends StructFrozen {
     definition: CustomStruct | NodeReference;
     customValues?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _definition = options.definition;
     if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
@@ -94,7 +87,7 @@ export class Datum extends StructFrozen {
     }
     this.customValues = _customValues;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -152,130 +145,6 @@ export class Datum extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Datum.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Datum): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2;
-    objectCson["6"] = object.definitionPtr.toCson();
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["26"] = packedCustomValues;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Datum {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["26"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    return new Datum({
-      definition: _NodeReference.fromCson(objectCson["6"], _session, _graph, _connection),
-      customValues: unpackedCustomValues,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Datum {
-    return Datum.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): DatumProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Datum.__packProto__(this);
-    }
-    return this._proto as DatumProto;
-  }
-
-  static __packProto__(object: Datum): DatumProto {
-    const objectProto: Partial<DatumProto> = { metatype: 2 };
-    objectProto.definitionPtr = object.definitionPtr.toProto();
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    return objectProto as DatumProto;
-  }
-
-  static __unpackProto__(
-    objectProto: DatumProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Datum {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new Datum({
-      definition: _NodeReference.fromProto(
-        objectProto.definitionPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      customValues: unpackedCustomValues,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: DatumProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Datum {
-    return Datum.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Datum {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = DatumProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -318,16 +187,17 @@ export class DatumMutable extends Struct {
     definition: CustomStruct | NodeReference;
     customValues?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _definition = options.definition;
     if (_definition != null && _definition.constructor.name != "NodeReference") {
       _definition = (_definition as Node).toRef();
@@ -342,8 +212,8 @@ export class DatumMutable extends Struct {
     }
     this.customValues = _customValues;
 
-    // identity
-    // ...
+    /* identity */
+    /* ... */
   }
 
   equals(other: any): boolean {
@@ -387,120 +257,6 @@ export class DatumMutable extends Struct {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    return DatumMutable.__packCson__(this);
-  }
-
-  static __packCson__(object: DatumMutable): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 3;
-    objectCson["6"] = object.definitionPtr.toCson();
-    if (Object.keys(object.customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["26"] = packedCustomValues;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): DatumMutable {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["26"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    return new DatumMutable({
-      definition: _NodeReference.fromCson(objectCson["6"], _session, _graph, _connection),
-      customValues: unpackedCustomValues,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): DatumMutable {
-    return DatumMutable.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): DatumMutableProto {
-    return DatumMutable.__packProto__(this);
-  }
-
-  static __packProto__(object: DatumMutable): DatumMutableProto {
-    const objectProto: Partial<DatumMutableProto> = { metatype: 3 };
-    objectProto.definitionPtr = object.definitionPtr.toProto();
-    if (object.customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    return objectProto as DatumMutableProto;
-  }
-
-  static __unpackProto__(
-    objectProto: DatumMutableProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): DatumMutable {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new DatumMutable({
-      definition: _NodeReference.fromProto(
-        objectProto.definitionPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      customValues: unpackedCustomValues,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: DatumMutableProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): DatumMutable {
-    return DatumMutable.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): DatumMutable {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = DatumMutableProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -848,32 +604,30 @@ export class CustomStruct extends Entity {
     icon?: Icon | null;
     baseType?: StructDefinitionReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -994,7 +748,7 @@ export class CustomStruct extends Entity {
     let _baseType = options.baseType ?? null;
     this._baseType = _baseType;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1187,422 +941,6 @@ export class CustomStruct extends Entity {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<CustomStruct "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return CustomStruct.__packCson__(this);
-  }
-
-  static __packCson__(object: CustomStruct): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20100;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    if (object._icon != null) {
-      objectCson["102"] = object._icon.toCson();
-    }
-    if (object._baseType != null) {
-      objectCson["110"] = object._baseType.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): CustomStruct {
-    const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.STRUCT_DEFINITION_REFERENCE
-    ] as typeof StructDefinitionReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectCson["102"];
-    const unpackedIcon =
-      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
-    const baseTypeValue = objectCson["110"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _StructDefinitionReference.fromCson(baseTypeValue, _session, _graph, _connection)
-        : null;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new CustomStruct({
-      icon: unpackedIcon,
-      baseType: unpackedBaseType,
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): CustomStructProto {
-    return CustomStruct.__packProto__(this);
-  }
-
-  static __packProto__(object: CustomStruct): CustomStructProto {
-    const objectProto: Partial<CustomStructProto> = { metatype: 20100 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    if (object._baseType != null) {
-      objectProto.baseType = object._baseType.toProto();
-    }
-    return objectProto as CustomStructProto;
-  }
-
-  static __unpackProto__(
-    objectProto: CustomStructProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): CustomStruct {
-    const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.STRUCT_DEFINITION_REFERENCE
-    ] as typeof StructDefinitionReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new CustomStruct({
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
-          : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _StructDefinitionReference.fromProto(
-              objectProto.baseType!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: CustomStructProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): CustomStruct {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomStructProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

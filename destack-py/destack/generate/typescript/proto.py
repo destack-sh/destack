@@ -26,57 +26,37 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
-def generate_object_proto(cls: type["BuiltinObject"]) -> str:
-    """Generate the BuiltinObject toProto/fromProto method implementations."""
+def generate_object_proto_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
+    """Generate the BuiltinObject Encoder class."""
 
-    pack_proto = _generate_pack_proto(cls)
-    unpack_proto = _generate_unpack_proto(cls)
-
-    if cls.__is_frozen__ and not cls.__is_node__:
-        to_proto_method = f"""
-  toProto(): {cls.__name__}Proto {{
-    if (this._proto === null) {{
-      // @ts-expect-error(readonly)
-      this._proto = {cls.__name__}.__packProto__(this);
-    }}
-    return this._proto as {cls.__name__}Proto;
-  }}"""
+    if cls.__is_abstract__:
+        pack_proto = f"throw new Error('cannot pack abstract {cls.__name__}');"
+        unpack_proto = f"throw new Error('cannot unpack abstract {cls.__name__}');"
     else:
-        to_proto_method = f"""
-  toProto(): {cls.__name__}Proto {{
-    return {cls.__name__}.__packProto__(this);
-  }}"""
+        pack_proto = _generate_pack_proto(cls)
+        unpack_proto = _generate_unpack_proto(cls)
 
-    return f"""{to_proto_method}
+    encoder_name = f"{cls.__name__}ProtoEncoder"
 
-  static __packProto__(object: {cls.__name__}): {cls.__name__}Proto {{
+    return (
+        encoder_name,
+        f"""
+export class {encoder_name} implements Encoder<{cls.__name__}Proto> {{
+  packObject(object: {cls.__name__}): {cls.__name__}Proto {{
 {textwrap.indent(pack_proto, "  ")}
   }}
 
-  static __unpackProto__(
-    objectProto: {cls.__name__}Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): {cls.__name__} {{
+  unpackObject(options: {{
+    value: {cls.__name__}Proto;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }}): {cls.__name__} {{
 {textwrap.indent(unpack_proto, "  ")}
   }}
-
-  static fromProto(
-    objectProto: {cls.__name__}Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): {cls.__name__} {{
-    return {cls.__name__}.__unpackProto__(objectProto, _session, _graph, _connection);
-  }}
-
-  static fromProtoString(packedProtoString: string): {cls.__name__} {{
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = {cls.__name__}Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }}
-  """
+}}
+""",
+    )
 
 
 def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:

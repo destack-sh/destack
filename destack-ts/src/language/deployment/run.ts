@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
@@ -10,7 +9,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import {
@@ -32,18 +30,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import {
-  EventStatusProto,
-  RunCompletedEventProto,
-  RunFailedEventProto,
-  RunPauseRequestedEventProto,
-  RunPausedEventProto,
-  RunResumeRequestedEventProto,
-  RunResumedEventProto,
-  RunStartedEventProto,
-  RunStopRequestedEventProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -348,28 +334,26 @@ export class RunStartedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -459,7 +443,7 @@ export class RunStartedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -616,259 +600,6 @@ export class RunStartedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunStartedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunStartedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunStartedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110002;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunStartedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunStartedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunStartedEvent {
-    return RunStartedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunStartedEventProto {
-    return RunStartedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunStartedEvent): RunStartedEventProto {
-    const objectProto: Partial<RunStartedEventProto> = { metatype: 1110002 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunStartedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunStartedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunStartedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunStartedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunStartedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunStartedEvent {
-    return RunStartedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunStartedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunStartedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1054,28 +785,26 @@ export class RunPauseRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -1165,7 +894,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1322,259 +1051,6 @@ export class RunPauseRequestedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunPauseRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunPauseRequestedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunPauseRequestedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110003;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunPauseRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunPauseRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunPauseRequestedEvent {
-    return RunPauseRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunPauseRequestedEventProto {
-    return RunPauseRequestedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunPauseRequestedEvent): RunPauseRequestedEventProto {
-    const objectProto: Partial<RunPauseRequestedEventProto> = { metatype: 1110003 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunPauseRequestedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunPauseRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunPauseRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunPauseRequestedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunPauseRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunPauseRequestedEvent {
-    return RunPauseRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunPauseRequestedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunPauseRequestedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1760,28 +1236,26 @@ export class RunPausedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -1871,7 +1345,7 @@ export class RunPausedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -2028,259 +1502,6 @@ export class RunPausedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunPausedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunPausedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunPausedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110004;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunPausedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunPausedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunPausedEvent {
-    return RunPausedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunPausedEventProto {
-    return RunPausedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunPausedEvent): RunPausedEventProto {
-    const objectProto: Partial<RunPausedEventProto> = { metatype: 1110004 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunPausedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunPausedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunPausedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunPausedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunPausedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunPausedEvent {
-    return RunPausedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunPausedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunPausedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -2466,28 +1687,26 @@ export class RunResumeRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -2577,7 +1796,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -2734,259 +1953,6 @@ export class RunResumeRequestedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunResumeRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunResumeRequestedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunResumeRequestedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110005;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumeRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunResumeRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumeRequestedEvent {
-    return RunResumeRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunResumeRequestedEventProto {
-    return RunResumeRequestedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunResumeRequestedEvent): RunResumeRequestedEventProto {
-    const objectProto: Partial<RunResumeRequestedEventProto> = { metatype: 1110005 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunResumeRequestedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunResumeRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumeRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunResumeRequestedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunResumeRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumeRequestedEvent {
-    return RunResumeRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunResumeRequestedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunResumeRequestedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -3172,28 +2138,26 @@ export class RunResumedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -3283,7 +2247,7 @@ export class RunResumedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -3440,259 +2404,6 @@ export class RunResumedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunResumedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunResumedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunResumedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110006;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunResumedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumedEvent {
-    return RunResumedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunResumedEventProto {
-    return RunResumedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunResumedEvent): RunResumedEventProto {
-    const objectProto: Partial<RunResumedEventProto> = { metatype: 1110006 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunResumedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunResumedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunResumedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunResumedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunResumedEvent {
-    return RunResumedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunResumedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunResumedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -3878,28 +2589,26 @@ export class RunStopRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -3989,7 +2698,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -4146,259 +2855,6 @@ export class RunStopRequestedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunStopRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunStopRequestedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunStopRequestedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110007;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunStopRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunStopRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunStopRequestedEvent {
-    return RunStopRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunStopRequestedEventProto {
-    return RunStopRequestedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunStopRequestedEvent): RunStopRequestedEventProto {
-    const objectProto: Partial<RunStopRequestedEventProto> = { metatype: 1110007 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunStopRequestedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunStopRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunStopRequestedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunStopRequestedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunStopRequestedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunStopRequestedEvent {
-    return RunStopRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunStopRequestedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunStopRequestedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -4584,28 +3040,26 @@ export class RunFailedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -4695,7 +3149,7 @@ export class RunFailedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -4852,259 +3306,6 @@ export class RunFailedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunFailedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunFailedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunFailedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110008;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunFailedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunFailedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunFailedEvent {
-    return RunFailedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunFailedEventProto {
-    return RunFailedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunFailedEvent): RunFailedEventProto {
-    const objectProto: Partial<RunFailedEventProto> = { metatype: 1110008 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunFailedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunFailedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunFailedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunFailedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunFailedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunFailedEvent {
-    return RunFailedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunFailedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunFailedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -5290,28 +3491,26 @@ export class RunCompletedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -5401,7 +3600,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     this.targetPtr = _target as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -5558,259 +3757,6 @@ export class RunCompletedEvent extends RunEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunCompletedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return RunCompletedEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: RunCompletedEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 1110009;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.targetPtr != null) {
-      objectCson["110"] = object.targetPtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunCompletedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const targetPtrValue = objectCson["110"];
-    const unpackedTargetPtr =
-      targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new RunCompletedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      target: unpackedTargetPtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): RunCompletedEvent {
-    return RunCompletedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): RunCompletedEventProto {
-    return RunCompletedEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RunCompletedEvent): RunCompletedEventProto {
-    const objectProto: Partial<RunCompletedEventProto> = { metatype: 1110009 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.targetPtr != null) {
-      objectProto.targetPtr = object.targetPtr.toProto();
-    }
-    return objectProto as RunCompletedEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RunCompletedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunCompletedEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new RunCompletedEvent({
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      target:
-        objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RunCompletedEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): RunCompletedEvent {
-    return RunCompletedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RunCompletedEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RunCompletedEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

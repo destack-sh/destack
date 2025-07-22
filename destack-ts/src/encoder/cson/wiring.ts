@@ -1,5 +1,6 @@
 import { BuiltinObject } from "@destack/language/core/builtin";
 import {
+  Encoding,
   NodeType,
   PrimitiveType,
   ScalarType,
@@ -10,7 +11,6 @@ import type { PropertyDefinition } from "@destack/language/core/builtin/definiti
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
@@ -65,7 +65,6 @@ export function unpackCson(
   options?: {
     _session?: Session | null;
     _graph?: any | null;
-    _supergraph?: Supergraph | null;
     _connection?: any | null;
   },
 ): any {
@@ -124,7 +123,7 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
         `expected BuiltinObject for ${type.repr()}, got ${value.constructor.name}: ${value}`,
       );
     }
-    return (value as BuiltinObject).toCson();
+    return (value as BuiltinObject).pack(Encoding.CSON);
   } else {
     assertNever(type.scalarType);
   }
@@ -137,7 +136,6 @@ function _unpackScalarCson(
   options?: {
     _session?: Session | null;
     _graph?: any | null;
-    _supergraph?: Supergraph | null;
     _connection?: any | null;
   },
 ): any {
@@ -170,35 +168,35 @@ function _unpackScalarCson(
     return value;
   } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.fromCson(
+    return _NodeReference.unpack({
       value,
-      options?._session,
-      options?._supergraph,
-      options?._graph,
-      options?._connection,
-    );
+      encoding: Encoding.CSON,
+      _session: options?._session,
+      _graph: options?._graph,
+      _connection: options?._connection,
+    });
   } else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.__unpackCson__(
+    return nodeClass.unpack({
       value,
-      options?._session,
-      options?._supergraph,
-      options?._graph,
-      options?._connection,
-    );
+      encoding: Encoding.CSON,
+      _session: options?._session,
+      _graph: options?._graph,
+      _connection: options?._connection,
+    });
   } else if (type.scalarType == ScalarType.STRUCT) {
     if (type.structType === null) {
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.__unpackCson__(
+    return structClass.unpack({
       value,
-      options?._session,
-      options?._supergraph,
-      options?._graph,
-      options?._connection,
-    );
+      encoding: Encoding.CSON,
+      _session: options?._session,
+      _graph: options?._graph,
+      _connection: options?._connection,
+    });
   } else {
     assertNever(type.scalarType);
   }

@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
@@ -14,7 +13,7 @@ import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -23,8 +22,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import { CustomEventProto, MaterializationProto } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -503,32 +500,30 @@ export class CustomEvent extends Entity {
     selfTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -662,7 +657,7 @@ export class CustomEvent extends Entity {
     }
     this._isAbstract = _isAbstract;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -872,458 +867,6 @@ export class CustomEvent extends Entity {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<CustomEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return CustomEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: CustomEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 20000;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    if (object._icon != null) {
-      objectCson["102"] = object._icon.toCson();
-    }
-    if (object._baseType != null) {
-      objectCson["110"] = object._baseType.toCson();
-    }
-    if (object._selfTraits.length > 0) {
-      const packedSelfTraits: any[] = [];
-      for (const item of object._selfTraits) {
-        packedSelfTraits.push(item.toCson());
-      }
-      objectCson["111"] = packedSelfTraits;
-    }
-    objectCson["112"] = object._isAbstract;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): CustomEvent {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectCson["102"];
-    const unpackedIcon =
-      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
-    const baseTypeValue = objectCson["110"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _NodeDefinitionReference.fromCson(baseTypeValue, _session, _graph, _connection)
-        : null;
-    const unpackedSelfTraits: any[] = [];
-    if (objectCson["111"] != undefined) {
-      for (const item of objectCson["111"]) {
-        unpackedSelfTraits.push(
-          _NodeDefinitionReference.fromCson(item, _session, _graph, _connection),
-        );
-      }
-    }
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new CustomEvent({
-      icon: unpackedIcon,
-      baseType: unpackedBaseType,
-      selfTraits: unpackedSelfTraits,
-      isAbstract: objectCson["112"],
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): CustomEvent {
-    return CustomEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): CustomEventProto {
-    return CustomEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: CustomEvent): CustomEventProto {
-    const objectProto: Partial<CustomEventProto> = { metatype: 20000 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    if (object._baseType != null) {
-      objectProto.baseType = object._baseType.toProto();
-    }
-    if (object._selfTraits) {
-      const packedSelfTraits: any[] = [];
-      for (const item of object._selfTraits) {
-        packedSelfTraits.push(item.toProto());
-      }
-      objectProto.selfTraits = packedSelfTraits;
-    }
-    objectProto.isAbstract = object._isAbstract;
-    return objectProto as CustomEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: CustomEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): CustomEvent {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedSelfTraits: any[] = [];
-    if (objectProto.selfTraits) {
-      for (const item of objectProto.selfTraits) {
-        unpackedSelfTraits.push(
-          _NodeDefinitionReference.fromProto(item!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new CustomEvent({
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
-          : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      selfTraits: unpackedSelfTraits,
-      isAbstract: objectProto.isAbstract,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: CustomEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): CustomEvent {
-    return CustomEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): CustomEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

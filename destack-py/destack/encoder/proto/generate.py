@@ -60,8 +60,8 @@ class _ProtoObjectEncoder:
     def unpack_object(
         self,
         proto: Any,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         raise NotImplementedError

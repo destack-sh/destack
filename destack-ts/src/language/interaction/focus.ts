@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  Supergraph,
 } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
@@ -24,8 +22,6 @@ import {
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import { EventStatusProto, FocusInEventProto, FocusOutEventProto } from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -290,28 +286,26 @@ export class FocusInEvent extends FocusEvent {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -393,7 +387,7 @@ export class FocusInEvent extends FocusEvent {
     }
     this.nodePtr = _node as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -546,255 +540,6 @@ export class FocusInEvent extends FocusEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<FocusInEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return FocusInEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: FocusInEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000601;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): FocusInEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new FocusInEvent({
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): FocusInEvent {
-    return FocusInEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): FocusInEventProto {
-    return FocusInEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: FocusInEvent): FocusInEventProto {
-    const objectProto: Partial<FocusInEventProto> = { metatype: 2000601 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    return objectProto as FocusInEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FocusInEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): FocusInEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new FocusInEvent({
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: FocusInEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): FocusInEvent {
-    return FocusInEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): FocusInEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FocusInEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -967,28 +712,26 @@ export class FocusOutEvent extends FocusEvent {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -1070,7 +813,7 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.nodePtr = _node as NodeReference | null;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1223,255 +966,6 @@ export class FocusOutEvent extends FocusEvent {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<FocusOutEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return FocusOutEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: FocusOutEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2000602;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    if (object.nodePtr != null) {
-      objectCson["101"] = object.nodePtr.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): FocusOutEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectCson["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new FocusOutEvent({
-      node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): FocusOutEvent {
-    return FocusOutEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): FocusOutEventProto {
-    return FocusOutEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: FocusOutEvent): FocusOutEventProto {
-    const objectProto: Partial<FocusOutEventProto> = { metatype: 2000602 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    return objectProto as FocusOutEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FocusOutEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): FocusOutEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new FocusOutEvent({
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: FocusOutEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): FocusOutEvent {
-    return FocusOutEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): FocusOutEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FocusOutEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

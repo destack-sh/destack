@@ -59,7 +59,6 @@ class Session:
         self.oracle: Oracle = oracle
         self.actor_ptr: NodeReference | None = actor_ptr
         self.graph: Graph = graph
-
         self.pending_events: list[Event] = []
         self.connections: list[GraphConnection] = []
         self.closed_at: datetime | None = None
@@ -70,6 +69,8 @@ class Session:
         content_parts: list[str] = []
         if self.actor_ptr is not None:
             content_parts.append(f"actor={self.actor_ptr!r}")
+        if self.graph is not None:
+            content_parts.append(f"graph={self.graph!r}")
         if self._epoch is not None:
             content_parts.append(f"epoch={self._epoch}")
         if self.closed_at is not None:

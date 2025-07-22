@@ -63,8 +63,8 @@ def pack_cson(value: Any, type: Type) -> Cson:
 def unpack_cson(
     value: Cson,
     type: Type,
-    _session: "Session",
-    _graph: "Graph",
+    _session: "Session | None",
+    _graph: "Graph | None",
     _connection: "GraphConnection | None",
 ) -> Any:
     """Unpack a CSON object to a generic typed value."""
@@ -153,8 +153,8 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
 def _unpack_scalar_cson(
     value: Cson,
     type: Type,
-    _session: "Session",
-    _graph: "Graph",
+    _session: "Session | None",
+    _graph: "Graph | None",
     _connection: "GraphConnection | None",
 ) -> Any:
     """Unpack a scalar value from CSON."""

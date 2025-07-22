@@ -1,7 +1,7 @@
 import { Value as RawValueProto } from "@destack/proto";
+import { Duration } from "@destack/proto/google/protobuf/duration";
+import { Timestamp } from "@destack/proto/google/protobuf/timestamp";
 import { Temporal } from "temporal-polyfill";
-import { Duration } from "../proto/google/protobuf/duration";
-import { Timestamp } from "../proto/google/protobuf/timestamp";
 
 /**
  * Convert a Temporal.ZonedDateTime to a protobuf Timestamp.
@@ -31,10 +31,7 @@ export function packProtoDuration(duration: Temporal.Duration): Duration {
   const seconds = BigInt(Math.floor(totalSeconds));
   const nanos = Math.round((totalSeconds - Number(seconds)) * 1_000_000_000);
 
-  return Duration.create({
-    seconds,
-    nanos,
-  });
+  return Duration.create({ seconds, nanos });
 }
 
 /**

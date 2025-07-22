@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity } from "@destack/language/core/builtin/entity";
@@ -11,7 +10,7 @@ import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -19,13 +18,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import {
-  EditEventProto,
-  EditOperationProto,
-  EditTypeProto,
-  EventStatusProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -280,28 +272,26 @@ export class EditEvent extends Event {
     reverseOperation?: EditOperation | null;
     reverseValue?: Value | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name != "NodeReference") {
       _space = (_space as Node).toRef();
@@ -408,7 +398,7 @@ export class EditEvent extends Event {
     let _reverseValue = options.reverseValue ?? null;
     this.reverseValue = _reverseValue;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -628,352 +618,6 @@ export class EditEvent extends Event {
     propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EditEvent "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return EditEvent.__packCson__(this);
-  }
-
-  static __packCson__(object: EditEvent): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 90100;
-    objectCson["2"] = String(object.id);
-    objectCson["5"] = object.spacePtr.toCson();
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.causedByPtr != null) {
-      objectCson["15"] = object.causedByPtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    if (object.clientPtr != null) {
-      objectCson["23"] = object.clientPtr.toCson();
-    }
-    if (object.clientNonce != null) {
-      objectCson["24"] = String(object.clientNonce);
-    }
-    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectCson["26"] = object.clientEpoch;
-    objectCson["40"] = object.status;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.nodePtr.toCson();
-    if (object.operation != null) {
-      objectCson["102"] = object.operation;
-    }
-    if (object.propertyId != null) {
-      objectCson["103"] = object.propertyId;
-    }
-    if (object.customPropertyPtr != null) {
-      objectCson["104"] = object.customPropertyPtr.toCson();
-    }
-    if (object.key != null) {
-      objectCson["105"] = object.key.toCson();
-    }
-    if (object.value != null) {
-      objectCson["110"] = object.value.toCson();
-    }
-    if (object.reverseOperation != null) {
-      objectCson["202"] = object.reverseOperation;
-    }
-    if (object.reverseValue != null) {
-      objectCson["210"] = object.reverseValue.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): EditEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const operationValue = objectCson["102"];
-    const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const propertyIdValue = objectCson["103"];
-    const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : null;
-    const customPropertyPtrValue = objectCson["104"];
-    const unpackedCustomPropertyPtr =
-      customPropertyPtrValue != undefined
-        ? _NodeReference.fromCson(customPropertyPtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["105"];
-    const unpackedKey =
-      keyValue != undefined ? _Value.fromCson(keyValue, _session, _graph, _connection) : null;
-    const valueValue = objectCson["110"];
-    const unpackedValue =
-      valueValue != undefined ? _Value.fromCson(valueValue, _session, _graph, _connection) : null;
-    const reverseOperationValue = objectCson["202"];
-    const unpackedReverseOperation =
-      reverseOperationValue != undefined ? Number(reverseOperationValue) : null;
-    const reverseValueValue = objectCson["210"];
-    const unpackedReverseValue =
-      reverseValueValue != undefined
-        ? _Value.fromCson(reverseValueValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const causedByPtrValue = objectCson["15"];
-    const unpackedCausedByPtr =
-      causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const clientPtrValue = objectCson["23"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
-        : null;
-    const clientNonceValue = objectCson["24"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    return new EditEvent({
-      type: Number(objectCson["100"]),
-      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
-      operation: unpackedOperation,
-      propertyId: unpackedPropertyId,
-      customProperty: unpackedCustomPropertyPtr,
-      key: unpackedKey,
-      value: unpackedValue,
-      reverseOperation: unpackedReverseOperation,
-      reverseValue: unpackedReverseValue,
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectCson["26"]),
-      status: Number(objectCson["40"]),
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): EditEvent {
-    return EditEvent.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): EditEventProto {
-    return EditEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: EditEvent): EditEventProto {
-    const objectProto: Partial<EditEventProto> = { metatype: 90100 };
-    objectProto.id = String(object.id);
-    objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.causedByPtr != null) {
-      objectProto.causedByPtr = object.causedByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
-    objectProto.clientEpoch = object.clientEpoch;
-    objectProto.status = Number(object.status) as EventStatusProto;
-    objectProto.type = Number(object.type) as EditTypeProto;
-    objectProto.nodePtr = object.nodePtr.toProto();
-    if (object.operation != null) {
-      objectProto.operation = Number(object.operation) as EditOperationProto;
-    }
-    if (object.propertyId != null) {
-      objectProto.propertyId = object.propertyId;
-    }
-    if (object.customPropertyPtr != null) {
-      objectProto.customPropertyPtr = object.customPropertyPtr.toProto();
-    }
-    if (object.key != null) {
-      objectProto.key = object.key.toProto();
-    }
-    if (object.value != null) {
-      objectProto.value = object.value.toProto();
-    }
-    if (object.reverseOperation != null) {
-      objectProto.reverseOperation = Number(object.reverseOperation) as EditOperationProto;
-    }
-    if (object.reverseValue != null) {
-      objectProto.reverseValue = object.reverseValue.toProto();
-    }
-    return objectProto as EditEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: EditEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): EditEvent {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new EditEvent({
-      type: Number(objectProto.type) as EditType,
-      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
-      operation:
-        objectProto.operation != undefined
-          ? (Number(objectProto.operation) as EditOperation)
-          : null,
-      propertyId: objectProto.propertyId != undefined ? Number(objectProto.propertyId) : null,
-      customProperty:
-        objectProto.customPropertyPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.customPropertyPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key:
-        objectProto.key != undefined
-          ? _Value.fromProto(objectProto.key!, _session, _graph, _graph, _connection)
-          : null,
-      value:
-        objectProto.value != undefined
-          ? _Value.fromProto(objectProto.value!, _session, _graph, _graph, _connection)
-          : null,
-      reverseOperation:
-        objectProto.reverseOperation != undefined
-          ? (Number(objectProto.reverseOperation) as EditOperation)
-          : null,
-      reverseValue:
-        objectProto.reverseValue != undefined
-          ? _Value.fromProto(objectProto.reverseValue!, _session, _graph, _graph, _connection)
-          : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      causedBy:
-        objectProto.causedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.causedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
-      clientEpoch: Number(objectProto.clientEpoch),
-      status: Number(objectProto.status) as EventStatus,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: EditEventProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): EditEvent {
-    return EditEvent.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): EditEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = EditEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

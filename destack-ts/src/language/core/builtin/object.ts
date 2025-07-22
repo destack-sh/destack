@@ -1,9 +1,20 @@
-import type { NodeDefinition, PropertyDefinition, StructDefinition } from "@destack/language/core";
-import type { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
-import type { AnyNodeProto, AnyStructProto } from "@destack/proto";
+import {
+  ENCODERS,
+  Encoding,
+  NodeType,
+  ObjectKind,
+  StructType,
+  type NodeDefinition,
+  type PropertyDefinition,
+  type StructDefinition,
+} from "@destack/language/core";
+import type { Graph, GraphConnection, Session } from "@destack/language/core/runtime";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
+  static readonly metatype: NodeType | StructType;
+  static readonly __kind__: ObjectKind;
+
   static readonly __isFrozen__: boolean;
   static readonly __isStruct__: boolean;
   static readonly __isNode__: boolean;
@@ -13,11 +24,14 @@ export abstract class BuiltinObject {
   static readonly __propertiesByAlias__: Record<string, PropertyDefinition>;
   static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
-  // supergraph
-  _supergraph: Supergraph | null;
+  /* The Session this BuiltinObject is in. */
+  _session: Session | null;
+  /* The Graph this BuiltinObject is in. */
+  _graph: Graph | null;
 
-  constructor(supergraph: Supergraph | null) {
-    this._supergraph = supergraph;
+  constructor(_session: Session | null, _graph: Graph | null) {
+    this._session = _session;
+    this._graph = _graph;
   }
 
   // methods
@@ -37,11 +51,6 @@ export abstract class BuiltinObject {
     throw new Error(`repr not implemented for ${this.constructor.name}`);
   }
 
-  /** Clone this object. */
-  clone(): BuiltinObject {
-    throw new Error(`clone not implemented for ${this.constructor.name}`);
-  }
-
   /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
     const prop = this.__propertiesByAlias__[name];
@@ -51,110 +60,166 @@ export abstract class BuiltinObject {
     throw new Error(`property ${name} not found on ${this.constructor.name}`);
   }
 
-  // proto
+  // encoding
 
-  /** Convert an instance of this BuiltinObject to a proto. */
-  static __packProto__(object: BuiltinObject): AnyStructProto | AnyNodeProto {
-    throw new Error(`__packProto__ not implemented for ${this.constructor.name}`);
+  /** Pack this object into a specific encoding. */
+  pack(encoding: Encoding): any {
+    const encoder = ENCODERS[encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+    }
+    return encoder.packObject({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      object: this,
+    });
   }
 
-  /** Convert a proto to an instance of this BuiltinObject. */
-  static __unpackProto__(
-    proto: AnyStructProto | AnyNodeProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ): BuiltinObject {
-    throw new Error(`__unpackProto__ not implemented for ${this.constructor.name}`);
+  /** Pack this object into a specific encoding. */
+  static pack(encoding: Encoding, object: BuiltinObject): any {
+    const encoder = ENCODERS[encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+    }
+    return encoder.packObject({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      object,
+    });
   }
 
-  /** Convert an instance of this BuiltinObject to a proto. */
-  toProto(): AnyStructProto | AnyNodeProto {
-    throw new Error(`toProto not implemented for ${this.constructor.name}`);
+  /** Pack this object into a specific encoding as bytes. */
+  packBytes(encoding: Encoding): Uint8Array {
+    const encoder = ENCODERS[encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+    }
+    return encoder.packObjectBytes({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      object: this,
+    });
   }
 
-  /** Convert a proto to an instance of this BuiltinObject. */
-  static fromProto(
-    proto: AnyStructProto | AnyNodeProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ): BuiltinObject {
-    throw new Error(`fromProto not implemented for ${this.constructor.name}`);
+  /** Pack this object into a specific encoding as bytes. */
+  static packBytes(encoding: Encoding, object: BuiltinObject): Uint8Array {
+    const encoder = ENCODERS[encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+    }
+    return encoder.packObjectBytes({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      object,
+    });
   }
 
-  /** Convert a binary proto string to an instance of this BuiltinObject. */
-  static fromProtoString(packedProtoString: string): BuiltinObject {
-    throw new Error(`fromProtoString not implemented for ${this.constructor.name}`);
+  /** Unpack a packed object into a BuiltinObject. */
+  static unpack(options: {
+    encoding: Encoding;
+    value: any;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject {
+    const encoder = ENCODERS[options.encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[options.encoding]!}`);
+    }
+    return encoder.unpackObject({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      value: options.value,
+      _session: options._session ?? null,
+      _graph: options._graph ?? null,
+      _connection: options._connection ?? null,
+    });
   }
 
-  // value
-
-  /** Convert an instance of this BuiltinObject to a value. */
-  static __packCson__(object: BuiltinObject): Record<string, any> {
-    throw new Error(`__packCson__ not implemented for ${this.constructor.name}`);
+  /** Unpack a packed object into a BuiltinObject. */
+  static unpackBytes(options: {
+    encoding: Encoding;
+    value: Uint8Array;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject {
+    const encoder = ENCODERS[options.encoding];
+    if (encoder == null) {
+      throw new Error(`no encoder for ${Encoding[options.encoding]!}`);
+    }
+    return encoder.unpackObjectBytes({
+      kind: (this.constructor as typeof BuiltinObject).__kind__,
+      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      value: options.value,
+      _session: options._session ?? null,
+      _graph: options._graph ?? null,
+      _connection: options._connection ?? null,
+    });
   }
 
-  /** Convert a value to an instance of this BuiltinObject. */
-  static __unpackCson__(
-    value: Record<string, any>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ): BuiltinObject {
-    throw new Error(`__unpackCson__ not implemented for ${this.constructor.name}`);
-  }
-
-  /** Convert an instance of this BuiltinObject to a value. */
-  toCson(): Record<string, any> {
-    throw new Error(`toCson not implemented for ${this.constructor.name}`);
-  }
-
-  /** Convert a value to an instance of this BuiltinObject. */
-  static fromCson(
-    value: Record<string, any>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ): BuiltinObject {
-    throw new Error(`fromCson not implemented for ${this.constructor.name}`);
+  /** Unpack a packed object into a BuiltinObject */
+  static unpackBytesString(options: {
+    encoding: Encoding;
+    value: string;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject {
+    const valueBytes = Buffer.from(options.value, "base64");
+    return this.unpackBytes({
+      encoding: options.encoding,
+      value: valueBytes,
+      _session: options._session,
+      _graph: options._graph,
+      _connection: options._connection,
+    });
   }
 }
 
 /** A BuiltinObject constructor/class. */
-export type BuiltinObjectClass<
-  ObjectT extends BuiltinObject = BuiltinObject,
-  ProtoT extends AnyStructProto | AnyNodeProto = AnyStructProto | AnyNodeProto,
-> = {
+export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = {
   __properties__: Record<string, PropertyDefinition>;
   __propertiesByAlias__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;
 
-  /** Convert an instance of this BuiltinObject to a proto. */
-  __packProto__: (object: ObjectT) => ProtoT;
+  /** Pack this object into a specific encoding. */
+  pack(encoding: Encoding, object: ObjectT): any;
 
-  /** Convert a proto to an instance of this BuiltinObject. */
-  __unpackProto__: (
-    proto: ProtoT,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ) => ObjectT;
+  /** Pack this object into a specific encoding as bytes. */
+  packBytes(encoding: Encoding, object: ObjectT): Uint8Array;
 
-  /** Convert an instance of this BuiltinObject to a value. */
-  __packCson__: (object: ObjectT) => Record<string, any>;
+  /** Unpack a packed object into a BuiltinObject. */
+  unpack(options: {
+    encoding: Encoding;
+    value: any;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject;
 
-  /** Convert a value to an instance of this BuiltinObject. */
-  __unpackCson__: (
-    value: Record<string, any>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ) => ObjectT;
+  /** Unpack a packed object into a BuiltinObject. */
+  unpackBytes(options: {
+    encoding: Encoding;
+    value: Uint8Array;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject;
+
+  /** Unpack a packed object into a BuiltinObject */
+  unpackBytesString(options: {
+    encoding: Encoding;
+    value: string;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }): BuiltinObject;
+};
+
+/** A cached packed representation of a BuiltinObject. */
+export type PackedCache = {
+  encoding: Encoding;
+  isBytes: boolean;
+  packed: any;
 };

@@ -1295,6 +1295,9 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
 
     __slots__: ClassVar[tuple[str, ...]] = ()
 
+    """The Session this BuiltinObject is in."""
+    _session: "Session | None" = builtin_property_runtime()
+    """The Graph this BuiltinObject is in."""
     _graph: "Graph | None" = builtin_property_runtime()
 
     @classmethod
@@ -1354,8 +1357,8 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         encoding: Encoding,
         value: Any,
         *,
-        _session: "Session",
-        _graph: "Graph",
+        _session: "Session | None",
+        _graph: "Graph | None",
         _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from some encoded format."""
@@ -1377,8 +1380,8 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         encoding: Encoding,
         value: bytes,
         *,
-        _session: "Session",
-        _graph: "Graph",
+        _session: "Session | None",
+        _graph: "Graph | None",
         _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""

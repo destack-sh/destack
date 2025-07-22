@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Easing } from "@destack/language/animation";
 import type {
   Branch,
@@ -7,10 +6,10 @@ import type {
   IsActor,
   NodeClass,
   NodeReference,
+  PackedCache,
   Session,
   Snapshot,
   Space,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import {
@@ -36,17 +35,6 @@ import {
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import { Style } from "@destack/language/style/style";
-import {
-  EasingProto,
-  MaterializationProto,
-  StrokeCapProto,
-  StrokePathProto,
-  StrokePointProto,
-  StrokeProto,
-  StrokeStyleProto,
-  StrokeTypeProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -131,20 +119,20 @@ export class Stroke extends StructFrozen {
     start?: StrokeCap | null;
     end?: StrokeCap | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Stroke.type is required`);
@@ -182,7 +170,7 @@ export class Stroke extends StructFrozen {
     let _end = options.end ?? null;
     this.end = _end;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -276,153 +264,6 @@ export class Stroke extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Stroke.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Stroke): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101100;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.size;
-    objectCson["102"] = object.thinning;
-    objectCson["103"] = object.smoothing;
-    objectCson["104"] = object.streamline;
-    objectCson["105"] = object.easing;
-    if (object.color != null) {
-      objectCson["106"] = object.color.toCson();
-    }
-    if (object.start != null) {
-      objectCson["110"] = object.start.toCson();
-    }
-    if (object.end != null) {
-      objectCson["111"] = object.end.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Stroke {
-    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const colorValue = objectCson["106"];
-    const unpackedColor =
-      colorValue != undefined ? _Color.fromCson(colorValue, _session, _graph, _connection) : null;
-    const startValue = objectCson["110"];
-    const unpackedStart =
-      startValue != undefined
-        ? _StrokeCap.fromCson(startValue, _session, _graph, _connection)
-        : null;
-    const endValue = objectCson["111"];
-    const unpackedEnd =
-      endValue != undefined ? _StrokeCap.fromCson(endValue, _session, _graph, _connection) : null;
-    return new Stroke({
-      type: Number(objectCson["100"]),
-      size: Number(objectCson["101"]),
-      thinning: objectCson["102"],
-      smoothing: objectCson["103"],
-      streamline: objectCson["104"],
-      easing: Number(objectCson["105"]),
-      color: unpackedColor,
-      start: unpackedStart,
-      end: unpackedEnd,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Stroke {
-    return Stroke.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): StrokeProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Stroke.__packProto__(this);
-    }
-    return this._proto as StrokeProto;
-  }
-
-  static __packProto__(object: Stroke): StrokeProto {
-    const objectProto: Partial<StrokeProto> = { metatype: 2101100 };
-    objectProto.type = Number(object.type) as StrokeTypeProto;
-    objectProto.size = object.size;
-    objectProto.thinning = object.thinning;
-    objectProto.smoothing = object.smoothing;
-    objectProto.streamline = object.streamline;
-    objectProto.easing = Number(object.easing) as EasingProto;
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
-    }
-    if (object.start != null) {
-      objectProto.start = object.start.toProto();
-    }
-    if (object.end != null) {
-      objectProto.end = object.end.toProto();
-    }
-    return objectProto as StrokeProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StrokeProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Stroke {
-    const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    return new Stroke({
-      type: Number(objectProto.type) as StrokeType,
-      size: Number(objectProto.size),
-      thinning: objectProto.thinning,
-      smoothing: objectProto.smoothing,
-      streamline: objectProto.streamline,
-      easing: Number(objectProto.easing) as Easing,
-      color:
-        objectProto.color != undefined
-          ? _Color.fromProto(objectProto.color!, _session, _graph, _graph, _connection)
-          : null,
-      start:
-        objectProto.start != undefined
-          ? _StrokeCap.fromProto(objectProto.start!, _session, _graph, _graph, _connection)
-          : null,
-      end:
-        objectProto.end != undefined
-          ? _StrokeCap.fromProto(objectProto.end!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: StrokeProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Stroke {
-    return Stroke.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Stroke {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StrokeProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -458,20 +299,20 @@ export class StrokeCap extends StructFrozen {
     taper: boolean;
     easing: Easing;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _cap = options.cap;
     if (_cap === null) {
       throw new Error(`StrokeCap.cap is required`);
@@ -488,7 +329,7 @@ export class StrokeCap extends StructFrozen {
     }
     this.easing = _easing;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -535,93 +376,6 @@ export class StrokeCap extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = StrokeCap.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: StrokeCap): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101101;
-    objectCson["101"] = object.cap;
-    objectCson["102"] = object.taper;
-    objectCson["103"] = object.easing;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeCap {
-    return new StrokeCap({
-      cap: objectCson["101"],
-      taper: objectCson["102"],
-      easing: Number(objectCson["103"]),
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeCap {
-    return StrokeCap.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): StrokeCapProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = StrokeCap.__packProto__(this);
-    }
-    return this._proto as StrokeCapProto;
-  }
-
-  static __packProto__(object: StrokeCap): StrokeCapProto {
-    const objectProto: Partial<StrokeCapProto> = { metatype: 2101101 };
-    objectProto.cap = object.cap;
-    objectProto.taper = object.taper;
-    objectProto.easing = Number(object.easing) as EasingProto;
-    return objectProto as StrokeCapProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StrokeCapProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeCap {
-    return new StrokeCap({
-      cap: objectProto.cap,
-      taper: objectProto.taper,
-      easing: Number(objectProto.easing) as Easing,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: StrokeCapProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeCap {
-    return StrokeCap.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): StrokeCap {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StrokeCapProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -683,20 +437,20 @@ export class StrokePoint extends StructFrozen {
     runningLength: number;
     radius: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _point = options.point;
     if (_point === null) {
       throw new Error(`StrokePoint.point is required`);
@@ -733,7 +487,7 @@ export class StrokePoint extends StructFrozen {
     }
     this.radius = _radius;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -782,7 +536,7 @@ export class StrokePoint extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`point=${this.point.repr()}`);
       propertyReprs.push(`originalPoint=${this.originalPoint.repr()}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<StrokePoint ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -810,117 +564,6 @@ export class StrokePoint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = StrokePoint.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: StrokePoint): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101103;
-    objectCson["101"] = object.point.toCson();
-    objectCson["102"] = object.originalPoint.toCson();
-    objectCson["103"] = object.pressure;
-    objectCson["104"] = object.direction.toCson();
-    objectCson["105"] = object.distance;
-    objectCson["106"] = object.runningLength;
-    objectCson["107"] = object.radius;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePoint {
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new StrokePoint({
-      point: _Vector2.fromCson(objectCson["101"], _session, _graph, _connection),
-      originalPoint: _Vector2.fromCson(objectCson["102"], _session, _graph, _connection),
-      pressure: objectCson["103"],
-      direction: _Vector2.fromCson(objectCson["104"], _session, _graph, _connection),
-      distance: objectCson["105"],
-      runningLength: objectCson["106"],
-      radius: objectCson["107"],
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePoint {
-    return StrokePoint.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): StrokePointProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = StrokePoint.__packProto__(this);
-    }
-    return this._proto as StrokePointProto;
-  }
-
-  static __packProto__(object: StrokePoint): StrokePointProto {
-    const objectProto: Partial<StrokePointProto> = { metatype: 2101103 };
-    objectProto.point = object.point.toProto();
-    objectProto.originalPoint = object.originalPoint.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.direction = object.direction.toProto();
-    objectProto.distance = object.distance;
-    objectProto.runningLength = object.runningLength;
-    objectProto.radius = object.radius;
-    return objectProto as StrokePointProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StrokePointProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePoint {
-    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
-    return new StrokePoint({
-      point: _Vector2.fromProto(objectProto.point!, _session, _graph, _graph, _connection),
-      originalPoint: _Vector2.fromProto(
-        objectProto.originalPoint!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      direction: _Vector2.fromProto(objectProto.direction!, _session, _graph, _graph, _connection),
-      distance: objectProto.distance,
-      runningLength: objectProto.runningLength,
-      radius: objectProto.radius,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: StrokePointProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePoint {
-    return StrokePoint.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): StrokePoint {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StrokePointProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -944,27 +587,27 @@ export class StrokePath extends StructFrozen {
   constructor(options: {
     points?: readonly StrokePoint[];
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _points = options.points ?? null;
     if (_points === null) {
       _points = [];
     }
     this.points = _points;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -997,10 +640,10 @@ export class StrokePath extends StructFrozen {
         propertyReprs.push(`points=${this.points.map((_item) => _item.repr()).join(", ")}`);
       }
       if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<StrokePath ${propertyReprs.join(" ")}>`;
       } else {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<StrokePath>`;
       }
     }
@@ -1025,111 +668,6 @@ export class StrokePath extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = StrokePath.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: StrokePath): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101102;
-    if (object.points.length > 0) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toCson());
-      }
-      objectCson["101"] = packedPoints;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePath {
-    const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
-    const unpackedPoints: any[] = [];
-    if (objectCson["101"] != undefined) {
-      for (const item of objectCson["101"]) {
-        unpackedPoints.push(_StrokePoint.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    return new StrokePath({
-      points: unpackedPoints,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePath {
-    return StrokePath.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): StrokePathProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = StrokePath.__packProto__(this);
-    }
-    return this._proto as StrokePathProto;
-  }
-
-  static __packProto__(object: StrokePath): StrokePathProto {
-    const objectProto: Partial<StrokePathProto> = { metatype: 2101102 };
-    if (object.points) {
-      const packedPoints: any[] = [];
-      for (const item of object.points) {
-        packedPoints.push(item.toProto());
-      }
-      objectProto.points = packedPoints;
-    }
-    return objectProto as StrokePathProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StrokePathProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePath {
-    const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
-    const unpackedPoints: any[] = [];
-    if (objectProto.points) {
-      for (const item of objectProto.points) {
-        unpackedPoints.push(_StrokePoint.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    return new StrokePath({
-      points: unpackedPoints,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: StrokePathProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokePath {
-    return StrokePath.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): StrokePath {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StrokePathProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1579,32 +1117,30 @@ export class StrokeStyle extends Style {
     start?: StrokeCap | null;
     end?: StrokeCap | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -1755,7 +1291,7 @@ export class StrokeStyle extends Style {
     let _end = options.end ?? null;
     this._end = _end;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1983,434 +1519,6 @@ export class StrokeStyle extends Style {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<StrokeStyle "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return StrokeStyle.__packCson__(this);
-  }
-
-  static __packCson__(object: StrokeStyle): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2101100;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    objectCson["100"] = object._type;
-    objectCson["200"] = object._size;
-    objectCson["201"] = object._thinning;
-    objectCson["202"] = object._smoothing;
-    objectCson["203"] = object._streamline;
-    objectCson["204"] = object._easing;
-    if (object._start != null) {
-      objectCson["205"] = object._start.toCson();
-    }
-    if (object._end != null) {
-      objectCson["206"] = object._end.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const startValue = objectCson["205"];
-    const unpackedStart =
-      startValue != undefined
-        ? _StrokeCap.fromCson(startValue, _session, _graph, _connection)
-        : null;
-    const endValue = objectCson["206"];
-    const unpackedEnd =
-      endValue != undefined ? _StrokeCap.fromCson(endValue, _session, _graph, _connection) : null;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new StrokeStyle({
-      type: Number(objectCson["100"]),
-      size: Number(objectCson["200"]),
-      thinning: objectCson["201"],
-      smoothing: objectCson["202"],
-      streamline: objectCson["203"],
-      easing: Number(objectCson["204"]),
-      start: unpackedStart,
-      end: unpackedEnd,
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeStyle {
-    return StrokeStyle.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): StrokeStyleProto {
-    return StrokeStyle.__packProto__(this);
-  }
-
-  static __packProto__(object: StrokeStyle): StrokeStyleProto {
-    const objectProto: Partial<StrokeStyleProto> = { metatype: 2101100 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    objectProto.type = Number(object._type) as StrokeTypeProto;
-    objectProto.size = object._size;
-    objectProto.thinning = object._thinning;
-    objectProto.smoothing = object._smoothing;
-    objectProto.streamline = object._streamline;
-    objectProto.easing = Number(object._easing) as EasingProto;
-    if (object._start != null) {
-      objectProto.start = object._start.toProto();
-    }
-    if (object._end != null) {
-      objectProto.end = object._end.toProto();
-    }
-    return objectProto as StrokeStyleProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StrokeStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new StrokeStyle({
-      type: Number(objectProto.type) as StrokeType,
-      size: Number(objectProto.size),
-      thinning: objectProto.thinning,
-      smoothing: objectProto.smoothing,
-      streamline: objectProto.streamline,
-      easing: Number(objectProto.easing) as Easing,
-      start:
-        objectProto.start != undefined
-          ? _StrokeCap.fromProto(objectProto.start!, _session, _graph, _graph, _connection)
-          : null,
-      end:
-        objectProto.end != undefined
-          ? _StrokeCap.fromProto(objectProto.end!, _session, _graph, _graph, _connection)
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: StrokeStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): StrokeStyle {
-    return StrokeStyle.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): StrokeStyle {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StrokeStyleProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
