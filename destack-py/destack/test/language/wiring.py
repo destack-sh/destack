@@ -1,5 +1,6 @@
 from hypothesis import HealthCheck, given, settings
 
+from destack.graph.memory import MemoryGraph
 from destack.language import (
     BuiltinObject,
     EventCursor,
@@ -30,7 +31,7 @@ def _test_roundtrip_object(obj: BuiltinObject, session: Session):
             metatype=obj.metatype,
             value=packed_obj,
             session=session,
-            graph=session.graph,
+            graph=MemoryGraph(),
             connection=None,
         )
         assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
@@ -47,7 +48,7 @@ def _test_roundtrip_object(obj: BuiltinObject, session: Session):
             metatype=obj.metatype,
             value=packed_obj_bytes,
             session=session,
-            graph=session.graph,
+            graph=MemoryGraph(),
             connection=None,
         )
         assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"

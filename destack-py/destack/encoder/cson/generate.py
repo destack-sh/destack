@@ -14,6 +14,7 @@ from destack.language.core import (
     GraphConnection,
     NodeType,
     ObjectKind,
+    PackedCache,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -102,6 +103,7 @@ class {encoder_name}(CsonObjectEncoder):
             "Self": cls,
             "cls": cls,
             "BuiltinObject": BuiltinObject,
+            "PackedCache": PackedCache,
         },
     )
 
@@ -145,7 +147,9 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
             unpack_method_parts.extend(unpack_code)
             unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append("_cson = _object_cson")
+        unpack_assignments.append(
+            "_packed_cache = (PackedCache(Encoding.CSON, False, _object_cson),)"
+        )
 
     unpack_method_parts.append("return cls(")
     for assignment in unpack_assignments:
@@ -293,11 +297,11 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.from_cson({value_expr})"
+        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.from_cson({value_expr})"
+        return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.from_cson({value_expr})"
+        return f"Node.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     else:
         assert_never(prop.scalar_type)
 
