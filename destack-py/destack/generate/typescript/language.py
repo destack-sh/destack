@@ -1999,21 +1999,33 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
     constants_parts.append("\n".join(import_parts))
 
     # set all the constants
+    body_parts: list[str] = []
     for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         for constant in object_cls.__constants__:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
                 value_str = generate_cson_value(constant.value.type, constant.value.get())
-                constants_parts.append(f"""\
+                body_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
 // prettier-ignore
 const {constant_name} = {value_str};
 // @ts-expect-error (readonly)
 {object_cls.__name__}.{constant.name} = {constant_name};
 """)
+    body_str = f"""\
+let loaded = false;
 
-    constants_str = "\n".join(constants_parts)
+export function loadConstants(): void {{
+    if (loaded) {{
+        return;
+    }}
+    loaded = true;
+{textwrap.indent("\n".join(body_parts), "  ")}
+}}
+"""
+    constants_parts.append(body_str)
 
+    constants_str = "\n\n".join(constants_parts)
     return constants_str
 
 

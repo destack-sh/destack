@@ -62,11 +62,11 @@ export abstract class BuiltinObject {
 
   // encoding
 
-  /** Pack this object into a specific encoding. */
+  /** Pack this BuiltinObject into some encoded format. */
   pack(encoding: Encoding): any {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
     return encoder.packObject({
       kind: (this.constructor as typeof BuiltinObject).__kind__,
@@ -75,11 +75,11 @@ export abstract class BuiltinObject {
     });
   }
 
-  /** Pack this object into a specific encoding. */
+  /** Pack a BuiltinObject into some encoded format. */
   static pack(encoding: Encoding, object: BuiltinObject): any {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
     return encoder.packObject({
       kind: (this.constructor as typeof BuiltinObject).__kind__,
@@ -88,11 +88,11 @@ export abstract class BuiltinObject {
     });
   }
 
-  /** Pack this object into a specific encoding as bytes. */
+  /** Pack a BuiltinObject into the byte representation of its encoded format. */
   packBytes(encoding: Encoding): Uint8Array {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
     return encoder.packObjectBytes({
       kind: (this.constructor as typeof BuiltinObject).__kind__,
@@ -101,20 +101,20 @@ export abstract class BuiltinObject {
     });
   }
 
-  /** Pack this object into a specific encoding as bytes. */
+  /** Pack a BuiltinObject into the byte representation of its encoded format. */
   static packBytes(encoding: Encoding, object: BuiltinObject): Uint8Array {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
     return encoder.packObjectBytes({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      kind: this.__kind__,
+      metatype: this.metatype,
       object,
     });
   }
 
-  /** Unpack a packed object into a BuiltinObject. */
+  /** Unpack a BuiltinObject from some encoded format. */
   static unpack(options: {
     encoding: Encoding;
     value: any;
@@ -124,11 +124,11 @@ export abstract class BuiltinObject {
   }): BuiltinObject {
     const encoder = ENCODERS[options.encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[options.encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[options.encoding]!}`);
     }
     return encoder.unpackObject({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      kind: this.__kind__,
+      metatype: this.metatype,
       value: options.value,
       _session: options._session ?? null,
       _graph: options._graph ?? null,
@@ -136,7 +136,7 @@ export abstract class BuiltinObject {
     });
   }
 
-  /** Unpack a packed object into a BuiltinObject. */
+  /** Unpack a BuiltinObject from the byte representation of its encoded format. */
   static unpackBytes(options: {
     encoding: Encoding;
     value: Uint8Array;
@@ -146,11 +146,11 @@ export abstract class BuiltinObject {
   }): BuiltinObject {
     const encoder = ENCODERS[options.encoding];
     if (encoder == null) {
-      throw new Error(`no encoder for ${Encoding[options.encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[options.encoding]!}`);
     }
     return encoder.unpackObjectBytes({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
+      kind: this.__kind__,
+      metatype: this.metatype,
       value: options.value,
       _session: options._session ?? null,
       _graph: options._graph ?? null,
@@ -158,8 +158,8 @@ export abstract class BuiltinObject {
     });
   }
 
-  /** Unpack a packed object into a BuiltinObject */
-  static unpackBytesString(options: {
+  /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
+  static unpackBytesBase64(options: {
     encoding: Encoding;
     value: string;
     _session?: Session | null;
@@ -183,13 +183,13 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
   __propertiesByAlias__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;
 
-  /** Pack this object into a specific encoding. */
+  /** Pack this BuiltinObject into some encoded format. */
   pack(encoding: Encoding, object: ObjectT): any;
 
-  /** Pack this object into a specific encoding as bytes. */
+  /** Pack this BuiltinObject into the byte representation of its encoded format. */
   packBytes(encoding: Encoding, object: ObjectT): Uint8Array;
 
-  /** Unpack a packed object into a BuiltinObject. */
+  /** Unpack a BuiltinObject from some encoded format. */
   unpack(options: {
     encoding: Encoding;
     value: any;
@@ -198,7 +198,7 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
     _connection?: GraphConnection | null;
   }): BuiltinObject;
 
-  /** Unpack a packed object into a BuiltinObject. */
+  /** Unpack a BuiltinObject from the byte representation of its encoded format. */
   unpackBytes(options: {
     encoding: Encoding;
     value: Uint8Array;
@@ -207,8 +207,8 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
     _connection?: GraphConnection | null;
   }): BuiltinObject;
 
-  /** Unpack a packed object into a BuiltinObject */
-  unpackBytesString(options: {
+  /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
+  unpackBytesBase64(options: {
     encoding: Encoding;
     value: string;
     _session?: Session | null;

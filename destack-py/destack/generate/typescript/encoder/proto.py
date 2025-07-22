@@ -34,47 +34,65 @@ def generate_proto_encoders() -> str:
     file_parts: list[str] = []
 
     # imports
-    file_parts.append(
+    import_parts: list[str] = []
+    import_parts.append(
         "import type { BuiltinObject, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
     )
-    file_parts.append(
+    import_parts.append(
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
-    file_parts.append(
+    import_parts.append(
         "import { PROTO_OBJECT_ENCODERS, _ProtoObjectEncoder, getObjectKey } from '@destack/encoder/proto/generate';"
     )
-    file_parts.append("import { Temporal } from 'temporal-polyfill';")
-    file_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
-    file_parts.append(
-        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/grpc';"
+    import_parts.append("import { Temporal } from 'temporal-polyfill';")
+    import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
+    import_parts.append(
+        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/encoder/proto/wiring';"
     )
-    file_parts.append(
+    import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
     )
-    file_parts.append("import type { AnyNodeProto, AnyStructProto } from '@destack/proto';")
-    file_parts.append("")
-    file_parts.append("export const PROTO_ENCODERS: { [key: string]: _ProtoObjectEncoder } = {};")
+    import_parts.append("import type { AnyNodeProto, AnyStructProto } from '@destack/proto';")
     builtins_names: set[str] = set()
     builtins_names.update(
         cls.__name__ for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
     )
-    file_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
+    import_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
     proto_names: set[str] = set()
     proto_names.update(
         f"{cls.__name__}Proto"
         for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
     )
-    file_parts.append(f"import {{ {', '.join(proto_names)} }} from '@destack/proto';")
+    import_parts.append(f"import {{ {', '.join(proto_names)} }} from '@destack/proto';")
+    file_parts.append("\n".join(import_parts))
+
+    # body
+    file_parts.append("export const PROTO_ENCODERS: { [key: string]: _ProtoObjectEncoder } = {};")
 
     # encoders
+    file_parts.append("let loaded = false;")
+    body_parts: list[str] = [
+        "if (loaded) {",
+        "  return;",
+        "}",
+        "loaded = true;",
+    ]
     for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         if cls.__is_abstract__:
             continue
         encoder_name, encoder_str = generate_object_proto_encoder(cls)
-        file_parts.append(encoder_str)
-        file_parts.append(
+        body_parts.append(encoder_str)
+        body_parts.append(
             f"PROTO_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
         )
+    body_str = textwrap.indent("\n".join(body_parts), "  ")
+    file_parts.append(f"""\
+export function loadEncoders(): void {{
+{textwrap.indent(body_str, "  ")}
+}}
+
+loadEncoders();
+""")
 
     return "\n".join(file_parts)
 
@@ -94,7 +112,7 @@ def generate_object_proto_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]
     return (
         encoder_name,
         f"""
-export class {encoder_name} implements _ProtoObjectEncoder {{
+class {encoder_name} implements _ProtoObjectEncoder {{
   packObject(object: {cls.__name__}): {cls.__name__}Proto {{
 {textwrap.indent(pack_proto, " " * 4)}
   }}

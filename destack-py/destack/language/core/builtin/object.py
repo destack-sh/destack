@@ -1335,14 +1335,16 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     @builtin_method(30)
     def pack(self, encoding: Encoding) -> Any:
         """Pack this BuiltinObject into some encoded format."""
-        encoder = ENCODERS[encoding]
+        encoder = ENCODERS.get(encoding)
+        assert encoder is not None, f"no Encoder defined for {encoding}"
         packed_object = encoder.pack_object(kind=self.__kind__, metatype=self.metatype, object=self)
         return packed_object
 
     @builtin_method(31)
     def pack_bytes(self, encoding: Encoding) -> bytes:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
-        encoder = ENCODERS[encoding]
+        encoder = ENCODERS.get(encoding)
+        assert encoder is not None, f"no Encoder defined for {encoding}"
         packed_object_bytes = encoder.pack_object_bytes(
             kind=self.__kind__,
             metatype=self.metatype,
@@ -1362,7 +1364,8 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from some encoded format."""
-        encoder = ENCODERS[encoding]
+        encoder = ENCODERS.get(encoding)
+        assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object(
             kind=cls.__kind__,
             metatype=cls.metatype,
@@ -1385,7 +1388,8 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
-        encoder = ENCODERS[encoding]
+        encoder = ENCODERS.get(encoding)
+        assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object_bytes(
             kind=cls.__kind__,
             metatype=cls.metatype,
@@ -1395,3 +1399,23 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
             connection=_connection,
         )
         return cast(Self, unpacked_object)
+
+    @builtin_method(34)
+    @classmethod
+    def unpack_bytes_base64(
+        cls,
+        encoding: Encoding,
+        value: str,
+        *,
+        _session: "Session | None",
+        _graph: "Graph | None",
+        _connection: "GraphConnection | None",
+    ) -> Self:
+        value_bytes = base64.b64decode(value)
+        return cls.unpack_bytes(
+            encoding,
+            value_bytes,
+            _session=_session,
+            _graph=_graph,
+            _connection=_connection,
+        )

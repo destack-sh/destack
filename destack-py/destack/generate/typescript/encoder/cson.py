@@ -36,37 +36,55 @@ def generate_cson_encoders() -> str:
     file_parts: list[str] = []
 
     # imports
-    file_parts.append(
+    import_parts: list[str] = []
+    import_parts.append(
         "import type { BuiltinObject, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
     )
-    file_parts.append(
+    import_parts.append(
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
-    file_parts.append(
+    import_parts.append(
         "import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/generate';"
     )
-    file_parts.append("import { Temporal } from 'temporal-polyfill';")
-    file_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
-    file_parts.append(
+    import_parts.append("import { Temporal } from 'temporal-polyfill';")
+    import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
+    import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
     )
-    file_parts.append("")
-    file_parts.append("export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};")
     builtins_names: set[str] = set()
     builtins_names.update(
         cls.__name__ for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
     )
-    file_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
+    import_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
+    file_parts.append("\n".join(import_parts))
+
+    # body
+    file_parts.append("export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};")
 
     # encoders
+    file_parts.append("let loaded = false;")
+    body_parts: list[str] = [
+        "if (loaded) {",
+        "  return;",
+        "}",
+        "loaded = true;",
+    ]
     for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         if cls.__is_abstract__:
             continue
         encoder_name, encoder_str = generate_object_cson_encoder(cls)
-        file_parts.append(encoder_str)
-        file_parts.append(
+        body_parts.append(encoder_str)
+        body_parts.append(
             f"CSON_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
         )
+    body_str = textwrap.indent("\n".join(body_parts), "  ")
+    file_parts.append(f"""\
+export function loadEncoders(): void {{
+{textwrap.indent(body_str, "  ")}
+}}
+
+loadEncoders();
+""")
 
     return "\n".join(file_parts)
 
@@ -86,7 +104,7 @@ def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     return (
         encoder_name,
         f"""
-export class {encoder_name} implements _CsonObjectEncoder {{
+class {encoder_name} implements _CsonObjectEncoder {{
   packObject(object: {cls.__name__}): any {{
 {textwrap.indent(pack_cson, " " * 4)}
   }}
@@ -396,6 +414,6 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
         value_bytes = value.pack_bytes(Encoding.PROTO)
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBytesString({{ encoding: {Encoding.PROTO.value}, value: {value_bytes_str!r} }})"
+        return f"{value.__class__.__name__}.unpackBytesBase64({{ encoding: {Encoding.PROTO.value}, value: {value_bytes_str!r} }})"
     else:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
