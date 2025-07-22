@@ -291,6 +291,7 @@ class EffectTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class EncodingProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ENCODING_UNSPECIFIED: _ClassVar[EncodingProto]
+    ENCODING_JSON: _ClassVar[EncodingProto]
     ENCODING_CSON: _ClassVar[EncodingProto]
     ENCODING_PROTO: _ClassVar[EncodingProto]
 
@@ -1714,6 +1715,7 @@ EFFECT_TYPE_DRAG: EffectTypeProto
 EFFECT_TYPE_FOCUS: EffectTypeProto
 EFFECT_TYPE_LOOP: EffectTypeProto
 ENCODING_UNSPECIFIED: EncodingProto
+ENCODING_JSON: EncodingProto
 ENCODING_CSON: EncodingProto
 ENCODING_PROTO: EncodingProto
 ENTITLEMENT_TYPE_UNSPECIFIED: EntitlementTypeProto

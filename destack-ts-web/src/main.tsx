@@ -8,11 +8,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./assets/index.css";
 import Destack from "./Destack";
+import "./preload";
 
 const logger = getLogger("main");
 const tracer = trace.getTracer("destack-ts-web");
 
 async function init() {
+  // nocheckin: remove posthog?
   // telemetry
   if (TELEMETRY) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {

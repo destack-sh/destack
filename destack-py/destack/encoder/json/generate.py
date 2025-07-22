@@ -9,7 +9,6 @@ from opentelemetry import trace
 
 from destack.language.core import (
     BuiltinObject,
-    Cson,
     Graph,
     GraphConnection,
     NodeType,
@@ -30,6 +29,7 @@ from destack.language.registry import (
     get_builtin_type,
 )
 from destack.utils.code import exec_
+from destack.utils.string import Casing, to_casing
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
@@ -46,13 +46,13 @@ tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-class _CsonObjectEncoder:
-    def pack_object(self, object: BuiltinObject) -> Cson:
+class _JsonObjectEncoder:
+    def pack_object(self, object: BuiltinObject) -> dict[str, Any]:
         raise NotImplementedError
 
     def unpack_object(
         self,
-        cson: Cson,
+        json_obj: dict[str, Any],
         session: Session | None,
         graph: Graph | None,
         connection: GraphConnection | None,
@@ -61,34 +61,34 @@ class _CsonObjectEncoder:
 
 
 def _generate_encoder_impl(cls: type["BuiltinObject"]) -> tuple[str, str, dict[str, Any]]:
-    """Generate the CsonObjectEncoder class for a BuiltinObject."""
+    """Generate the JsonObjectEncoder class for a BuiltinObject."""
 
-    pack_cson = textwrap.indent(_generate_pack_cson(cls), " " * 8)
-    unpack_cson = textwrap.indent(_generate_unpack_cson(cls), " " * 8)
-    encoder_name = f"{cls.__name__}CsonEncoder"
+    pack_json = textwrap.indent(_generate_pack_json(cls), " " * 8)
+    unpack_json = textwrap.indent(_generate_unpack_json(cls), " " * 8)
+    encoder_name = f"{cls.__name__}JsonEncoder"
 
     impl = f"""
-class {encoder_name}(CsonObjectEncoder):
+class {encoder_name}(JsonObjectEncoder):
     
     @override
-    def pack_object(self, _object: "{cls.__name__}") -> Cson:
-{pack_cson}
+    def pack_object(self, _object: "{cls.__name__}") -> "dict[str, Any]":
+{pack_json}
 
     @override
     def unpack_object(
         self, 
-        _object_cson: Cson,
+        _object_json: "dict[str, Any]",
         _session: "Session | None" = None,
         _graph: "Graph | None" = None,
         _connection: "GraphConnection | None" = None,
     ) -> "{cls.__name__}":
-{unpack_cson}
+{unpack_json}
 """
     return (
         encoder_name,
         impl,
         {
-            "CsonObjectEncoder": _CsonObjectEncoder,
+            "JsonObjectEncoder": _JsonObjectEncoder,
             "timedelta_from_isoformat": timedelta_from_isoformat,
             "timedelta_to_isoformat": timedelta_to_isoformat,
             "datetime": datetime,
@@ -99,7 +99,8 @@ class {encoder_name}(CsonObjectEncoder):
             "base64": base64,
             "UUID": UUID,
             "override": override,
-            "Cson": Cson,
+            "dict": dict,
+            "Any": Any,
             "Self": cls,
             "cls": cls,
             "BuiltinObject": BuiltinObject,
@@ -108,28 +109,33 @@ class {encoder_name}(CsonObjectEncoder):
     )
 
 
-def _generate_pack_cson(cls: type["BuiltinObject"]) -> str:
+def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
     pack_method_parts: list[str] = []
-    pack_method_parts.append("_object_cson = {}")
+    pack_method_parts.append("_object_json: dict[str, Any] = {}")
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
         if prop.name == "metatype":
             metatype = get_builtin_type(cls)
-            pack_method_parts.append(f'_object_cson["{prop.id}"] = {metatype.value}')
+            # use the enum name in CONSTANT_UPPER_CASE for metatype
+            if isinstance(metatype, NodeType):
+                metatype_name = NodeType(metatype).name
+            else:
+                metatype_name = StructType(metatype).name
+            pack_method_parts.append(f'_object_json["metatype"] = "{metatype_name}"')
             continue
 
-        pack_code = _generate_pack_cson_property(prop)
+        pack_code = _generate_pack_json_property(prop)
         if pack_code:
             pack_method_parts.extend(pack_code)
 
-    pack_method_parts.append("return _object_cson")
+    pack_method_parts.append("return _object_json")
     return "\n".join(pack_method_parts)
 
 
-def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
+def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the unpack_object method for a BuiltinObject."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []
@@ -140,7 +146,7 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
         prop_name = (
             prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
         )
-        unpack_code = _generate_unpack_cson_property(prop)
+        unpack_code = _generate_unpack_json_property(prop)
         if len(unpack_code) == 1:
             unpack_assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
         else:
@@ -148,7 +154,7 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append(
-            "_packed_cache = (PackedCache(Encoding.CSON, False, _object_cson),)"
+            "_packed_cache=PackedCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
         )
 
     unpack_method_parts.append("return cls(")
@@ -165,43 +171,44 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
-def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
-    """Generate the packing code for a property value."""
+def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
+    """Generate code to pack a property into JSON."""
     lines: list[str] = []
+    json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
-    obj_cson = f"_object.{prop_name}"
+    obj_json = f"_object.{prop_name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
-            value_expr = _generate_pack_cson_scalar(prop, obj_cson)
-            lines.append(f'_object_cson["{prop.id}"] = {value_expr}')
+            value_expr = _generate_pack_json_scalar(prop, obj_json)
+            lines.append(f'_object_json["{json_key}"] = {value_expr}')
         else:
-            lines.append(f"if ({prop_name} := {obj_cson}) is not None:")
-            value_expr = _generate_pack_cson_scalar(prop, prop_name)
-            lines.append(f'    _object_cson["{prop.id}"] = {value_expr}')
+            lines.append(f"if ({prop_name} := {obj_json}) is not None:")
+            value_expr = _generate_pack_json_scalar(prop, prop_name)
+            lines.append(f'    _object_json["{json_key}"] = {value_expr}')
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"if {obj_cson}:")
+        lines.append(f"if {obj_json}:")
         lines.append(f"    _packed_{prop_name} = []")
-        lines.append(f"    for _item in {obj_cson}:")
-        item_expr = _generate_pack_cson_scalar(prop, "_item")
+        lines.append(f"    for _item in {obj_json}:")
+        item_expr = _generate_pack_json_scalar(prop, "_item")
         lines.append(f"        _packed_{prop_name}.append({item_expr})")
-        lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+        lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if {obj_cson}:")
+        lines.append(f"if {obj_json}:")
         lines.append(f"    _packed_{prop_name} = {{}}")
-        lines.append(f"    for _key, _cson in {obj_cson}.items():")
-        key_expr = _generate_pack_cson_scalar(prop.key_type, "_key")
-        value_expr = _generate_pack_cson_scalar(prop, "_cson")
+        lines.append(f"    for _key, _value in {obj_json}.items():")
+        key_expr = _generate_pack_json_scalar(prop.key_type, "_key")
+        value_expr = _generate_pack_json_scalar(prop, "_value")
         lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
-        lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+        lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
     else:
         assert_never(prop.cardinality)
 
     return lines
 
 
-def _generate_pack_cson_scalar(
+def _generate_pack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
@@ -211,8 +218,6 @@ def _generate_pack_cson_scalar(
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
-        elif prop.primitive_type == PrimitiveType.CSON:
-            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
@@ -224,41 +229,43 @@ def _generate_pack_cson_scalar(
         else:
             return value_expr
     elif prop.scalar_type == ScalarType.ENUM:
-        return f"{value_expr}.value"
+        # use the enum name in CONSTANT_UPPER_CASE for JSON
+        return f"{value_expr}.name"
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.pack(Encoding.CSON)"
+        return f"{value_expr}.pack(Encoding.JSON)"
     else:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
-    """Generate the unpacking code for a property value."""
+def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
+    """Generate code to unpack a property from JSON."""
     lines: list[str] = []
+    json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
-    data_cson = f'_object_cson.get("{prop.id}")'
+    data_json = f'_object_json.get("{json_key}")'
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
-            value_expr = _generate_unpack_cson_scalar(prop, data_cson)
+            value_expr = _generate_unpack_json_scalar(prop, data_json)
             lines.append(f"_unpacked_{prop_name} = {value_expr}")
         else:
-            value_expr = _generate_unpack_cson_scalar(prop, prop_name)
+            value_expr = _generate_unpack_json_scalar(prop, prop_name)
             lines.append(
-                f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_cson}) is not None else None"
+                f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_json}) is not None else None"
             )
     elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"_unpacked_{prop_name} = []")
-        lines.append(f"if {data_cson} is not None:")
-        lines.append(f"    for _item in {data_cson}:")
-        item_expr = _generate_unpack_cson_scalar(prop, "_item")
+        lines.append(f"if {data_json} is not None:")
+        lines.append(f"    for _item in {data_json}:")
+        item_expr = _generate_unpack_json_scalar(prop, "_item")
         lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"_unpacked_{prop_name} = {{}}")
-        lines.append(f"if {data_cson} is not None:")
-        lines.append(f"    for _key, _cson in {data_cson}.items():")
-        key_expr = _generate_unpack_cson_scalar(prop.key_type, "_key")
-        value_expr = _generate_unpack_cson_scalar(prop, "_cson")
+        lines.append(f"if {data_json} is not None:")
+        lines.append(f"    for _key, _value in {data_json}.items():")
+        key_expr = _generate_unpack_json_scalar(prop.key_type, "_key")
+        value_expr = _generate_unpack_json_scalar(prop, "_value")
         lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
     else:
         assert_never(prop.cardinality)
@@ -266,7 +273,7 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     return lines
 
 
-def _generate_unpack_cson_scalar(
+def _generate_unpack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
@@ -276,37 +283,34 @@ def _generate_unpack_cson_scalar(
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
-        elif prop.primitive_type == PrimitiveType.CSON:
-            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"datetime.fromisoformat({value_expr}).astimezone(UTC)"
+            return f"datetime.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"date.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"time.fromisoformat({value_expr}).astimezone(UTC)"
+            return f"time.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return f"int({value_expr})"  # cast CSON floats to ints
         else:
             return value_expr
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
-        enum_type_name = prop.enum_type.camel_name
-        return f"{enum_type_name}(int({value_expr}))"
+        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+        return f"{enum_cls.__name__}[{value_expr}]"
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"{struct_cls.__name__}.unpack(Encoding.JSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"NodeReference.unpack(Encoding.JSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"Node.unpack(Encoding.JSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     else:
         assert_never(prop.scalar_type)
 
 
-CSON_OBJECT_ENCODERS: dict[tuple[ObjectKind, NodeType | StructType], "_CsonObjectEncoder"] = {}
+# registry of JSON encoders by (ObjectKind, NodeType|StructType)
+JSON_OBJECT_ENCODERS: dict[tuple[ObjectKind, NodeType | StructType], _JsonObjectEncoder] = {}
 
 
 def _generate():
@@ -329,10 +333,10 @@ def _generate():
             impl,
             {**builtin_class_by_name, **extra_glbls},
             locals_,
-            f"{node_cls.__name__}:cson",
+            f"{node_cls.__name__}:json",
         )
         encoder_cls = locals_[encoder_name]
-        CSON_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()
+        JSON_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()
 
 
 _generate()

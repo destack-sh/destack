@@ -21,7 +21,7 @@ from destack.utils.uuid import uuid4
 
 def _test_roundtrip_object(obj: BuiltinObject, session: Session):
     for _, encoder in ENCODERS.items():
-        # pack/unpack as object
+        # pack/unpack
         packed_obj = encoder.pack_object(kind=obj.__kind__, metatype=obj.metatype, object=obj)
         packed_obj_bytes = encoder.pack_object_bytes(
             kind=obj.__kind__, metatype=obj.metatype, object=obj

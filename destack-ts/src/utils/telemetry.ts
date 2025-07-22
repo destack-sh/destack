@@ -14,14 +14,16 @@ export function traceFunction<T extends (...args: any[]) => any>(
       try {
         const result = fn(...args);
         // handle async functions
-        if (result && typeof result.then === 'function') {
-          return result.catch((err: Error) => {
-            span.recordException(err);
-            span.setStatus({ code: SpanStatusCode.ERROR });
-            throw err;
-          }).finally(() => {
-            span.end();
-          });
+        if (result && typeof result.then === "function") {
+          return result
+            .catch((err: Error) => {
+              span.recordException(err);
+              span.setStatus({ code: SpanStatusCode.ERROR });
+              throw err;
+            })
+            .finally(() => {
+              span.end();
+            });
         }
         // handle sync functions
         span.end();

@@ -65,7 +65,12 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
-from .encoder import generate_cson_encoders, generate_cson_value, generate_proto_encoders
+from .encoder import (
+    generate_cson_encoders,
+    generate_cson_value,
+    generate_json_encoders,
+    generate_proto_encoders,
+)
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 # ruff: noqa: FURB113
@@ -2182,6 +2187,9 @@ def generate():
     proto_encoder_path = Path(GENERATION_PATH) / "encoder/proto/generated.ts"
     proto_encoder_str = generate_proto_encoders()
     proto_encoder_path.write_text(proto_encoder_str)
+    json_encoder_path = Path(GENERATION_PATH) / "encoder/json/generated.ts"
+    json_encoder_str = generate_json_encoders()
+    json_encoder_path.write_text(json_encoder_str)
 
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})
@@ -2219,4 +2227,4 @@ finalize();
     root_index_path.write_text(root_index_content)
 
     # format it all
-    subprocess.run("cd destack-ts && bun run format-language", shell=True, check=True)
+    subprocess.run("cd destack-ts && bun run fmt-language", shell=True, check=True)

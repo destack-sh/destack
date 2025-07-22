@@ -1208,9 +1208,10 @@ class EdgeDirection(Enum):
 class Encoding(Enum):
     """The encoding scheme."""
 
-    CSON = 1, "CSON", "Constant folded JSON encoding"
-    PROTO = 2, "PROTO", "Protocol Buffers encoding"
-    # JSON, CUSTOM, ...
+    JSON = 1, "JSON", "JSON encoding"
+    CSON = 2, "CSON", "Constant folded JSON encoding"
+    PROTO = 10, "PROTO", "Protocol Buffers encoding"
+    # CUSTOM, ...
 
 
 class PackedCache(NamedTuple):
