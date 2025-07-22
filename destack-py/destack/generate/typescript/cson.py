@@ -64,9 +64,8 @@ def generate_object_cson(cls: type["BuiltinObject"]) -> str:
   static __unpackCson__(
     objectCson: {{ [key: string]: any }},
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): {cls.__name__} {{
 {textwrap.indent(unpack_cson, "  ")}
   }}
@@ -74,11 +73,10 @@ def generate_object_cson(cls: type["BuiltinObject"]) -> str:
   static fromCson(
     objectCson: {{ readonly [key: string]: any }},
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): {cls.__name__} {{
-    return {cls.__name__}.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return {cls.__name__}.__unpackCson__(objectCson, _session, _graph, _connection);
   }}"""
 
 
@@ -146,7 +144,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
         unpack_body_parts.append("  _graph,")
         unpack_body_parts.append("  _connection,")
     else:
-        unpack_body_parts.append("  _supergraph,")
+        unpack_body_parts.append("  _graph,")
     unpack_body_parts.append("});")
 
     # initializer
@@ -310,11 +308,11 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.fromCson({value_expr}, _session, _supergraph, _graph, _connection)"
+        return f"_{struct_cls.__name__}.fromCson({value_expr}, _session, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_NodeReference.fromCson({value_expr}, _session, _supergraph, _graph, _connection)"
+        return f"_NodeReference.fromCson({value_expr}, _session, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.fromCson({value_expr}, _session, _supergraph, _graph, _connection)"
+        return f"Node.fromCson({value_expr}, _session, _graph, _connection)"
     else:
         return value_expr
 

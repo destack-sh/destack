@@ -5,12 +5,12 @@ import type {
   Condition,
   EventStatus,
   Graph,
+  GraphConnection,
   Icon,
   IsActor,
   NodeClass,
   NodeDefinitionReference,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -167,7 +167,7 @@ export class Trigger extends Entity {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -179,7 +179,7 @@ export class Trigger extends Entity {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -196,7 +196,7 @@ export class Trigger extends Entity {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -208,7 +208,7 @@ export class Trigger extends Entity {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -220,7 +220,7 @@ export class Trigger extends Entity {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -233,7 +233,7 @@ export class Trigger extends Entity {
   get precededBy(): Trigger | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Trigger | null;
+      return this._graph.get(nodePtr.id) as Trigger | null;
     }
     return null;
   }
@@ -245,7 +245,7 @@ export class Trigger extends Entity {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -267,7 +267,7 @@ export class Trigger extends Entity {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -289,7 +289,7 @@ export class Trigger extends Entity {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -308,7 +308,7 @@ export class Trigger extends Entity {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -375,7 +375,7 @@ export class Trigger extends Entity {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -410,7 +410,7 @@ export class Trigger extends Entity {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -486,7 +486,7 @@ export class Trigger extends Entity {
   get target(): Action | Service | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Action | Service | null;
+      return this._graph.get(nodePtr.id) as Action | Service | null;
     }
     return null;
   }
@@ -557,9 +557,9 @@ export class Trigger extends Entity {
     target?: Action | Service | NodeReference | null;
     arguments?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -573,7 +573,7 @@ export class Trigger extends Entity {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -908,7 +908,7 @@ export class Trigger extends Entity {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1026,9 +1026,8 @@ export class Trigger extends Entity {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Trigger {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -1039,23 +1038,21 @@ export class Trigger extends Entity {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const eventValue = objectCson["110"];
     const unpackedEvent =
       eventValue != undefined
-        ? _NodeDefinitionReference.fromCson(eventValue, _session, _supergraph, _graph, _connection)
+        ? _NodeDefinitionReference.fromCson(eventValue, _session, _graph, _connection)
         : null;
     const whereValue = objectCson["111"];
     const unpackedWhere =
       whereValue != undefined
-        ? _Condition.fromCson(whereValue, _session, _supergraph, _graph, _connection)
+        ? _Condition.fromCson(whereValue, _session, _graph, _connection)
         : null;
     const targetPtrValue = objectCson["120"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const unpackedArguments = {} as any;
     if (objectCson["121"] != undefined) {
@@ -1063,7 +1060,6 @@ export class Trigger extends Entity {
         unpackedArguments[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1072,32 +1068,32 @@ export class Trigger extends Entity {
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -1107,7 +1103,7 @@ export class Trigger extends Entity {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -1115,7 +1111,6 @@ export class Trigger extends Entity {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1124,14 +1119,14 @@ export class Trigger extends Entity {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -1144,14 +1139,8 @@ export class Trigger extends Entity {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1170,7 +1159,7 @@ export class Trigger extends Entity {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1180,11 +1169,10 @@ export class Trigger extends Entity {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Trigger {
-    return Trigger.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Trigger.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TriggerProto {
@@ -1270,9 +1258,8 @@ export class Trigger extends Entity {
   static __unpackProto__(
     objectProto: TriggerProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Trigger {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
@@ -1286,7 +1273,7 @@ export class Trigger extends Entity {
       for (const [key, value] of Object.entries(objectProto.arguments)) {
         unpackedArguments.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1295,49 +1282,37 @@ export class Trigger extends Entity {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new Trigger({
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       event:
         objectProto.event != undefined
           ? _NodeDefinitionReference.fromProto(
               objectProto.event!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       where:
         objectProto.where != undefined
-          ? _Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+          ? _Condition.fromProto(objectProto.where!, _session, _graph, _graph, _connection)
           : null,
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       arguments: unpackedArguments,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -1345,7 +1320,7 @@ export class Trigger extends Entity {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1353,14 +1328,14 @@ export class Trigger extends Entity {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1369,7 +1344,7 @@ export class Trigger extends Entity {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1379,7 +1354,7 @@ export class Trigger extends Entity {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1391,7 +1366,7 @@ export class Trigger extends Entity {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1403,7 +1378,7 @@ export class Trigger extends Entity {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1412,47 +1387,23 @@ export class Trigger extends Entity {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1462,11 +1413,10 @@ export class Trigger extends Entity {
   static fromProto(
     objectProto: TriggerProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Trigger {
-    return Trigger.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Trigger.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Trigger {

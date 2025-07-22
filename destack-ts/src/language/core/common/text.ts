@@ -2,7 +2,8 @@ import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -56,10 +57,10 @@ export class TextSpan extends StructFrozen {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -106,7 +107,7 @@ export class TextSpan extends StructFrozen {
     isUnderline?: boolean | null;
     isCode?: boolean | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -116,7 +117,7 @@ export class TextSpan extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -281,9 +282,8 @@ export class TextSpan extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TextSpan {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const contentValue = objectCson["101"];
@@ -291,7 +291,7 @@ export class TextSpan extends StructFrozen {
     const nodePtrValue = objectCson["102"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     const urlValue = objectCson["105"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
@@ -316,18 +316,17 @@ export class TextSpan extends StructFrozen {
       isUnderline: unpackedIsUnderline,
       isCode: unpackedIsCode,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TextSpan {
-    return TextSpan.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return TextSpan.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TextSpanProto {
@@ -371,9 +370,8 @@ export class TextSpan extends StructFrozen {
   static __unpackProto__(
     objectProto: TextSpanProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TextSpan {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new TextSpan({
@@ -381,13 +379,7 @@ export class TextSpan extends StructFrozen {
       content: objectProto.content != undefined ? objectProto.content : null,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       url: objectProto.url != undefined ? objectProto.url : null,
       isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
@@ -397,18 +389,17 @@ export class TextSpan extends StructFrozen {
       isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
       isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: TextSpanProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TextSpan {
-    return TextSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return TextSpan.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): TextSpan {
@@ -470,7 +461,7 @@ export class Text extends StructFrozen {
     isUnderline?: boolean | null;
     isCode?: boolean | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -480,7 +471,7 @@ export class Text extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -621,15 +612,14 @@ export class Text extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Text {
     const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
     if (objectCson["103"] != undefined) {
       for (const item of objectCson["103"]) {
-        unpackedSpans.push(_TextSpan.fromCson(item, _session, _supergraph, _graph, _connection));
+        unpackedSpans.push(_TextSpan.fromCson(item, _session, _graph, _connection));
       }
     }
     const isBoldValue = objectCson["150"];
@@ -650,18 +640,17 @@ export class Text extends StructFrozen {
       isUnderline: unpackedIsUnderline,
       isCode: unpackedIsCode,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Text {
-    return Text.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Text.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TextProto {
@@ -702,15 +691,14 @@ export class Text extends StructFrozen {
   static __unpackProto__(
     objectProto: TextProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Text {
     const _TextSpan = STRUCT_CLASS_BY_TYPE[StructType.TEXT_SPAN] as typeof TextSpan;
     const unpackedSpans: any[] = [];
     if (objectProto.spans) {
       for (const item of objectProto.spans) {
-        unpackedSpans.push(_TextSpan.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedSpans.push(_TextSpan.fromProto(item!, _session, _graph, _graph, _connection));
       }
     }
     return new Text({
@@ -722,18 +710,17 @@ export class Text extends StructFrozen {
       isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
       isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: TextProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Text {
-    return Text.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Text.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Text {

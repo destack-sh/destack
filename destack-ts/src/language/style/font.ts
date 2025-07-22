@@ -2,10 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -181,10 +181,10 @@ export class Font extends StructFrozen {
   get style(): FontStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as FontStyle | null;
+      return this._graph.get(nodePtr.id) as FontStyle | null;
     }
     return null;
   }
@@ -242,7 +242,7 @@ export class Font extends StructFrozen {
     decoration?: TextDecoration | null;
     transform?: TextTransform | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -252,7 +252,7 @@ export class Font extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -485,9 +485,8 @@ export class Font extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Font {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
@@ -495,15 +494,13 @@ export class Font extends StructFrozen {
     const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? _NodeReference.fromCson(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(stylePtrValue, _session, _graph, _connection)
         : null;
     const weightValue = objectCson["102"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectCson["103"];
     const unpackedColor =
-      colorValue != undefined
-        ? _Fill.fromCson(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
+      colorValue != undefined ? _Fill.fromCson(colorValue, _session, _graph, _connection) : null;
     const sizeValue = objectCson["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectCson["105"];
@@ -511,12 +508,12 @@ export class Font extends StructFrozen {
     const lineHeightValue = objectCson["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
-        ? _Length.fromCson(lineHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(lineHeightValue, _session, _graph, _connection)
         : null;
     const letterSpacingValue = objectCson["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
-        ? _Length.fromCson(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(letterSpacingValue, _session, _graph, _connection)
         : null;
     const decorationValue = objectCson["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
@@ -534,18 +531,17 @@ export class Font extends StructFrozen {
       decoration: unpackedDecoration,
       transform: unpackedTransform,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Font {
-    return Font.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Font.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FontProto {
@@ -592,9 +588,8 @@ export class Font extends StructFrozen {
   static __unpackProto__(
     objectProto: FontProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Font {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
@@ -603,34 +598,22 @@ export class Font extends StructFrozen {
       type: Number(objectProto.type) as FontType,
       style:
         objectProto.stylePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.stylePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.stylePtr!, _session, _graph, _graph, _connection)
           : null,
       weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
       color:
         objectProto.color != undefined
-          ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Fill.fromProto(objectProto.color!, _session, _graph, _graph, _connection)
           : null,
       size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
       lineHeight:
         objectProto.lineHeight != undefined
-          ? _Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.lineHeight!, _session, _graph, _graph, _connection)
           : null,
       letterSpacing:
         objectProto.letterSpacing != undefined
-          ? _Length.fromProto(
-              objectProto.letterSpacing!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _Length.fromProto(objectProto.letterSpacing!, _session, _graph, _graph, _connection)
           : null,
       decoration:
         objectProto.decoration != undefined
@@ -641,18 +624,17 @@ export class Font extends StructFrozen {
           ? (Number(objectProto.transform) as TextTransform)
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: FontProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Font {
-    return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Font.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Font {
@@ -681,7 +663,7 @@ export class FontStyle extends Style {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -693,7 +675,7 @@ export class FontStyle extends Style {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -710,7 +692,7 @@ export class FontStyle extends Style {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -722,7 +704,7 @@ export class FontStyle extends Style {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -734,7 +716,7 @@ export class FontStyle extends Style {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -747,7 +729,7 @@ export class FontStyle extends Style {
   get precededBy(): FontStyle | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as FontStyle | null;
+      return this._graph.get(nodePtr.id) as FontStyle | null;
     }
     return null;
   }
@@ -759,7 +741,7 @@ export class FontStyle extends Style {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -781,7 +763,7 @@ export class FontStyle extends Style {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -803,7 +785,7 @@ export class FontStyle extends Style {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -822,7 +804,7 @@ export class FontStyle extends Style {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -889,7 +871,7 @@ export class FontStyle extends Style {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -924,7 +906,7 @@ export class FontStyle extends Style {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -1125,9 +1107,9 @@ export class FontStyle extends Style {
     decoration?: TextDecoration | null;
     transform?: TextTransform | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1141,7 +1123,7 @@ export class FontStyle extends Style {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1512,7 +1494,7 @@ export class FontStyle extends Style {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1661,9 +1643,8 @@ export class FontStyle extends Style {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FontStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1673,9 +1654,7 @@ export class FontStyle extends Style {
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectCson["103"];
     const unpackedColor =
-      colorValue != undefined
-        ? _Fill.fromCson(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
+      colorValue != undefined ? _Fill.fromCson(colorValue, _session, _graph, _connection) : null;
     const sizeValue = objectCson["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectCson["105"];
@@ -1683,12 +1662,12 @@ export class FontStyle extends Style {
     const lineHeightValue = objectCson["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
-        ? _Length.fromCson(lineHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(lineHeightValue, _session, _graph, _connection)
         : null;
     const letterSpacingValue = objectCson["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
-        ? _Length.fromCson(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(letterSpacingValue, _session, _graph, _connection)
         : null;
     const decorationValue = objectCson["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
@@ -1697,32 +1676,32 @@ export class FontStyle extends Style {
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -1732,7 +1711,7 @@ export class FontStyle extends Style {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -1740,7 +1719,6 @@ export class FontStyle extends Style {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1749,14 +1727,14 @@ export class FontStyle extends Style {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -1773,14 +1751,8 @@ export class FontStyle extends Style {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1799,7 +1771,7 @@ export class FontStyle extends Style {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1809,11 +1781,10 @@ export class FontStyle extends Style {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FontStyle {
-    return FontStyle.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return FontStyle.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FontStyleProto {
@@ -1906,9 +1877,8 @@ export class FontStyle extends Style {
   static __unpackProto__(
     objectProto: FontStyleProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FontStyle {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1919,7 +1889,7 @@ export class FontStyle extends Style {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1928,23 +1898,17 @@ export class FontStyle extends Style {
       weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
       color:
         objectProto.color != undefined
-          ? _Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Fill.fromProto(objectProto.color!, _session, _graph, _graph, _connection)
           : null,
       size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
       lineHeight:
         objectProto.lineHeight != undefined
-          ? _Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.lineHeight!, _session, _graph, _graph, _connection)
           : null,
       letterSpacing:
         objectProto.letterSpacing != undefined
-          ? _Length.fromProto(
-              objectProto.letterSpacing!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _Length.fromProto(objectProto.letterSpacing!, _session, _graph, _graph, _connection)
           : null,
       decoration:
         objectProto.decoration != undefined
@@ -1956,13 +1920,7 @@ export class FontStyle extends Style {
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -1970,7 +1928,7 @@ export class FontStyle extends Style {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1978,14 +1936,14 @@ export class FontStyle extends Style {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1994,7 +1952,7 @@ export class FontStyle extends Style {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2004,7 +1962,7 @@ export class FontStyle extends Style {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2016,7 +1974,7 @@ export class FontStyle extends Style {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2028,7 +1986,7 @@ export class FontStyle extends Style {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2037,47 +1995,23 @@ export class FontStyle extends Style {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2087,11 +2021,10 @@ export class FontStyle extends Style {
   static fromProto(
     objectProto: FontStyleProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FontStyle {
-    return FontStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return FontStyle.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): FontStyle {

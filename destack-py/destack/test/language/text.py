@@ -17,7 +17,7 @@ from destack.language import (
 def test_text_mentions(session: Session, space: Space):
     Folder1 = Folder(name="Folder1")
     Folder2 = Folder(name="Folder2")
-    aliasing = Aliasing.new(session.supergraph, {"Folder1": Folder1, "Folder2": Folder2})
+    aliasing = Aliasing.new(session.graph, {"Folder1": Folder1, "Folder2": Folder2})
     my_text = text(
         "Hello it's a [@Folder1] and [@Folder2]",
         aliasing,

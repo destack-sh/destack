@@ -27,7 +27,7 @@ from ..builtin import (
 from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
-    from destack.language import Graph, GraphConnection, Session, Supergraph
+    from destack.language import Graph, GraphConnection, Session
 
 
 # ruff: noqa: FURB113
@@ -68,7 +68,6 @@ def __unpack_cson__(cls,
     _object_cson: dict[str, "CsonValue"],
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
-    _supergraph: "Supergraph | None" = None,
     _connection: "GraphConnection | None" = None,
 ) -> "Self":
 {unpack_cson}
@@ -136,11 +135,10 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
         unpack_method_parts.append(f"    {assignment},")
     if cls.__is_node__:
         unpack_method_parts.append("    _session=_session,")
-        unpack_method_parts.append("    _supergraph=_supergraph,")
         unpack_method_parts.append("    _graph=_graph,")
         unpack_method_parts.append("    _connection=_connection,")
     else:
-        unpack_method_parts.append("    _supergraph=_supergraph,")
+        unpack_method_parts.append("    _graph=_graph,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -317,7 +315,6 @@ def unpack_cson(
     type: Type,
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
-    _supergraph: "Supergraph | None" = None,
     _connection: "GraphConnection | None" = None,
 ) -> Any:
     """Unpack a CSON object to a generic typed value."""
@@ -327,7 +324,6 @@ def unpack_cson(
             type,
             _session=_session,
             _graph=_graph,
-            _supergraph=_supergraph,
             _connection=_connection,
         )
     elif type.cardinality == TypeCardinality.LIST:
@@ -341,7 +337,6 @@ def unpack_cson(
                     type,
                     _session=_session,
                     _graph=_graph,
-                    _supergraph=_supergraph,
                     _connection=_connection,
                 )
             )
@@ -357,7 +352,6 @@ def unpack_cson(
                 type,
                 _session=_session,
                 _graph=_graph,
-                _supergraph=_supergraph,
                 _connection=_connection,
             )
             unpacked_map[unpacked_key] = unpacked_val
@@ -401,7 +395,6 @@ def _unpack_scalar_cson(
     type: Type,
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
-    _supergraph: "Supergraph | None" = None,
     _connection: "GraphConnection | None" = None,
 ) -> Any:
     """Unpack a scalar value from CSON."""
@@ -427,7 +420,7 @@ def _unpack_scalar_cson(
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return enum_cls(int(value))
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.from_cson(value, _session=_session, _supergraph=_supergraph)
+        return NodeReference.from_cson(value, _session=_session)
     elif type.scalar_type == ScalarType.NODE_VALUE:
         node_type = NodeType(value["1"])
         node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -435,12 +428,11 @@ def _unpack_scalar_cson(
             value,
             _session=_session,
             _graph=_graph,
-            _supergraph=_supergraph,
             _connection=_connection,
         )
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.from_cson(value, _session=_session, _supergraph=_supergraph)
+        return struct_cls.from_cson(value, _session=_session)
     else:
         assert_never(type.scalar_type)

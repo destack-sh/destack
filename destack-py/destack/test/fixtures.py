@@ -14,13 +14,11 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
+from destack.graph import MemoryGraph
 from destack.language import (
-    WORLD_ORACLE,
     Session,
-    StoreKey,
     create_space,
 )
-from destack.store import MemoryStore
 from destack.test.conftest import _setup_test_env
 
 logger = structlog.get_logger(__name__)
@@ -29,7 +27,7 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
+    session = Session(graph=MemoryGraph())
     await session.open()
     yield session
     await session.close()
@@ -38,7 +36,7 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(store=MemoryStore(keys=tuple(StoreKey)), epoch=0)
+    session = Session(graph=MemoryGraph(), epoch=0)
     await session.open()
     yield session
     await session.close()
@@ -57,6 +55,3 @@ def raises_grpc_error(*statuses: grpclib.const.Status):
         yield
     if statuses:
         assert exc_info.value.status in statuses, f"expected {statuses}, got {exc_info!r}"
-
-
-SHARED_SESSION = Session(oracle=WORLD_ORACLE)

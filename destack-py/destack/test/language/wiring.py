@@ -7,7 +7,6 @@ from destack.language import (
     BuiltinObject,
     EventCursor,
     Folder,
-    GenericGraph,
     Join,
     JoinType,
     NodeReference,
@@ -23,7 +22,7 @@ from destack.utils.uuid import uuid4
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):
-    """Pack and unpack a NodeReference as proto and value."""
+    """Pack and unpack a NodeReference."""
     node_ref = NodeReference(
         type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
     )
@@ -53,8 +52,8 @@ def test_roundtrip_node_reference(session: Session, space: Space):
     )
 
 
-def test_roundtrip_query_proto(session: Session, space: Space):
-    """Pack and unpack a Query as proto."""
+def test_roundtrip_query(session: Session, space: Space):
+    """Pack and unpack a Query."""
     query = Folder.search(
         sort=[Folder.property("created_at").asc()],
         limit=25,
@@ -83,8 +82,8 @@ def test_roundtrip_query_proto(session: Session, space: Space):
     assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
 
-def test_roundtrip_user_proto(session: Session, space: Space):
-    """Pack and unpack a User as proto."""
+def test_roundtrip_user(session: Session, space: Space):
+    """Pack and unpack a User."""
     user = User(
         status=UserStatus.ACTIVE,
         name="Florian",
@@ -120,7 +119,7 @@ def test_roundtrip_builtin_object(
     packed_bytes = packed_obj_data.SerializeToString()
     unpacked_obj_data = type(packed_obj_data)()
     unpacked_obj_data.ParseFromString(packed_bytes)
-    unpacked_obj = obj.__unpack_proto__(unpacked_obj_data, _graph=GenericGraph(session.supergraph))
+    unpacked_obj = obj.__unpack_proto__(unpacked_obj_data, _graph=session.graph)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
@@ -128,6 +127,6 @@ def test_roundtrip_builtin_object(
     packed_obj_cson = obj.to_cson()
     packed_obj_cson_str = json.dumps(packed_obj_cson, indent=2)
     unpacked_obj_cson = json.loads(packed_obj_cson_str)
-    unpacked_obj = obj.from_cson(unpacked_obj_cson, _graph=GenericGraph(session.supergraph))
+    unpacked_obj = obj.from_cson(unpacked_obj_cson, _graph=session.graph)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"

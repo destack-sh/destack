@@ -1,24 +1,20 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
 
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    UNSET,
     Enum,
     EnumType,
     Node,
     NodeDefinitionReference,
-    NodeReference,
     PropertyDeclaration,
     PropertyReference,
     StoreDomain,
     StructFrozen,
-    StructMutable,
     StructType,
     Trait,
     TypeCardinality,
     ValueFactory,
-    active_session,
     builtin_enum,
     builtin_property,
     builtin_struct,
@@ -27,11 +23,8 @@ from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
-        Branch,
         CustomProperty,
         PropertyDefinition,
-        GraphConnection,
-        Snapshot,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -403,12 +396,6 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         is_repr=True,
         description="How to sort the Query results.",
     )
-    include_deleted: bool = builtin_property(
-        119,
-        default=False,
-        is_repr=True,
-        description="Include deleted Nodes in the Query (for Entities).",
-    )
 
     # pagination
     limit: Optional[int] = builtin_property(
@@ -423,85 +410,6 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     )
     # count?
 
-    # materialization
-    branch: "Branch" = builtin_property(
-        130,
-        is_repr=True,
-        description="The Branch this Query is for.",
-        default_factory=ValueFactory.BRANCH,
-    )
-    snapshot: "Snapshot" = builtin_property(
-        131,
-        is_repr=True,
-        description="The Snapshot this Query is for.",
-        default_factory=ValueFactory.SNAPSHOT,
-    )
-    if TYPE_CHECKING:
-        branch_ptr: NodeReference = UNSET
-        snapshot_ptr: NodeReference = UNSET
-
-    # realtime
-    # is_live?
-
-    async def execute(self, is_live: bool = False) -> "GraphConnection[RootT]":
-        """Execute the Query."""
-        from ..runtime.connection import GraphConnection
-
-        session = active_session()
-        store = session.store
-        assert store is not None, f"no store in {session!r}"
-        connection = GraphConnection(
-            query=self,
-            store=store,
-            session=session,
-            is_live=is_live,
-        )
-        session.connections.append(connection)
-        await connection.execute()
-        return cast("GraphConnection[RootT]", connection)
-
-    async def execute_one_or_none(self) -> Optional[RootT]:
-        """Execute the Query and return the root (if any)."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot get node of {self!r}"
-        connection = await self.execute()
-        return cast(RootT, connection.to_one_or_none())
-
-    async def execute_one(self) -> RootT:
-        """Execute the Query and return the root (error if none)."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot get node of {self!r}"
-        connection = await self.execute()
-        return cast(RootT, connection.to_one())
-
-    async def execute_list(self) -> list[RootT]:
-        """Execute the Query and return the list of roots."""
-        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), (
-            f"cannot get nodes of {self!r}"
-        )
-        connection = await self.execute()
-        return cast(list[RootT], connection.to_list())
-
-    async def execute_exists(self) -> bool:
-        """Execute the Query and return whether any results exist."""
-        assert self.type == QueryType.SCALAR, f"cannot get exists of {self!r}"
-        connection = await self.execute()
-        return connection.to_exists()
-
-    async def execute_count(self) -> int:
-        """Execute the Query and return the count."""
-        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), (
-            f"cannot get count of {self!r}"
-        )
-        connection = await self.execute()
-        return connection.to_count()
-
-    async def execute_scalar(self) -> Any:
-        """Execute the Query and return the scalar value."""
-        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), (
-            f"cannot get scalar of {self!r}"
-        )
-        connection = await self.execute()
-        return connection.to_scalar()
-
 
 def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
@@ -511,66 +419,3 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
         object.__setattr__(subquery, "name", name)
         subquery._invalidate_frozen_cache()
     return list(subqueries.values())
-
-
-@builtin_struct(StructType.HISTOGRAM, frozen=True)
-class Histogram(StructFrozen):
-    """A Histogram."""
-
-    buckets: list[Value] = builtin_property(101, is_repr=True)
-    counts: list[int] = builtin_property(102, is_repr=True)
-
-
-@builtin_struct(StructType.QUERY_RESULT)
-class QueryResult(StructMutable):
-    """
-    The result of a Query.
-    For grouped queries, the grouped results are in Query.groups.
-    The subresults correspond to Query.subqueries.
-    If subresults for a Query clause may be missing if the subquery was deemed empty.
-    """
-
-    id: UUID = builtin_property(
-        2,
-        is_repr=True,
-        description="The id of the corresponding Query.",
-    )
-    type: QueryType = builtin_property(100, is_repr=True)
-    groups: list["QueryResultGroup"] = builtin_property(101, is_repr=True)
-    subresults: list["QueryResult"] = builtin_property(102, is_repr=True)
-
-    nodes: list[Value] = builtin_property(110)
-    count: Optional[int] = builtin_property(111, is_repr=True)
-    exists: Optional[bool] = builtin_property(112, is_repr=True)
-    scalar: Optional[Value] = builtin_property(113, is_repr=True)
-
-
-@builtin_struct(StructType.QUERY_RESULT_GROUP)
-class QueryResultGroup(StructMutable):
-    """A group in a QueryResult."""
-
-    type: QueryType = builtin_property(100, is_repr=True)
-    discriminator: Value = builtin_property(101, is_repr=True)
-    nodes: list[Value] = builtin_property(110)
-    count: Optional[int] = builtin_property(111, is_repr=True)
-    exists: Optional[bool] = builtin_property(112, is_repr=True)
-    scalar: Optional[Value] = builtin_property(113, is_repr=True)
-
-
-@builtin_enum(EnumType.QUERY_UPDATE_TYPE)
-class QueryUpdateType(Enum):
-    FULL_RESULT = 1, "Full Result", "Full result tree"
-    # PARTIAL_RESULT, ...?
-
-
-@builtin_struct(StructType.QUERY_UPDATE, frozen=True)
-class QueryUpdate(StructFrozen):
-    """An update to a QueryResult."""
-
-    id: UUID = builtin_property(
-        2,
-        is_repr=True,
-        description="The id of the corresponding Query.",
-    )
-    type: QueryUpdateType = builtin_property(100, is_repr=True)
-    result: Optional["QueryResult"] = builtin_property(101, is_repr=True)

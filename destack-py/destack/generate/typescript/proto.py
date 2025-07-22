@@ -56,9 +56,8 @@ def generate_object_proto(cls: type["BuiltinObject"]) -> str:
   static __unpackProto__(
     objectProto: {cls.__name__}Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): {cls.__name__} {{
 {textwrap.indent(unpack_proto, "  ")}
   }}
@@ -66,11 +65,10 @@ def generate_object_proto(cls: type["BuiltinObject"]) -> str:
   static fromProto(
     objectProto: {cls.__name__}Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): {cls.__name__} {{
-    return {cls.__name__}.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return {cls.__name__}.__unpackProto__(objectProto, _session, _graph, _connection);
   }}
 
   static fromProtoString(packedProtoString: string): {cls.__name__} {{
@@ -143,7 +141,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
         unpack_body_parts.append("  _graph,")
         unpack_body_parts.append("  _connection,")
     else:
-        unpack_body_parts.append("  _supergraph,")
+        unpack_body_parts.append("  _graph,")
     unpack_body_parts.append("});")
 
     # initializer
@@ -299,14 +297,12 @@ def _generate_unpack_proto_scalar(
         enum_type_name = prop.enum_type.camel_name
         return f"Number({value_expr}) as {enum_type_name}"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return (
-            f"_NodeReference.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
-        )
+        return f"_NodeReference.fromProto(({value_expr})!, _session, _graph, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.fromProto(({value_expr})!, _session, _supergraph, _graph, _connection)"
+        return f"_{struct_cls.__name__}.fromProto(({value_expr})!, _session, _graph, _graph, _connection)"
     else:
         return value_expr

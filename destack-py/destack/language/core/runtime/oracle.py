@@ -35,7 +35,7 @@ class Oracle(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def utc(self) -> datetime:
+    def now(self) -> datetime:
         """Current datetime in UTC with microsecond precision."""
         ...
 
@@ -85,7 +85,7 @@ class WorldOracle(Oracle):
         return self._time.time()
 
     @override
-    def utc(self) -> datetime:
+    def now(self) -> datetime:
         return datetime.fromtimestamp(self._time.time_ns() / 1e9, tz=UTC)
 
     @override

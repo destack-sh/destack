@@ -148,7 +148,7 @@ def create_space(
 
     space_id = id or uuid4()
     epoch = session.epoch
-    now = session.oracle.utc()
+    now = session.oracle.now()
     space_ptr = NodeReference(
         type=NodeType.SPACE,
         id=space_id,

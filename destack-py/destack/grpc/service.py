@@ -152,7 +152,7 @@ class ServiceBase(abc.ABC):
         return func
 
     async def make_session(self, metadata: RpcMetadata) -> Session:
-        return Session()
+        raise NotImplementedError
 
     async def resolve_client(
         self, request: ProtoMessage, metadata: RpcMetadata

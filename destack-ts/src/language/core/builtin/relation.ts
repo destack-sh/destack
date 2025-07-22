@@ -13,7 +13,8 @@ import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
@@ -64,10 +65,10 @@ export class NodeDefinitionReference extends StructFrozen {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -78,7 +79,7 @@ export class NodeDefinitionReference extends StructFrozen {
     nodeType: NodeType;
     definition?: Entity | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -88,7 +89,7 @@ export class NodeDefinitionReference extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -193,39 +194,31 @@ export class NodeDefinitionReference extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["105"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     return new NodeDefinitionReference({
       type: Number(objectCson["100"]),
       nodeType: Number(objectCson["101"]),
       definition: unpackedDefinitionPtr,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinitionReference {
-    return NodeDefinitionReference.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return NodeDefinitionReference.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NodeDefinitionReferenceProto {
@@ -249,9 +242,8 @@ export class NodeDefinitionReference extends StructFrozen {
   static __unpackProto__(
     objectProto: NodeDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new NodeDefinitionReference({
@@ -262,30 +254,23 @@ export class NodeDefinitionReference extends StructFrozen {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: NodeDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinitionReference {
-    return NodeDefinitionReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return NodeDefinitionReference.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NodeDefinitionReference {
@@ -419,10 +404,10 @@ export class PropertyReference extends StructFrozen {
   get customProperty(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.customPropertyPtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
+      return this._graph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
   }
@@ -436,7 +421,7 @@ export class PropertyReference extends StructFrozen {
     id?: number | null;
     customProperty?: CustomProperty | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -446,7 +431,7 @@ export class PropertyReference extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -596,9 +581,8 @@ export class PropertyReference extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PropertyReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodeTypeValue = objectCson["101"];
@@ -612,13 +596,7 @@ export class PropertyReference extends StructFrozen {
     const customPropertyPtrValue = objectCson["106"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
-        ? _NodeReference.fromCson(
-            customPropertyPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _NodeReference.fromCson(customPropertyPtrValue, _session, _graph, _connection)
         : null;
     return new PropertyReference({
       type: Number(objectCson["100"]),
@@ -628,18 +606,17 @@ export class PropertyReference extends StructFrozen {
       id: unpackedId,
       customProperty: unpackedCustomPropertyPtr,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PropertyReference {
-    return PropertyReference.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return PropertyReference.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): PropertyReferenceProto {
@@ -674,9 +651,8 @@ export class PropertyReference extends StructFrozen {
   static __unpackProto__(
     objectProto: PropertyReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PropertyReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new PropertyReference({
@@ -693,30 +669,23 @@ export class PropertyReference extends StructFrozen {
           ? _NodeReference.fromProto(
               objectProto.customPropertyPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: PropertyReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PropertyReference {
-    return PropertyReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PropertyReference.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): PropertyReference {
@@ -907,7 +876,7 @@ export class NodeReference extends StructFrozen {
     spaceId?: string | null;
     storeKey?: StoreKey | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -917,7 +886,7 @@ export class NodeReference extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1075,9 +1044,8 @@ export class NodeReference extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeReference {
     const definitionIdValue = objectCson["102"];
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
@@ -1098,18 +1066,17 @@ export class NodeReference extends StructFrozen {
       spaceId: unpackedSpaceId,
       storeKey: unpackedStoreKey,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeReference {
-    return NodeReference.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return NodeReference.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NodeReferenceProto {
@@ -1145,9 +1112,8 @@ export class NodeReference extends StructFrozen {
   static __unpackProto__(
     objectProto: NodeReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeReference {
     return new NodeReference({
       type: Number(objectProto.type) as NodeType,
@@ -1159,18 +1125,17 @@ export class NodeReference extends StructFrozen {
       storeKey:
         objectProto.storeKey != undefined ? (Number(objectProto.storeKey) as StoreKey) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: NodeReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeReference {
-    return NodeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return NodeReference.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NodeReference {
@@ -1220,10 +1185,10 @@ export class ObjectDefinitionReference extends StructFrozen {
   get customDefinition(): Entity | null {
     const nodePtr: NodeReference | null = this.customDefinitionPtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1236,7 +1201,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     structType?: StructType | null;
     customDefinition?: Entity | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1246,7 +1211,7 @@ export class ObjectDefinitionReference extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1382,9 +1347,8 @@ export class ObjectDefinitionReference extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ObjectDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodeTypeValue = objectCson["101"];
@@ -1396,13 +1360,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     const customDefinitionPtrValue = objectCson["105"];
     const unpackedCustomDefinitionPtr =
       customDefinitionPtrValue != undefined
-        ? _NodeReference.fromCson(
-            customDefinitionPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _NodeReference.fromCson(customDefinitionPtrValue, _session, _graph, _connection)
         : null;
     return new ObjectDefinitionReference({
       type: Number(objectCson["100"]),
@@ -1411,24 +1369,17 @@ export class ObjectDefinitionReference extends StructFrozen {
       structType: unpackedStructType,
       customDefinition: unpackedCustomDefinitionPtr,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ObjectDefinitionReference {
-    return ObjectDefinitionReference.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ObjectDefinitionReference.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ObjectDefinitionReferenceProto {
@@ -1460,9 +1411,8 @@ export class ObjectDefinitionReference extends StructFrozen {
   static __unpackProto__(
     objectProto: ObjectDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ObjectDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ObjectDefinitionReference({
@@ -1478,30 +1428,23 @@ export class ObjectDefinitionReference extends StructFrozen {
           ? _NodeReference.fromProto(
               objectProto.customDefinitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: ObjectDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ObjectDefinitionReference {
-    return ObjectDefinitionReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ObjectDefinitionReference.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ObjectDefinitionReference {
@@ -1541,10 +1484,10 @@ export class StructDefinitionReference extends StructFrozen {
   get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as CustomStruct;
+      return this._graph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
@@ -1555,7 +1498,7 @@ export class StructDefinitionReference extends StructFrozen {
     structType?: StructType | null;
     definition: CustomStruct | NodeReference;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1565,7 +1508,7 @@ export class StructDefinitionReference extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1670,9 +1613,8 @@ export class StructDefinitionReference extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const structTypeValue = objectCson["101"];
@@ -1680,32 +1622,19 @@ export class StructDefinitionReference extends StructFrozen {
     return new StructDefinitionReference({
       type: Number(objectCson["100"]),
       structType: unpackedStructType,
-      definition: _NodeReference.fromCson(
-        objectCson["105"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      definition: _NodeReference.fromCson(objectCson["105"], _session, _graph, _connection),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinitionReference {
-    return StructDefinitionReference.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StructDefinitionReference.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): StructDefinitionReferenceProto {
@@ -1729,9 +1658,8 @@ export class StructDefinitionReference extends StructFrozen {
   static __unpackProto__(
     objectProto: StructDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinitionReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new StructDefinitionReference({
@@ -1741,29 +1669,22 @@ export class StructDefinitionReference extends StructFrozen {
       definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: StructDefinitionReferenceProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinitionReference {
-    return StructDefinitionReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StructDefinitionReference.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): StructDefinitionReference {

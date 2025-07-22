@@ -194,21 +194,21 @@ class CustomEvent(
 
 
 @builtin_node(
-    NodeType.SIGNAL,
+    NodeType.SIGNAL_EVENT,
     frozen=True,  # type: ignore (frozen)
     is_extensible=True,
     is_abstract=True,
 )
-class Signal(Event):
+class SignalEvent(Event):
     """
-    A generic Event of a CustomEventDefinition.
+    A generic Event of a CustomEvent.
     """
 
     definition: "CustomEvent" = builtin_property(
         6,
         is_internal=True,
         is_readonly=True,
-        description="The CustomEventDefinition this Signal is an instance of.",
+        description="The CustomEvent this Signal is an instance of.",
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None

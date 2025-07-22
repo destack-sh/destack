@@ -2,10 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -68,7 +68,7 @@ export class Line2D extends StructFrozen {
     start: Vector2;
     end: Vector2;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -78,7 +78,7 @@ export class Line2D extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -186,34 +186,32 @@ export class Line2D extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Line2D {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const strokeValue = objectCson["200"];
     const unpackedStroke =
       strokeValue != undefined
-        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        ? _Stroke.fromCson(strokeValue, _session, _graph, _connection)
         : null;
     return new Line2D({
       stroke: unpackedStroke,
-      start: _Vector2.fromCson(objectCson["210"], _session, _supergraph, _graph, _connection),
-      end: _Vector2.fromCson(objectCson["220"], _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromCson(objectCson["210"], _session, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["220"], _session, _graph, _connection),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Line2D {
-    return Line2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Line2D.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Line2DProto {
@@ -237,32 +235,30 @@ export class Line2D extends StructFrozen {
   static __unpackProto__(
     objectProto: Line2DProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Line2D {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
     const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new Line2D({
       stroke:
         objectProto.stroke != undefined
-          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _graph, _graph, _connection)
           : null,
-      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
-      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromProto(objectProto.start!, _session, _graph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _graph, _graph, _connection),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Line2DProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Line2D {
-    return Line2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Line2D.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Line2D {
@@ -291,7 +287,7 @@ export class LineShape2D extends Shape2D {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -303,7 +299,7 @@ export class LineShape2D extends Shape2D {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -320,7 +316,7 @@ export class LineShape2D extends Shape2D {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -332,7 +328,7 @@ export class LineShape2D extends Shape2D {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -344,7 +340,7 @@ export class LineShape2D extends Shape2D {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -357,7 +353,7 @@ export class LineShape2D extends Shape2D {
   get precededBy(): LineShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as LineShape2D | null;
+      return this._graph.get(nodePtr.id) as LineShape2D | null;
     }
     return null;
   }
@@ -369,7 +365,7 @@ export class LineShape2D extends Shape2D {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -391,7 +387,7 @@ export class LineShape2D extends Shape2D {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -413,7 +409,7 @@ export class LineShape2D extends Shape2D {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -432,7 +428,7 @@ export class LineShape2D extends Shape2D {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -499,7 +495,7 @@ export class LineShape2D extends Shape2D {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -534,7 +530,7 @@ export class LineShape2D extends Shape2D {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -752,9 +748,9 @@ export class LineShape2D extends Shape2D {
     start: Vector2;
     end: Vector2;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -768,7 +764,7 @@ export class LineShape2D extends Shape2D {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1142,7 +1138,7 @@ export class LineShape2D extends Shape2D {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1270,9 +1266,8 @@ export class LineShape2D extends Shape2D {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): LineShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1282,69 +1277,65 @@ export class LineShape2D extends Shape2D {
     const strokeValue = objectCson["180"];
     const unpackedStroke =
       strokeValue != undefined
-        ? _Stroke.fromCson(strokeValue, _session, _supergraph, _graph, _connection)
+        ? _Stroke.fromCson(strokeValue, _session, _graph, _connection)
         : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
-        ? _Vector2.fromCson(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(positionValue, _session, _graph, _connection)
         : null;
     const offsetValue = objectCson["111"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Offset2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Offset2.fromCson(offsetValue, _session, _graph, _connection)
         : null;
     const scaleValue = objectCson["112"];
     const unpackedScale =
-      scaleValue != undefined
-        ? _Vector2.fromCson(scaleValue, _session, _supergraph, _graph, _connection)
-        : null;
+      scaleValue != undefined ? _Vector2.fromCson(scaleValue, _session, _graph, _connection) : null;
     const rotationValue = objectCson["113"];
     const unpackedRotation =
       rotationValue != undefined
-        ? _Vector2.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(rotationValue, _session, _graph, _connection)
         : null;
     const skewValue = objectCson["114"];
     const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
+      skewValue != undefined ? _Vector2.fromCson(skewValue, _session, _graph, _connection) : null;
     const originValue = objectCson["115"];
     const unpackedOrigin =
       originValue != undefined
-        ? _Vector2.fromCson(originValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(originValue, _session, _graph, _connection)
         : null;
     const anchorValue = objectCson["116"];
     const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -1354,7 +1345,7 @@ export class LineShape2D extends Shape2D {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -1362,7 +1353,6 @@ export class LineShape2D extends Shape2D {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1371,20 +1361,20 @@ export class LineShape2D extends Shape2D {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
     return new LineShape2D({
-      start: _Vector2.fromCson(objectCson["200"], _session, _supergraph, _graph, _connection),
-      end: _Vector2.fromCson(objectCson["210"], _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromCson(objectCson["200"], _session, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["210"], _session, _graph, _connection),
       stroke: unpackedStroke,
       position: unpackedPosition,
       offset: unpackedOffset,
@@ -1396,14 +1386,8 @@ export class LineShape2D extends Shape2D {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1422,7 +1406,7 @@ export class LineShape2D extends Shape2D {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1432,11 +1416,10 @@ export class LineShape2D extends Shape2D {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): LineShape2D {
-    return LineShape2D.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return LineShape2D.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): LineShape2DProto {
@@ -1530,9 +1513,8 @@ export class LineShape2D extends Shape2D {
   static __unpackProto__(
     objectProto: LineShape2DProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): LineShape2D {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1544,51 +1526,45 @@ export class LineShape2D extends Shape2D {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new LineShape2D({
-      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
-      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromProto(objectProto.start!, _session, _graph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _graph, _graph, _connection),
       stroke:
         objectProto.stroke != undefined
-          ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          ? _Stroke.fromProto(objectProto.stroke!, _session, _graph, _graph, _connection)
           : null,
       position:
         objectProto.position != undefined
-          ? _Vector2.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection)
           : null,
       offset:
         objectProto.offset != undefined
-          ? _Offset2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          ? _Offset2.fromProto(objectProto.offset!, _session, _graph, _graph, _connection)
           : null,
       scale:
         objectProto.scale != undefined
-          ? _Vector2.fromProto(objectProto.scale!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.scale!, _session, _graph, _graph, _connection)
           : null,
       rotation:
         objectProto.rotation != undefined
-          ? _Vector2.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.rotation!, _session, _graph, _graph, _connection)
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _graph, _graph, _connection)
           : null,
       origin:
         objectProto.origin != undefined
-          ? _Vector2.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.origin!, _session, _graph, _graph, _connection)
           : null,
       anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -1596,7 +1572,7 @@ export class LineShape2D extends Shape2D {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1604,14 +1580,14 @@ export class LineShape2D extends Shape2D {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1620,7 +1596,7 @@ export class LineShape2D extends Shape2D {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1630,7 +1606,7 @@ export class LineShape2D extends Shape2D {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1642,7 +1618,7 @@ export class LineShape2D extends Shape2D {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1654,7 +1630,7 @@ export class LineShape2D extends Shape2D {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1663,47 +1639,23 @@ export class LineShape2D extends Shape2D {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1713,11 +1665,10 @@ export class LineShape2D extends Shape2D {
   static fromProto(
     objectProto: LineShape2DProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): LineShape2D {
-    return LineShape2D.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return LineShape2D.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): LineShape2D {

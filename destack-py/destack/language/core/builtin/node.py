@@ -375,7 +375,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         *,
         name: str | None = None,
         join: Optional["JoinIn"] = None,
-        include_deleted: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a get Query for this Node."""
@@ -389,7 +388,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
-            include_deleted=include_deleted,
             subqueries=to_subqueries(subqueries),
         )
         return query  # type: ignore
@@ -407,7 +405,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
-        include_deleted: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a search Query for this Node."""
@@ -426,7 +423,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             sort=sort or [],
             limit=limit,
             offset=offset,
-            include_deleted=include_deleted,
             subqueries=to_subqueries(subqueries),
         )
         return query  # type: ignore
@@ -439,7 +435,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         *,
         name: str | None = None,
         join: Optional["JoinIn"] = None,
-        include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
         """Make a count Query for this Node."""
         from ..common.query import (
@@ -458,7 +453,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
-            include_deleted=include_deleted,
             aggregation=Aggregation(type=AggregationType.EXISTS),
         )
         return query  # type: ignore
@@ -474,7 +468,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         sort: Optional[list["Sort"]] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
-        include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
         """Make a min Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
@@ -490,7 +483,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             having=having,
             group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.COUNT),
-            include_deleted=include_deleted,
             sort=sort or [],
         )
         return query  # type: ignore
@@ -507,7 +499,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
-        include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
@@ -523,7 +514,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.MIN, expression=Expression.of(expression)),
             sort=sort or [],
-            include_deleted=include_deleted,
         )
         return query  # type: ignore
 
@@ -539,7 +529,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
-        include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
@@ -556,7 +545,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.MAX, expression=Expression.of(expression)),
             sort=sort or [],
-            include_deleted=include_deleted,
         )
         return query  # type: ignore
 
@@ -572,7 +560,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
-        include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
@@ -589,6 +576,5 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.SUM, expression=Expression.of(expression)),
             sort=sort or [],
-            include_deleted=include_deleted,
         )
         return query  # type: ignore

@@ -1,4 +1,4 @@
-import type { Session, Supergraph } from "@destack/language/core";
+import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
 import { StructType } from "@destack/language/core";
 import { Vector4 } from "@destack/language/geometry/vector";
 import { registerStructClass } from "@destack/language/registry";
@@ -20,7 +20,7 @@ export class Quaternion extends Vector4 {
     z: number;
     w: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -108,9 +108,8 @@ export class Quaternion extends Vector4 {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Quaternion {
     return new Quaternion({
       x: objectCson["101"],
@@ -118,18 +117,17 @@ export class Quaternion extends Vector4 {
       z: objectCson["103"],
       w: objectCson["104"],
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Quaternion {
-    return Quaternion.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Quaternion.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): QuaternionProto {
@@ -152,9 +150,8 @@ export class Quaternion extends Vector4 {
   static __unpackProto__(
     objectProto: QuaternionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Quaternion {
     return new Quaternion({
       x: objectProto.x,
@@ -162,18 +159,17 @@ export class Quaternion extends Vector4 {
       z: objectProto.z,
       w: objectProto.w,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: QuaternionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Quaternion {
-    return Quaternion.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Quaternion.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Quaternion {
