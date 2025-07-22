@@ -1,12 +1,16 @@
 import textwrap
+from itertools import chain
 from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
     BuiltinObject,
+    Encoding,
+    Node,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    Struct,
     StructType,
     TypeCardinality,
     TypeDeclaration,
@@ -26,6 +30,55 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
+def generate_proto_encoders() -> str:
+    file_parts: list[str] = []
+
+    # imports
+    file_parts.append(
+        "import type { BuiltinObject, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
+    )
+    file_parts.append(
+        "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
+    )
+    file_parts.append(
+        "import { PROTO_OBJECT_ENCODERS, _ProtoObjectEncoder, getObjectKey } from '@destack/encoder/proto/generate';"
+    )
+    file_parts.append("import { Temporal } from 'temporal-polyfill';")
+    file_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
+    file_parts.append(
+        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/grpc';"
+    )
+    file_parts.append(
+        "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
+    )
+    file_parts.append("import type { AnyNodeProto, AnyStructProto } from '@destack/proto';")
+    file_parts.append("")
+    file_parts.append("export const PROTO_ENCODERS: { [key: string]: _ProtoObjectEncoder } = {};")
+    builtins_names: set[str] = set()
+    builtins_names.update(
+        cls.__name__ for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
+    )
+    file_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
+    proto_names: set[str] = set()
+    proto_names.update(
+        f"{cls.__name__}Proto"
+        for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
+    )
+    file_parts.append(f"import {{ {', '.join(proto_names)} }} from '@destack/proto';")
+
+    # encoders
+    for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        if cls.__is_abstract__:
+            continue
+        encoder_name, encoder_str = generate_object_proto_encoder(cls)
+        file_parts.append(encoder_str)
+        file_parts.append(
+            f"PROTO_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
+        )
+
+    return "\n".join(file_parts)
+
+
 def generate_object_proto_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     """Generate the BuiltinObject Encoder class."""
 
@@ -41,9 +94,9 @@ def generate_object_proto_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]
     return (
         encoder_name,
         f"""
-export class {encoder_name} implements Encoder<{cls.__name__}Proto> {{
+export class {encoder_name} implements _ProtoObjectEncoder {{
   packObject(object: {cls.__name__}): {cls.__name__}Proto {{
-{textwrap.indent(pack_proto, "  ")}
+{textwrap.indent(pack_proto, " " * 4)}
   }}
 
   unpackObject(options: {{
@@ -52,15 +105,45 @@ export class {encoder_name} implements Encoder<{cls.__name__}Proto> {{
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }}): {cls.__name__} {{
-{textwrap.indent(unpack_proto, "  ")}
+    const {{ value: objectProto, _session, _graph, _connection }} = options;
+{textwrap.indent(unpack_proto, " " * 4)}
+  }}
+
+  packObjectBytes(object: {cls.__name__}): Uint8Array {{
+    const proto = this.packObject(object);
+    return {cls.__name__}Proto.toBinary(proto);
+  }}
+
+  unpackObjectBytes(options: {{
+    value: Uint8Array;
+    _session: Session | null;
+    _graph: Graph | null;
+    _connection: GraphConnection | null;
+  }}): {cls.__name__} {{
+    const proto = {cls.__name__}Proto.fromBinary(options.value);
+    return this.unpackObject({{
+      value: proto,
+      _session: options._session,
+      _graph: options._graph,
+      _connection: options._connection,
+    }});
   }}
 }}
 """,
     )
 
 
+def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
+    if issubclass(type, Node):
+        return f"NODE_CLASS_BY_TYPE[{type.metatype.value}] as typeof {type.__name__}"
+    elif issubclass(type, Struct):
+        return f"STRUCT_CLASS_BY_TYPE[{type.metatype.value}] as typeof {type.__name__}"
+    else:
+        raise ValueError(f"unexpected type {type!r}")
+
+
 def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
-    """Generate the toProto method implementation."""
+    """Generate the packObject method implementation."""
     lines: list[str] = []
 
     metatype = get_builtin_type(cls)
@@ -84,7 +167,7 @@ def _generate_pack_proto(cls: type["BuiltinObject"]) -> str:
 
 
 def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
-    """Generate the fromProto method implementation."""
+    """Generate the unpackObject method implementation."""
     unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []
     unpack_body_parts: list[str] = []
@@ -111,9 +194,11 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{ts_name}: unpacked{_upper_first(ts_name)}")
 
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append("_proto: objectProto")
+        unpack_assignments.append(
+            f"_packedCache: [{{ encoding: {Encoding.PROTO.value}, isBytes: false, packed: objectProto }}]"
+        )
 
-    unpack_body_parts.append(f"return new {cls.__name__}({{")
+    unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
     for assignment in unpack_assignments:
         unpack_body_parts.append(f"  {assignment},")
     if cls.__is_node__:
@@ -129,11 +214,11 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     for ref in sorted(unpack_references):
         if isinstance(ref, NodeType):
             reference_cls = NODE_CLASS_BY_TYPE[ref]
-            initializer_str = f"const _{reference_cls.__name__} = NODE_CLASS_BY_TYPE[NodeType.{ref.name}] as typeof {reference_cls.__name__};"
+            initializer_str = f"const _{reference_cls.__name__} = NODE_CLASS_BY_TYPE[{ref.value}] as typeof {reference_cls.__name__};"
             unpack_initializer_parts.append(initializer_str)
         elif isinstance(ref, StructType):
             reference_cls = STRUCT_CLASS_BY_TYPE[ref]
-            initializer_str = f"const _{reference_cls.__name__} = STRUCT_CLASS_BY_TYPE[StructType.{ref.name}] as typeof {reference_cls.__name__};"
+            initializer_str = f"const _{reference_cls.__name__} = STRUCT_CLASS_BY_TYPE[{ref.value}] as typeof {reference_cls.__name__};"
             unpack_initializer_parts.append(initializer_str)
         else:
             assert_never(ref)
@@ -244,13 +329,13 @@ def _generate_pack_proto_scalar(
             return value_expr
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
-        return f"Number({value_expr}) as {prop.enum_type.camel_name}Proto"
+        return f"Number({value_expr}) as any"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"{value_expr}.toProto()"
+        return f"{value_expr}.pack({Encoding.PROTO.value})"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
-        return f"{value_expr}.toProto()"
+        return f"{value_expr}.pack({Encoding.PROTO.value})"
     else:
         return value_expr
 
@@ -274,15 +359,14 @@ def _generate_unpack_proto_scalar(
             return value_expr
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
-        enum_type_name = prop.enum_type.camel_name
-        return f"Number({value_expr}) as {enum_type_name}"
+        return f"Number({value_expr}) as any"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_NodeReference.fromProto(({value_expr})!, _session, _graph, _graph, _connection)"
+        return f"_NodeReference.unpack({{ encoding: {Encoding.PROTO.value}, value: {value_expr}, _session, _graph, _connection }}) as NodeReference"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.fromProto(({value_expr})!, _session, _graph, _graph, _connection)"
+        return f"_{struct_cls.__name__}.unpack({{ encoding: {Encoding.PROTO.value}, value: {value_expr}, _session, _graph, _connection }}) as {struct_cls.__name__}"
     else:
         return value_expr

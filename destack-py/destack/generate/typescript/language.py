@@ -65,7 +65,7 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
-from .encoder import generate_cson_encoders, generate_cson_value
+from .encoder import generate_cson_encoders, generate_cson_value, generate_proto_encoders
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 # ruff: noqa: FURB113
@@ -1949,7 +1949,7 @@ def _generate_file(
     }
     import_parts.append(f"import {{ {', '.join(sorted(proto_names))} }} from '@destack/proto';")
     import_parts.append(
-        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/grpc';"
+        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/encoder/proto/wiring';"
     )
     import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
@@ -2167,6 +2167,9 @@ def generate():
     cson_encoder_path = Path(GENERATION_PATH) / "encoder/cson/generated.ts"
     cson_encoder_str = generate_cson_encoders()
     cson_encoder_path.write_text(cson_encoder_str)
+    proto_encoder_path = Path(GENERATION_PATH) / "encoder/proto/generated.ts"
+    proto_encoder_str = generate_proto_encoders()
+    proto_encoder_path.write_text(proto_encoder_str)
 
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})

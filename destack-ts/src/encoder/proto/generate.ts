@@ -24,7 +24,7 @@ export interface _ProtoObjectEncoder {
 
   /** Unpack a BuiltinObject from some encoded format. */
   unpackObject(options: {
-    value: AnyStructProto | AnyNodeProto;
+    value: any;
     _session: Session | null;
     _graph: Graph | null;
     _connection: GraphConnection | null;
