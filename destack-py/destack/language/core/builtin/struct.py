@@ -16,7 +16,7 @@ from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.proto import AnyStructProto
 from destack.utils.func import get_superclasses
 
-from .common import Encoding, EnumType, ObjectKind, StructType
+from .common import Encoding, EnumType, ObjectKind, PackedCache, StructType
 from .const import ENCODERS
 from .meta import builtin_method
 from .object import (
@@ -173,6 +173,8 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     _hash: "int | None" = builtin_property_runtime()
     """Cached repr of the Struct."""
     _repr: "str | None" = builtin_property_runtime()
+    """Cached packed representations (first N = each Encoding, next N = each Encoding as bytes)."""
+    _packed_cache: "tuple[PackedCache, ...] | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
@@ -182,14 +184,48 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     @builtin_method(30)
     @override
     def pack(self, encoding: Encoding) -> Any:
-        # nocheckin: cache StructFrozen packed representations
+        # check if we have a cached packed representation
+        if self._packed_cache is not None:
+            for cached in self._packed_cache:
+                if cached.encoding == encoding and not cached.is_bytes:
+                    return cached.packed
+        # pack the object
         encoder = ENCODERS[encoding]
         packed_object = encoder.pack_object(
             kind=self.__kind__,
             metatype=self.metatype,
             object=self,
         )
+        # cache the result
+        new_cache = PackedCache(encoding=encoding, is_bytes=False, packed=packed_object)
+        if self._packed_cache is None:
+            object.__setattr__(self, "_packed_cache", (new_cache,))
+        else:
+            object.__setattr__(self, "_packed_cache", (*self._packed_cache, new_cache))
         return packed_object
+
+    @builtin_method(31)
+    @override
+    def pack_bytes(self, encoding: Encoding) -> bytes:
+        # check if we have a cached packed bytes representation
+        if self._packed_cache is not None:
+            for cached in self._packed_cache:
+                if cached.encoding == encoding and cached.is_bytes:
+                    return cached.packed
+        # pack the object as bytes
+        encoder = ENCODERS[encoding]
+        packed_object_bytes = encoder.pack_object_bytes(
+            kind=self.__kind__,
+            metatype=self.metatype,
+            object=self,
+        )
+        # cache the result
+        new_cache = PackedCache(encoding=encoding, is_bytes=True, packed=packed_object_bytes)
+        if self._packed_cache is None:
+            object.__setattr__(self, "_packed_cache", (new_cache,))
+        else:
+            object.__setattr__(self, "_packed_cache", (*self._packed_cache, new_cache))
+        return packed_object_bytes
 
     @builtin_method(60)
     def clone(self, **override: Any) -> Self:

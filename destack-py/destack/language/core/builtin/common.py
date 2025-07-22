@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from destack.utils.uuid import UUID
 
@@ -1211,6 +1211,13 @@ class Encoding(Enum):
 
     CSON = 1, "CSON", "Constant folded JSON encoding"
     PROTO = 2, "PROTO", "Protocol Buffers encoding"
+    # JSON, CUSTOM, ...
+
+
+class PackedCache(NamedTuple):
+    encoding: Encoding
+    is_bytes: bool
+    packed: Any
 
 
 type Json = Any

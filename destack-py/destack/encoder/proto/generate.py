@@ -15,6 +15,7 @@ from destack.language.core import (
     GraphConnection,
     NodeType,
     ObjectKind,
+    PackedCache,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -106,8 +107,10 @@ class {encoder_name}(ProtoObjectEncoder):
             "unpack_proto_duration": unpack_proto_duration,
             "override": override,
             "Self": cls,
+            "cls": cls,
             "BuiltinObject": BuiltinObject,
             "UUID": UUID,
+            "PackedCache": PackedCache,
         },
     )
 
@@ -152,7 +155,9 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
         else:
             unpack_assignments.append(f"{prop_name}=_object_proto.{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append("_proto=_object_proto")
+        unpack_assignments.append(
+            "_packed_cache = (PackedCache(Encoding.PROTO, False, _object_proto),)"
+        )
 
     unpack_method_parts.append("return cls(")
     for assignment in unpack_assignments:
@@ -337,13 +342,13 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
         enum_type_name = prop.enum_type.camel_name
         return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return (
-            f"NodeReference.unpack(Encoding.PROTO, {value_expr}, _session=_session, _graph=_graph)"
-        )
+        return f"NodeReference.unpack(Encoding.PROTO, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
-        return f"{value_expr}.unpack(Encoding.PROTO, _session=_session, _graph=_graph)"
+        assert prop.struct_type is not None, f"no struct type for {prop!r}"
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        return f"{struct_cls.__name__}.unpack(Encoding.PROTO, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
     else:
         assert_never(prop.scalar_type)
 
