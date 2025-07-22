@@ -48,8 +48,8 @@ class Value(StructFrozen[ValueProto]):
             session = active_session()
             encoder = ENCODERS[Encoding.CSON]
             value_unpacked = encoder.unpack_value(
-                self.value,
-                self.type,
+                type=self.type,
+                value=self.value,
                 session=session,
                 graph=session.graph,
                 connection=None,

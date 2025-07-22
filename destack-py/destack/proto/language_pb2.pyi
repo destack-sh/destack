@@ -251,6 +251,8 @@ class EdgeDirectionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EDGE_DIRECTION_UNSPECIFIED: _ClassVar[EdgeDirectionProto]
     EDGE_DIRECTION_PARENT: _ClassVar[EdgeDirectionProto]
     EDGE_DIRECTION_CHILD: _ClassVar[EdgeDirectionProto]
+    EDGE_DIRECTION_DEFINITION: _ClassVar[EdgeDirectionProto]
+    EDGE_DIRECTION_INSTANCE: _ClassVar[EdgeDirectionProto]
     EDGE_DIRECTION_SIDE: _ClassVar[EdgeDirectionProto]
 
 class EdgeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -305,7 +307,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TRAIT_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_EVENT_STATUS: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_OBJECT_KIND: _ClassVar[EnumTypeProto]
     ENUM_TYPE_UNIVERSE_CATEGORY: _ClassVar[EnumTypeProto]
     ENUM_TYPE_NODE_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OBJECT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
@@ -318,6 +320,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RUNTIME_LANGUAGE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_EVENT_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TYPE_CARDINALITY: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SCALAR_TYPE: _ClassVar[EnumTypeProto]
@@ -339,7 +342,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_FUNCTION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EXPRESSION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_QUERY_UPDATE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_BRANCH_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_STATUS: _ClassVar[EnumTypeProto]
@@ -816,7 +818,7 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_METHOD: _ClassVar[NodeTypeProto]
     NODE_TYPE_ACTION: _ClassVar[NodeTypeProto]
     NODE_TYPE_PERMISSION: _ClassVar[NodeTypeProto]
-    NODE_TYPE_SIGNAL: _ClassVar[NodeTypeProto]
+    NODE_TYPE_SIGNAL_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_EDIT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_HANDLE: _ClassVar[NodeTypeProto]
@@ -1001,6 +1003,13 @@ class ObjectDefinitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrappe
     OBJECT_DEFINITION_TYPE_BUILTIN_STRUCT: _ClassVar[ObjectDefinitionTypeProto]
     OBJECT_DEFINITION_TYPE_CUSTOM_STRUCT: _ClassVar[ObjectDefinitionTypeProto]
 
+class ObjectKindProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    OBJECT_KIND_UNSPECIFIED: _ClassVar[ObjectKindProto]
+    OBJECT_KIND_NODE: _ClassVar[ObjectKindProto]
+    OBJECT_KIND_STRUCT: _ClassVar[ObjectKindProto]
+    OBJECT_KIND_ENUM: _ClassVar[ObjectKindProto]
+
 class OffscreenBehaviorProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     OFFSCREEN_BEHAVIOR_UNSPECIFIED: _ClassVar[OffscreenBehaviorProto]
@@ -1040,9 +1049,14 @@ class PrimitiveTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PRIMITIVE_TYPE_UNSPECIFIED: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_BOOLEAN: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_INT8: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_INT16: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_INT32: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_INT64: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_UINT8: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_UINT16: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_UINT32: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_UINT64: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_DECIMAL: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_FLOAT32: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_FLOAT64: _ClassVar[PrimitiveTypeProto]
@@ -1078,11 +1092,6 @@ class QueryTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     QUERY_TYPE_SCALAR: _ClassVar[QueryTypeProto]
     QUERY_TYPE_GROUPED_NODE: _ClassVar[QueryTypeProto]
     QUERY_TYPE_GROUPED_SCALAR: _ClassVar[QueryTypeProto]
-
-class QueryUpdateTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    QUERY_UPDATE_TYPE_UNSPECIFIED: _ClassVar[QueryUpdateTypeProto]
-    QUERY_UPDATE_TYPE_FULL_RESULT: _ClassVar[QueryUpdateTypeProto]
 
 class RegionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1321,11 +1330,7 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CONDITION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_SORT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_SELECT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_HISTOGRAM: _ClassVar[StructTypeProto]
     STRUCT_TYPE_QUERY: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_INDEX_DEFINITION: _ClassVar[StructTypeProto]
@@ -1685,6 +1690,8 @@ EASING_EASE_PEN: EasingProto
 EDGE_DIRECTION_UNSPECIFIED: EdgeDirectionProto
 EDGE_DIRECTION_PARENT: EdgeDirectionProto
 EDGE_DIRECTION_CHILD: EdgeDirectionProto
+EDGE_DIRECTION_DEFINITION: EdgeDirectionProto
+EDGE_DIRECTION_INSTANCE: EdgeDirectionProto
 EDGE_DIRECTION_SIDE: EdgeDirectionProto
 EDGE_TYPE_UNSPECIFIED: EdgeTypeProto
 EDGE_TYPE_PARENT: EdgeTypeProto
@@ -1718,7 +1725,7 @@ ENUM_TYPE_ENUM_TYPE: EnumTypeProto
 ENUM_TYPE_NODE_TYPE: EnumTypeProto
 ENUM_TYPE_STRUCT_TYPE: EnumTypeProto
 ENUM_TYPE_TRAIT_TYPE: EnumTypeProto
-ENUM_TYPE_EVENT_STATUS: EnumTypeProto
+ENUM_TYPE_OBJECT_KIND: EnumTypeProto
 ENUM_TYPE_UNIVERSE_CATEGORY: EnumTypeProto
 ENUM_TYPE_NODE_DEFINITION_TYPE: EnumTypeProto
 ENUM_TYPE_OBJECT_DEFINITION_TYPE: EnumTypeProto
@@ -1731,6 +1738,7 @@ ENUM_TYPE_STORE_TIER: EnumTypeProto
 ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
 ENUM_TYPE_RUNTIME_LANGUAGE: EnumTypeProto
 ENUM_TYPE_OPERATING_SYSTEM: EnumTypeProto
+ENUM_TYPE_EVENT_STATUS: EnumTypeProto
 ENUM_TYPE_PRIMITIVE_TYPE: EnumTypeProto
 ENUM_TYPE_TYPE_CARDINALITY: EnumTypeProto
 ENUM_TYPE_SCALAR_TYPE: EnumTypeProto
@@ -1752,7 +1760,6 @@ ENUM_TYPE_JOIN_TYPE: EnumTypeProto
 ENUM_TYPE_FUNCTION_TYPE: EnumTypeProto
 ENUM_TYPE_EXPRESSION_TYPE: EnumTypeProto
 ENUM_TYPE_QUERY_TYPE: EnumTypeProto
-ENUM_TYPE_QUERY_UPDATE_TYPE: EnumTypeProto
 ENUM_TYPE_BRANCH_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_STATUS: EnumTypeProto
@@ -2127,7 +2134,7 @@ NODE_TYPE_MIGRATION_OPERATION: NodeTypeProto
 NODE_TYPE_METHOD: NodeTypeProto
 NODE_TYPE_ACTION: NodeTypeProto
 NODE_TYPE_PERMISSION: NodeTypeProto
-NODE_TYPE_SIGNAL: NodeTypeProto
+NODE_TYPE_SIGNAL_EVENT: NodeTypeProto
 NODE_TYPE_EDIT_EVENT: NodeTypeProto
 NODE_TYPE_MEASUREMENT_EVENT: NodeTypeProto
 NODE_TYPE_HANDLE: NodeTypeProto
@@ -2302,6 +2309,10 @@ OBJECT_DEFINITION_TYPE_BUILTIN_TRAIT: ObjectDefinitionTypeProto
 OBJECT_DEFINITION_TYPE_CUSTOM_TRAIT: ObjectDefinitionTypeProto
 OBJECT_DEFINITION_TYPE_BUILTIN_STRUCT: ObjectDefinitionTypeProto
 OBJECT_DEFINITION_TYPE_CUSTOM_STRUCT: ObjectDefinitionTypeProto
+OBJECT_KIND_UNSPECIFIED: ObjectKindProto
+OBJECT_KIND_NODE: ObjectKindProto
+OBJECT_KIND_STRUCT: ObjectKindProto
+OBJECT_KIND_ENUM: ObjectKindProto
 OFFSCREEN_BEHAVIOR_UNSPECIFIED: OffscreenBehaviorProto
 OFFSCREEN_BEHAVIOR_PLAY: OffscreenBehaviorProto
 OFFSCREEN_BEHAVIOR_PAUSE: OffscreenBehaviorProto
@@ -2324,9 +2335,14 @@ PLATFORM_TYPE_RUNTIME: PlatformTypeProto
 PLATFORM_TYPE_WEB: PlatformTypeProto
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveTypeProto
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveTypeProto
+PRIMITIVE_TYPE_INT8: PrimitiveTypeProto
 PRIMITIVE_TYPE_INT16: PrimitiveTypeProto
 PRIMITIVE_TYPE_INT32: PrimitiveTypeProto
 PRIMITIVE_TYPE_INT64: PrimitiveTypeProto
+PRIMITIVE_TYPE_UINT8: PrimitiveTypeProto
+PRIMITIVE_TYPE_UINT16: PrimitiveTypeProto
+PRIMITIVE_TYPE_UINT32: PrimitiveTypeProto
+PRIMITIVE_TYPE_UINT64: PrimitiveTypeProto
 PRIMITIVE_TYPE_DECIMAL: PrimitiveTypeProto
 PRIMITIVE_TYPE_FLOAT32: PrimitiveTypeProto
 PRIMITIVE_TYPE_FLOAT64: PrimitiveTypeProto
@@ -2353,8 +2369,6 @@ QUERY_TYPE_NODE: QueryTypeProto
 QUERY_TYPE_SCALAR: QueryTypeProto
 QUERY_TYPE_GROUPED_NODE: QueryTypeProto
 QUERY_TYPE_GROUPED_SCALAR: QueryTypeProto
-QUERY_UPDATE_TYPE_UNSPECIFIED: QueryUpdateTypeProto
-QUERY_UPDATE_TYPE_FULL_RESULT: QueryUpdateTypeProto
 REGION_UNSPECIFIED: RegionProto
 REGION_ZURICH: RegionProto
 REGION_FRANKFURT: RegionProto
@@ -2518,11 +2532,7 @@ STRUCT_TYPE_AGGREGATION: StructTypeProto
 STRUCT_TYPE_CONDITION: StructTypeProto
 STRUCT_TYPE_SORT: StructTypeProto
 STRUCT_TYPE_SELECT: StructTypeProto
-STRUCT_TYPE_HISTOGRAM: StructTypeProto
 STRUCT_TYPE_QUERY: StructTypeProto
-STRUCT_TYPE_QUERY_RESULT: StructTypeProto
-STRUCT_TYPE_QUERY_RESULT_GROUP: StructTypeProto
-STRUCT_TYPE_QUERY_UPDATE: StructTypeProto
 STRUCT_TYPE_NODE_REFERENCE: StructTypeProto
 STRUCT_TYPE_PROPERTY_REFERENCE: StructTypeProto
 STRUCT_TYPE_INDEX_DEFINITION: StructTypeProto
@@ -6664,16 +6674,6 @@ class HandleProto(_message.Message):
     slug: str
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., slug: _Optional[str] = ...) -> None: ...
 
-class HistogramProto(_message.Message):
-    __slots__ = ("metatype", "buckets", "counts")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    BUCKETS_FIELD_NUMBER: _ClassVar[int]
-    COUNTS_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    buckets: _containers.RepeatedCompositeFieldContainer[ValueProto]
-    counts: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., buckets: _Optional[_Iterable[_Union[ValueProto, _Mapping]]] = ..., counts: _Optional[_Iterable[int]] = ...) -> None: ...
-
 class HistogramMeasurementEventProto(_message.Message):
     __slots__ = ("metatype", "id", "space_ptr", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "caused_by_ptr", "created_at", "created_epoch", "created_by_ptr", "client_ptr", "client_nonce", "client_created_at", "client_epoch", "status", "node_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -10233,7 +10233,7 @@ class QuaternionProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., w: _Optional[float] = ...) -> None: ...
 
 class QueryProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "domain", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "include_deleted", "limit", "offset", "branch_ptr", "snapshot_ptr")
+    __slots__ = ("metatype", "id", "type", "domain", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -10248,11 +10248,8 @@ class QueryProto(_message.Message):
     GROUP_BY_FIELD_NUMBER: _ClassVar[int]
     AGGREGATION_FIELD_NUMBER: _ClassVar[int]
     SORT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    BRANCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: str
     type: QueryTypeProto
@@ -10267,64 +10264,9 @@ class QueryProto(_message.Message):
     group_by: _containers.RepeatedCompositeFieldContainer[ExpressionProto]
     aggregation: AggregationProto
     sort: _containers.RepeatedCompositeFieldContainer[SortProto]
-    include_deleted: bool
     limit: int
     offset: int
-    branch_ptr: NodeReferenceProto
-    snapshot_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., domain: _Optional[_Union[StoreDomainProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., include_deleted: bool = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
-
-class QueryResultProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "exists", "scalar")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    GROUPS_FIELD_NUMBER: _ClassVar[int]
-    SUBRESULTS_FIELD_NUMBER: _ClassVar[int]
-    NODES_FIELD_NUMBER: _ClassVar[int]
-    COUNT_FIELD_NUMBER: _ClassVar[int]
-    EXISTS_FIELD_NUMBER: _ClassVar[int]
-    SCALAR_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    id: str
-    type: QueryTypeProto
-    groups: _containers.RepeatedCompositeFieldContainer[QueryResultGroupProto]
-    subresults: _containers.RepeatedCompositeFieldContainer[QueryResultProto]
-    nodes: _containers.RepeatedCompositeFieldContainer[ValueProto]
-    count: int
-    exists: bool
-    scalar: ValueProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., groups: _Optional[_Iterable[_Union[QueryResultGroupProto, _Mapping]]] = ..., subresults: _Optional[_Iterable[_Union[QueryResultProto, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[ValueProto, _Mapping]]] = ..., count: _Optional[int] = ..., exists: bool = ..., scalar: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
-
-class QueryResultGroupProto(_message.Message):
-    __slots__ = ("metatype", "type", "discriminator", "nodes", "count", "exists", "scalar")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    DISCRIMINATOR_FIELD_NUMBER: _ClassVar[int]
-    NODES_FIELD_NUMBER: _ClassVar[int]
-    COUNT_FIELD_NUMBER: _ClassVar[int]
-    EXISTS_FIELD_NUMBER: _ClassVar[int]
-    SCALAR_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    type: QueryTypeProto
-    discriminator: ValueProto
-    nodes: _containers.RepeatedCompositeFieldContainer[ValueProto]
-    count: int
-    exists: bool
-    scalar: ValueProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., discriminator: _Optional[_Union[ValueProto, _Mapping]] = ..., nodes: _Optional[_Iterable[_Union[ValueProto, _Mapping]]] = ..., count: _Optional[int] = ..., exists: bool = ..., scalar: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
-
-class QueryUpdateProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "result")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    id: str
-    type: QueryUpdateTypeProto
-    result: QueryResultProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryUpdateTypeProto, str]] = ..., result: _Optional[_Union[QueryResultProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., domain: _Optional[_Union[StoreDomainProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ReactionProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instance_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "owned_by_ptr", "name", "order_key", "custom_values", "script_ptr", "is_extensible", "source_ptr", "key", "content")
@@ -12269,7 +12211,7 @@ class Shape3DProto(_message.Message):
     stroke: StrokeProto
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., branch_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., position: _Optional[_Union[Vector3Proto, _Mapping]] = ..., scale: _Optional[_Union[Vector3Proto, _Mapping]] = ..., rotation: _Optional[_Union[QuaternionProto, _Mapping]] = ..., skew: _Optional[_Union[Vector3Proto, _Mapping]] = ..., origin: _Optional[_Union[Vector3Proto, _Mapping]] = ..., anchor: _Optional[_Union[AnchorProto, str]] = ..., stroke: _Optional[_Union[StrokeProto, _Mapping]] = ...) -> None: ...
 
-class SignalProto(_message.Message):
+class SignalEventProto(_message.Message):
     __slots__ = ("metatype", "id", "space_ptr", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "caused_by_ptr", "created_at", "created_epoch", "created_by_ptr", "client_ptr", "client_nonce", "client_created_at", "client_epoch", "status", "node_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]

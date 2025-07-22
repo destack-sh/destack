@@ -1,4 +1,3 @@
-from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 
 import grpclib
@@ -14,11 +13,8 @@ from destack.test.fixtures import create_space
 # NOTE: must run setup before importing from destack
 _setup_test_env()
 
-from destack.language import (
-    Session,
-    StoreKey,
-)
-from destack.store import MemoryEntityStore, MemoryStore
+from destack.graph import MemoryGraph
+from destack.language import Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -26,23 +22,10 @@ tracer = trace.get_tracer(__name__)
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-@pytest.fixture
-def memory_store() -> MemoryStore:
-    return MemoryStore(keys=tuple(StoreKey))
-
-
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
-async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=memory_store, epoch=0)
-    await session.open()
-    yield session
-    await session.close()
-
-
-@pytest_asyncio.fixture(loop_scope="session", scope="function")
-async def session(memory_store: MemoryEntityStore):
+async def session():
     """Default Session is in-memory."""
-    session = Session(store=memory_store, epoch=0)
+    session = Session(graph=MemoryGraph())
     await session.open()
     yield session
     await session.close()

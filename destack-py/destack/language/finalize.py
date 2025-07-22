@@ -1,11 +1,8 @@
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Callable
 
-from destack import proto
-from destack.utils.code import exec_
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.uuid import UUID
 
 from .core.builtin.common import (
     ENUM_TYPES,
@@ -191,47 +188,12 @@ def finalize():
                 all_enum_types.update(base.__self_enum_types__)
         node_cls.__enum_types__ = tuple(all_enum_types)
 
-    # generate pack/unpack methods
-    from destack.encoder.cson.cson import generate_pack_cson_impl
-    from destack.encoder.proto.wiring import generate_pack_proto_impl
+    # finalize encoders
+    from destack.encoder import CsonEncoder, ProtoEncoder
+    from destack.language.core import ENCODERS, Encoding
 
-    builtin_class_by_name: dict[str, Any] = {**proto.__dict__, "UUID": UUID}
-    builtin_class_by_name.update(
-        {
-            cls.__name__: cls
-            for cls in chain(
-                NODE_CLASS_BY_TYPE.values(),
-                STRUCT_CLASS_BY_TYPE.values(),
-                ENUM_CLASS_BY_TYPE.values(),
-            )
-        }
-    )
-    for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        cls_dict_copy = node_cls.__dict__.copy()
-        # __pack_proto__/__unpack_proto__/_to_proto
-        proto_impl, proto_glbls = generate_pack_proto_impl(node_cls)
-        exec_(
-            proto_impl,
-            {**builtin_class_by_name, **proto_glbls},
-            cls_dict_copy,
-            f"{node_cls.__name__}:proto",
-        )
-        setattr(node_cls, "__pack_proto__", cls_dict_copy["__pack_proto__"])
-        setattr(node_cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
-        setattr(node_cls, "to_proto", cls_dict_copy["to_proto"])
-        setattr(node_cls, "from_proto", cls_dict_copy["from_proto"])
-        # __pack_cson__/__unpack_cson__/_to_cson
-        value_impl, value_glbls = generate_pack_cson_impl(node_cls)
-        exec_(
-            value_impl,
-            {**builtin_class_by_name, **value_glbls},
-            cls_dict_copy,
-            f"{node_cls.__name__}:cson",
-        )
-        setattr(node_cls, "__pack_cson__", cls_dict_copy["__pack_cson__"])
-        setattr(node_cls, "__unpack_cson__", cls_dict_copy["__unpack_cson__"])
-        setattr(node_cls, "to_cson", cls_dict_copy["to_cson"])
-        setattr(node_cls, "from_cson", cls_dict_copy["from_cson"])
+    ENCODERS[Encoding.CSON] = CsonEncoder()
+    ENCODERS[Encoding.PROTO] = ProtoEncoder()
 
     # generate definition refs
     from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference

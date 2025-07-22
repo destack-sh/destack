@@ -154,7 +154,6 @@ export class NodeDefinitionReference extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -162,7 +161,6 @@ export class NodeDefinitionReference extends StructFrozen {
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -519,7 +517,6 @@ export class PropertyReference extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -538,7 +535,6 @@ export class PropertyReference extends StructFrozen {
     if (this.customPropertyPtr != null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -980,7 +976,6 @@ export class NodeReference extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -1000,7 +995,6 @@ export class NodeReference extends StructFrozen {
     if (this.storeKey != null) {
       h = (h * 31 + this.storeKey) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1291,7 +1285,6 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -1307,7 +1300,6 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (this.customDefinitionPtr != null) {
       h = (h * 31 + hashString(this.customDefinitionPtr.id)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1573,7 +1565,6 @@ export class StructDefinitionReference extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -1581,7 +1572,6 @@ export class StructDefinitionReference extends StructFrozen {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

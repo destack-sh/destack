@@ -10,7 +10,7 @@ export enum EnumType {
   NODE_TYPE = 2,
   STRUCT_TYPE = 3,
   TRAIT_TYPE = 4,
-  EVENT_STATUS = 8,
+  OBJECT_KIND = 8,
   UNIVERSE_CATEGORY = 9,
   NODE_DEFINITION_TYPE = 10,
   OBJECT_DEFINITION_TYPE = 11,
@@ -23,6 +23,7 @@ export enum EnumType {
   PLATFORM_TYPE = 30,
   RUNTIME_LANGUAGE = 31,
   OPERATING_SYSTEM = 40,
+  EVENT_STATUS = 50,
   PRIMITIVE_TYPE = 100,
   TYPE_CARDINALITY = 101,
   SCALAR_TYPE = 102,
@@ -805,6 +806,8 @@ registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
 export enum EdgeDirection {
   PARENT = 1,
   CHILD = 2,
+  DEFINITION = 10,
+  INSTANCE = 11,
   SIDE = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -990,3 +993,19 @@ export enum ClientType {
 }
 registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
 /* ==== DESTACK_GENERATED_END:ENUM:121300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:8 ==== */
+/**
+ * ObjectKind
+ */
+export enum ObjectKind {
+  NODE = 1,
+  STRUCT = 2,
+  ENUM = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.OBJECT_KIND, ObjectKind);
+/* ==== DESTACK_GENERATED_END:ENUM:8 ==== */

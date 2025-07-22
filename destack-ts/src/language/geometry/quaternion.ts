@@ -70,14 +70,12 @@ export class Quaternion extends Vector4 {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.w)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

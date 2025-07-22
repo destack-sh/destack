@@ -250,7 +250,6 @@ export class Stroke extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -268,7 +267,6 @@ export class Stroke extends StructFrozen {
     if (this.end != null) {
       h = (h * 31 + this.end.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -525,13 +523,11 @@ export class StrokeCap extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashBool(this.cap)) & 0xffffffff;
     h = (h * 31 + hashBool(this.taper)) & 0xffffffff;
     h = (h * 31 + this.easing) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -796,7 +792,6 @@ export class StrokePoint extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.point.hash()) & 0xffffffff;
@@ -806,7 +801,6 @@ export class StrokePoint extends StructFrozen {
     h = (h * 31 + hashFloat(this.distance)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.runningLength)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.radius)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1017,7 +1011,6 @@ export class StrokePath extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.points && this.points.length > 0) {
@@ -1025,7 +1018,6 @@ export class StrokePath extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

@@ -34,6 +34,7 @@ from .common import (
     Encoding,
     EnumType,
     NodeType,
+    ObjectKind,
     PrimitiveType,
     ScalarType,
     StructType,
@@ -1270,6 +1271,9 @@ _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", d
 class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     """The base for all intrinsic objects like Structs and Nodes."""
 
+    metatype: ClassVar[NodeType | StructType] = UNSET
+    __kind__: ClassVar[ObjectKind] = UNSET
+
     __is_frozen__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
@@ -1329,14 +1333,18 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     def pack(self, encoding: Encoding) -> Any:
         """Pack this BuiltinObject into some encoded format."""
         encoder = ENCODERS[encoding]
-        packed_object = encoder.pack_object(self)
+        packed_object = encoder.pack_object(kind=self.__kind__, metatype=self.metatype, object=self)
         return packed_object
 
     @builtin_method(31)
     def pack_bytes(self, encoding: Encoding) -> bytes:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
         encoder = ENCODERS[encoding]
-        packed_object_bytes = encoder.pack_object_bytes(self)
+        packed_object_bytes = encoder.pack_object_bytes(
+            kind=self.__kind__,
+            metatype=self.metatype,
+            object=self,
+        )
         return packed_object_bytes
 
     @builtin_method(32)
@@ -1348,12 +1356,14 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         *,
         _session: "Session",
         _graph: "Graph",
-        _connection: "GraphConnection",
+        _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from some encoded format."""
         encoder = ENCODERS[encoding]
         unpacked_object = encoder.unpack_object(
-            value,
+            kind=cls.__kind__,
+            metatype=cls.metatype,
+            value=value,
             session=_session,
             graph=_graph,
             connection=_connection,
@@ -1369,12 +1379,14 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         *,
         _session: "Session",
         _graph: "Graph",
-        _connection: "GraphConnection",
+        _connection: "GraphConnection | None",
     ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         encoder = ENCODERS[encoding]
         unpacked_object = encoder.unpack_object_bytes(
-            value,
+            kind=cls.__kind__,
+            metatype=cls.metatype,
+            value=value,
             session=_session,
             graph=_graph,
             connection=_connection,

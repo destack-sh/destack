@@ -260,7 +260,6 @@ export class StringConstraint extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.format != null) {
@@ -275,7 +274,6 @@ export class StringConstraint extends StructFrozen {
     if (this.endsWith != null) {
       h = (h * 31 + hashString(this.endsWith)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -536,7 +534,6 @@ export class NumberConstraint extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.format != null) {
@@ -557,7 +554,6 @@ export class NumberConstraint extends StructFrozen {
     if (this.scale != null) {
       h = (h * 31 + hashInt(this.scale)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -782,7 +778,6 @@ export class CollectionConstraint extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.minLength != null) {
@@ -791,7 +786,6 @@ export class CollectionConstraint extends StructFrozen {
     if (this.maxLength != null) {
       h = (h * 31 + hashInt(this.maxLength)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -992,7 +986,6 @@ export class NodeConstraint extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.nodeTypes && this.nodeTypes.length > 0) {
@@ -1005,7 +998,6 @@ export class NodeConstraint extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1460,7 +1452,6 @@ export class Type extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.name != null) {
@@ -1510,7 +1501,6 @@ export class Type extends StructFrozen {
     if (this.isMain != null) {
       h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

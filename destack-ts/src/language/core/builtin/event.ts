@@ -131,25 +131,6 @@ export abstract class Event extends Node {
 registerNodeClass(NodeType.EVENT, Event);
 /* ==== DESTACK_GENERATED_END:NODE:3 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:8 ==== */
-/**
- * EventStatus
- */
-export enum EventStatus {
-  PENDING = 1,
-  STAGED = 2,
-  APPROVED = 10,
-  SKIPPED = 11,
-  FAILED = 12,
-  REJECTED = 13,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EVENT_STATUS, EventStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:8 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:20000 ==== */
 /**
  * A CustomEvent defines a custom Event with custom Properties.
@@ -1449,3 +1430,22 @@ export abstract class SignalEvent extends Event {
 }
 registerNodeClass(NodeType.SIGNAL_EVENT, SignalEvent);
 /* ==== DESTACK_GENERATED_END:NODE:90000 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:50 ==== */
+/**
+ * EventStatus
+ */
+export enum EventStatus {
+  PENDING = 1,
+  STAGED = 2,
+  APPROVED = 10,
+  SKIPPED = 11,
+  FAILED = 12,
+  REJECTED = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EVENT_STATUS, EventStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:50 ==== */

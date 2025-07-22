@@ -9,7 +9,7 @@ import grpclib.client
 from grpclib.client import Channel
 
 from destack import proto
-from destack.encoder.proto.wiring import pack_rpc_headers
+from destack.encoder.proto.utils import pack_rpc_headers
 from destack.proto import RpcMetadata
 from destack.utils.env import get_from_env
 from destack.utils.telemetry import collect_propagation_context

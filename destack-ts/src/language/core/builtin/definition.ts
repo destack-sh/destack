@@ -817,7 +817,6 @@ export class NodeDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -968,7 +967,6 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -2254,7 +2252,6 @@ export class TraitDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -2308,7 +2305,6 @@ export class TraitDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -3071,7 +3067,6 @@ export class StructDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -3144,7 +3139,6 @@ export class StructDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -3806,7 +3800,6 @@ export class EnumDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -3828,7 +3821,6 @@ export class EnumDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -4556,7 +4548,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -4626,7 +4617,6 @@ export class PropertyDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -5375,7 +5365,6 @@ export class OptionDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -5392,7 +5381,6 @@ export class OptionDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -5697,7 +5685,6 @@ export class ConstantDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.value.hash()) & 0xffffffff;
@@ -5714,7 +5701,6 @@ export class ConstantDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -6007,7 +5993,6 @@ export class TagDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -6023,7 +6008,6 @@ export class TagDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -6363,7 +6347,6 @@ export class IndexDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -6390,7 +6373,6 @@ export class IndexDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -6781,7 +6763,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -6803,7 +6784,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -7130,7 +7110,6 @@ export class PermissionDefinition extends BuiltinDefinition {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -7146,7 +7125,6 @@ export class PermissionDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

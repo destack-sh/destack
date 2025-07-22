@@ -1,34 +1,39 @@
 import base64
 import textwrap
 from datetime import UTC, date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, assert_never
+from itertools import chain
+from typing import TYPE_CHECKING, Any, assert_never, override
 
 import structlog
 from opentelemetry import trace
 
+from destack.language.core import (
+    BuiltinObject,
+    Cson,
+    Graph,
+    GraphConnection,
+    NodeType,
+    ObjectKind,
+    PrimitiveType,
+    PropertyDeclaration,
+    ScalarType,
+    Session,
+    StructType,
+    TypeCardinality,
+    TypeDeclaration,
+)
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
     get_builtin_type,
 )
+from destack.utils.code import exec_
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
-from ...language.core.builtin import (
-    BuiltinObject,
-    Cson,
-    Encoding,
-    NodeReference,
-    NodeType,
-    PrimitiveType,
-    PropertyDeclaration,
-    TypeDeclaration,
-)
-from ...language.core.common.type import ScalarType, Type, TypeCardinality
-
 if TYPE_CHECKING:
-    from destack.language import Graph, GraphConnection, Session
+    pass
 
 
 # ruff: noqa: FURB113
@@ -40,58 +45,69 @@ tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-def generate_pack_cson_impl(cls: type["BuiltinObject"]) -> tuple[str, dict[str, Any]]:
-    """Generate the BuiltinObject.__pack_cson__/__unpack_cson__ method implementations."""
+class _CsonObjectEncoder:
+    def pack_object(self, object: BuiltinObject) -> Cson:
+        raise NotImplementedError
 
-    pack_cson = textwrap.indent(_generate_pack_cson(cls), "    ")
-    unpack_cson = textwrap.indent(_generate_unpack_cson(cls), "    ")
+    def unpack_object(
+        self,
+        cson: Cson,
+        session: Session,
+        graph: Graph,
+        connection: GraphConnection | None,
+    ) -> BuiltinObject:
+        raise NotImplementedError
 
-    if cls.__is_frozen__ and not cls.__is_node__:
-        to_cson = """\
-def to_cson(self: "Self") -> dict[str, "CsonValue"]:
-    if self._cson is None:
-        self._cson = self.__pack_cson__(self)
-    return self._cson
-"""
-    else:
-        to_cson = """\
-def to_cson(self: "Self") -> dict[str, "CsonValue"]:
-    return self.__pack_cson__(self)
-"""
 
-    value_impl = f"""
-@classmethod
-def __pack_cson__(cls, _object: "Self") -> dict[str, "CsonValue"]:
+def _generate_encoder_impl(cls: type["BuiltinObject"]) -> tuple[str, str, dict[str, Any]]:
+    """Generate the CsonObjectEncoder class for a BuiltinObject."""
+
+    pack_cson = textwrap.indent(_generate_pack_cson(cls), " " * 8)
+    unpack_cson = textwrap.indent(_generate_unpack_cson(cls), " " * 8)
+    encoder_name = f"{cls.__name__}CsonEncoder"
+
+    impl = f"""
+class {encoder_name}(CsonObjectEncoder):
+    
+    @override
+    def pack_object(self, _object: "{cls.__name__}") -> Cson:
 {pack_cson}
 
-@classmethod
-def __unpack_cson__(cls, 
-    _object_cson: dict[str, "CsonValue"],
-    _session: "Session | None" = None,
-    _graph: "Graph | None" = None,
-    _connection: "GraphConnection | None" = None,
-) -> "Self":
+    @override
+    def unpack_object(
+        self, 
+        _object_cson: Cson,
+        _session: "Session | None" = None,
+        _graph: "Graph | None" = None,
+        _connection: "GraphConnection | None" = None,
+    ) -> "{cls.__name__}":
 {unpack_cson}
-
-{to_cson}
-
-from_cson = __unpack_cson__
 """
-    return value_impl, {
-        "timedelta_from_isoformat": timedelta_from_isoformat,
-        "timedelta_to_isoformat": timedelta_to_isoformat,
-        "datetime": datetime,
-        "timedelta": timedelta,
-        "date": date,
-        "time": time,
-        "UTC": UTC,
-        "base64": base64,
-        "UUID": UUID,
-    }
+    return (
+        encoder_name,
+        impl,
+        {
+            "CsonObjectEncoder": _CsonObjectEncoder,
+            "timedelta_from_isoformat": timedelta_from_isoformat,
+            "timedelta_to_isoformat": timedelta_to_isoformat,
+            "datetime": datetime,
+            "timedelta": timedelta,
+            "date": date,
+            "time": time,
+            "UTC": UTC,
+            "base64": base64,
+            "UUID": UUID,
+            "override": override,
+            "Cson": Cson,
+            "Self": cls,
+            "cls": cls,
+            "BuiltinObject": BuiltinObject,
+        },
+    )
 
 
 def _generate_pack_cson(cls: type["BuiltinObject"]) -> str:
-    """Generate the BuiltinObject.__pack_cson__ method implementation."""
+    """Generate the pack_object method for a BuiltinObject."""
     pack_method_parts: list[str] = []
     pack_method_parts.append("_object_cson = {}")
 
@@ -112,7 +128,7 @@ def _generate_pack_cson(cls: type["BuiltinObject"]) -> str:
 
 
 def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
-    """Generate the BuiltinObject.__unpack_cson__ method implementation."""
+    """Generate the unpack_object method for a BuiltinObject."""
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []
 
@@ -241,7 +257,7 @@ def _generate_pack_cson_scalar(
     elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.to_cson()"
+        return f"{value_expr}.pack(Encoding.CSON)"
     else:
         assert_never(prop.scalar_type)
 
@@ -286,160 +302,33 @@ def _generate_unpack_cson_scalar(
         assert_never(prop.scalar_type)
 
 
-def pack_cson(value: Any, type: Type) -> Cson:
-    """Pack a generic typed value to a CSON object."""
-    if type.cardinality == TypeCardinality.SCALAR:
-        return _pack_scalar_cson(value, type)
-    elif type.cardinality == TypeCardinality.LIST:
-        if not value:
-            return []
-        packed_list: list[Cson] = []
-        for item in value:
-            packed_list.append(_pack_scalar_cson(item, type))
-        return packed_list
-    elif type.cardinality == TypeCardinality.MAP:
-        if not value:
-            return {}
-        assert type.key_type is not None, f"no key type for {type!r}"
-        packed_map: dict[str, Cson] = {}
-        for key, val in value.items():
-            packed_key = _pack_scalar_cson(key, type.key_type)
-            packed_val = _pack_scalar_cson(val, type)
-            packed_map[str(packed_key)] = packed_val
-        return packed_map
-    else:
-        assert_never(type.cardinality)
+CSON_OBJECT_ENCODERS: dict[tuple[ObjectKind, NodeType | StructType], "_CsonObjectEncoder"] = {}
 
 
-def unpack_cson(
-    value: Cson,
-    type: Type,
-    _session: "Session | None" = None,
-    _graph: "Graph | None" = None,
-    _connection: "GraphConnection | None" = None,
-) -> Any:
-    """Unpack a CSON object to a generic typed value."""
-    if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_cson(
-            value,
-            type,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
-    elif type.cardinality == TypeCardinality.LIST:
-        if value is None:
-            return []
-        unpacked_list = []
-        for item in value:
-            unpacked_list.append(
-                _unpack_scalar_cson(
-                    item,
-                    type,
-                    _session=_session,
-                    _graph=_graph,
-                    _connection=_connection,
-                )
+def _generate():
+    # generate pack/unpack methods
+    builtin_class_by_name: dict[str, Any] = {"UUID": UUID}
+    builtin_class_by_name.update(
+        {
+            cls.__name__: cls
+            for cls in chain(
+                NODE_CLASS_BY_TYPE.values(),
+                STRUCT_CLASS_BY_TYPE.values(),
+                ENUM_CLASS_BY_TYPE.values(),
             )
-        return unpacked_list
-    elif type.cardinality == TypeCardinality.MAP:
-        if value is None:
-            return {}
-        unpacked_map = {}
-        for key, val in value.items():
-            unpacked_key = _unpack_scalar_cson(key, type.key_type) if type.key_type else key
-            unpacked_val = _unpack_scalar_cson(
-                val,
-                type,
-                _session=_session,
-                _graph=_graph,
-                _connection=_connection,
-            )
-            unpacked_map[unpacked_key] = unpacked_val
-        return unpacked_map
-    else:
-        assert_never(type.cardinality)
-
-
-def _pack_scalar_cson(value: Any, type: Type) -> Cson:
-    """Pack a scalar value to CSON."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(value).decode()
-        elif type.primitive_type == PrimitiveType.UUID:
-            return str(value)
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return value.astimezone(UTC).isoformat()
-        elif type.primitive_type == PrimitiveType.DATE:
-            return value.isoformat()
-        elif type.primitive_type == PrimitiveType.TIME:
-            return value.astimezone(UTC).replace(tzinfo=None).isoformat()
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return timedelta_to_isoformat(value)
-        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return float(value)  # cast ints to CSON floats
-        else:
-            return value  # as is
-    elif type.scalar_type == ScalarType.ENUM:
-        return value.value
-    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
-        assert isinstance(value, BuiltinObject), (
-            f"expected BuiltinObject for {type!r}, got {value!r}"
+        }
+    )
+    for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        encoder_name, impl, extra_glbls = _generate_encoder_impl(node_cls)
+        locals_ = {}
+        exec_(
+            impl,
+            {**builtin_class_by_name, **extra_glbls},
+            locals_,
+            f"{node_cls.__name__}:cson",
         )
-        return value.pack(Encoding.CSON)
-    else:
-        assert_never(type.scalar_type)
+        encoder_cls = locals_[encoder_name]
+        CSON_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()
 
 
-def _unpack_scalar_cson(
-    value: Cson,
-    type: Type,
-    _session: "Session",
-    _graph: "Graph",
-    _connection: "GraphConnection | None",
-) -> Any:
-    """Unpack a scalar value from CSON."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64decode(value)
-        elif type.primitive_type == PrimitiveType.UUID:
-            return UUID(value)
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(value).astimezone(UTC)
-        elif type.primitive_type == PrimitiveType.DATE:
-            return date.fromisoformat(value)
-        elif type.primitive_type == PrimitiveType.TIME:
-            return time.fromisoformat(value).replace(tzinfo=None)
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return timedelta_from_isoformat(value)
-        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return int(value)  # cast CSON floats to ints
-        else:
-            return value
-    elif type.scalar_type == ScalarType.ENUM:
-        assert type.enum_type is not None, f"no enum type for {type!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        return enum_cls(int(value))
-    elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.unpack(
-            Encoding.CSON,
-            value,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
-    elif type.scalar_type == ScalarType.NODE_VALUE:
-        node_type = NodeType(value["1"])
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-        return node_cls.from_cson(
-            value,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
-    elif type.scalar_type == ScalarType.STRUCT:
-        assert type.struct_type is not None, f"no struct type for {type!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.from_cson(value, _session=_session)
-    else:
-        assert_never(type.scalar_type)
+_generate()

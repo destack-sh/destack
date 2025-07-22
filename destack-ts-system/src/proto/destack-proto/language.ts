@@ -7427,23 +7427,6 @@ export interface HandleProto {
     slug: string;
 }
 /**
- * @generated from protobuf message symbol.destack.HistogramProto
- */
-export interface HistogramProto {
-    /**
-     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-     */
-    metatype: StructTypeProto;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.ValueProto buckets = 101
-     */
-    buckets: ValueProto[];
-    /**
-     * @generated from protobuf field: repeated int64 counts = 102 [jstype = JS_NUMBER]
-     */
-    counts: number[];
-}
-/**
  * A Histogram Measurement.
  *
  * @generated from protobuf message symbol.destack.HistogramMeasurementEventProto
@@ -14235,10 +14218,6 @@ export interface QueryProto {
      */
     sort: SortProto[];
     /**
-     * @generated from protobuf field: bool include_deleted = 119
-     */
-    includeDeleted: boolean;
-    /**
      * @generated from protobuf field: optional int64 limit = 120 [jstype = JS_NUMBER]
      */
     limit?: number;
@@ -14246,109 +14225,6 @@ export interface QueryProto {
      * @generated from protobuf field: optional int64 offset = 121 [jstype = JS_NUMBER]
      */
     offset?: number;
-    /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto branch_ptr = 130
-     */
-    branchPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto snapshot_ptr = 131
-     */
-    snapshotPtr?: NodeReferenceProto;
-}
-/**
- * @generated from protobuf message symbol.destack.QueryResultProto
- */
-export interface QueryResultProto {
-    /**
-     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-     */
-    metatype: StructTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: symbol.destack.QueryTypeProto type = 100
-     */
-    type: QueryTypeProto;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.QueryResultGroupProto groups = 101
-     */
-    groups: QueryResultGroupProto[];
-    /**
-     * @generated from protobuf field: repeated symbol.destack.QueryResultProto subresults = 102
-     */
-    subresults: QueryResultProto[];
-    /**
-     * @generated from protobuf field: repeated symbol.destack.ValueProto nodes = 110
-     */
-    nodes: ValueProto[];
-    /**
-     * @generated from protobuf field: optional int64 count = 111 [jstype = JS_NUMBER]
-     */
-    count?: number;
-    /**
-     * @generated from protobuf field: optional bool exists = 112
-     */
-    exists?: boolean;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto scalar = 113
-     */
-    scalar?: ValueProto;
-}
-/**
- * @generated from protobuf message symbol.destack.QueryResultGroupProto
- */
-export interface QueryResultGroupProto {
-    /**
-     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-     */
-    metatype: StructTypeProto;
-    /**
-     * @generated from protobuf field: symbol.destack.QueryTypeProto type = 100
-     */
-    type: QueryTypeProto;
-    /**
-     * @generated from protobuf field: symbol.destack.ValueProto discriminator = 101
-     */
-    discriminator?: ValueProto;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.ValueProto nodes = 110
-     */
-    nodes: ValueProto[];
-    /**
-     * @generated from protobuf field: optional int64 count = 111 [jstype = JS_NUMBER]
-     */
-    count?: number;
-    /**
-     * @generated from protobuf field: optional bool exists = 112
-     */
-    exists?: boolean;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto scalar = 113
-     */
-    scalar?: ValueProto;
-}
-/**
- * @generated from protobuf message symbol.destack.QueryUpdateProto
- */
-export interface QueryUpdateProto {
-    /**
-     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-     */
-    metatype: StructTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: symbol.destack.QueryUpdateTypeProto type = 100
-     */
-    type: QueryUpdateTypeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.QueryResultProto result = 101
-     */
-    result?: QueryResultProto;
 }
 /**
  * A Reaction is a relationship between a Actor and a Reaction Node.
@@ -17995,11 +17871,11 @@ export interface Shape3DProto {
     stroke?: StrokeProto;
 }
 /**
- * A generic Event of a CustomEventDefinition.
+ * A generic Event of a CustomEvent.
  *
- * @generated from protobuf message symbol.destack.SignalProto
+ * @generated from protobuf message symbol.destack.SignalEventProto
  */
-export interface SignalProto {
+export interface SignalEventProto {
     /**
      * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
      */
@@ -25291,6 +25167,14 @@ export enum EdgeDirectionProto {
      */
     EDGE_DIRECTION_CHILD = 2,
     /**
+     * @generated from protobuf enum value: EDGE_DIRECTION_DEFINITION = 10;
+     */
+    EDGE_DIRECTION_DEFINITION = 10,
+    /**
+     * @generated from protobuf enum value: EDGE_DIRECTION_INSTANCE = 11;
+     */
+    EDGE_DIRECTION_INSTANCE = 11,
+    /**
      * @generated from protobuf enum value: EDGE_DIRECTION_SIDE = 20;
      */
     EDGE_DIRECTION_SIDE = 20
@@ -25406,7 +25290,7 @@ export enum EffectTypeProto {
     EFFECT_TYPE_LOOP = 30
 }
 /**
- * The encoding of a value.
+ * The encoding scheme.
  *
  * @generated from protobuf enum symbol.destack.EncodingProto
  */
@@ -25468,9 +25352,9 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_TRAIT_TYPE = 4,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EVENT_STATUS = 8;
+     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_KIND = 8;
      */
-    ENUM_TYPE_EVENT_STATUS = 8,
+    ENUM_TYPE_OBJECT_KIND = 8,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_UNIVERSE_CATEGORY = 9;
      */
@@ -25519,6 +25403,10 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_OPERATING_SYSTEM = 40;
      */
     ENUM_TYPE_OPERATING_SYSTEM = 40,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EVENT_STATUS = 50;
+     */
+    ENUM_TYPE_EVENT_STATUS = 50,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 100;
      */
@@ -25603,10 +25491,6 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 320;
      */
     ENUM_TYPE_QUERY_TYPE = 320,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUERY_UPDATE_TYPE = 321;
-     */
-    ENUM_TYPE_QUERY_UPDATE_TYPE = 321,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BRANCH_TYPE = 2000;
      */
@@ -27294,9 +27178,9 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_PERMISSION = 50000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SIGNAL = 90000;
+     * @generated from protobuf enum value: NODE_TYPE_SIGNAL_EVENT = 90000;
      */
-    NODE_TYPE_SIGNAL = 90000,
+    NODE_TYPE_SIGNAL_EVENT = 90000,
     /**
      * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 90100;
      */
@@ -28014,6 +27898,27 @@ export enum ObjectDefinitionTypeProto {
     OBJECT_DEFINITION_TYPE_CUSTOM_STRUCT = 6
 }
 /**
+ * @generated from protobuf enum symbol.destack.ObjectKindProto
+ */
+export enum ObjectKindProto {
+    /**
+     * @generated from protobuf enum value: OBJECT_KIND_UNSPECIFIED = 0;
+     */
+    OBJECT_KIND_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: OBJECT_KIND_NODE = 1;
+     */
+    OBJECT_KIND_NODE = 1,
+    /**
+     * @generated from protobuf enum value: OBJECT_KIND_STRUCT = 2;
+     */
+    OBJECT_KIND_STRUCT = 2,
+    /**
+     * @generated from protobuf enum value: OBJECT_KIND_ENUM = 3;
+     */
+    OBJECT_KIND_ENUM = 3
+}
+/**
  * What happens when the element is offscreen.
  *
  * @generated from protobuf enum symbol.destack.OffscreenBehaviorProto
@@ -28137,69 +28042,89 @@ export enum PrimitiveTypeProto {
      */
     PRIMITIVE_TYPE_BOOLEAN = 1,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 4;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT8 = 10;
      */
-    PRIMITIVE_TYPE_INT16 = 4,
+    PRIMITIVE_TYPE_INT8 = 10,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 5;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 11;
      */
-    PRIMITIVE_TYPE_INT32 = 5,
+    PRIMITIVE_TYPE_INT16 = 11,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 6;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 12;
      */
-    PRIMITIVE_TYPE_INT64 = 6,
+    PRIMITIVE_TYPE_INT32 = 12,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 10;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 13;
      */
-    PRIMITIVE_TYPE_DECIMAL = 10,
+    PRIMITIVE_TYPE_INT64 = 13,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 16;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT8 = 15;
      */
-    PRIMITIVE_TYPE_FLOAT32 = 16,
+    PRIMITIVE_TYPE_UINT8 = 15,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 17;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT16 = 16;
      */
-    PRIMITIVE_TYPE_FLOAT64 = 17,
+    PRIMITIVE_TYPE_UINT16 = 16,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 20;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT32 = 17;
      */
-    PRIMITIVE_TYPE_STRING = 20,
+    PRIMITIVE_TYPE_UINT32 = 17,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 21;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT64 = 18;
      */
-    PRIMITIVE_TYPE_UUID = 21,
+    PRIMITIVE_TYPE_UINT64 = 18,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 30;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 20;
      */
-    PRIMITIVE_TYPE_BYTES = 30,
+    PRIMITIVE_TYPE_DECIMAL = 20,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 40;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 30;
      */
-    PRIMITIVE_TYPE_DATETIME = 40,
+    PRIMITIVE_TYPE_FLOAT32 = 30,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 41;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 31;
      */
-    PRIMITIVE_TYPE_DATE = 41,
+    PRIMITIVE_TYPE_FLOAT64 = 31,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 42;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 40;
      */
-    PRIMITIVE_TYPE_TIME = 42,
+    PRIMITIVE_TYPE_STRING = 40,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 43;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 41;
      */
-    PRIMITIVE_TYPE_DURATION = 43,
+    PRIMITIVE_TYPE_UUID = 41,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 50;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 50;
      */
-    PRIMITIVE_TYPE_JSON = 50,
+    PRIMITIVE_TYPE_BYTES = 50,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_CSON = 60;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 60;
      */
-    PRIMITIVE_TYPE_CSON = 60,
+    PRIMITIVE_TYPE_DATETIME = 60,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_PROTO = 61;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 61;
      */
-    PRIMITIVE_TYPE_PROTO = 61
+    PRIMITIVE_TYPE_DATE = 61,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 62;
+     */
+    PRIMITIVE_TYPE_TIME = 62,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 63;
+     */
+    PRIMITIVE_TYPE_DURATION = 63,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 70;
+     */
+    PRIMITIVE_TYPE_JSON = 70,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_CSON = 80;
+     */
+    PRIMITIVE_TYPE_CSON = 80,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_PROTO = 81;
+     */
+    PRIMITIVE_TYPE_PROTO = 81
 }
 /**
  * The type of a property reference.
@@ -28269,19 +28194,6 @@ export enum QueryTypeProto {
      * @generated from protobuf enum value: QUERY_TYPE_GROUPED_SCALAR = 15;
      */
     QUERY_TYPE_GROUPED_SCALAR = 15
-}
-/**
- * @generated from protobuf enum symbol.destack.QueryUpdateTypeProto
- */
-export enum QueryUpdateTypeProto {
-    /**
-     * @generated from protobuf enum value: QUERY_UPDATE_TYPE_UNSPECIFIED = 0;
-     */
-    QUERY_UPDATE_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: QUERY_UPDATE_TYPE_FULL_RESULT = 1;
-     */
-    QUERY_UPDATE_TYPE_FULL_RESULT = 1
 }
 /**
  * Regions in an Area on a Continent.
@@ -29090,25 +29002,9 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_SELECT = 206,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 207;
-     */
-    STRUCT_TYPE_HISTOGRAM = 207,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 300;
      */
     STRUCT_TYPE_QUERY = 300,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 301;
-     */
-    STRUCT_TYPE_QUERY_RESULT = 301,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 302;
-     */
-    STRUCT_TYPE_QUERY_RESULT_GROUP = 302,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 303;
-     */
-    STRUCT_TYPE_QUERY_UPDATE = 303,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 1000;
      */
@@ -46338,77 +46234,6 @@ class HandleProto$Type extends MessageType<HandleProto> {
  */
 export const HandleProto = new HandleProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class HistogramProto$Type extends MessageType<HistogramProto> {
-    constructor() {
-        super("symbol.destack.HistogramProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 101, name: "buckets", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 102, name: "counts", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
-        ]);
-    }
-    create(value?: PartialMessage<HistogramProto>): HistogramProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.buckets = [];
-        message.counts = [];
-        if (value !== undefined)
-            reflectionMergePartial<HistogramProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HistogramProto): HistogramProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbol.destack.ValueProto buckets */ 101:
-                    message.buckets.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated int64 counts = 102 [jstype = JS_NUMBER] */ 102:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.counts.push(reader.int64().toNumber());
-                    else
-                        message.counts.push(reader.int64().toNumber());
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: HistogramProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbol.destack.ValueProto buckets = 101; */
-        for (let i = 0; i < message.buckets.length; i++)
-            ValueProto.internalBinaryWrite(message.buckets[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int64 counts = 102 [jstype = JS_NUMBER]; */
-        if (message.counts.length) {
-            writer.tag(102, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.counts.length; i++)
-                writer.int64(message.counts[i]);
-            writer.join();
-        }
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.HistogramProto
- */
-export const HistogramProto = new HistogramProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasurementEventProto> {
     constructor() {
         super("symbol.destack.HistogramMeasurementEventProto", [
@@ -61507,11 +61332,8 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 114, name: "group_by", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpressionProto },
             { no: 115, name: "aggregation", kind: "message", T: () => AggregationProto },
             { no: 116, name: "sort", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SortProto },
-            { no: 119, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
-            { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
-            { no: 130, name: "branch_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 131, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<QueryProto>): QueryProto {
@@ -61524,7 +61346,6 @@ class QueryProto$Type extends MessageType<QueryProto> {
         message.subqueries = [];
         message.groupBy = [];
         message.sort = [];
-        message.includeDeleted = false;
         if (value !== undefined)
             reflectionMergePartial<QueryProto>(this, message, value);
         return message;
@@ -61576,20 +61397,11 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* repeated symbol.destack.SortProto sort */ 116:
                     message.sort.push(SortProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* bool include_deleted */ 119:
-                    message.includeDeleted = reader.bool();
-                    break;
                 case /* optional int64 limit = 120 [jstype = JS_NUMBER] */ 120:
                     message.limit = reader.int64().toNumber();
                     break;
                 case /* optional int64 offset = 121 [jstype = JS_NUMBER] */ 121:
                     message.offset = reader.int64().toNumber();
-                    break;
-                case /* symbol.destack.NodeReferenceProto branch_ptr */ 130:
-                    message.branchPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.branchPtr);
-                    break;
-                case /* symbol.destack.NodeReferenceProto snapshot_ptr */ 131:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -61645,21 +61457,12 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* repeated symbol.destack.SortProto sort = 116; */
         for (let i = 0; i < message.sort.length; i++)
             SortProto.internalBinaryWrite(message.sort[i], writer.tag(116, WireType.LengthDelimited).fork(), options).join();
-        /* bool include_deleted = 119; */
-        if (message.includeDeleted !== false)
-            writer.tag(119, WireType.Varint).bool(message.includeDeleted);
         /* optional int64 limit = 120 [jstype = JS_NUMBER]; */
         if (message.limit !== undefined)
             writer.tag(120, WireType.Varint).int64(message.limit);
         /* optional int64 offset = 121 [jstype = JS_NUMBER]; */
         if (message.offset !== undefined)
             writer.tag(121, WireType.Varint).int64(message.offset);
-        /* symbol.destack.NodeReferenceProto branch_ptr = 130; */
-        if (message.branchPtr)
-            NodeReferenceProto.internalBinaryWrite(message.branchPtr, writer.tag(130, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto snapshot_ptr = 131; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(131, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -61670,275 +61473,6 @@ class QueryProto$Type extends MessageType<QueryProto> {
  * @generated MessageType for protobuf message symbol.destack.QueryProto
  */
 export const QueryProto = new QueryProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class QueryResultProto$Type extends MessageType<QueryResultProto> {
-    constructor() {
-        super("symbol.destack.QueryResultProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
-            { no: 101, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryResultGroupProto },
-            { no: 102, name: "subresults", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryResultProto },
-            { no: 110, name: "nodes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 111, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
-            { no: 112, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 113, name: "scalar", kind: "message", T: () => ValueProto }
-        ]);
-    }
-    create(value?: PartialMessage<QueryResultProto>): QueryResultProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.type = 0;
-        message.groups = [];
-        message.subresults = [];
-        message.nodes = [];
-        if (value !== undefined)
-            reflectionMergePartial<QueryResultProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryResultProto): QueryResultProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* symbol.destack.QueryTypeProto type */ 100:
-                    message.type = reader.int32();
-                    break;
-                case /* repeated symbol.destack.QueryResultGroupProto groups */ 101:
-                    message.groups.push(QueryResultGroupProto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbol.destack.QueryResultProto subresults */ 102:
-                    message.subresults.push(QueryResultProto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbol.destack.ValueProto nodes */ 110:
-                    message.nodes.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional int64 count = 111 [jstype = JS_NUMBER] */ 111:
-                    message.count = reader.int64().toNumber();
-                    break;
-                case /* optional bool exists */ 112:
-                    message.exists = reader.bool();
-                    break;
-                case /* optional symbol.destack.ValueProto scalar */ 113:
-                    message.scalar = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.scalar);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: QueryResultProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbol.destack.QueryTypeProto type = 100; */
-        if (message.type !== 0)
-            writer.tag(100, WireType.Varint).int32(message.type);
-        /* repeated symbol.destack.QueryResultGroupProto groups = 101; */
-        for (let i = 0; i < message.groups.length; i++)
-            QueryResultGroupProto.internalBinaryWrite(message.groups[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.QueryResultProto subresults = 102; */
-        for (let i = 0; i < message.subresults.length; i++)
-            QueryResultProto.internalBinaryWrite(message.subresults[i], writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.ValueProto nodes = 110; */
-        for (let i = 0; i < message.nodes.length; i++)
-            ValueProto.internalBinaryWrite(message.nodes[i], writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 count = 111 [jstype = JS_NUMBER]; */
-        if (message.count !== undefined)
-            writer.tag(111, WireType.Varint).int64(message.count);
-        /* optional bool exists = 112; */
-        if (message.exists !== undefined)
-            writer.tag(112, WireType.Varint).bool(message.exists);
-        /* optional symbol.destack.ValueProto scalar = 113; */
-        if (message.scalar)
-            ValueProto.internalBinaryWrite(message.scalar, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.QueryResultProto
- */
-export const QueryResultProto = new QueryResultProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class QueryResultGroupProto$Type extends MessageType<QueryResultGroupProto> {
-    constructor() {
-        super("symbol.destack.QueryResultGroupProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
-            { no: 101, name: "discriminator", kind: "message", T: () => ValueProto },
-            { no: 110, name: "nodes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 111, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
-            { no: 112, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 113, name: "scalar", kind: "message", T: () => ValueProto }
-        ]);
-    }
-    create(value?: PartialMessage<QueryResultGroupProto>): QueryResultGroupProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.nodes = [];
-        if (value !== undefined)
-            reflectionMergePartial<QueryResultGroupProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryResultGroupProto): QueryResultGroupProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.destack.QueryTypeProto type */ 100:
-                    message.type = reader.int32();
-                    break;
-                case /* symbol.destack.ValueProto discriminator */ 101:
-                    message.discriminator = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.discriminator);
-                    break;
-                case /* repeated symbol.destack.ValueProto nodes */ 110:
-                    message.nodes.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional int64 count = 111 [jstype = JS_NUMBER] */ 111:
-                    message.count = reader.int64().toNumber();
-                    break;
-                case /* optional bool exists */ 112:
-                    message.exists = reader.bool();
-                    break;
-                case /* optional symbol.destack.ValueProto scalar */ 113:
-                    message.scalar = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.scalar);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: QueryResultGroupProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.QueryTypeProto type = 100; */
-        if (message.type !== 0)
-            writer.tag(100, WireType.Varint).int32(message.type);
-        /* symbol.destack.ValueProto discriminator = 101; */
-        if (message.discriminator)
-            ValueProto.internalBinaryWrite(message.discriminator, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.ValueProto nodes = 110; */
-        for (let i = 0; i < message.nodes.length; i++)
-            ValueProto.internalBinaryWrite(message.nodes[i], writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 count = 111 [jstype = JS_NUMBER]; */
-        if (message.count !== undefined)
-            writer.tag(111, WireType.Varint).int64(message.count);
-        /* optional bool exists = 112; */
-        if (message.exists !== undefined)
-            writer.tag(112, WireType.Varint).bool(message.exists);
-        /* optional symbol.destack.ValueProto scalar = 113; */
-        if (message.scalar)
-            ValueProto.internalBinaryWrite(message.scalar, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.QueryResultGroupProto
- */
-export const QueryResultGroupProto = new QueryResultGroupProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class QueryUpdateProto$Type extends MessageType<QueryUpdateProto> {
-    constructor() {
-        super("symbol.destack.QueryUpdateProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryUpdateTypeProto", QueryUpdateTypeProto] },
-            { no: 101, name: "result", kind: "message", T: () => QueryResultProto }
-        ]);
-    }
-    create(value?: PartialMessage<QueryUpdateProto>): QueryUpdateProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<QueryUpdateProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryUpdateProto): QueryUpdateProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* symbol.destack.QueryUpdateTypeProto type */ 100:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbol.destack.QueryResultProto result */ 101:
-                    message.result = QueryResultProto.internalBinaryRead(reader, reader.uint32(), options, message.result);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: QueryUpdateProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbol.destack.QueryUpdateTypeProto type = 100; */
-        if (message.type !== 0)
-            writer.tag(100, WireType.Varint).int32(message.type);
-        /* optional symbol.destack.QueryResultProto result = 101; */
-        if (message.result)
-            QueryResultProto.internalBinaryWrite(message.result, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.QueryUpdateProto
- */
-export const QueryUpdateProto = new QueryUpdateProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReactionProto$Type extends MessageType<ReactionProto> {
     constructor() {
@@ -70008,9 +69542,9 @@ class Shape3DProto$Type extends MessageType<Shape3DProto> {
  */
 export const Shape3DProto = new Shape3DProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SignalProto$Type extends MessageType<SignalProto> {
+class SignalEventProto$Type extends MessageType<SignalEventProto> {
     constructor() {
-        super("symbol.destack.SignalProto", [
+        super("symbol.destack.SignalEventProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -70030,7 +69564,7 @@ class SignalProto$Type extends MessageType<SignalProto> {
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
-    create(value?: PartialMessage<SignalProto>): SignalProto {
+    create(value?: PartialMessage<SignalEventProto>): SignalEventProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
@@ -70038,10 +69572,10 @@ class SignalProto$Type extends MessageType<SignalProto> {
         message.clientEpoch = 0;
         message.status = 0;
         if (value !== undefined)
-            reflectionMergePartial<SignalProto>(this, message, value);
+            reflectionMergePartial<SignalEventProto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignalProto): SignalProto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignalEventProto): SignalEventProto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -70108,7 +69642,7 @@ class SignalProto$Type extends MessageType<SignalProto> {
         }
         return message;
     }
-    internalBinaryWrite(message: SignalProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: SignalEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -70167,9 +69701,9 @@ class SignalProto$Type extends MessageType<SignalProto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.SignalProto
+ * @generated MessageType for protobuf message symbol.destack.SignalEventProto
  */
-export const SignalProto = new SignalProto$Type();
+export const SignalEventProto = new SignalEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
     constructor() {
@@ -83789,6 +83323,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | Entity2DProto | Entity3DProto | EventProto | CustomEventProto | SignalProto | EditEventProto | PermissionProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | CustomPropertyProto | UniverseProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | Shape2DProto | Shape3DProto | ArrowShape2DProto | EllipseShape2DProto | LineShape2DProto | PathShape2DProto | PolygonShape2DProto | RectangleShape2DProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | ViewEventProto | ViewProto | ContentViewProto | LayoutViewProto | FrameViewProto | InputViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | SceneEventProto | SceneProto | StageProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | TagDefinitionProto | IndexDefinitionProto | ConstraintDefinitionProto | PermissionDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | Arrow2DProto | Ellipse2DProto | Line2DProto | Path2DProto | Polygon2DProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | QuaternionProto | Rectangle2DProto | LengthProto | Offset2Proto | Inset2Proto | Corner2Proto | Axis2Proto | Axis3Proto | Grid2Proto | GridSpan2Proto | ScheduleProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | Entity2DProto | Entity3DProto | EventProto | CustomEventProto | SignalEventProto | EditEventProto | PermissionProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | CustomPropertyProto | UniverseProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | Shape2DProto | Shape3DProto | ArrowShape2DProto | EllipseShape2DProto | LineShape2DProto | PathShape2DProto | PolygonShape2DProto | RectangleShape2DProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | ViewEventProto | ViewProto | ContentViewProto | LayoutViewProto | FrameViewProto | InputViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | SceneEventProto | SceneProto | StageProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | TagDefinitionProto | IndexDefinitionProto | ConstraintDefinitionProto | PermissionDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | Arrow2DProto | Ellipse2DProto | Line2DProto | Path2DProto | Polygon2DProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | QuaternionProto | Rectangle2DProto | LengthProto | Offset2Proto | Inset2Proto | Corner2Proto | Axis2Proto | Axis3Proto | Grid2Proto | GridSpan2Proto | ScheduleProto
         

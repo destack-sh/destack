@@ -21,18 +21,34 @@ from destack.utils.uuid import uuid4
 def _test_roundtrip_object(obj: BuiltinObject, session: Session):
     for _, encoder in ENCODERS.items():
         # pack/unpack as object
-        packed_obj = encoder.pack_object(obj)
-        packed_obj_bytes = encoder.pack_object_bytes(obj)
+        packed_obj = encoder.pack_object(kind=obj.__kind__, metatype=obj.metatype, object=obj)
+        packed_obj_bytes = encoder.pack_object_bytes(
+            kind=obj.__kind__, metatype=obj.metatype, object=obj
+        )
         unpacked_obj = encoder.unpack_object(
-            packed_obj, session=session, graph=session.graph, connection=None
+            kind=obj.__kind__,
+            metatype=obj.metatype,
+            value=packed_obj,
+            session=session,
+            graph=session.graph,
+            connection=None,
         )
         assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
         assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
         # pack/unpack as bytes
-        packed_obj_bytes = encoder.pack_object_bytes(obj)
+        packed_obj_bytes = encoder.pack_object_bytes(
+            kind=obj.__kind__,
+            metatype=obj.metatype,
+            object=obj,
+        )
         unpacked_obj_bytes = encoder.unpack_object_bytes(
-            packed_obj_bytes, session=session, graph=session.graph, connection=None
+            kind=obj.__kind__,
+            metatype=obj.metatype,
+            value=packed_obj_bytes,
+            session=session,
+            graph=session.graph,
+            connection=None,
         )
         assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
         assert unpacked_obj_bytes.hash() == obj.hash(), (

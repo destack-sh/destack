@@ -223,12 +223,10 @@ export class Length extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.unit) & 0xffffffff;
     h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -467,7 +465,6 @@ export class Offset2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -483,7 +480,6 @@ export class Offset2 extends StructFrozen {
     if (this.height != null) {
       h = (h * 31 + this.height.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -769,7 +765,6 @@ export class Inset2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.base)) & 0xffffffff;
@@ -785,7 +780,6 @@ export class Inset2 extends StructFrozen {
     if (this.bottom != null) {
       h = (h * 31 + hashInt(this.bottom)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1051,7 +1045,6 @@ export class Corner2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.base)) & 0xffffffff;
@@ -1067,7 +1060,6 @@ export class Corner2 extends StructFrozen {
     if (this.bottomRight != null) {
       h = (h * 31 + hashInt(this.bottomRight)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1311,7 +1303,6 @@ export class Axis2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
@@ -1321,7 +1312,6 @@ export class Axis2 extends StructFrozen {
     if (this.y != null) {
       h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1562,7 +1552,6 @@ export class Axis3 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
@@ -1575,7 +1564,6 @@ export class Axis3 extends StructFrozen {
     if (this.z != null) {
       h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1838,7 +1826,6 @@ export class Grid2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
@@ -1852,7 +1839,6 @@ export class Grid2 extends StructFrozen {
     if (this.rowHeight != null) {
       h = (h * 31 + this.rowHeight.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -2088,12 +2074,10 @@ export class GridSpan2 extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
     h = (h * 31 + hashInt(this.rows)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
