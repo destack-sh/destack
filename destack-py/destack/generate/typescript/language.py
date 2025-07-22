@@ -978,9 +978,7 @@ hash(): number {{
   if (this._hash != null) {{
     return this._hash;
   }}
-
 {textwrap.indent(hash_parts_str, "  ")}
-
   // @ts-expect-error(readonly)
   this._hash = h;
   return h;
@@ -1430,7 +1428,7 @@ def _generate_constant_member(definition: ConstantDefinition) -> str:
     if definition._is_deferred:
         value_str = "undefined as any // (deferred)"
     else:
-        value_str = generate_cson(definition.value.type, definition.value.unpack())
+        value_str = generate_cson(definition.value.type, definition.value.get())
 
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -2014,7 +2012,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
         for constant in object_cls.__constants__:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
-                value_str = generate_cson(constant.value.type, constant.value.unpack())
+                value_str = generate_cson(constant.value.type, constant.value.get())
                 constants_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
 // prettier-ignore

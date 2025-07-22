@@ -60,16 +60,6 @@ export class ReactiveEntitySingletonGraph
     this.subscribe(id);
     return super.get(id);
   }
-
-  override getRoots(): Entity[] {
-    this.subscribeAll();
-    return super.getRoots();
-  }
-
-  override getLeaves(): Entity[] {
-    this.subscribeAll();
-    return super.getLeaves();
-  }
 }
 
 /** A reactive variant of an EntityGraph. */

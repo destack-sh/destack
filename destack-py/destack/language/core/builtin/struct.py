@@ -6,6 +6,7 @@ from typing import (
     Self,
     cast,
     dataclass_transform,
+    override,
 )
 
 import structlog
@@ -15,7 +16,8 @@ from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.proto import AnyStructProto
 from destack.utils.func import get_superclasses
 
-from .common import EnumType, StructType
+from .common import Encoding, EnumType, StructType
+from .meta import builtin_method
 from .object import (
     BuiltinObject,
     _process_object_cls,
@@ -26,7 +28,6 @@ if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
         ConstantDefinition,
-        Cson,
         MethodDefinition,
         StructDefinition,
     )
@@ -170,18 +171,19 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     _hash: "int | None" = builtin_property_runtime()
     """Cached repr of the Struct."""
     _repr: "str | None" = builtin_property_runtime()
-    """Cached proto representation of the Struct."""
-    _proto: "StructProtoT | None" = builtin_property_runtime()
-    """Cached Cson representation of the Struct."""
-    _cson: "Cson | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
         object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_repr", None)
-        object.__setattr__(self, "_proto", None)
-        object.__setattr__(self, "_cson", None)
 
+    @builtin_method(30)
+    @override
+    def pack(self, encoding: Encoding) -> Any:
+        # nocheckin: cache StructFrozen packed representations
+        return super().pack(encoding)
+
+    @builtin_method(60)
     def clone(self, **override: Any) -> Self:
         """Clone the Struct with new values."""
         kwargs: dict[str, Any] = {}

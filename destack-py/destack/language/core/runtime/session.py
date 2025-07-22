@@ -46,8 +46,6 @@ class Session:
         "oracle",
         "pending_events",
         "runtime",
-        "store",
-        "supergraph",
     )
 
     def __init__(
@@ -62,18 +60,16 @@ class Session:
         self.actor_ptr: NodeReference | None = actor_ptr
         self.graph: Graph = graph
 
-        # runtime
         self.pending_events: list[Event] = []
         self.connections: list[GraphConnection] = []
         self.closed_at: datetime | None = None
         self._epoch: int | None = epoch
+        self._token: Any | None = None
 
     def __str__(self) -> str:
         content_parts: list[str] = []
         if self.actor_ptr is not None:
             content_parts.append(f"actor={self.actor_ptr!r}")
-        if self.store is not None:
-            content_parts.append(f"store={self.store!r}")
         if self._epoch is not None:
             content_parts.append(f"epoch={self._epoch}")
         if self.closed_at is not None:
@@ -229,17 +225,15 @@ class Session:
         Commits all Events. Returns applied Events.
         """
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.store is not None, f"{self!r} has no Store"
         self._on_flush()
-        events = list(self.pending_events)
-        self.pending_events = []
-
+        # events = list(self.pending_events)
+        # self.pending_events = []
         # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
         #  -> general concept of 'authority' over certain Nodes and their processing?
         #   (like "who runs the timer"? "who runs physics"?)
         #  1) update Event status and 2) do something on failure :RejectedEvents
         #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
-        raise NotImplementedError("not implemented")
+        raise NotImplementedError
 
     async def __aenter__(self):
         await self.open()

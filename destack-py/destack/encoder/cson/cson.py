@@ -15,16 +15,17 @@ from destack.language.registry import (
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
-from ..builtin import (
+from ...language.core.builtin import (
     BuiltinObject,
     Cson,
+    Encoding,
     NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
     TypeDeclaration,
 )
-from .type import ScalarType, Type, TypeCardinality
+from ...language.core.common.type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
     from destack.language import Graph, GraphConnection, Session
@@ -385,7 +386,7 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
         assert isinstance(value, BuiltinObject), (
             f"expected BuiltinObject for {type!r}, got {value!r}"
         )
-        return value.to_cson()
+        return value.pack(Encoding.CSON)
     else:
         assert_never(type.scalar_type)
 
@@ -393,9 +394,9 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
 def _unpack_scalar_cson(
     value: Cson,
     type: Type,
-    _session: "Session | None" = None,
-    _graph: "Graph | None" = None,
-    _connection: "GraphConnection | None" = None,
+    _session: "Session",
+    _graph: "Graph",
+    _connection: "GraphConnection | None",
 ) -> Any:
     """Unpack a scalar value from CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
@@ -420,7 +421,13 @@ def _unpack_scalar_cson(
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return enum_cls(int(value))
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.from_cson(value, _session=_session)
+        return NodeReference.unpack(
+            Encoding.CSON,
+            value,
+            _session=_session,
+            _graph=_graph,
+            _connection=_connection,
+        )
     elif type.scalar_type == ScalarType.NODE_VALUE:
         node_type = NodeType(value["1"])
         node_cls = NODE_CLASS_BY_TYPE[node_type]

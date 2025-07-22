@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from destack.language import (
     BuiltinObject,
+    Encoding,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -363,7 +364,7 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
     elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        value_bytes = cast(AnyStructProto, value.to_proto()).SerializeToString()
+        value_bytes = cast(AnyStructProto, value.pack_bytes(Encoding.PROTO)).SerializeToString()
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
         return f"{value.__class__.__name__}.fromProtoString({value_bytes_str!r})"
     else:

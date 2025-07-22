@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from opentelemetry import trace
@@ -6,10 +6,13 @@ from opentelemetry import trace
 from destack.proto import ValueProto
 
 from ..builtin import (
+    ENCODERS,
     Cson,
+    Encoding,
     Node,
     StructFrozen,
     StructType,
+    active_session,
     builtin_property,
     builtin_property_runtime,
     builtin_struct,
@@ -34,23 +37,25 @@ class Value(StructFrozen[ValueProto]):
     Values are used to represent any generic or user-provided data.
     """
 
-    # NOTE :Performance: also support Value encoding in our binary/proto format?
-
     type: Type = builtin_property(100, is_repr=True)
     value: "Cson | None" = builtin_property(110, default=None)
 
-    _unpacked: Any | None = builtin_property_runtime()
+    _unpacked_value: Any | None = builtin_property_runtime()
 
-    def unpack[T = Any](self, type: type_[T] | None = None) -> T:
+    def get(self) -> Any:
         """Get the unpacked value of this generic Value."""
-        if self._unpacked is None:
-            from .cson import unpack_cson
-
-            value_unpacked = unpack_cson(self.value, self.type)
-            object.__setattr__(self, "_unpacked", value_unpacked)
-        if type is not None and not isinstance(self._unpacked, type):
-            raise TypeError(f"expected {type!r}, got {self._unpacked!r}")
-        return cast(T, self._unpacked)
+        if self._unpacked_value is None:
+            session = active_session()
+            encoder = ENCODERS[Encoding.CSON]
+            value_unpacked = encoder.unpack_value(
+                self.value,
+                self.type,
+                session=session,
+                graph=session.graph,
+                connection=None,
+            )
+            object.__setattr__(self, "_unpacked_value", value_unpacked)
+        return self._unpacked_value
 
 
 def to_value(
@@ -63,7 +68,8 @@ def to_value(
     Convert an arbitrary (legal) value to a Value.
     If Type isn't provided, it will be inferred from the value.
     """
-    from .cson import pack_cson
+
+    encoder = ENCODERS[Encoding.CSON]
 
     # infer type
     if type is None:
@@ -81,6 +87,6 @@ def to_value(
                 item.to_ref() if isinstance(item, Node) else item for item in value_unpacked
             ]
     # pack value
-    value_packed = pack_cson(value_unpacked, type)
-    value = Value(type=type, value=value_packed, _unpacked=value_unpacked)
+    value_packed = encoder.pack_value(value_unpacked, type)
+    value = Value(type=type, value=value_packed, _unpacked_value=value_unpacked)
     return value

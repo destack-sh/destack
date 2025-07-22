@@ -22,7 +22,7 @@ from grpclib import Status as GRPCStatus
 from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
-from destack.grpc.wiring import unpack_rpc_headers
+from destack.encoder.proto.wiring import unpack_rpc_headers
 from destack.language import EMPTY_DICT, Client, DestackError, IsActor, Oracle, Session
 from destack.proto import RpcMetadata, ServiceKind
 from destack.utils.env import IS_DEV, IS_TEST

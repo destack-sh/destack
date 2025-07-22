@@ -11,10 +11,19 @@ from destack.utils.env import get_from_env
 from destack.utils.frozen import frozendict
 from destack.utils.uuid import uuid4
 
-from .common import Cloud, Region
+from .common import Cloud, Encoding, Region
 
 if TYPE_CHECKING:
-    from destack.language import Branch, Event, Node, NodeReference, Session, Snapshot, Space
+    from destack.language import (
+        Branch,
+        Encoder,
+        Event,
+        Node,
+        NodeReference,
+        Session,
+        Snapshot,
+        Space,
+    )
 
 
 class _Unset:
@@ -37,6 +46,7 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
+ENCODERS: dict["Encoding", "Encoder"] = {}
 
 # runtime context
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
