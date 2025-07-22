@@ -137,7 +137,6 @@ export class Path2D extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.stroke != null) {
@@ -148,7 +147,6 @@ export class Path2D extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

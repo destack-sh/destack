@@ -134,7 +134,6 @@ export class Datum extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -144,7 +143,6 @@ export class Datum extends StructFrozen {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

@@ -72,6 +72,7 @@ import type {
   EnvironmentType,
   ModeType,
   NodeType,
+  ObjectKind,
   OperatingSystem,
   PlatformType,
   PrimitiveType,
@@ -652,14 +653,14 @@ export type StructTypeMapping = {
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
+  [StructType.ICON]: Icon;
+  [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
+  [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
   [StructType.NODE_CONSTRAINT]: NodeConstraint;
   [StructType.TYPE]: Type;
-  [StructType.ICON]: Icon;
-  [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
-  [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
   [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;
   [StructType.CONDITION]: Condition;
@@ -712,6 +713,7 @@ export type StructTypeMapping = {
 
 export type EnumTypeMapping = {
   [EnumType.ENUM_TYPE]: EnumType;
+  [EnumType.OBJECT_KIND]: ObjectKind;
   [EnumType.STRUCT_TYPE]: StructType;
   [EnumType.TRAIT_TYPE]: TraitType;
   [EnumType.NODE_TYPE]: NodeType;
@@ -754,10 +756,10 @@ export type EnumTypeMapping = {
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
-  [EnumType.STRING_FORMAT]: StringFormat;
-  [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.ICON_TYPE]: IconType;
   [EnumType.MIGRATION_TYPE]: MigrationType;
+  [EnumType.STRING_FORMAT]: StringFormat;
+  [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.FUNCTION_TYPE]: FunctionType;
   [EnumType.CONDITIONAL_TYPE]: ConditionalType;
   [EnumType.AGGREGATION_TYPE]: AggregationType;

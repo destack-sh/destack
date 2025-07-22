@@ -21,7 +21,7 @@ class EnumType(Enum):
     NODE_TYPE = 2
     STRUCT_TYPE = 3
     TRAIT_TYPE = 4
-    EVENT_STATUS = 8
+    OBJECT_KIND = 8
     UNIVERSE_CATEGORY = 9
     NODE_DEFINITION_TYPE = 10
     OBJECT_DEFINITION_TYPE = 11
@@ -34,6 +34,7 @@ class EnumType(Enum):
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
+    EVENT_STATUS = 50
 
     # type/value
     PRIMITIVE_TYPE = 100
@@ -216,6 +217,13 @@ class EnumType(Enum):
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
+
+
+@builtin_enum(EnumType.OBJECT_KIND)
+class ObjectKind(Enum):
+    NODE = 1
+    STRUCT = 2
+    ENUM = 3
 
 
 @builtin_enum(EnumType.STRUCT_TYPE)

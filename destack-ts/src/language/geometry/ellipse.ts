@@ -123,13 +123,11 @@ export class Ellipse2D extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.stroke != null) {
       h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

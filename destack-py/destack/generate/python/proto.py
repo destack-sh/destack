@@ -17,8 +17,6 @@ TARGET_PY_DIR = "destack-py/destack/proto"
 EXTRA_PROTO_PY_FILES = (
     "destack-proto/common.proto",
     "destack-proto/health.proto",
-    "destack-proto/universe.proto",
-    "destack-proto/space.proto",
     "destack-proto/google/type/date.proto",
     "destack-proto/google/type/datetime.proto",
     "destack-proto/google/type/timeofday.proto",
@@ -119,12 +117,8 @@ from .health_pb2 import *
 from .common_pb2 import *
 from .common_grpc import *
 from .language_grpc import *
-from .universe_grpc import *
-from .space_grpc import *
 from .health_grpc import *
 from .language_pb2 import *
-from .universe_pb2 import *
-from .space_pb2 import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *

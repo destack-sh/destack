@@ -150,14 +150,12 @@ export class GradientStop extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -427,7 +425,6 @@ export class Gradient extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -445,7 +442,6 @@ export class Gradient extends StructFrozen {
     if (this.centerAnchor != null) {
       h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

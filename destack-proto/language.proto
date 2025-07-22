@@ -250,6 +250,8 @@ enum EdgeDirectionProto {
   EDGE_DIRECTION_UNSPECIFIED = 0;
   EDGE_DIRECTION_PARENT = 1;
   EDGE_DIRECTION_CHILD = 2;
+  EDGE_DIRECTION_DEFINITION = 10;
+  EDGE_DIRECTION_INSTANCE = 11;
   EDGE_DIRECTION_SIDE = 20;
 }
 
@@ -289,7 +291,7 @@ enum EffectTypeProto {
   EFFECT_TYPE_LOOP = 30;
 }
 
-// The encoding of a value.
+// The encoding scheme.
 enum EncodingProto {
   ENCODING_UNSPECIFIED = 0;
   ENCODING_CSON = 1;
@@ -309,7 +311,7 @@ enum EnumTypeProto {
   ENUM_TYPE_NODE_TYPE = 2;
   ENUM_TYPE_STRUCT_TYPE = 3;
   ENUM_TYPE_TRAIT_TYPE = 4;
-  ENUM_TYPE_EVENT_STATUS = 8;
+  ENUM_TYPE_OBJECT_KIND = 8;
   ENUM_TYPE_UNIVERSE_CATEGORY = 9;
   ENUM_TYPE_NODE_DEFINITION_TYPE = 10;
   ENUM_TYPE_OBJECT_DEFINITION_TYPE = 11;
@@ -322,6 +324,7 @@ enum EnumTypeProto {
   ENUM_TYPE_PLATFORM_TYPE = 30;
   ENUM_TYPE_RUNTIME_LANGUAGE = 31;
   ENUM_TYPE_OPERATING_SYSTEM = 40;
+  ENUM_TYPE_EVENT_STATUS = 50;
   ENUM_TYPE_PRIMITIVE_TYPE = 100;
   ENUM_TYPE_TYPE_CARDINALITY = 101;
   ENUM_TYPE_SCALAR_TYPE = 102;
@@ -343,7 +346,6 @@ enum EnumTypeProto {
   ENUM_TYPE_FUNCTION_TYPE = 305;
   ENUM_TYPE_EXPRESSION_TYPE = 306;
   ENUM_TYPE_QUERY_TYPE = 320;
-  ENUM_TYPE_QUERY_UPDATE_TYPE = 321;
   ENUM_TYPE_BRANCH_TYPE = 2000;
   ENUM_TYPE_SNAPSHOT_TYPE = 2100;
   ENUM_TYPE_SNAPSHOT_STATUS = 2101;
@@ -830,7 +832,7 @@ enum NodeTypeProto {
   NODE_TYPE_METHOD = 40000;
   NODE_TYPE_ACTION = 40100;
   NODE_TYPE_PERMISSION = 50000;
-  NODE_TYPE_SIGNAL = 90000;
+  NODE_TYPE_SIGNAL_EVENT = 90000;
   NODE_TYPE_EDIT_EVENT = 90100;
   NODE_TYPE_MEASUREMENT_EVENT = 90200;
   NODE_TYPE_HANDLE = 100200;
@@ -1018,6 +1020,13 @@ enum ObjectDefinitionTypeProto {
   OBJECT_DEFINITION_TYPE_CUSTOM_STRUCT = 6;
 }
 
+enum ObjectKindProto {
+  OBJECT_KIND_UNSPECIFIED = 0;
+  OBJECT_KIND_NODE = 1;
+  OBJECT_KIND_STRUCT = 2;
+  OBJECT_KIND_ENUM = 3;
+}
+
 // What happens when the element is offscreen.
 enum OffscreenBehaviorProto {
   OFFSCREEN_BEHAVIOR_UNSPECIFIED = 0;
@@ -1059,22 +1068,27 @@ enum PlatformTypeProto {
 enum PrimitiveTypeProto {
   PRIMITIVE_TYPE_UNSPECIFIED = 0;
   PRIMITIVE_TYPE_BOOLEAN = 1;
-  PRIMITIVE_TYPE_INT16 = 4;
-  PRIMITIVE_TYPE_INT32 = 5;
-  PRIMITIVE_TYPE_INT64 = 6;
-  PRIMITIVE_TYPE_DECIMAL = 10;
-  PRIMITIVE_TYPE_FLOAT32 = 16;
-  PRIMITIVE_TYPE_FLOAT64 = 17;
-  PRIMITIVE_TYPE_STRING = 20;
-  PRIMITIVE_TYPE_UUID = 21;
-  PRIMITIVE_TYPE_BYTES = 30;
-  PRIMITIVE_TYPE_DATETIME = 40;
-  PRIMITIVE_TYPE_DATE = 41;
-  PRIMITIVE_TYPE_TIME = 42;
-  PRIMITIVE_TYPE_DURATION = 43;
-  PRIMITIVE_TYPE_JSON = 50;
-  PRIMITIVE_TYPE_CSON = 60;
-  PRIMITIVE_TYPE_PROTO = 61;
+  PRIMITIVE_TYPE_INT8 = 10;
+  PRIMITIVE_TYPE_INT16 = 11;
+  PRIMITIVE_TYPE_INT32 = 12;
+  PRIMITIVE_TYPE_INT64 = 13;
+  PRIMITIVE_TYPE_UINT8 = 15;
+  PRIMITIVE_TYPE_UINT16 = 16;
+  PRIMITIVE_TYPE_UINT32 = 17;
+  PRIMITIVE_TYPE_UINT64 = 18;
+  PRIMITIVE_TYPE_DECIMAL = 20;
+  PRIMITIVE_TYPE_FLOAT32 = 30;
+  PRIMITIVE_TYPE_FLOAT64 = 31;
+  PRIMITIVE_TYPE_STRING = 40;
+  PRIMITIVE_TYPE_UUID = 41;
+  PRIMITIVE_TYPE_BYTES = 50;
+  PRIMITIVE_TYPE_DATETIME = 60;
+  PRIMITIVE_TYPE_DATE = 61;
+  PRIMITIVE_TYPE_TIME = 62;
+  PRIMITIVE_TYPE_DURATION = 63;
+  PRIMITIVE_TYPE_JSON = 70;
+  PRIMITIVE_TYPE_CSON = 80;
+  PRIMITIVE_TYPE_PROTO = 81;
 }
 
 // The type of a property reference.
@@ -1098,11 +1112,6 @@ enum QueryTypeProto {
   QUERY_TYPE_SCALAR = 5;
   QUERY_TYPE_GROUPED_NODE = 10;
   QUERY_TYPE_GROUPED_SCALAR = 15;
-}
-
-enum QueryUpdateTypeProto {
-  QUERY_UPDATE_TYPE_UNSPECIFIED = 0;
-  QUERY_UPDATE_TYPE_FULL_RESULT = 1;
 }
 
 // Regions in an Area on a Continent.
@@ -1356,11 +1365,7 @@ enum StructTypeProto {
   STRUCT_TYPE_CONDITION = 204;
   STRUCT_TYPE_SORT = 205;
   STRUCT_TYPE_SELECT = 206;
-  STRUCT_TYPE_HISTOGRAM = 207;
   STRUCT_TYPE_QUERY = 300;
-  STRUCT_TYPE_QUERY_RESULT = 301;
-  STRUCT_TYPE_QUERY_RESULT_GROUP = 302;
-  STRUCT_TYPE_QUERY_UPDATE = 303;
   STRUCT_TYPE_NODE_REFERENCE = 1000;
   STRUCT_TYPE_PROPERTY_REFERENCE = 1001;
   STRUCT_TYPE_INDEX_DEFINITION = 30100;
@@ -3582,12 +3587,6 @@ message HandleProto {
   string slug = 101;
 }
 
-message HistogramProto {
-  StructTypeProto metatype = 1;
-  repeated ValueProto buckets = 101;
-  repeated int64 counts = 102 [jstype = JS_NUMBER];
-}
-
 // A Histogram Measurement.
 message HistogramMeasurementEventProto {
   NodeTypeProto metatype = 1;
@@ -5438,40 +5437,8 @@ message QueryProto {
   repeated ExpressionProto group_by = 114;
   optional AggregationProto aggregation = 115;
   repeated SortProto sort = 116;
-  bool include_deleted = 119;
   optional int64 limit = 120 [jstype = JS_NUMBER];
   optional int64 offset = 121 [jstype = JS_NUMBER];
-  NodeReferenceProto branch_ptr = 130;
-  NodeReferenceProto snapshot_ptr = 131;
-}
-
-message QueryResultProto {
-  StructTypeProto metatype = 1;
-  string id = 2;
-  QueryTypeProto type = 100;
-  repeated QueryResultGroupProto groups = 101;
-  repeated QueryResultProto subresults = 102;
-  repeated ValueProto nodes = 110;
-  optional int64 count = 111 [jstype = JS_NUMBER];
-  optional bool exists = 112;
-  optional ValueProto scalar = 113;
-}
-
-message QueryResultGroupProto {
-  StructTypeProto metatype = 1;
-  QueryTypeProto type = 100;
-  ValueProto discriminator = 101;
-  repeated ValueProto nodes = 110;
-  optional int64 count = 111 [jstype = JS_NUMBER];
-  optional bool exists = 112;
-  optional ValueProto scalar = 113;
-}
-
-message QueryUpdateProto {
-  StructTypeProto metatype = 1;
-  string id = 2;
-  QueryUpdateTypeProto type = 100;
-  optional QueryResultProto result = 101;
 }
 
 // A Reaction is a relationship between a Actor and a Reaction Node.
@@ -6463,8 +6430,8 @@ message Shape3DProto {
   optional StrokeProto stroke = 180;
 }
 
-// A generic Event of a CustomEventDefinition.
-message SignalProto {
+// A generic Event of a CustomEvent.
+message SignalEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;

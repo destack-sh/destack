@@ -154,7 +154,6 @@ export class Function extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -162,7 +161,6 @@ export class Function extends StructFrozen {
     if (this.right != null) {
       h = (h * 31 + this.right.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -388,7 +386,6 @@ export class Condition extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -396,7 +393,6 @@ export class Condition extends StructFrozen {
     if (this.right != null) {
       h = (h * 31 + this.right.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -639,14 +635,12 @@ export class Aggregation extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.expression != null) {
       h = (h * 31 + this.expression.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -921,7 +915,6 @@ export class Expression extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -940,7 +933,6 @@ export class Expression extends StructFrozen {
     if (this.aggregation != null) {
       h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1275,7 +1267,6 @@ export class Sort extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -1283,7 +1274,6 @@ export class Sort extends StructFrozen {
     if (this.mode != null) {
       h = (h * 31 + this.mode) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1483,7 +1473,6 @@ export class Select extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.attributes && this.attributes.length > 0) {
@@ -1491,7 +1480,6 @@ export class Select extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1766,7 +1754,6 @@ export class Join extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -1780,7 +1767,6 @@ export class Join extends StructFrozen {
     if (this.on != null) {
       h = (h * 31 + this.on.hash()) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -2274,7 +2260,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -2318,7 +2303,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this.offset != null) {
       h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

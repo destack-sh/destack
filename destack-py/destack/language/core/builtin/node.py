@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, StoreDomain, StoreKey, TraitType
+from .common import EnumType, NodeType, ObjectKind, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
@@ -202,6 +202,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     """The specific metatype of this Node."""
     metatype: ClassVar[NodeType]
+    """The kind of this Node."""
+    __kind__: ClassVar[ObjectKind] = ObjectKind.NODE
     """The definition this Node is an instance of."""
     __definition__: ClassVar["NodeDefinition"]
     """The reference to the definition this Node is an instance of."""

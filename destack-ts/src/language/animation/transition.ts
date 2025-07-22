@@ -318,7 +318,6 @@ export class Transition extends StructFrozen {
     if (this._hash != null) {
       return this._hash;
     }
-
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
@@ -351,7 +350,6 @@ export class Transition extends StructFrozen {
     if (this.springType != null) {
       h = (h * 31 + this.springType) & 0xffffffff;
     }
-
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

@@ -16,7 +16,8 @@ from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.proto import AnyStructProto
 from destack.utils.func import get_superclasses
 
-from .common import Encoding, EnumType, StructType
+from .common import Encoding, EnumType, ObjectKind, StructType
+from .const import ENCODERS
 from .meta import builtin_method
 from .object import (
     BuiltinObject,
@@ -116,6 +117,7 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
 
     metatype: ClassVar[StructType]
     __definition__: ClassVar["StructDefinition"]
+    __kind__: ClassVar[ObjectKind] = ObjectKind.STRUCT
 
     # flags
     __is_struct__: ClassVar[bool] = True
@@ -181,7 +183,13 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     @override
     def pack(self, encoding: Encoding) -> Any:
         # nocheckin: cache StructFrozen packed representations
-        return super().pack(encoding)
+        encoder = ENCODERS[encoding]
+        packed_object = encoder.pack_object(
+            kind=self.__kind__,
+            metatype=self.metatype,
+            object=self,
+        )
+        return packed_object
 
     @builtin_method(60)
     def clone(self, **override: Any) -> Self:
