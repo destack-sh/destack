@@ -30,8 +30,8 @@ from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .common import (
-    Cson,
     EdgeType,
+    Encoding,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -48,10 +48,11 @@ from .const import (
     ACTIVE_SNAPSHOT,
     ACTIVE_SPACE,
     EMPTY_DICT,
+    ENCODERS,
     REGION,
     UNSET,
 )
-from .meta import ConstantDeclaration
+from .meta import ConstantDeclaration, builtin_method
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -60,12 +61,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Graph,
-        GraphConnection,
-        Node,
-        Session,
-    )
+    from destack.language import Graph, GraphConnection, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -1325,66 +1321,62 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     def __bool__(self):
         return True  # support truthy checks for objects
 
-    @classmethod
-    def __pack_proto__(cls, _object: Self) -> ObjectProtoT:
-        """Convert to proto format"""
-        raise NotImplementedError  # generated
+    #
+    # Encoding
+    #
 
+    @builtin_method(30)
+    def pack(self, encoding: Encoding) -> Any:
+        """Pack this BuiltinObject into some encoded format."""
+        encoder = ENCODERS[encoding]
+        packed_object = encoder.pack_object(self)
+        return packed_object
+
+    @builtin_method(31)
+    def pack_bytes(self, encoding: Encoding) -> bytes:
+        """Pack this BuiltinObject into the byte representation of its encoded format."""
+        encoder = ENCODERS[encoding]
+        packed_object_bytes = encoder.pack_object_bytes(self)
+        return packed_object_bytes
+
+    @builtin_method(32)
     @classmethod
-    def __unpack_proto__(
+    def unpack(
         cls,
-        _object_data: ObjectProtoT,
-        _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
+        encoding: Encoding,
+        value: Any,
+        *,
+        _session: "Session",
+        _graph: "Graph",
+        _connection: "GraphConnection",
     ) -> Self:
-        """Convert from proto format"""
-        raise NotImplementedError  # generated
+        """Unpack a BuiltinObject from some encoded format."""
+        encoder = ENCODERS[encoding]
+        unpacked_object = encoder.unpack_object(
+            value,
+            session=_session,
+            graph=_graph,
+            connection=_connection,
+        )
+        return cast(Self, unpacked_object)
 
-    @final
-    def to_proto(self) -> ObjectProtoT:
-        """Convert to proto format"""
-        raise NotImplementedError  # generated (usually = __pack_proto__)
-
+    @builtin_method(33)
     @classmethod
-    def from_proto(
+    def unpack_bytes(
         cls,
-        _object_data: ObjectProtoT,
-        _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
+        encoding: Encoding,
+        value: bytes,
+        *,
+        _session: "Session",
+        _graph: "Graph",
+        _connection: "GraphConnection",
     ) -> Self:
-        """Convert from proto format"""
-        raise NotImplementedError  # generated
-
-    @classmethod
-    def __pack_cson__(cls, _object: Self) -> "Cson":
-        """Convert to value format"""
-        raise NotImplementedError  # generated
-
-    @classmethod
-    def __unpack_cson__(
-        cls,
-        _object_cson: dict,
-        _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
-    ) -> Self:
-        """Convert from value format"""
-        raise NotImplementedError  # generated
-
-    @final
-    def to_cson(self) -> "Cson":
-        """Convert to value format"""
-        raise NotImplementedError  # generated (usually = __pack_cson__)
-
-    @classmethod
-    def from_cson(
-        cls,
-        _object_cson: dict,
-        _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
-    ) -> Self:
-        """Convert from value format"""
-        raise NotImplementedError  # generated
+        """Unpack a BuiltinObject from the byte representation of its encoded format."""
+        encoder = ENCODERS[encoding]
+        unpacked_object = encoder.unpack_object_bytes(
+            value,
+            session=_session,
+            graph=_graph,
+            connection=_connection,
+        )
+        return cast(Self, unpacked_object)

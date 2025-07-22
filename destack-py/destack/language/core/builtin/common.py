@@ -1192,13 +1192,14 @@ class CascadeAction(Enum):
 class EdgeDirection(Enum):
     PARENT = 1
     CHILD = 2
-    # DEFINITION, INSTANCE, ...
+    DEFINITION = 10
+    INSTANCE = 11
     SIDE = 20
 
 
 @builtin_enum(EnumType.ENCODING)
 class Encoding(Enum):
-    """The encoding of a value."""
+    """The encoding scheme."""
 
     CSON = 1, "CSON", "Constant folded JSON encoding"
     PROTO = 2, "PROTO", "Protocol Buffers encoding"

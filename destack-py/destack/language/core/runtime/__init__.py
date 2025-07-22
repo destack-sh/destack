@@ -1,4 +1,5 @@
 from .connection import GraphConnection
+from .encoder import Encoder
 from .graph import (
     Graph,
     expand_node_inheritance,
@@ -12,6 +13,7 @@ from .session import Session
 __all__ = [
     "WORLD_ORACLE",
     "Aliasing",
+    "Encoder",
     "Graph",
     "GraphConnection",
     "Oracle",

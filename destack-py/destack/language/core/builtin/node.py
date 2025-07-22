@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import Cson, EnumType, NodeType, StoreDomain, StoreKey, TraitType
+from .common import EnumType, NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
@@ -348,24 +348,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         if self._ref is None:
             self._ref = self.__to_ref__()
         return self._ref
-
-    @classmethod
-    def from_cson(
-        cls,
-        _object_cson: "Cson",
-        _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
-    ) -> Self:
-        node_type = NodeType(_object_cson["1"])
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-        node = node_cls.from_cson(
-            _object_cson,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
-        return cast(Self, node)
 
     @classmethod
     @builtin_method(60)

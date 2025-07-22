@@ -72,19 +72,4 @@ def to_icon(icon: IconIn, color: "ColorIn | None" = None) -> "Icon":
         return icon
 
 
-def reverse_icon(icon: Icon) -> IconIn:
-    """Turn an Icon back into something simpler that can be turned back into an Icon."""
-    if icon.type == IconType.FONT_AWESOME:
-        assert icon.fa_name, f"no fa_name for {icon!r}"
-        return icon.fa_name
-    elif icon.type == IconType.FILE:
-        assert icon.file, f"no file for {icon!r}"
-        return icon.file
-    elif icon.type == IconType.EMOJI:
-        assert icon.emoji, f"no emoji for {icon!r}"
-        return icon.emoji
-    else:
-        return icon
-
-
 icon = to_icon

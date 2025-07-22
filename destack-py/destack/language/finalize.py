@@ -192,8 +192,8 @@ def finalize():
         node_cls.__enum_types__ = tuple(all_enum_types)
 
     # generate pack/unpack methods
-    from destack.grpc.wiring import generate_pack_proto_impl
-    from destack.language.core.common.cson import generate_pack_cson_impl
+    from destack.encoder.cson.cson import generate_pack_cson_impl
+    from destack.encoder.proto.wiring import generate_pack_proto_impl
 
     builtin_class_by_name: dict[str, Any] = {**proto.__dict__, "UUID": UUID}
     builtin_class_by_name.update(
