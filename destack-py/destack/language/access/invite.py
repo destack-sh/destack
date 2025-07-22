@@ -3,13 +3,10 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    IsActor,
-    IsJoinable,
     IsOwnable,
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -23,8 +20,8 @@ class InviteEvent(Event["Invite"]):
     """A Event regarding an Invite."""
 
     node: "Invite" = builtin_property(101)
-    joinable: "IsJoinable" = builtin_property(102)
-    member: "IsActor" = builtin_property(103)
+    joinable: "Entity" = builtin_property(102)
+    member: "Entity" = builtin_property(103)
 
 
 @builtin_node(NodeType.INVITE_SENT_EVENT, frozen=True)
@@ -67,7 +64,6 @@ class Invite(
 ):
     """An Invite to a Joinable."""
 
-    parent: Optional["IsJoinable"] = builtin_property_parent()
-    member: "IsActor" = builtin_property(110)
+    member: "Entity" = builtin_property(110)
     role: Optional["Role"] = builtin_property(111)
     role_type: Optional["RoleType"] = builtin_property(112)

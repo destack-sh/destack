@@ -4,7 +4,6 @@ import type {
   GraphConnection,
   Icon,
   IsActor,
-  IsJoinable,
   NodeClass,
   NodeReference,
   Session,
@@ -87,7 +86,7 @@ export abstract class RoleEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -125,7 +124,7 @@ export abstract class RoleEvent extends Event {
   /**
    * RoleEvent.actor
    */
-  abstract get actor(): (Entity & IsActor) | null;
+  abstract get actor(): Entity | null;
   declare readonly actorPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -227,10 +226,10 @@ export class RoleAssignedEvent extends RoleEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -283,10 +282,10 @@ export class RoleAssignedEvent extends RoleEvent {
   /**
    * RoleEvent.actor
    */
-  get actor(): (Entity & IsActor) | null {
+  get actor(): Entity | null {
     const nodePtr: NodeReference | null = this.actorPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -302,14 +301,14 @@ export class RoleAssignedEvent extends RoleEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Role | NodeReference;
-    actor: (Entity & IsActor) | NodeReference;
+    actor: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -679,10 +678,10 @@ export class RoleUnassignedEvent extends RoleEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -735,10 +734,10 @@ export class RoleUnassignedEvent extends RoleEvent {
   /**
    * RoleEvent.actor
    */
-  get actor(): (Entity & IsActor) | null {
+  get actor(): Entity | null {
     const nodePtr: NodeReference | null = this.actorPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -754,14 +753,14 @@ export class RoleUnassignedEvent extends RoleEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Role | NodeReference;
-    actor: (Entity & IsActor) | NodeReference;
+    actor: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1047,12 +1046,12 @@ export class Role extends Entity implements IsActor {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
-   * Role.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): (Entity & IsJoinable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsJoinable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1149,10 +1148,10 @@ export class Role extends Entity implements IsActor {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1171,10 +1170,10 @@ export class Role extends Entity implements IsActor {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1190,14 +1189,14 @@ export class Role extends Entity implements IsActor {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -1351,7 +1350,7 @@ export class Role extends Entity implements IsActor {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsJoinable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -1361,12 +1360,12 @@ export class Role extends Entity implements IsActor {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -1616,12 +1615,12 @@ export class Role extends Entity implements IsActor {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;

@@ -129,7 +129,7 @@ export function finalize(): void {
     const scalarType = new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.NODE_VALUE,
-      nodeType: nodeType,
+      nodeTypes: [nodeType],
     });
     NODE_TYPE_SCALAR_BY_TYPE[nodeType] = scalarType;
   }

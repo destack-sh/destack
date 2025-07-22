@@ -1,10 +1,11 @@
+import { MemoryGraph } from "@destack/graph/memory";
 import { ACTIVE_SPACE, Folder, Region, Session, Space, Tag } from "@destack/language";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 
 let session: Session;
 
 beforeEach(async () => {
-  session = new Session({ epoch: 1 });
+  session = new Session({ epoch: 1, graph: new MemoryGraph() });
   await session.open();
 });
 

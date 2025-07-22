@@ -30,7 +30,6 @@ import type { MethodDefinition } from "@destack/language/core/common/method";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type {
   CollectionConstraint,
-  NodeConstraint,
   NumberConstraint,
   StringConstraint,
   Type,
@@ -2108,9 +2107,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly enumType: EnumType | null;
 
   /**
-   * PropertyDefinition.nodeType
+   * PropertyDefinition.nodeTypes
    */
-  readonly nodeType: NodeType | null;
+  readonly nodeTypes: readonly NodeType[];
 
   /**
    * PropertyDefinition.structType
@@ -2146,11 +2145,6 @@ export class PropertyDefinition extends BuiltinDefinition {
    * PropertyDefinition.numberConstraint
    */
   readonly numberConstraint: NumberConstraint | null;
-
-  /**
-   * PropertyDefinition.nodeConstraint
-   */
-  readonly nodeConstraint: NodeConstraint | null;
 
   /**
    * PropertyDefinition.edgeType
@@ -2225,7 +2219,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeType?: NodeType | null;
+    nodeTypes?: readonly NodeType[];
     structType?: StructType | null;
     keyType?: Type | null;
     value?: Value | null;
@@ -2233,7 +2227,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    nodeConstraint?: NodeConstraint | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired: boolean;
@@ -2312,8 +2305,11 @@ export class PropertyDefinition extends BuiltinDefinition {
     this.primitiveType = _primitiveType;
     let _enumType = options.enumType ?? null;
     this.enumType = _enumType;
-    let _nodeType = options.nodeType ?? null;
-    this.nodeType = _nodeType;
+    let _nodeTypes = options.nodeTypes ?? null;
+    if (_nodeTypes === null) {
+      _nodeTypes = [];
+    }
+    this.nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this.structType = _structType;
     let _keyType = options.keyType ?? null;
@@ -2328,8 +2324,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     this.stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
     this.numberConstraint = _numberConstraint;
-    let _nodeConstraint = options.nodeConstraint ?? null;
-    this.nodeConstraint = _nodeConstraint;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -2421,8 +2415,13 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.enumType === other.enumType)) {
       return false;
     }
-    if (!(this.nodeType === other.nodeType)) {
+    if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
+    }
+    for (let i = 0; i < this.nodeTypes.length; i++) {
+      if (!(this.nodeTypes[i] === other.nodeTypes[i])) {
+        return false;
+      }
     }
     if (!(this.structType === other.structType)) {
       return false;
@@ -2458,12 +2457,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (
       (this.numberConstraint == null) !== (other.numberConstraint == null) ||
       (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
-      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
     ) {
       return false;
     }
@@ -2540,8 +2533,10 @@ export class PropertyDefinition extends BuiltinDefinition {
       if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeType != null) {
-        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      if (this.nodeTypes.length > 0) {
+        propertyReprs.push(
+          `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
+        );
       }
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
@@ -2586,8 +2581,10 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (this.enumType != null) {
       h = (h * 31 + this.enumType) & 0xffffffff;
     }
-    if (this.nodeType != null) {
-      h = (h * 31 + this.nodeType) & 0xffffffff;
+    if (this.nodeTypes && this.nodeTypes.length > 0) {
+      for (const _item of this.nodeTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
     }
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
@@ -2609,9 +2606,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
-    }
-    if (this.nodeConstraint != null) {
-      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
     if (this.edgeType != null) {
       h = (h * 31 + this.edgeType) & 0xffffffff;

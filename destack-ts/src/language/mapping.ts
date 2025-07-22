@@ -192,7 +192,6 @@ import type {
 } from "@destack/language/core/common/time";
 import type {
   CollectionConstraint,
-  NodeConstraint,
   NumberConstraint,
   NumberFormat,
   StringConstraint,
@@ -659,7 +658,6 @@ export type StructTypeMapping = {
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
-  [StructType.NODE_CONSTRAINT]: NodeConstraint;
   [StructType.TYPE]: Type;
   [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;

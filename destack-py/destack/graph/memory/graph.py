@@ -1,4 +1,4 @@
-from collections.abc import Collection, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Optional, override
 
 from destack.language import EMPTY_LIST, Entity, Graph, Node, NodeType, TraitType, expand_node_types
@@ -12,21 +12,12 @@ if TYPE_CHECKING:
 type_ = type
 
 
-class MemoryGraph(Graph["Entity"]):
+class MemoryGraph(Graph):
     __slots__ = ("nodes_by_id", "nodes_by_parent")
 
     def __init__(self):
         self.nodes_by_id: dict[UUID, Entity] = {}
         self.nodes_by_parent: dict[UUID, dict[NodeType, list[Entity]]] = {}
-
-    @property
-    @override
-    def nodes(self) -> Collection["Entity"]:
-        return self.nodes_by_id.values()
-
-    @override
-    def __len__(self):
-        return len(self.nodes_by_id)
 
     @override
     def get(self, id: UUID) -> Optional["Entity"]:
@@ -78,7 +69,7 @@ class MemoryGraph(Graph["Entity"]):
     def get_children[M: "Entity" = "Entity"](
         self,
         node: "Node",
-        type: NodeType | TraitType | type[M] | None = None,
+        type: NodeType | type[M] | None = None,
     ) -> Sequence[M]:
         # bail if no children
         if not self.nodes_by_parent:
@@ -124,7 +115,7 @@ class MemoryGraph(Graph["Entity"]):
 
     @override
     def get_ancestors[M: "Entity" = "Entity"](
-        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+        self, node: "Entity", type: NodeType | type[M] | None = None
     ) -> Sequence[M]:
         ancestors: list[Entity] = []
         current = node.parent_ptr
@@ -145,7 +136,7 @@ class MemoryGraph(Graph["Entity"]):
     def get_descendants[M: "Entity" = "Entity"](
         self,
         node: "Entity",
-        type: NodeType | TraitType | type[M] | None = None,
+        type: NodeType | type[M] | None = None,
     ) -> Sequence[M]:
         if not self.nodes_by_parent:
             return ()

@@ -1,6 +1,5 @@
 import type {
   Branch,
-  IsActor,
   IsOrdered,
   IsOwnable,
   Materialization,
@@ -82,7 +81,7 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -98,7 +97,7 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -111,8 +110,8 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */

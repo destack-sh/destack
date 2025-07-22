@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -9,11 +9,10 @@ from destack.language.core import (
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import IsFollowable
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,7 +33,7 @@ class Follow(
 ):
     """A Follow is a relationship between a Actor and an IsFollowable Node."""
 
-    parent: Optional["IsFollowable"] = builtin_property_parent()
+    pass
 
 
 @builtin_node(NodeType.FOLLOW_EVENT, frozen=True)

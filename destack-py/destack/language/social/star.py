@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -9,11 +9,10 @@ from destack.language.core import (
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import IsStarable
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -33,8 +32,6 @@ class Star(
     Entity,
 ):
     """A Star is a relationship between a Actor and a Starred Node."""
-
-    parent: Optional["IsStarable"] = builtin_property_parent()
 
 
 @builtin_node(NodeType.STAR_EVENT, frozen=True)

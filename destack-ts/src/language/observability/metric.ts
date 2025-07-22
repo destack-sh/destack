@@ -3,7 +3,6 @@ import type {
   Graph,
   GraphConnection,
   Icon,
-  IsActor,
   NodeClass,
   NodeReference,
   Session,
@@ -97,7 +96,7 @@ export abstract class Metric extends Entity {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -113,7 +112,7 @@ export abstract class Metric extends Entity {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -126,8 +125,8 @@ export abstract class Metric extends Entity {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */
@@ -260,7 +259,7 @@ export abstract class MeasurementEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -412,10 +411,10 @@ export class GaugeMetric extends Metric {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -434,10 +433,10 @@ export class GaugeMetric extends Metric {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -453,14 +452,14 @@ export class GaugeMetric extends Metric {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -608,12 +607,12 @@ export class GaugeMetric extends Metric {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -1050,10 +1049,10 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1113,7 +1112,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
@@ -1495,10 +1494,10 @@ export class CounterMetric extends Metric {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1517,10 +1516,10 @@ export class CounterMetric extends Metric {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1536,14 +1535,14 @@ export class CounterMetric extends Metric {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -1691,12 +1690,12 @@ export class CounterMetric extends Metric {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -2133,10 +2132,10 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2196,7 +2195,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
@@ -2578,10 +2577,10 @@ export class HistogramMetric extends Metric {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2600,10 +2599,10 @@ export class HistogramMetric extends Metric {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2619,14 +2618,14 @@ export class HistogramMetric extends Metric {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -2774,12 +2773,12 @@ export class HistogramMetric extends Metric {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -3216,10 +3215,10 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3279,7 +3278,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;

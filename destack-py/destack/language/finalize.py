@@ -119,7 +119,7 @@ def finalize():
                 to_visit.extend(reversed(inheriting_cls.__extended_by__))
         struct_cls.__inherited_by__ = tuple(inherited_by_structs)
 
-    from destack.language.core import Node, expand_node_traits
+    from destack.language.core import Node
 
     # index Node parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -129,9 +129,9 @@ def finalize():
             node_cls.__parent_types__ = ()
             node_cls.__parent_property__.node_types = ()
         else:
-            parent_types = expand_node_traits(node_cls.__parent_property__.node_types or ())
+            parent_types = node_cls.__parent_property__.node_types or ()
             assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
-            node_cls.__parent_types__ = parent_types
+            node_cls.__parent_types__ = tuple(parent_types)
         parent_classes = tuple(
             NODE_CLASS_BY_TYPE[parent_type] for parent_type in node_cls.__parent_types__
         )
@@ -238,7 +238,7 @@ def finalize():
         scalar_type = Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_VALUE,
-            node_type=node_type,
+            node_types=[node_type],
         )
         NODE_TYPE_SCALAR_BY_NODE_TYPE[node_type] = scalar_type
 

@@ -6,7 +6,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsRunnable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -66,7 +65,7 @@ class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
     node: "Run" = builtin_property(101)
-    target: Optional["IsRunnable"] = builtin_property(110)
+    target: Optional["Entity"] = builtin_property(110)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
 
@@ -140,7 +139,7 @@ class Run(Entity):
     """
 
     parent: Union["Space", "Run", None] = builtin_property_parent()
-    target: Optional["IsRunnable"] = builtin_property(111)
+    target: Optional["Entity"] = builtin_property(111)
     status: RunStatus = builtin_property(112, is_repr=True)
     duration: Optional[timedelta] = builtin_property(
         113,

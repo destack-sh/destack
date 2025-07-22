@@ -6,17 +6,13 @@ import {
   ACTIVE_SPACE,
   createSpace,
   Layer,
-  MemoryStore,
-  StoreKey,
+  MemoryGraph,
 } from "destack";
 import React from "react";
 import LayerView from "./Layer";
 
-const store = new MemoryStore({
-  keys: [StoreKey.ENTITY_PRIMARY],
-});
-await store.open();
-const session = new ReactiveSession({ store, epoch: 0 });
+const graph = new MemoryGraph();
+const session = new ReactiveSession({ graph, epoch: 0 });
 ACTIVE_SESSION.set(session);
 
 // create new space

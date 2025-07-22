@@ -13,7 +13,6 @@ from ..builtin import (
 from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
     CollectionConstraint,
-    NodeConstraint,
     NumberConstraint,
     PrimitiveType,
     ScalarType,
@@ -52,9 +51,8 @@ class CustomProperty(
     scalar_type: ScalarType = builtin_property(111, is_repr=True)
     primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
+    node_types: list[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    custom_definition: Optional["Entity"] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
     # value
@@ -65,7 +63,6 @@ class CustomProperty(
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(130)
     string_constraint: Optional["StringConstraint"] = builtin_property(131)
     number_constraint: Optional["NumberConstraint"] = builtin_property(132)
-    node_constraint: Optional["NodeConstraint"] = builtin_property(133)
 
     # relationship
     edge_type: Optional[EdgeType] = builtin_property(140)
@@ -99,7 +96,7 @@ class CustomProperty(
             scalar_type=self.scalar_type,
             primitive_type=self.primitive_type,
             enum_type=self.enum_type,
-            node_type=self.node_type,
+            node_types=self.node_types,
             struct_type=self.struct_type,
             key_type=self.key_type,
             value=self.value,
@@ -107,7 +104,6 @@ class CustomProperty(
             collection_constraint=self.collection_constraint,
             string_constraint=self.string_constraint,
             number_constraint=self.number_constraint,
-            node_constraint=self.node_constraint,
             is_required=self.is_required,
         )
         return type

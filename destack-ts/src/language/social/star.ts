@@ -2,9 +2,7 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
   IsOwned,
-  IsStarable,
   NodeClass,
   NodeReference,
   Session,
@@ -38,12 +36,12 @@ export class Star extends Entity implements IsOwned {
   static metatype: NodeType = NodeType.STAR;
 
   /**
-   * Star.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): (Entity & IsStarable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsStarable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -140,10 +138,10 @@ export class Star extends Entity implements IsOwned {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -162,10 +160,10 @@ export class Star extends Entity implements IsOwned {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -181,14 +179,14 @@ export class Star extends Entity implements IsOwned {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -310,7 +308,7 @@ export class Star extends Entity implements IsOwned {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsStarable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -320,12 +318,12 @@ export class Star extends Entity implements IsOwned {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -748,10 +746,10 @@ export class StarEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -811,7 +809,7 @@ export class StarEvent extends Event {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
@@ -1100,7 +1098,7 @@ export class StarAddedEvent extends StarEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
@@ -1266,7 +1264,7 @@ export class StarRemovedEvent extends StarEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;

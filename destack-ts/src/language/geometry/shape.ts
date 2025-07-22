@@ -1,6 +1,5 @@
 import type {
   Branch,
-  IsActor,
   Materialization,
   NodeReference,
   Snapshot,
@@ -84,7 +83,7 @@ export abstract class Shape2D extends Entity2D {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -100,7 +99,7 @@ export abstract class Shape2D extends Entity2D {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -113,8 +112,8 @@ export abstract class Shape2D extends Entity2D {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */
@@ -322,7 +321,7 @@ export abstract class Shape3D extends Entity3D {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -338,7 +337,7 @@ export abstract class Shape3D extends Entity3D {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -351,8 +350,8 @@ export abstract class Shape3D extends Entity3D {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */

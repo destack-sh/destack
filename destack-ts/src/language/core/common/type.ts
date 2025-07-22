@@ -5,14 +5,11 @@ import {
   PrimitiveType,
   ScalarType,
   StructType,
-  TraitType,
   TypeCardinality,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
-import { Entity } from "@destack/language/core/builtin/entity";
-import { Node, isNode } from "@destack/language/core/builtin/node";
+import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
-import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { Value } from "@destack/language/core/common/value";
 import type { Graph } from "@destack/language/core/runtime/graph";
@@ -530,123 +527,6 @@ export class CollectionConstraint extends StructFrozen {
 registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
 /* ==== DESTACK_GENERATED_END:STRUCT:112 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:113 ==== */
-/**
- * The constraint of a node.
- */
-export class NodeConstraint extends StructFrozen {
-  static metatype: StructType = StructType.NODE_CONSTRAINT;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * NodeConstraint.nodeTypes
-   */
-  readonly nodeTypes: readonly NodeType[];
-
-  /**
-   * NodeConstraint.nodeTraits
-   */
-  readonly nodeTraits: readonly TraitType[];
-
-  constructor(options: {
-    nodeTypes?: readonly NodeType[];
-    nodeTraits?: readonly TraitType[];
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
-  }) {
-    /* super */
-    super(
-      /* session */
-      options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-    );
-
-    /* properties */
-    let _nodeTypes = options.nodeTypes ?? null;
-    if (_nodeTypes === null) {
-      _nodeTypes = [];
-    }
-    this.nodeTypes = _nodeTypes;
-    let _nodeTraits = options.nodeTraits ?? null;
-    if (_nodeTraits === null) {
-      _nodeTraits = [];
-    }
-    this.nodeTraits = _nodeTraits;
-
-    /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.nodeTypes.length != other.nodeTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.nodeTypes.length; i++) {
-      if (!(this.nodeTypes[i] === other.nodeTypes[i])) {
-        return false;
-      }
-    }
-    if (this.nodeTraits.length != other.nodeTraits.length) {
-      return false;
-    }
-    for (let i = 0; i < this.nodeTraits.length; i++) {
-      if (!(this.nodeTraits[i] === other.nodeTraits[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<NodeConstraint>`;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.nodeTypes && this.nodeTypes.length > 0) {
-      for (const _item of this.nodeTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.nodeTraits && this.nodeTraits.length > 0) {
-      for (const _item of this.nodeTraits) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:113 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
  * A Type in the type system.
@@ -681,29 +561,14 @@ export class Type extends StructFrozen {
   readonly enumType: EnumType | null;
 
   /**
-   * Type.nodeType
+   * Type.nodeTypes
    */
-  readonly nodeType: NodeType | null;
+  readonly nodeTypes: readonly NodeType[];
 
   /**
    * Type.structType
    */
   readonly structType: StructType | null;
-
-  /**
-   * Type.customDefinition
-   */
-  get customDefinition(): Entity | null {
-    const nodePtr: NodeReference | null = this.customDefinitionPtr;
-    if (nodePtr != null) {
-      if (this._graph === null) {
-        return null;
-      }
-      return this._graph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly customDefinitionPtr: NodeReference | null;
 
   /**
    * Type.keyType
@@ -736,11 +601,6 @@ export class Type extends StructFrozen {
   readonly numberConstraint: NumberConstraint | null;
 
   /**
-   * Type.nodeConstraint
-   */
-  readonly nodeConstraint: NodeConstraint | null;
-
-  /**
    * Type.isRequired
    */
   readonly isRequired: boolean | null;
@@ -756,16 +616,14 @@ export class Type extends StructFrozen {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeType?: NodeType | null;
+    nodeTypes?: readonly NodeType[];
     structType?: StructType | null;
-    customDefinition?: Entity | NodeReference | null;
     keyType?: Type | null;
     value?: Value | null;
     valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    nodeConstraint?: NodeConstraint | null;
     isRequired?: boolean | null;
     isMain?: boolean | null;
     _session?: Session | null;
@@ -802,15 +660,13 @@ export class Type extends StructFrozen {
     this.primitiveType = _primitiveType;
     let _enumType = options.enumType ?? null;
     this.enumType = _enumType;
-    let _nodeType = options.nodeType ?? null;
-    this.nodeType = _nodeType;
+    let _nodeTypes = options.nodeTypes ?? null;
+    if (_nodeTypes === null) {
+      _nodeTypes = [];
+    }
+    this.nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _customDefinition = options.customDefinition ?? null;
-    if (_customDefinition != null && _customDefinition.constructor.name != "NodeReference") {
-      _customDefinition = (_customDefinition as Node).toRef();
-    }
-    this.customDefinitionPtr = _customDefinition as NodeReference | null;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
     let _value = options.value ?? null;
@@ -823,8 +679,6 @@ export class Type extends StructFrozen {
     this.stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
     this.numberConstraint = _numberConstraint;
-    let _nodeConstraint = options.nodeConstraint ?? null;
-    this.nodeConstraint = _nodeConstraint;
     let _isRequired = options.isRequired ?? null;
     this.isRequired = _isRequired;
     let _isMain = options.isMain ?? null;
@@ -860,13 +714,15 @@ export class Type extends StructFrozen {
     if (!(this.enumType === other.enumType)) {
       return false;
     }
-    if (!(this.nodeType === other.nodeType)) {
+    if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
+    }
+    for (let i = 0; i < this.nodeTypes.length; i++) {
+      if (!(this.nodeTypes[i] === other.nodeTypes[i])) {
+        return false;
+      }
     }
     if (!(this.structType === other.structType)) {
-      return false;
-    }
-    if (!(this.customDefinitionPtr?.id === other.customDefinitionPtr?.id)) {
       return false;
     }
     if (
@@ -903,12 +759,6 @@ export class Type extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
-      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
-    ) {
-      return false;
-    }
     if (!(this.isRequired === other.isRequired)) {
       return false;
     }
@@ -932,14 +782,13 @@ export class Type extends StructFrozen {
       if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeType != null) {
-        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      if (this.nodeTypes.length > 0) {
+        propertyReprs.push(
+          `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
+        );
       }
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
-      }
-      if (this.customDefinition != null) {
-        propertyReprs.push(`customDefinition=${this.customDefinition?.repr()}`);
       }
       if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
@@ -967,14 +816,13 @@ export class Type extends StructFrozen {
     if (this.enumType != null) {
       h = (h * 31 + this.enumType) & 0xffffffff;
     }
-    if (this.nodeType != null) {
-      h = (h * 31 + this.nodeType) & 0xffffffff;
+    if (this.nodeTypes && this.nodeTypes.length > 0) {
+      for (const _item of this.nodeTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
     }
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
-    }
-    if (this.customDefinitionPtr != null) {
-      h = (h * 31 + hashString(this.customDefinitionPtr.id)) & 0xffffffff;
     }
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
@@ -993,9 +841,6 @@ export class Type extends StructFrozen {
     }
     if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
-    }
-    if (this.nodeConstraint != null) {
-      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
     if (this.isRequired != null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;

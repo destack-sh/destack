@@ -4,7 +4,6 @@ import { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -146,10 +145,10 @@ export class EditEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -256,7 +255,7 @@ export class EditEvent extends Event {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;

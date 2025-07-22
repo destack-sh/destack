@@ -23,7 +23,6 @@ from ..builtin import (
     Struct,
     StructFrozen,
     StructType,
-    TraitType,
     TypeCardinality,
     ValueFactory,
     builtin_enum,
@@ -33,7 +32,6 @@ from ..builtin import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        Entity,
         Value,
     )
 
@@ -103,17 +101,11 @@ class CollectionConstraint(StructFrozen):
     max_length: Optional[int] = builtin_property(42)
 
 
-@builtin_struct(StructType.NODE_CONSTRAINT, frozen=True)
-class NodeConstraint(StructFrozen):
-    """The constraint of a node."""
-
-    node_types: list["NodeType"] = builtin_property(41)
-    node_traits: list["TraitType"] = builtin_property(42)
-    # page/thread/base/destack, ...
-
-
 TypeFormat = Union[NumberFormat, StringFormat]
-TypeConstraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
+TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
+
+
+# TODO :Incomplete: (tagged) Union / sum types?
 
 
 @builtin_struct(StructType.TYPE, frozen=True)
@@ -131,9 +123,8 @@ class Type(StructFrozen):
     scalar_type: ScalarType = builtin_property(111, is_repr=True)
     primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
+    node_types: list[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    custom_definition: Optional["Entity"] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
     # meta
@@ -144,7 +135,6 @@ class Type(StructFrozen):
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(140)
     string_constraint: Optional["StringConstraint"] = builtin_property(141)
     number_constraint: Optional["NumberConstraint"] = builtin_property(142)
-    node_constraint: Optional["NodeConstraint"] = builtin_property(143)
 
     # flags
     is_required: bool | None = builtin_property(150)
@@ -166,13 +156,13 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_REFERENCE,
-            node_type=value_or_type.type,
+            node_types=[value_or_type.type],
         )
     elif isinstance(value_or_type, Node):
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
-            node_type=value_or_type.metatype,
+            node_types=[value_or_type.metatype],
         )
     elif isinstance(value_or_type, Struct):
         return Type(
@@ -213,9 +203,8 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=element_type.scalar_type,
             primitive_type=element_type.primitive_type,
             enum_type=element_type.enum_type,
-            node_type=element_type.node_type,
+            node_types=element_type.node_types,
             struct_type=element_type.struct_type,
-            node_constraint=element_type.node_constraint,
         )
     elif isinstance(value_or_type, dict):
         assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
@@ -234,9 +223,8 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=value_type.scalar_type,
             primitive_type=value_type.primitive_type,
             enum_type=value_type.enum_type,
-            node_type=value_type.node_type,
+            node_types=value_type.node_types,
             struct_type=value_type.struct_type,
-            node_constraint=value_type.node_constraint,
             key_type=key_type,
         )
 
@@ -250,9 +238,8 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=element_type.scalar_type,
             primitive_type=element_type.primitive_type,
             enum_type=element_type.enum_type,
-            node_type=element_type.node_type,
+            node_types=element_type.node_types,
             struct_type=element_type.struct_type,
-            node_constraint=element_type.node_constraint,
         )
     elif origin is dict:
         key_type_annotation, value_type_annotation = typing.get_args(value_or_type)
@@ -263,9 +250,8 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=value_type.scalar_type,
             primitive_type=value_type.primitive_type,
             enum_type=value_type.enum_type,
-            node_type=value_type.node_type,
+            node_types=value_type.node_types,
             struct_type=value_type.struct_type,
-            node_constraint=value_type.node_constraint,
             key_type=key_type,
         )
     elif origin in (typing.Union, types.UnionType):
@@ -290,8 +276,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
-                node_type=NodeType.NODE,
-                node_constraint=NodeConstraint(node_types=node_types),
+                node_types=node_types,
             )
 
     # type classes
@@ -303,10 +288,13 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
                 enum_type=ENUM_TYPE_BY_CLASS[value_or_type],
             )
         elif issubclass(value_or_type, Node):
+            node_type = getattr(value_or_type, "metatype", None)
+            if not isinstance(node_type, NodeType):
+                raise ValueError(f"cannot infer node type of {value_or_type!r}")
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
-                node_type=getattr(value_or_type, "metatype", None),
+                node_types=[node_type],
             )
         elif issubclass(value_or_type, Struct):
             return Type(

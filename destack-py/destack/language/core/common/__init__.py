@@ -48,7 +48,6 @@ from .text import (
 from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
 from .type import (
     CollectionConstraint,
-    NodeConstraint,
     NumberConstraint,
     NumberFormat,
     StringConstraint,
@@ -96,7 +95,6 @@ __all__ = [
     "MigrationOperation",
     "MigrationOperationDefinition",
     "MigrationType",
-    "NodeConstraint",
     "NumberConstraint",
     "NumberFormat",
     "Permission",

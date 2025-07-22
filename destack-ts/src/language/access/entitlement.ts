@@ -2,8 +2,6 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
-  IsJoinable,
   NodeClass,
   NodeReference,
   Session,
@@ -105,7 +103,7 @@ export abstract class EntitlementEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -143,7 +141,7 @@ export abstract class EntitlementEvent extends Event {
   /**
    * EntitlementEvent.target
    */
-  abstract get target(): (Entity & IsActor) | null;
+  abstract get target(): Entity | null;
   declare readonly targetPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -245,10 +243,10 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -301,10 +299,10 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsActor) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -320,14 +318,14 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsActor) | NodeReference;
+    target: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -697,10 +695,10 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -753,10 +751,10 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsActor) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -772,14 +770,14 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsActor) | NodeReference;
+    target: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1149,10 +1147,10 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1205,10 +1203,10 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsActor) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1224,14 +1222,14 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsActor) | NodeReference;
+    target: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1601,10 +1599,10 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1657,10 +1655,10 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsActor) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1676,14 +1674,14 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsActor) | NodeReference;
+    target: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1969,12 +1967,12 @@ export class Entitlement extends Entity {
   static metatype: NodeType = NodeType.ENTITLEMENT;
 
   /**
-   * Entitlement.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): (Entity & IsActor) | (Entity & IsJoinable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | (Entity & IsJoinable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2071,10 +2069,10 @@ export class Entitlement extends Entity {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2093,10 +2091,10 @@ export class Entitlement extends Entity {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2112,14 +2110,14 @@ export class Entitlement extends Entity {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -2274,14 +2272,14 @@ export class Entitlement extends Entity {
   /**
    * Entitlement.target
    */
-  get target(): (Entity & IsActor) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set target(node: Entity & IsActor) {
+  set target(node: Entity) {
     this.targetPtr = node.toRef();
   }
   /**
@@ -2299,7 +2297,7 @@ export class Entitlement extends Entity {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsActor) | (Entity & IsJoinable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -2309,12 +2307,12 @@ export class Entitlement extends Entity {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -2324,7 +2322,7 @@ export class Entitlement extends Entity {
     key?: string | null;
     type: EntitlementType;
     expiresAt?: Temporal.ZonedDateTime | null;
-    target: (Entity & IsActor) | NodeReference;
+    target: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -2575,14 +2573,14 @@ export class Entitlement extends Entity {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._expiresAt != null) {
       h = (h * 31 + hashString(this._expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }

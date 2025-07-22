@@ -17,7 +17,6 @@ if TYPE_CHECKING:
         Branch,
         Client,
         Icon,
-        IsActor,
         NodeDefinitionReference,
         NodeReference,
         Snapshot,
@@ -106,7 +105,7 @@ class Event[N: Node = Node](Node):
         is_readonly=True,
         description="The logical time this Event was created (system time).",
     )
-    created_by: Optional["IsActor"] = builtin_property(
+    created_by: Optional["Entity"] = builtin_property(
         22,
         default=None,
         is_internal=True,

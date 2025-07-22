@@ -1,25 +1,20 @@
-import type { Node, NodeClass } from "@destack/language/core/builtin";
+import type { Entity, Node, NodeClass } from "@destack/language/core/builtin";
 import { NodeType } from "@destack/language/core/builtin/common";
 import { TraitClass } from "@destack/language/core/builtin/trait";
 import { NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";
 
-/** A Graph is a collection of Nodes. */
-export abstract class Graph<TNode extends Node = Node> {
+/** A Graph is a collection of Entity. */
+export abstract class Graph {
+  /** Get a string representation of the Graph. */
   repr(): string {
-    return `<${this.constructor.name} ${this.nodes.length} nodes>`;
+    return `<${this.constructor.name}>`;
   }
 
-  /** Get the number of Nodes in the Graph. */
-  abstract get size(): number;
+  /** Get an Entity by id. */
+  abstract get(id: string): Entity | null;
 
-  /** Get all Nodes in the Graph. */
-  abstract get nodes(): TNode[];
-
-  /** Get a Node by id. */
-  abstract get(id: string): TNode | null;
-
-  /** Get a Node by id, or throw an error if not found. */
-  getOrError(id: string): TNode {
+  /** Get an Entity by id, or throw an error if not found. */
+  getOrError(id: string): Entity {
     const node = this.get(id);
     if (!node) {
       throw new Error(`Node ${id} not found in ${this.constructor.name}`);
@@ -33,25 +28,25 @@ export abstract class Graph<TNode extends Node = Node> {
   /** Clear the Graph. */
   abstract clear(): void;
 
-  /** Add a Node to the Graph (must not exist, excluding descendants). */
-  abstract add(node: TNode): void;
+  /** Add an Entity to the Graph (must not exist, excluding descendants). */
+  abstract add(node: Entity): void;
 
-  /** Remove a Node from the Graph (must exist, excluding descendants). */
-  abstract remove(node: TNode): void;
+  /** Remove an Entity from the Graph (must exist, excluding descendants). */
+  abstract remove(node: Entity): void;
 
   /**
-   * Collect child Nodes (one level down).
-   * If the Nodes are IsOrdered, their order is preserved.
+   * Collect child Entities (one level down).
+   * If the Entities are IsOrdered, their order is preserved.
    */
-  abstract getChildren(options: { node: TNode; nodeType?: NodeType }): TNode[];
+  abstract getChildren(options: { node: Entity; nodeType?: NodeType }): Entity[];
 
   /**
-   * Collect descendant Nodes (recursively down).
-   * If a type is specified, only Nodes of that type are collected.
+   * Collect descendant Entities (recursively down).
+   * If a type is specified, only Entities of that type are collected.
    * (Descendants are not collected unless all their ancestors are included).
-   * Nodes are BFS but IsOrdered is ignored.
+   * Entities are BFS but IsOrdered is ignored.
    */
-  abstract getDescendants(options: { node: TNode; nodeType?: NodeType }): TNode[];
+  abstract getDescendants(options: { node: Entity; nodeType?: NodeType }): Entity[];
 }
 
 /** Expand a collection of NodeTypes into a flat collection of NodeTypes. */

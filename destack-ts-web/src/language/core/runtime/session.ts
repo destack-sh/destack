@@ -1,15 +1,6 @@
-import { ReactiveGraph, ReactiveSupergraph } from "@destack-web/language/core/runtime/graph";
+import { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
 import { batch } from "@preact/signals-react";
-import {
-  EditEvent,
-  Entity,
-  EntityStore,
-  Event,
-  EventStore,
-  NodeReference,
-  Oracle,
-  Session,
-} from "destack";
+import { EditEvent, Entity, Event, Graph, NodeReference, Oracle, Session } from "destack";
 
 /** A reactive variant of Session. */
 export class ReactiveSession extends Session {
@@ -21,12 +12,11 @@ export class ReactiveSession extends Session {
     clientPtr?: NodeReference | null;
     clientNonce?: string | null;
     actorPtr?: NodeReference | null;
-    store?: EventStore | EntityStore | null;
+    graph?: Graph | null;
     epoch?: number;
   }) {
     super({
       ...options,
-      supergraphClass: ReactiveSupergraph,
     });
     this._dirtyEntities = new Map();
   }
