@@ -1,10 +1,12 @@
 import base64
 import textwrap
+from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language import (
     BuiltinObject,
     Encoding,
+    Node,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -30,6 +32,45 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
+def generate_cson_encoders() -> str:
+    file_parts: list[str] = []
+
+    # imports
+    file_parts.append(
+        "import type { BuiltinObject, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
+    )
+    file_parts.append(
+        "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
+    )
+    file_parts.append(
+        "import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/generate';"
+    )
+    file_parts.append("import { Temporal } from 'temporal-polyfill';")
+    file_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
+    file_parts.append(
+        "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
+    )
+    file_parts.append("")
+    file_parts.append("export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};")
+    builtins_names: set[str] = set()
+    builtins_names.update(
+        cls.__name__ for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
+    )
+    file_parts.append(f"import type {{ {', '.join(builtins_names)} }} from '@destack/language';")
+
+    # encoders
+    for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        if cls.__is_abstract__:
+            continue
+        encoder_name, encoder_str = generate_object_cson_encoder(cls)
+        file_parts.append(encoder_str)
+        file_parts.append(
+            f"CSON_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
+        )
+
+    return "\n".join(file_parts)
+
+
 def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     """Generate the BuiltinObject Encoder class."""
 
@@ -45,9 +86,9 @@ def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     return (
         encoder_name,
         f"""
-export class {encoder_name} implements Encoder<any> {{
+export class {encoder_name} implements _CsonObjectEncoder {{
   packObject(object: {cls.__name__}): any {{
-{textwrap.indent(pack_cson, "  ")}
+{textwrap.indent(pack_cson, " " * 4)}
   }}
 
   unpackObject(options: {{
@@ -56,7 +97,8 @@ export class {encoder_name} implements Encoder<any> {{
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }}): {cls.__name__} {{
-{textwrap.indent(unpack_cson, "  ")}
+    const {{ value: objectCson, _session, _graph, _connection }} = options;
+{textwrap.indent(unpack_cson, " " * 4)}
   }}
 }}
 """,
@@ -64,7 +106,7 @@ export class {encoder_name} implements Encoder<any> {{
 
 
 def _generate_to_cson(cls: type["BuiltinObject"]) -> str:
-    """Generate the toCson method implementation."""
+    """Generate the packObject method implementation."""
     lines: list[str] = []
     lines.append("const objectCson: { [key: string]: any } = {};")
 
@@ -87,8 +129,17 @@ def _generate_to_cson(cls: type["BuiltinObject"]) -> str:
     return "\n".join(lines)
 
 
+def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
+    if issubclass(type, Node):
+        return f"NODE_CLASS_BY_TYPE[{type.metatype.value}] as typeof {type.__name__}"
+    elif issubclass(type, Struct):
+        return f"STRUCT_CLASS_BY_TYPE[{type.metatype.value}] as typeof {type.__name__}"
+    else:
+        raise ValueError(f"unexpected type {type!r}")
+
+
 def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
-    """Generate the fromCson method implementation."""
+    """Generate the unpackObject method implementation."""
     unpack_references: set[NodeType | StructType] = set()
     unpack_assignments: list[str] = []
     unpack_body_parts: list[str] = []
@@ -117,9 +168,11 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
             unpack_body_parts.extend(unpack_code)
             unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append("_cson: objectCson")
+        unpack_assignments.append(
+            f"_packedCache: [{{ encoding: {Encoding.CSON.value}, isBytes: false, packed: objectCson }}]"
+        )
 
-    unpack_body_parts.append(f"return new {cls.__name__}({{")
+    unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
     for assignment in unpack_assignments:
         unpack_body_parts.append(f"  {assignment},")
     if cls.__is_node__:
@@ -133,16 +186,11 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
     # initializer
     unpack_initializer_parts: list[str] = []
     for ref in sorted(unpack_references):
-        if isinstance(ref, NodeType):
-            reference_cls = NODE_CLASS_BY_TYPE[ref]
-            initializer_str = f"const _{reference_cls.__name__} = NODE_CLASS_BY_TYPE[NodeType.{ref.name}] as typeof {reference_cls.__name__};"
-            unpack_initializer_parts.append(initializer_str)
-        elif isinstance(ref, StructType):
-            reference_cls = STRUCT_CLASS_BY_TYPE[ref]
-            initializer_str = f"const _{reference_cls.__name__} = STRUCT_CLASS_BY_TYPE[StructType.{ref.name}] as typeof {reference_cls.__name__};"
-            unpack_initializer_parts.append(initializer_str)
-        else:
-            assert_never(ref)
+        ref_cls = (
+            STRUCT_CLASS_BY_TYPE[ref] if isinstance(ref, StructType) else NODE_CLASS_BY_TYPE[ref]
+        )
+        initializer_str = f"const _{ref_cls.__name__} = {_get_indirect_object_cls(ref_cls)};"
+        unpack_initializer_parts.append(initializer_str)
     initializer_str = "\n".join(unpack_initializer_parts)
     unpack_body_parts.insert(0, initializer_str)
 
@@ -151,7 +199,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
 
 def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
-    from .language import _is_property_tracked
+    from ..language import _is_property_tracked
 
     lines: list[str] = []
     prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -258,7 +306,7 @@ def _generate_pack_cson_scalar(
     elif prop.scalar_type == ScalarType.ENUM:
         return value_expr
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.toCson()"
+        return f"{value_expr}.pack({Encoding.CSON.value})"
     else:
         return value_expr
 
@@ -291,16 +339,16 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.fromCson({value_expr}, _session, _graph, _connection)"
+        return f"_{struct_cls.__name__}.unpack({{ encoding: {Encoding.CSON.value}, value: {value_expr}, _session, _graph, _connection }}) as {struct_cls.__name__}"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_NodeReference.fromCson({value_expr}, _session, _graph, _connection)"
+        return f"_NodeReference.unpack({{ encoding: {Encoding.CSON.value}, value: {value_expr}, _session, _graph, _connection }}) as NodeReference"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.fromCson({value_expr}, _session, _graph, _connection)"
+        return f"Node.unpack({{ encoding: {Encoding.CSON.value}, value: {value_expr}, _session, _graph, _connection }}) as Node"
     else:
         return value_expr
 
 
-def generate_cson(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def generate_cson_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _generate_cson_scalar(type, value)

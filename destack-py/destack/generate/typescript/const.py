@@ -7,7 +7,7 @@ from destack.language import (
     TraitDefinition,
 )
 
-GENERATION_PATH = "destack-ts/src/language"
+GENERATION_PATH = "destack-ts/src"
 MARKER_START = "/* ==== DESTACK_GENERATED_START:{kind}:{id} ==== */"
 MARKER_END = "/* ==== DESTACK_GENERATED_END:{kind}:{id} ==== */"
 MARKER_CUSTOM_START = "/* ==== DESTACK_CUSTOM_START ==== */"

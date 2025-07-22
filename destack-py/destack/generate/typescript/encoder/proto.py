@@ -145,7 +145,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
 
 def _generate_pack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
-    from .language import _is_property_tracked
+    from ..language import _is_property_tracked
 
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)

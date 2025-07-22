@@ -65,7 +65,7 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
-from .cson import generate_cson
+from .encoder import generate_cson_encoders, generate_cson_value
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 # ruff: noqa: FURB113
@@ -505,7 +505,7 @@ if (_{ts_name_in} === null) {{
 
         # init default
         if prop.default is not UNSET and prop.default is not None:
-            default_str = generate_cson(prop, prop.default)
+            default_str = generate_cson_value(prop, prop.default)
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = {default_str};
@@ -1426,7 +1426,7 @@ def _generate_constant_member(definition: ConstantDefinition) -> str:
     if definition._is_deferred:
         value_str = "undefined as any /* (deferred) */"
     else:
-        value_str = generate_cson(definition.value.type, definition.value.get())
+        value_str = generate_cson_value(definition.value.type, definition.value.get())
 
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -2003,7 +2003,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
         for constant in object_cls.__constants__:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
-                value_str = generate_cson(constant.value.type, constant.value.get())
+                value_str = generate_cson_value(constant.value.type, constant.value.get())
                 constants_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
 // prettier-ignore
@@ -2115,7 +2115,11 @@ def generate():
     files_by_module: dict[str, TypescriptFile] = {}
     for module, definitions in definitions_by_module.items():
         # path
-        target_path = Path(GENERATION_PATH) / (module.split(".", 2)[-1].replace(".", "/") + ".ts")
+        target_path = (
+            Path(GENERATION_PATH)
+            / "language"
+            / (module.split(".", 2)[-1].replace(".", "/") + ".ts")
+        )
         existing_file_str = target_path.read_text() if target_path.exists() else None
 
         # definitions
@@ -2150,18 +2154,23 @@ def generate():
         file.path.write_text(file.new_str)
 
     # write constants file
-    constants_path = Path(GENERATION_PATH) / "constants.ts"
+    constants_path = Path(GENERATION_PATH) / "language" / "constants.ts"
     constants_str = _generate_constants(definitions_by_name)
     constants_path.write_text(constants_str)
 
-    # update mapping files
-    mapping_path = Path(GENERATION_PATH) / "mapping.ts"
+    # write mapping files
+    mapping_path = Path(GENERATION_PATH) / "language" / "mapping.ts"
     mapping_str = _generate_mapping(definitions_by_name)
     mapping_path.write_text(mapping_str)
 
+    # write encoder files
+    cson_encoder_path = Path(GENERATION_PATH) / "encoder/cson/generated.ts"
+    cson_encoder_str = generate_cson_encoders()
+    cson_encoder_path.write_text(cson_encoder_str)
+
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})
-    module_paths.append(Path(GENERATION_PATH))
+    module_paths.append(Path(GENERATION_PATH) / "language")
     for module_path in sorted(module_paths):
         # generate index.ts file that re-exports every subfile/subfolder
         index_path = module_path / "index.ts"
@@ -2170,19 +2179,21 @@ def generate():
         # collect all .ts files in this directory (excluding index.ts itself)
         ts_files = [f for f in module_path.glob("*.ts") if f.name != "index.ts"]
         for ts_file in sorted(ts_files):
-            relative_path = ts_file.relative_to(GENERATION_PATH).with_suffix("")
+            relative_path = ts_file.relative_to(Path(GENERATION_PATH) / "language").with_suffix("")
             index_lines.append(f"export * from '@destack/language/{relative_path}';")
         # collect all subdirectories that contain .ts files
         for subdir in sorted(module_path.iterdir()):
             if subdir.is_dir() and any(subdir.rglob("*.ts")):
-                relative_path = subdir.relative_to(GENERATION_PATH).with_suffix("")
+                relative_path = subdir.relative_to(Path(GENERATION_PATH) / "language").with_suffix(
+                    ""
+                )
                 index_lines.append(f"export * from '@destack/language/{relative_path}';")
 
         index_content = "\n".join(index_lines) + "\n"
         index_path.write_text(index_content)
 
     # append finalize call to root index.ts
-    root_index_path = Path(GENERATION_PATH) / "index.ts"
+    root_index_path = Path(GENERATION_PATH) / "language" / "index.ts"
     root_index_content = (
         root_index_path.read_text()
         + """
