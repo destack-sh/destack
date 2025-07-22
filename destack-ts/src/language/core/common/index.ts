@@ -1,6 +1,5 @@
 export * from "@destack/language/core/common/access";
 export * from "@destack/language/core/common/action";
-export * from "@destack/language/core/common/cson";
 export * from "@destack/language/core/common/enum";
 export * from "@destack/language/core/common/icon";
 export * from "@destack/language/core/common/integrity";

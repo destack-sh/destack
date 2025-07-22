@@ -1,4 +1,5 @@
-import type { Branch, Session, Snapshot, Space } from "@destack/language";
+import type { Branch, Encoding, Session, Snapshot, Space } from "@destack/language";
+import { Encoder } from "@destack/language/core/runtime/encoder";
 import { uuid4 } from "@destack/utils";
 import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";
@@ -16,6 +17,7 @@ export const EMPTY_SET: Set<any> = new Set();
 export const EMPTY_DICT: Record<string, any> = {};
 
 // runtime context
+export const ENCODERS: Partial<Record<Encoding, Encoder<any>>> = {};
 export const ACTIVE_SESSION: ContextVar<Session | null> = new ContextVar(null);
 export const ACTIVE_SPACE: ContextVar<Space | null> = new ContextVar(null);
 export const ACTIVE_BRANCH: ContextVar<Branch | null> = new ContextVar(null);

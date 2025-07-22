@@ -1,4 +1,3 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
@@ -6,10 +5,10 @@ import type {
   IsActor,
   NodeClass,
   NodeReference,
+  PackedCache,
   Session,
   Snapshot,
   Space,
-  Supergraph,
   Value,
 } from "@destack/language/core";
 import {
@@ -33,14 +32,6 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import { Style } from "@destack/language/style";
-import {
-  MaterializationProto,
-  SpringTypeProto,
-  TransitionProto,
-  TransitionStyleProto,
-  TransitionTypeProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -154,20 +145,20 @@ export class Transition extends StructFrozen {
     bounce?: number | null;
     springType?: SpringType | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 10 /* TransitionType.TWEEN */;
@@ -201,7 +192,7 @@ export class Transition extends StructFrozen {
     let _springType = options.springType ?? null;
     this.springType = _springType;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -308,7 +299,7 @@ export class Transition extends StructFrozen {
       if (this.springType != null) {
         propertyReprs.push(`springType=${SpringType[this.springType]}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Transition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -357,202 +348,6 @@ export class Transition extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Transition.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Transition): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2200000;
-    objectCson["100"] = object.type;
-    if (object.stylePtr != null) {
-      objectCson["101"] = object.stylePtr.toCson();
-    }
-    if (object.delay != null) {
-      objectCson["102"] = object.delay;
-    }
-    if (object.duration != null) {
-      objectCson["103"] = object.duration;
-    }
-    if (object.ease.length > 0) {
-      const packedEase: any[] = [];
-      for (const item of object.ease) {
-        packedEase.push(item);
-      }
-      objectCson["104"] = packedEase;
-    }
-    if (object.stiffness != null) {
-      objectCson["105"] = object.stiffness;
-    }
-    if (object.damping != null) {
-      objectCson["106"] = object.damping;
-    }
-    if (object.mass != null) {
-      objectCson["107"] = object.mass;
-    }
-    if (object.bounce != null) {
-      objectCson["108"] = object.bounce;
-    }
-    if (object.springType != null) {
-      objectCson["109"] = object.springType;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Transition {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const stylePtrValue = objectCson["101"];
-    const unpackedStylePtr =
-      stylePtrValue != undefined
-        ? _NodeReference.fromCson(stylePtrValue, _session, _graph, _connection)
-        : null;
-    const delayValue = objectCson["102"];
-    const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectCson["103"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const unpackedEase: any[] = [];
-    if (objectCson["104"] != undefined) {
-      for (const item of objectCson["104"]) {
-        unpackedEase.push(item);
-      }
-    }
-    const stiffnessValue = objectCson["105"];
-    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectCson["106"];
-    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectCson["107"];
-    const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectCson["108"];
-    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectCson["109"];
-    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
-    return new Transition({
-      type: Number(objectCson["100"]),
-      style: unpackedStylePtr,
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      ease: unpackedEase,
-      stiffness: unpackedStiffness,
-      damping: unpackedDamping,
-      mass: unpackedMass,
-      bounce: unpackedBounce,
-      springType: unpackedSpringType,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Transition {
-    return Transition.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): TransitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Transition.__packProto__(this);
-    }
-    return this._proto as TransitionProto;
-  }
-
-  static __packProto__(object: Transition): TransitionProto {
-    const objectProto: Partial<TransitionProto> = { metatype: 2200000 };
-    objectProto.type = Number(object.type) as TransitionTypeProto;
-    if (object.stylePtr != null) {
-      objectProto.stylePtr = object.stylePtr.toProto();
-    }
-    if (object.delay != null) {
-      objectProto.delay = object.delay;
-    }
-    if (object.duration != null) {
-      objectProto.duration = object.duration;
-    }
-    if (object.ease) {
-      const packedEase: any[] = [];
-      for (const item of object.ease) {
-        packedEase.push(item);
-      }
-      objectProto.ease = packedEase;
-    }
-    if (object.stiffness != null) {
-      objectProto.stiffness = object.stiffness;
-    }
-    if (object.damping != null) {
-      objectProto.damping = object.damping;
-    }
-    if (object.mass != null) {
-      objectProto.mass = object.mass;
-    }
-    if (object.bounce != null) {
-      objectProto.bounce = object.bounce;
-    }
-    if (object.springType != null) {
-      objectProto.springType = Number(object.springType) as SpringTypeProto;
-    }
-    return objectProto as TransitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: TransitionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Transition {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedEase: any[] = [];
-    if (objectProto.ease) {
-      for (const item of objectProto.ease) {
-        unpackedEase.push(item);
-      }
-    }
-    return new Transition({
-      type: Number(objectProto.type) as TransitionType,
-      style:
-        objectProto.stylePtr != undefined
-          ? _NodeReference.fromProto(objectProto.stylePtr!, _session, _graph, _graph, _connection)
-          : null,
-      delay: objectProto.delay != undefined ? objectProto.delay : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      ease: unpackedEase,
-      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
-      damping: objectProto.damping != undefined ? objectProto.damping : null,
-      mass: objectProto.mass != undefined ? objectProto.mass : null,
-      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType:
-        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: TransitionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Transition {
-    return Transition.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Transition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TransitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1019,32 +814,30 @@ export class TransitionStyle extends Style {
     bounce?: number | null;
     springType?: SpringType | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
   }) {
+    /* super */
     super(
-      // id
+      /* id */
       options.id ?? null,
-      // parent
+      /* parent */
       options.parent != null
         ? options.parent.constructor.name == "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
+      /* connection */
       options._connection ?? null,
-      // _isNew
+      /* _isNew */
       options.id == null,
     );
 
-    // properties
+    /* properties */
     let _parent = options.parent ?? null;
     if (_parent != null && _parent.constructor.name != "NodeReference") {
       _parent = (_parent as Node).toRef();
@@ -1188,7 +981,7 @@ export class TransitionStyle extends Style {
     let _springType = options.springType ?? null;
     this._springType = _springType;
 
-    // identity
+    /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
       const epoch = this._session.epoch;
@@ -1474,481 +1267,6 @@ export class TransitionStyle extends Style {
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<TransitionStyle "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toCson(): { [key: string]: any } {
-    return TransitionStyle.__packCson__(this);
-  }
-
-  static __packCson__(object: TransitionStyle): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2200000;
-    objectCson["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectCson["3"] = object.parentPtr.toCson();
-    }
-    objectCson["5"] = object.spacePtr.toCson();
-    objectCson["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectCson["11"] = object.definitionPtr.toCson();
-    }
-    objectCson["12"] = object.branchPtr.toCson();
-    objectCson["13"] = object.snapshotPtr.toCson();
-    if (object.precededByPtr != null) {
-      objectCson["14"] = object.precededByPtr.toCson();
-    }
-    if (object.instancePtr != null) {
-      objectCson["15"] = object.instancePtr.toCson();
-    }
-    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectCson["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectCson["22"] = object.createdByPtr.toCson();
-    }
-    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectCson["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectCson["25"] = object.updatedByPtr.toCson();
-    }
-    if (object.deletedAt != null) {
-      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectCson["30"] = object._ownedByPtr.toCson();
-    }
-    objectCson["40"] = object._name;
-    objectCson["41"] = object.orderKey;
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toCson();
-      }
-      objectCson["45"] = packedCustomValues;
-    }
-    if (object._scriptPtr != null) {
-      objectCson["46"] = object._scriptPtr.toCson();
-    }
-    if (object.isExtensible != null) {
-      objectCson["50"] = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectCson["80"] = object.sourcePtr.toCson();
-    }
-    if (object._key != null) {
-      objectCson["85"] = object._key;
-    }
-    objectCson["100"] = object._type;
-    if (object._delay != null) {
-      objectCson["102"] = object._delay;
-    }
-    if (object._duration != null) {
-      objectCson["103"] = object._duration;
-    }
-    if (object._ease.length > 0) {
-      const packedEase: any[] = [];
-      for (const item of object._ease) {
-        packedEase.push(item);
-      }
-      objectCson["104"] = packedEase;
-    }
-    if (object._stiffness != null) {
-      objectCson["105"] = object._stiffness;
-    }
-    if (object._damping != null) {
-      objectCson["106"] = object._damping;
-    }
-    if (object._mass != null) {
-      objectCson["107"] = object._mass;
-    }
-    if (object._bounce != null) {
-      objectCson["108"] = object._bounce;
-    }
-    if (object._springType != null) {
-      objectCson["109"] = object._springType;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): TransitionStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const delayValue = objectCson["102"];
-    const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectCson["103"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const unpackedEase: any[] = [];
-    if (objectCson["104"] != undefined) {
-      for (const item of objectCson["104"]) {
-        unpackedEase.push(item);
-      }
-    }
-    const stiffnessValue = objectCson["105"];
-    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectCson["106"];
-    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectCson["107"];
-    const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectCson["108"];
-    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectCson["109"];
-    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectCson["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectCson["14"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
-        : null;
-    const instancePtrValue = objectCson["15"];
-    const unpackedInstancePtr =
-      instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectCson["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectCson["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
-        : null;
-    const deletedAtValue = objectCson["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    const ownedByPtrValue = objectCson["30"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
-        : null;
-    const unpackedCustomValues = {} as any;
-    if (objectCson["45"] != undefined) {
-      for (const [key, value] of Object.entries(objectCson["45"])) {
-        unpackedCustomValues[String(key)] = _Value.fromCson(
-          value as any,
-          _session,
-          _graph,
-          _connection,
-        );
-      }
-    }
-    const scriptPtrValue = objectCson["46"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
-        : null;
-    const isExtensibleValue = objectCson["50"];
-    const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
-    const sourcePtrValue = objectCson["80"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
-        : null;
-    const keyValue = objectCson["85"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    return new TransitionStyle({
-      type: Number(objectCson["100"]),
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      ease: unpackedEase,
-      stiffness: unpackedStiffness,
-      damping: unpackedDamping,
-      mass: unpackedMass,
-      bounce: unpackedBounce,
-      springType: unpackedSpringType,
-      parent: unpackedParentPtr,
-      materialization: Number(objectCson["10"]),
-      definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
-      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
-      precededBy: unpackedPrecededByPtr,
-      instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectCson["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectCson["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      ownedBy: unpackedOwnedByPtr,
-      name: objectCson["40"],
-      orderKey: objectCson["41"],
-      customValues: unpackedCustomValues,
-      script: unpackedScriptPtr,
-      isExtensible: unpackedIsExtensible,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): TransitionStyle {
-    return TransitionStyle.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): TransitionStyleProto {
-    return TransitionStyle.__packProto__(this);
-  }
-
-  static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 2200000 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.branchPtr = object.branchPtr.toProto();
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instancePtr != null) {
-      objectProto.instancePtr = object.instancePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.orderKey = object.orderKey;
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    if (object._scriptPtr != null) {
-      objectProto.scriptPtr = object._scriptPtr.toProto();
-    }
-    if (object.isExtensible != null) {
-      objectProto.isExtensible = object.isExtensible;
-    }
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
-    }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    objectProto.type = Number(object._type) as TransitionTypeProto;
-    if (object._delay != null) {
-      objectProto.delay = object._delay;
-    }
-    if (object._duration != null) {
-      objectProto.duration = object._duration;
-    }
-    if (object._ease) {
-      const packedEase: any[] = [];
-      for (const item of object._ease) {
-        packedEase.push(item);
-      }
-      objectProto.ease = packedEase;
-    }
-    if (object._stiffness != null) {
-      objectProto.stiffness = object._stiffness;
-    }
-    if (object._damping != null) {
-      objectProto.damping = object._damping;
-    }
-    if (object._mass != null) {
-      objectProto.mass = object._mass;
-    }
-    if (object._bounce != null) {
-      objectProto.bounce = object._bounce;
-    }
-    if (object._springType != null) {
-      objectProto.springType = Number(object._springType) as SpringTypeProto;
-    }
-    return objectProto as TransitionStyleProto;
-  }
-
-  static __unpackProto__(
-    objectProto: TransitionStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): TransitionStyle {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedEase: any[] = [];
-    if (objectProto.ease) {
-      for (const item of objectProto.ease) {
-        unpackedEase.push(item);
-      }
-    }
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new TransitionStyle({
-      type: Number(objectProto.type) as TransitionType,
-      delay: objectProto.delay != undefined ? objectProto.delay : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      ease: unpackedEase,
-      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
-      damping: objectProto.damping != undefined ? objectProto.damping : null,
-      mass: objectProto.mass != undefined ? objectProto.mass : null,
-      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType:
-        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instance:
-        objectProto.instancePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instancePtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
-          : null,
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      customValues: unpackedCustomValues,
-      script:
-        objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
-          : null,
-      isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: TransitionStyleProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): TransitionStyle {
-    return TransitionStyle.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): TransitionStyle {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = TransitionStyleProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -53,8 +53,8 @@ class _CsonObjectEncoder:
     def unpack_object(
         self,
         cson: Cson,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         raise NotImplementedError

@@ -39,8 +39,8 @@ class Encoder[T: Any = Any](ABC):
         metatype: NodeType | StructType,
         value: T,
         *,
-        session: "Session",
-        graph: "Graph",
+        session: "Session | None",
+        graph: "Graph | None",
         connection: "GraphConnection | None",
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from some encoded format."""
@@ -53,8 +53,8 @@ class Encoder[T: Any = Any](ABC):
         metatype: NodeType | StructType,
         value: bytes,
         *,
-        session: "Session",
-        graph: "Graph",
+        session: "Session | None",
+        graph: "Graph | None",
         connection: "GraphConnection | None",
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
@@ -84,8 +84,8 @@ class Encoder[T: Any = Any](ABC):
         type: "Type",
         value: T,
         *,
-        session: "Session",
-        graph: "Graph",
+        session: "Session | None",
+        graph: "Graph | None",
         connection: "GraphConnection | None",
     ) -> Any:
         """Unpack a value from some encoded format."""
@@ -97,8 +97,8 @@ class Encoder[T: Any = Any](ABC):
         type: "Type",
         value: bytes,
         *,
-        session: "Session",
-        graph: "Graph",
+        session: "Session | None",
+        graph: "Graph | None",
         connection: "GraphConnection | None",
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""

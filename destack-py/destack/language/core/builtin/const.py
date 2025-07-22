@@ -46,9 +46,9 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
-ENCODERS: dict["Encoding", "Encoder"] = {}
 
 # runtime context
+ENCODERS: dict["Encoding", "Encoder"] = {}
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )

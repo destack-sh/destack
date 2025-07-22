@@ -65,11 +65,23 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
-from .cson import generate_cson, generate_object_cson
+from .cson import generate_cson
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
-from .proto import generate_object_proto
 
 # ruff: noqa: FURB113
+
+COLLAPSE_GENERATED_CODE = False
+
+
+def _collapse_code_maybe(code: str) -> str:
+    """Collapse the code into a single line."""
+    if COLLAPSE_GENERATED_CODE:
+        code_lines = code.split("\n")
+        code_lines = [line.strip() for line in code_lines if line.strip()]
+        code_lines = "; ".join(code_lines)
+        return f"// prettier-ignore (generated)\n{code_lines};"
+    else:
+        return code
 
 
 def _generate_multiline_doc(description: str) -> str:
@@ -392,16 +404,15 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             header_parts.append(f"{ts_name_in}: {type_str}")
         else:
             header_parts.append(f"{ts_name_in}?: {type_str}")
-    header_parts.extend(("_session?: Session | null", "_graph?: Supergraph | null"))
+    header_parts.extend(("_session?: Session | null", "_graph?: Graph | null"))
     if issubclass(cls, Node):
-        header_parts.extend(("_graph?: Graph | null", "_connection?: GraphConnection | null"))
+        header_parts.extend(("_connection?: GraphConnection | null",))
     elif issubclass(cls, StructFrozen):
         header_parts.extend(
             (
                 "_hash?: number | null",
                 "_repr?: string | null",
-                "_proto?: any | null",
-                "_cson?: any | null",
+                "_packedCache?: PackedCache[] | null",
             )
         )
     header_str = ",\n".join(header_parts)
@@ -427,28 +438,26 @@ null
         )
         super_str = f"""\
 super(
-    // id
+    /* id */
     options.id ?? null,
-    // parent
+    /* parent */
     {parent_str},
-    // session
+    /* session */
     options._session ?? null,
-    // supergraph
+    /* graph */
     options._graph ?? null,
-    // graph
-    options._graph ?? null,
-    // connection
+    /* connection */
     options._connection ?? null,
-    // _isNew
+    /* _isNew */
     options.id == null,
 );
 """
     else:
         super_str = """\
 super(
-    // session
+    /* session */
     options._session ?? null,
-    // supergraph
+    /* graph */
     options._graph ?? null,
 );
 """
@@ -580,7 +589,7 @@ if (_{ts_name_in} === null) {{
     # node identity
     if is_parent_concrete:
         identity_str = """\
-// ... (already set in parent)
+/* ... (already set in parent) */
 """
     elif issubclass(cls, Node):
         if issubclass(cls, Entity):
@@ -643,7 +652,7 @@ this._cson = options._cson ?? null;
 """
         else:
             identity_str = """\
-// ...
+/* ... */
 """
 
     # assemble constructor
@@ -651,13 +660,14 @@ this._cson = options._cson ?? null;
 constructor(options: {{
 {textwrap.indent(header_str.strip(), "  ")}
 }}) {{
+  /* super */
 {textwrap.indent(super_str.strip(), "  ")}
 
-  // properties
-{textwrap.indent(body_str.strip(), "  ")}
+  /* properties */
+{_collapse_code_maybe(textwrap.indent(body_str.strip(), "  "))}
 
-  // identity
-{textwrap.indent(identity_str.strip(), "  ")}
+  /* identity */
+{_collapse_code_maybe(textwrap.indent(identity_str.strip(), "  "))}
 }}
 """
 
@@ -775,14 +785,14 @@ if (propertyReprs.length > 0) {{
     if cls.__is_frozen__ and not cls.__is_node__:
         # cache _repr in __repr__ (frozen Struct)
         inner_repr_impl = inner_repr_impl.replace(
-            "return ", "// @ts-expect-error(readonly)\nthis._repr = "
+            "return ", "// @ts-expect-error(readonly) */\nthis._repr = "
         )
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
         inner_repr_impl = f"if (this._repr === null) {{\n{inner_repr_impl}\n}}\nreturn this._repr;"
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
         repr_impl = f"""\
 repr(): string {{
-{inner_repr_impl}
+{_collapse_code_maybe(inner_repr_impl)}
 }}
 """
     else:
@@ -790,7 +800,7 @@ repr(): string {{
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
         repr_impl = f"""\
 repr(): string {{
-{inner_repr_impl}
+{_collapse_code_maybe(inner_repr_impl)}
 }}
 """
 
@@ -866,11 +876,11 @@ def _generate_equals(cls: type[BuiltinObject]) -> str:
 
     equals_impl = f"""\
 equals(other: any): boolean {{
-{body_str}
+{_collapse_code_maybe(body_str)}
   return true;
 }}"""
 
-    return equals_impl.strip()
+    return equals_impl
 
 
 def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
@@ -978,7 +988,7 @@ hash(): number {{
   if (this._hash != null) {{
     return this._hash;
   }}
-{textwrap.indent(hash_parts_str, "  ")}
+{_collapse_code_maybe(textwrap.indent(hash_parts_str, "  "))}
   // @ts-expect-error(readonly)
   this._hash = h;
   return h;
@@ -987,12 +997,12 @@ hash(): number {{
     else:
         hash_impl = f"""\
 hash(): number {{
-{textwrap.indent(hash_parts_str, "  ")}
+{_collapse_code_maybe(textwrap.indent(hash_parts_str, "  "))}
 
   return h;
 }}
 """
-    return hash_impl.strip()
+    return hash_impl
 
 
 def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
@@ -1094,7 +1104,7 @@ validate(): void {
   throw new Error("not implemented");
 }
 """
-    return validate_str.strip()
+    return validate_str
 
 
 def _generate_ref(cls: type["Node"]) -> str:
@@ -1103,63 +1113,59 @@ def _generate_ref(cls: type["Node"]) -> str:
     node_type = cls.metatype
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
-__toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.id,
-    _session: this._session,
-    _graph: this._graph,
-  }});
-}}
+const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+return new _NodeReference({{
+  type: NodeType.{node_type.name},
+  id: this.id,
+  spaceId: this.id,
+  _session: this._session,
+  _graph: this._graph,
+}});
 """
     elif node_type == NodeType.BRANCH:
         ref_impl = f"""\
-__toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.spacePtr?.id ?? null,
-    branchId: this.id,
-    _session: this._session,
-    _graph: this._graph,
-  }});
-}}
+const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+return new _NodeReference({{
+  type: NodeType.{node_type.name},
+  id: this.id,
+  spaceId: this.spacePtr?.id ?? null,
+  branchId: this.id,
+  _session: this._session,
+  _graph: this._graph,
+}});
 """
     elif node_type == NodeType.SNAPSHOT:
         ref_impl = f"""\
-__toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.spacePtr?.id ?? null,
-    branchId: this.branchPtr?.id ?? null,
-    snapshotId: this.id,
-    _session: this._session,
-    _graph: this._graph,
-  }});
-}}
+const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+return new _NodeReference({{
+  type: NodeType.{node_type.name},
+  id: this.id,
+  spaceId: this.spacePtr?.id ?? null,
+  branchId: this.branchPtr?.id ?? null,
+  snapshotId: this.id,
+  _session: this._session,
+  _graph: this._graph,
+}});
 """
     else:
         ref_impl = f"""\
+const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+return new _NodeReference({{
+  type: NodeType.{node_type.name},
+  id: this.id,
+  spaceId: this.spacePtr?.id ?? null,
+  definitionId: this.definitionPtr?.id ?? null,
+  branchId: this.branchPtr?.id ?? null,
+  snapshotId: this.snapshotPtr?.id ?? null,
+  _session: this._session,
+  _graph: this._graph,
+}});
+"""
+    return f"""\
 __toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.spacePtr?.id ?? null,
-    definitionId: this.definitionPtr?.id ?? null,
-    branchId: this.branchPtr?.id ?? null,
-    snapshotId: this.snapshotPtr?.id ?? null,
-    _session: this._session,
-    _graph: this._graph,
-  }});
+{(textwrap.indent(ref_impl, "  "))}
 }}
 """
-    return ref_impl.strip()
 
 
 def _generate_enum(definition: EnumDefinition) -> str:
@@ -1173,7 +1179,7 @@ export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-  // ...
+  /* ... */
   {MARKER_CUSTOM_END}
 }}
 registerEnumClass(EnumType.{definition.type.name}, {definition.name});
@@ -1229,10 +1235,6 @@ def _generate_struct(definition: StructDefinition) -> str:
         struct_parts.append(hash_str)
         validate_str = _generate_validate(struct_cls)
         struct_parts.append(validate_str)
-        value_str = generate_object_cson(struct_cls)
-        struct_parts.append(value_str)
-        proto_str = generate_object_proto(struct_cls)
-        struct_parts.append(proto_str)
 
     if definition.base_type is None or definition.base_type == StructType.STRUCT:
         base_cls_name = "Struct" if not definition.is_frozen else "StructFrozen"
@@ -1250,7 +1252,7 @@ export {"abstract " if struct_cls.__is_abstract__ else ""}class {definition.name
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-  // ...
+  /* ... */
   {MARKER_CUSTOM_END}
 }}
 registerStructClass(StructType.{definition.type.name}, {definition.name});
@@ -1307,7 +1309,7 @@ export interface {definition.alias}{extends_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-  // ...
+  /* ... */
   {MARKER_CUSTOM_END}
 }}
 
@@ -1381,10 +1383,6 @@ def _generate_node(definition: NodeDefinition) -> str:
         node_parts.append(path_str)
         repr_str = _generate_repr(node_cls)
         node_parts.append(repr_str)
-        value_str = generate_object_cson(node_cls)
-        node_parts.append(value_str)
-        proto_str = generate_object_proto(node_cls)
-        node_parts.append(proto_str)
 
     # class
     super_trait_classes = [
@@ -1411,7 +1409,7 @@ export {"abstract " if node_cls.__is_abstract__ else ""}class {definition.name}{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-  // ...
+  /* ... */
   {MARKER_CUSTOM_END}
 }}
 registerNodeClass(NodeType.{definition.type.name}, {definition.name});
@@ -1426,7 +1424,7 @@ def _generate_constant_member(definition: ConstantDefinition) -> str:
     """
     type_str = _generate_type(definition.value.type)
     if definition._is_deferred:
-        value_str = "undefined as any // (deferred)"
+        value_str = "undefined as any /* (deferred) */"
     else:
         value_str = generate_cson(definition.value.type, definition.value.get())
 
@@ -1804,14 +1802,7 @@ def _generate_file(
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
     value_dependencies: set[str] = set()
-    language_imports_by_module["core.runtime.graph"] = {
-        "Graph",
-        "Supergraph",
-        "EntitySingletonGraph",
-        "EntityGraph",
-        "EventGraph",
-    }
-    value_dependencies.update(("EntitySingletonGraph", "EntityGraph", "EventGraph"))
+    language_imports_by_module["core.runtime.graph"] = {"Graph"}
     language_imports_by_module["core.runtime.session"] = {"Session"}
     language_imports_by_module["core.runtime.connection"] = {"GraphConnection"}
     language_imports_by_module["core.builtin.relation"] = {"NodeReference"}
@@ -1862,7 +1853,7 @@ def _generate_file(
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
-    language_imports_by_module["core.builtin.object"] = {"BuiltinObject"}
+    language_imports_by_module["core.builtin.object"] = {"BuiltinObject", "PackedCache"}
     value_dependencies.add("BuiltinObject")
     language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
     value_dependencies.update(("Struct", "StructFrozen", "isStruct"))

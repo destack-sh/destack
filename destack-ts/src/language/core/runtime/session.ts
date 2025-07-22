@@ -1,20 +1,17 @@
 import {
   Client,
-  EntityStore,
-  EventStatus,
-  EventStore,
   IsActor,
   type Entity,
   type Event,
+  type GraphConnection,
   type PropertyDefinition,
-  type QueryConnection,
 } from "@destack/language";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
-import { EventGraph, Supergraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
-import { assertNever, Casing, toCasing } from "@destack/utils";
+import { Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /**
@@ -25,35 +22,28 @@ export class Session {
   client: Client | null;
   clientNonce: string | null;
   actor: (Entity & IsActor) | null;
-  store: EventStore | EntityStore | null;
-  supergraph: Supergraph;
-  eventGraph: EventGraph;
+  graph: Graph;
 
   pendingEvents: Event[];
+  connections: GraphConnection[];
 
-  connections: QueryConnection[];
   closedAt: Temporal.ZonedDateTime | null;
   _token: string | null;
   _epoch: number | null;
 
-  constructor(options?: {
+  constructor(options: {
     oracle?: Oracle;
     client?: Client | null;
     clientNonce?: string | null;
     actor?: (Entity & IsActor) | null;
-    store?: EventStore | EntityStore | null;
+    graph: Graph;
     epoch?: number;
-    supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
     this.client = options?.client ?? null;
     this.clientNonce = options?.clientNonce ?? null;
     this.actor = options?.actor ?? null;
-    this.store = options?.store ?? null;
-    this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
-    this.eventGraph = this.supergraph.createEventGraph();
-
-    // runtime
+    this.graph = options.graph;
     this.pendingEvents = [];
     this.connections = [];
     this.closedAt = null;
@@ -66,8 +56,8 @@ export class Session {
     if (this.actor) {
       contentParts.push(`actor=${this.actor.repr()}`);
     }
-    if (this.store) {
-      contentParts.push(`store=${this.store.repr()}`);
+    if (this.graph) {
+      contentParts.push(`graph=${this.graph.repr()}`);
     }
     if (this.closedAt) {
       contentParts.push(`closed_at=${this.closedAt.toString()}`);
@@ -250,36 +240,10 @@ export class Session {
   async commit(): Promise<Event[]> {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
-    } else if (this.store == null) {
-      throw new Error(`${this.repr()} has no Store`);
     }
     this._onFlush();
     const events = this.pendingEvents;
     this.pendingEvents = [];
-
-    // commit
-    let appliedEvents: Event[];
-    if (this.store == null) {
-      throw new Error(`${this.repr()} has no Store`);
-    } else if ("append" in this.store) {
-      appliedEvents = await this.store.append(events);
-    } else if ("commit" in this.store) {
-      const editEvents = events.filter((event) => event instanceof EditEvent);
-      appliedEvents = await this.store.commit(editEvents);
-    } else {
-      assertNever(this.store);
-    }
-
-    // check
-    if (appliedEvents.some((event) => event.status != EventStatus.APPROVED)) {
-      const badEvents = appliedEvents.filter((event) => event.status != EventStatus.APPROVED);
-      // TODO :Incomplete: do something on :RejectedEvents
-      // throw new Error(
-      //   `failed to commit ${events.length} Events: ${badEvents
-      //     .map((event) => event.id)
-      //     .join(", ")}`,
-      // );
-    }
-    return appliedEvents;
+    throw new Error("not implemented");
   }
 }

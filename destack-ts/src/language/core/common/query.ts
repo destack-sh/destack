@@ -9,6 +9,7 @@ import { activeSession } from "@destack/language/core/builtin/const";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
+import type { PackedCache } from "@destack/language/core/builtin/object";
 import type {
   NodeDefinitionReference,
   NodeReference,
@@ -19,34 +20,14 @@ import type { CustomProperty } from "@destack/language/core/common/property";
 import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
-import { GraphConnection, QueryConnection } from "@destack/language/core/runtime/connection";
-import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerStructClass,
 } from "@destack/language/registry";
-import {
-  AggregationProto,
-  AggregationTypeProto,
-  ConditionProto,
-  ConditionalTypeProto,
-  ExpressionProto,
-  ExpressionTypeProto,
-  FunctionProto,
-  FunctionTypeProto,
-  JoinProto,
-  JoinTypeProto,
-  QueryProto,
-  QueryTypeProto,
-  SelectProto,
-  SortModeProto,
-  SortProto,
-  SortTypeProto,
-  StoreDomainProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { uuid4 } from "@destack/utils/uuid";
@@ -79,20 +60,20 @@ export class Function extends StructFrozen {
     left: Expression;
     right?: Expression | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Function.type is required`);
@@ -106,7 +87,7 @@ export class Function extends StructFrozen {
     let _right = options.right ?? null;
     this.right = _right;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -144,7 +125,7 @@ export class Function extends StructFrozen {
       if (this.right != null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Function ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -168,107 +149,6 @@ export class Function extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Function.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Function): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 201;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.left.toCson();
-    if (object.right != null) {
-      objectCson["102"] = object.right.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Function {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const rightValue = objectCson["102"];
-    const unpackedRight =
-      rightValue != undefined
-        ? _Expression.fromCson(rightValue, _session, _graph, _connection)
-        : null;
-    return new Function({
-      type: Number(objectCson["100"]),
-      left: _Expression.fromCson(objectCson["101"], _session, _graph, _connection),
-      right: unpackedRight,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Function {
-    return Function.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): FunctionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Function.__packProto__(this);
-    }
-    return this._proto as FunctionProto;
-  }
-
-  static __packProto__(object: Function): FunctionProto {
-    const objectProto: Partial<FunctionProto> = { metatype: 201 };
-    objectProto.type = Number(object.type) as FunctionTypeProto;
-    objectProto.left = object.left.toProto();
-    if (object.right != null) {
-      objectProto.right = object.right.toProto();
-    }
-    return objectProto as FunctionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: FunctionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Function {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    return new Function({
-      type: Number(objectProto.type) as FunctionType,
-      left: _Expression.fromProto(objectProto.left!, _session, _graph, _graph, _connection),
-      right:
-        objectProto.right != undefined
-          ? _Expression.fromProto(objectProto.right!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: FunctionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Function {
-    return Function.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Function {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = FunctionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -311,20 +191,20 @@ export class Condition extends StructFrozen {
     left: Expression;
     right?: Expression | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Condition.type is required`);
@@ -338,7 +218,7 @@ export class Condition extends StructFrozen {
     let _right = options.right ?? null;
     this.right = _right;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -376,7 +256,7 @@ export class Condition extends StructFrozen {
       if (this.right != null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Condition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -400,107 +280,6 @@ export class Condition extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Condition.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Condition): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 204;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.left.toCson();
-    if (object.right != null) {
-      objectCson["102"] = object.right.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Condition {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const rightValue = objectCson["102"];
-    const unpackedRight =
-      rightValue != undefined
-        ? _Expression.fromCson(rightValue, _session, _graph, _connection)
-        : null;
-    return new Condition({
-      type: Number(objectCson["100"]),
-      left: _Expression.fromCson(objectCson["101"], _session, _graph, _connection),
-      right: unpackedRight,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Condition {
-    return Condition.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): ConditionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Condition.__packProto__(this);
-    }
-    return this._proto as ConditionProto;
-  }
-
-  static __packProto__(object: Condition): ConditionProto {
-    const objectProto: Partial<ConditionProto> = { metatype: 204 };
-    objectProto.type = Number(object.type) as ConditionalTypeProto;
-    objectProto.left = object.left.toProto();
-    if (object.right != null) {
-      objectProto.right = object.right.toProto();
-    }
-    return objectProto as ConditionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ConditionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Condition {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    return new Condition({
-      type: Number(objectProto.type) as ConditionalType,
-      left: _Expression.fromProto(objectProto.left!, _session, _graph, _graph, _connection),
-      right:
-        objectProto.right != undefined
-          ? _Expression.fromProto(objectProto.right!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ConditionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Condition {
-    return Condition.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Condition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ConditionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -569,20 +348,20 @@ export class Aggregation extends StructFrozen {
     type: AggregationType;
     expression?: Expression | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Aggregation.type is required`);
@@ -591,7 +370,7 @@ export class Aggregation extends StructFrozen {
     let _expression = options.expression ?? null;
     this.expression = _expression;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -625,7 +404,7 @@ export class Aggregation extends StructFrozen {
       if (this.expression != null) {
         propertyReprs.push(`expression=${this.expression.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Aggregation ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -648,103 +427,6 @@ export class Aggregation extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Aggregation.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Aggregation): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 203;
-    objectCson["100"] = object.type;
-    if (object.expression != null) {
-      objectCson["101"] = object.expression.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Aggregation {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const expressionValue = objectCson["101"];
-    const unpackedExpression =
-      expressionValue != undefined
-        ? _Expression.fromCson(expressionValue, _session, _graph, _connection)
-        : null;
-    return new Aggregation({
-      type: Number(objectCson["100"]),
-      expression: unpackedExpression,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Aggregation {
-    return Aggregation.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): AggregationProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Aggregation.__packProto__(this);
-    }
-    return this._proto as AggregationProto;
-  }
-
-  static __packProto__(object: Aggregation): AggregationProto {
-    const objectProto: Partial<AggregationProto> = { metatype: 203 };
-    objectProto.type = Number(object.type) as AggregationTypeProto;
-    if (object.expression != null) {
-      objectProto.expression = object.expression.toProto();
-    }
-    return objectProto as AggregationProto;
-  }
-
-  static __unpackProto__(
-    objectProto: AggregationProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Aggregation {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    return new Aggregation({
-      type: Number(objectProto.type) as AggregationType,
-      expression:
-        objectProto.expression != undefined
-          ? _Expression.fromProto(objectProto.expression!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: AggregationProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Aggregation {
-    return Aggregation.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Aggregation {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = AggregationProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -805,20 +487,20 @@ export class Expression extends StructFrozen {
     function?: Function | null;
     aggregation?: Aggregation | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Expression.type is required`);
@@ -835,7 +517,7 @@ export class Expression extends StructFrozen {
     let _aggregation = options.aggregation ?? null;
     this.aggregation = _aggregation;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -905,7 +587,7 @@ export class Expression extends StructFrozen {
       if (this.aggregation != null) {
         propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Expression ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -940,185 +622,6 @@ export class Expression extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Expression.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Expression): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 200;
-    objectCson["100"] = object.type;
-    if (object.literal != null) {
-      objectCson["101"] = object.literal.toCson();
-    }
-    if (object.attribute != null) {
-      objectCson["102"] = object.attribute.toCson();
-    }
-    if (object.condition != null) {
-      objectCson["103"] = object.condition.toCson();
-    }
-    if (object.function != null) {
-      objectCson["104"] = object.function.toCson();
-    }
-    if (object.aggregation != null) {
-      objectCson["105"] = object.aggregation.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Expression {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
-    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
-    const literalValue = objectCson["101"];
-    const unpackedLiteral =
-      literalValue != undefined
-        ? _Value.fromCson(literalValue, _session, _graph, _connection)
-        : null;
-    const attributeValue = objectCson["102"];
-    const unpackedAttribute =
-      attributeValue != undefined
-        ? _PropertyReference.fromCson(attributeValue, _session, _graph, _connection)
-        : null;
-    const conditionValue = objectCson["103"];
-    const unpackedCondition =
-      conditionValue != undefined
-        ? _Condition.fromCson(conditionValue, _session, _graph, _connection)
-        : null;
-    const functionValue = objectCson["104"];
-    const unpackedFunction =
-      functionValue != undefined
-        ? _Function.fromCson(functionValue, _session, _graph, _connection)
-        : null;
-    const aggregationValue = objectCson["105"];
-    const unpackedAggregation =
-      aggregationValue != undefined
-        ? _Aggregation.fromCson(aggregationValue, _session, _graph, _connection)
-        : null;
-    return new Expression({
-      type: Number(objectCson["100"]),
-      literal: unpackedLiteral,
-      attribute: unpackedAttribute,
-      condition: unpackedCondition,
-      function: unpackedFunction,
-      aggregation: unpackedAggregation,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Expression {
-    return Expression.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): ExpressionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Expression.__packProto__(this);
-    }
-    return this._proto as ExpressionProto;
-  }
-
-  static __packProto__(object: Expression): ExpressionProto {
-    const objectProto: Partial<ExpressionProto> = { metatype: 200 };
-    objectProto.type = Number(object.type) as ExpressionTypeProto;
-    if (object.literal != null) {
-      objectProto.literal = object.literal.toProto();
-    }
-    if (object.attribute != null) {
-      objectProto.attribute = object.attribute.toProto();
-    }
-    if (object.condition != null) {
-      objectProto.condition = object.condition.toProto();
-    }
-    if (object.function != null) {
-      objectProto.function = object.function.toProto();
-    }
-    if (object.aggregation != null) {
-      objectProto.aggregation = object.aggregation.toProto();
-    }
-    return objectProto as ExpressionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ExpressionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Expression {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
-    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
-    return new Expression({
-      type: Number(objectProto.type) as ExpressionType,
-      literal:
-        objectProto.literal != undefined
-          ? _Value.fromProto(objectProto.literal!, _session, _graph, _graph, _connection)
-          : null,
-      attribute:
-        objectProto.attribute != undefined
-          ? _PropertyReference.fromProto(
-              objectProto.attribute!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      condition:
-        objectProto.condition != undefined
-          ? _Condition.fromProto(objectProto.condition!, _session, _graph, _graph, _connection)
-          : null,
-      function:
-        objectProto.function != undefined
-          ? _Function.fromProto(objectProto.function!, _session, _graph, _graph, _connection)
-          : null,
-      aggregation:
-        objectProto.aggregation != undefined
-          ? _Aggregation.fromProto(objectProto.aggregation!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ExpressionProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Expression {
-    return Expression.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Expression {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ExpressionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1195,20 +698,20 @@ export class Sort extends StructFrozen {
     by: Expression;
     mode?: SortMode | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Sort.type is required`);
@@ -1222,7 +725,7 @@ export class Sort extends StructFrozen {
     let _mode = options.mode ?? null;
     this.mode = _mode;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1257,7 +760,7 @@ export class Sort extends StructFrozen {
       if (this.mode != null) {
         propertyReprs.push(`mode=${SortMode[this.mode]}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Sort ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1281,101 +784,6 @@ export class Sort extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Sort.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Sort): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 205;
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.by.toCson();
-    if (object.mode != null) {
-      objectCson["102"] = object.mode;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Sort {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const modeValue = objectCson["102"];
-    const unpackedMode = modeValue != undefined ? Number(modeValue) : null;
-    return new Sort({
-      type: Number(objectCson["100"]),
-      by: _Expression.fromCson(objectCson["101"], _session, _graph, _connection),
-      mode: unpackedMode,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Sort {
-    return Sort.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): SortProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Sort.__packProto__(this);
-    }
-    return this._proto as SortProto;
-  }
-
-  static __packProto__(object: Sort): SortProto {
-    const objectProto: Partial<SortProto> = { metatype: 205 };
-    objectProto.type = Number(object.type) as SortTypeProto;
-    objectProto.by = object.by.toProto();
-    if (object.mode != null) {
-      objectProto.mode = Number(object.mode) as SortModeProto;
-    }
-    return objectProto as SortProto;
-  }
-
-  static __unpackProto__(
-    objectProto: SortProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Sort {
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    return new Sort({
-      type: Number(objectProto.type) as SortType,
-      by: _Expression.fromProto(objectProto.by!, _session, _graph, _graph, _connection),
-      mode: objectProto.mode != undefined ? (Number(objectProto.mode) as SortMode) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: SortProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Sort {
-    return Sort.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Sort {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = SortProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1406,27 +814,27 @@ export class Select extends StructFrozen {
   constructor(options: {
     attributes?: readonly PropertyReference[];
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _attributes = options.attributes ?? null;
     if (_attributes === null) {
       _attributes = [];
     }
     this.attributes = _attributes;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1459,10 +867,10 @@ export class Select extends StructFrozen {
         propertyReprs.push(`attributes=${this.attributes.map((_item) => _item.repr()).join(", ")}`);
       }
       if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<Select ${propertyReprs.join(" ")}>`;
       } else {
-        // @ts-expect-error(readonly)
+        // @ts-expect-error(readonly) */
         this._repr = `<Select>`;
       }
     }
@@ -1487,117 +895,6 @@ export class Select extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Select.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Select): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 206;
-    if (object.attributes.length > 0) {
-      const packedAttributes: any[] = [];
-      for (const item of object.attributes) {
-        packedAttributes.push(item.toCson());
-      }
-      objectCson["101"] = packedAttributes;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Select {
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
-    const unpackedAttributes: any[] = [];
-    if (objectCson["101"] != undefined) {
-      for (const item of objectCson["101"]) {
-        unpackedAttributes.push(_PropertyReference.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    return new Select({
-      attributes: unpackedAttributes,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Select {
-    return Select.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): SelectProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Select.__packProto__(this);
-    }
-    return this._proto as SelectProto;
-  }
-
-  static __packProto__(object: Select): SelectProto {
-    const objectProto: Partial<SelectProto> = { metatype: 206 };
-    if (object.attributes) {
-      const packedAttributes: any[] = [];
-      for (const item of object.attributes) {
-        packedAttributes.push(item.toProto());
-      }
-      objectProto.attributes = packedAttributes;
-    }
-    return objectProto as SelectProto;
-  }
-
-  static __unpackProto__(
-    objectProto: SelectProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Select {
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
-    const unpackedAttributes: any[] = [];
-    if (objectProto.attributes) {
-      for (const item of objectProto.attributes) {
-        unpackedAttributes.push(
-          _PropertyReference.fromProto(item!, _session, _graph, _graph, _connection),
-        );
-      }
-    }
-    return new Select({
-      attributes: unpackedAttributes,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: SelectProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Select {
-    return Select.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Select {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = SelectProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1657,20 +954,20 @@ export class Join extends StructFrozen {
     depth?: number | null;
     on?: Condition | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Join.type is required`);
@@ -1691,7 +988,7 @@ export class Join extends StructFrozen {
     let _on = options.on ?? null;
     this.on = _on;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1744,7 +1041,7 @@ export class Join extends StructFrozen {
       if (this.on != null) {
         propertyReprs.push(`on=${this.on.repr()}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Join ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1774,143 +1071,6 @@ export class Join extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Join.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Join): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 202;
-    objectCson["100"] = object.type;
-    if (object.customDefinition != null) {
-      objectCson["101"] = object.customDefinition.toCson();
-    }
-    objectCson["102"] = object.recursive;
-    if (object.depth != null) {
-      objectCson["103"] = object.depth;
-    }
-    if (object.on != null) {
-      objectCson["104"] = object.on.toCson();
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Join {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const customDefinitionValue = objectCson["101"];
-    const unpackedCustomDefinition =
-      customDefinitionValue != undefined
-        ? _NodeDefinitionReference.fromCson(customDefinitionValue, _session, _graph, _connection)
-        : null;
-    const depthValue = objectCson["103"];
-    const unpackedDepth = depthValue != undefined ? Number(depthValue) : null;
-    const onValue = objectCson["104"];
-    const unpackedOn =
-      onValue != undefined ? _Condition.fromCson(onValue, _session, _graph, _connection) : null;
-    return new Join({
-      type: Number(objectCson["100"]),
-      customDefinition: unpackedCustomDefinition,
-      recursive: objectCson["102"],
-      depth: unpackedDepth,
-      on: unpackedOn,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Join {
-    return Join.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): JoinProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Join.__packProto__(this);
-    }
-    return this._proto as JoinProto;
-  }
-
-  static __packProto__(object: Join): JoinProto {
-    const objectProto: Partial<JoinProto> = { metatype: 202 };
-    objectProto.type = Number(object.type) as JoinTypeProto;
-    if (object.customDefinition != null) {
-      objectProto.customDefinition = object.customDefinition.toProto();
-    }
-    objectProto.recursive = object.recursive;
-    if (object.depth != null) {
-      objectProto.depth = object.depth;
-    }
-    if (object.on != null) {
-      objectProto.on = object.on.toProto();
-    }
-    return objectProto as JoinProto;
-  }
-
-  static __unpackProto__(
-    objectProto: JoinProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Join {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    return new Join({
-      type: Number(objectProto.type) as JoinType,
-      customDefinition:
-        objectProto.customDefinition != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.customDefinition!,
-              _session,
-              _graph,
-              _graph,
-              _connection,
-            )
-          : null,
-      recursive: objectProto.recursive,
-      depth: objectProto.depth != undefined ? Number(objectProto.depth) : null,
-      on:
-        objectProto.on != undefined
-          ? _Condition.fromProto(objectProto.on!, _session, _graph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: JoinProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Join {
-    return Join.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Join {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = JoinProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -2048,20 +1208,20 @@ export class Query<T extends Node = Node> extends StructFrozen {
     limit?: number | null;
     offset?: number | null;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _id = options.id ?? null;
     if (_id === null) {
       _id = uuid4();
@@ -2120,7 +1280,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     let _offset = options.offset ?? null;
     this.offset = _offset;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -2250,7 +1410,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.offset != null) {
         propertyReprs.push(`offset=${this.offset}`);
       }
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2312,324 +1472,16 @@ export class Query<T extends Node = Node> extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Query.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Query): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 300;
-    objectCson["2"] = String(object.id);
-    objectCson["100"] = object.type;
-    objectCson["101"] = object.domain;
-    objectCson["105"] = object.name;
-    objectCson["106"] = object.definition.toCson();
-    if (object.subqueries.length > 0) {
-      const packedSubqueries: any[] = [];
-      for (const item of object.subqueries) {
-        packedSubqueries.push(item.toCson());
-      }
-      objectCson["109"] = packedSubqueries;
-    }
-    if (object.join != null) {
-      objectCson["110"] = object.join.toCson();
-    }
-    if (object.select != null) {
-      objectCson["111"] = object.select.toCson();
-    }
-    if (object.where != null) {
-      objectCson["112"] = object.where.toCson();
-    }
-    if (object.having != null) {
-      objectCson["113"] = object.having.toCson();
-    }
-    if (object.groupBy.length > 0) {
-      const packedGroupBy: any[] = [];
-      for (const item of object.groupBy) {
-        packedGroupBy.push(item.toCson());
-      }
-      objectCson["114"] = packedGroupBy;
-    }
-    if (object.aggregation != null) {
-      objectCson["115"] = object.aggregation.toCson();
-    }
-    if (object.sort.length > 0) {
-      const packedSort: any[] = [];
-      for (const item of object.sort) {
-        packedSort.push(item.toCson());
-      }
-      objectCson["116"] = packedSort;
-    }
-    if (object.limit != null) {
-      objectCson["120"] = object.limit;
-    }
-    if (object.offset != null) {
-      objectCson["121"] = object.offset;
-    }
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Query {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
-    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
-    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
-    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
-    const unpackedSubqueries: any[] = [];
-    if (objectCson["109"] != undefined) {
-      for (const item of objectCson["109"]) {
-        unpackedSubqueries.push(_Query.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    const joinValue = objectCson["110"];
-    const unpackedJoin =
-      joinValue != undefined ? _Join.fromCson(joinValue, _session, _graph, _connection) : null;
-    const selectValue = objectCson["111"];
-    const unpackedSelect =
-      selectValue != undefined
-        ? _Select.fromCson(selectValue, _session, _graph, _connection)
-        : null;
-    const whereValue = objectCson["112"];
-    const unpackedWhere =
-      whereValue != undefined
-        ? _Condition.fromCson(whereValue, _session, _graph, _connection)
-        : null;
-    const havingValue = objectCson["113"];
-    const unpackedHaving =
-      havingValue != undefined
-        ? _Condition.fromCson(havingValue, _session, _graph, _connection)
-        : null;
-    const unpackedGroupBy: any[] = [];
-    if (objectCson["114"] != undefined) {
-      for (const item of objectCson["114"]) {
-        unpackedGroupBy.push(_Expression.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    const aggregationValue = objectCson["115"];
-    const unpackedAggregation =
-      aggregationValue != undefined
-        ? _Aggregation.fromCson(aggregationValue, _session, _graph, _connection)
-        : null;
-    const unpackedSort: any[] = [];
-    if (objectCson["116"] != undefined) {
-      for (const item of objectCson["116"]) {
-        unpackedSort.push(_Sort.fromCson(item, _session, _graph, _connection));
-      }
-    }
-    const limitValue = objectCson["120"];
-    const unpackedLimit = limitValue != undefined ? Number(limitValue) : null;
-    const offsetValue = objectCson["121"];
-    const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
-    return new Query({
-      id: String(objectCson["2"]),
-      type: Number(objectCson["100"]),
-      domain: Number(objectCson["101"]),
-      name: objectCson["105"],
-      definition: _NodeDefinitionReference.fromCson(
-        objectCson["106"],
-        _session,
-        _graph,
-        _connection,
-      ),
-      subqueries: unpackedSubqueries,
-      join: unpackedJoin,
-      select: unpackedSelect,
-      where: unpackedWhere,
-      having: unpackedHaving,
-      groupBy: unpackedGroupBy,
-      aggregation: unpackedAggregation,
-      sort: unpackedSort,
-      limit: unpackedLimit,
-      offset: unpackedOffset,
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Query {
-    return Query.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): QueryProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Query.__packProto__(this);
-    }
-    return this._proto as QueryProto;
-  }
-
-  static __packProto__(object: Query): QueryProto {
-    const objectProto: Partial<QueryProto> = { metatype: 300 };
-    objectProto.id = String(object.id);
-    objectProto.type = Number(object.type) as QueryTypeProto;
-    objectProto.domain = Number(object.domain) as StoreDomainProto;
-    objectProto.name = object.name;
-    objectProto.definition = object.definition.toProto();
-    if (object.subqueries) {
-      const packedSubqueries: any[] = [];
-      for (const item of object.subqueries) {
-        packedSubqueries.push(item.toProto());
-      }
-      objectProto.subqueries = packedSubqueries;
-    }
-    if (object.join != null) {
-      objectProto.join = object.join.toProto();
-    }
-    if (object.select != null) {
-      objectProto.select = object.select.toProto();
-    }
-    if (object.where != null) {
-      objectProto.where = object.where.toProto();
-    }
-    if (object.having != null) {
-      objectProto.having = object.having.toProto();
-    }
-    if (object.groupBy) {
-      const packedGroupBy: any[] = [];
-      for (const item of object.groupBy) {
-        packedGroupBy.push(item.toProto());
-      }
-      objectProto.groupBy = packedGroupBy;
-    }
-    if (object.aggregation != null) {
-      objectProto.aggregation = object.aggregation.toProto();
-    }
-    if (object.sort) {
-      const packedSort: any[] = [];
-      for (const item of object.sort) {
-        packedSort.push(item.toProto());
-      }
-      objectProto.sort = packedSort;
-    }
-    if (object.limit != null) {
-      objectProto.limit = object.limit;
-    }
-    if (object.offset != null) {
-      objectProto.offset = object.offset;
-    }
-    return objectProto as QueryProto;
-  }
-
-  static __unpackProto__(
-    objectProto: QueryProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Query {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
-    const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
-    const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
-    const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
-    const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
-    const unpackedSubqueries: any[] = [];
-    if (objectProto.subqueries) {
-      for (const item of objectProto.subqueries) {
-        unpackedSubqueries.push(_Query.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    const unpackedGroupBy: any[] = [];
-    if (objectProto.groupBy) {
-      for (const item of objectProto.groupBy) {
-        unpackedGroupBy.push(_Expression.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    const unpackedSort: any[] = [];
-    if (objectProto.sort) {
-      for (const item of objectProto.sort) {
-        unpackedSort.push(_Sort.fromProto(item!, _session, _graph, _graph, _connection));
-      }
-    }
-    return new Query({
-      id: String(objectProto.id),
-      type: Number(objectProto.type) as QueryType,
-      domain: Number(objectProto.domain) as StoreDomain,
-      name: objectProto.name,
-      definition: _NodeDefinitionReference.fromProto(
-        objectProto.definition!,
-        _session,
-        _graph,
-        _graph,
-        _connection,
-      ),
-      subqueries: unpackedSubqueries,
-      join:
-        objectProto.join != undefined
-          ? _Join.fromProto(objectProto.join!, _session, _graph, _graph, _connection)
-          : null,
-      select:
-        objectProto.select != undefined
-          ? _Select.fromProto(objectProto.select!, _session, _graph, _graph, _connection)
-          : null,
-      where:
-        objectProto.where != undefined
-          ? _Condition.fromProto(objectProto.where!, _session, _graph, _graph, _connection)
-          : null,
-      having:
-        objectProto.having != undefined
-          ? _Condition.fromProto(objectProto.having!, _session, _graph, _graph, _connection)
-          : null,
-      groupBy: unpackedGroupBy,
-      aggregation:
-        objectProto.aggregation != undefined
-          ? _Aggregation.fromProto(objectProto.aggregation!, _session, _graph, _graph, _connection)
-          : null,
-      sort: unpackedSort,
-      limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
-      offset: objectProto.offset != undefined ? Number(objectProto.offset) : null,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: QueryProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Query {
-    return Query.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Query {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = QueryProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Execute the Query. */
-  async execute(options?: { isLive?: boolean }): Promise<QueryConnection<T>> {
+  async execute(options?: { isLive?: boolean }): Promise<GraphConnection<T>> {
     const session = activeSession();
     const store = session.store;
     if (store == null) {
       throw new Error(`no store in ${session.repr()}`);
     }
-    const connection = new QueryConnection<T>({
+    const connection = new GraphConnection<T>({
       query: this,
       store,
       session,

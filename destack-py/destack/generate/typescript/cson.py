@@ -30,8 +30,8 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
-def generate_object_cson(cls: type["BuiltinObject"]) -> str:
-    """Generate the BuiltinObject toCson/fromCson method implementations."""
+def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
+    """Generate the BuiltinObject Encoder class."""
 
     if cls.__is_abstract__:
         pack_cson = f"throw new Error('cannot pack abstract {cls.__name__}');"
@@ -40,44 +40,27 @@ def generate_object_cson(cls: type["BuiltinObject"]) -> str:
         pack_cson = _generate_to_cson(cls)
         unpack_cson = _generate_from_cson(cls)
 
-    if cls.__is_frozen__ and not cls.__is_node__:
-        to_cson_method = f"""
-  toCson(): {{ [key: string]: any }} {{
-    if (this._cson === null) {{
-      // @ts-expect-error(readonly)
-      this._cson = {cls.__name__}.__packCson__(this);
-    }}
-    return this._cson;
-  }}"""
-    else:
-        to_cson_method = f"""
-  toCson(): {{ [key: string]: any }} {{
-    return {cls.__name__}.__packCson__(this);
-  }}"""
+    encoder_name = f"{cls.__name__}CsonEncoder"
 
-    return f"""{to_cson_method}
-
-  static __packCson__(object: {cls.__name__}): {{ [key: string]: any }} {{
+    return (
+        encoder_name,
+        f"""
+export class {encoder_name} implements Encoder<any> {{
+  packObject(object: {cls.__name__}): any {{
 {textwrap.indent(pack_cson, "  ")}
   }}
 
-  static __unpackCson__(
-    objectCson: {{ [key: string]: any }},
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): {cls.__name__} {{
+  unpackObject(options: {{
+    value: any;
+    _session?: Session | null;
+    _graph?: Graph | null;
+    _connection?: GraphConnection | null;
+  }}): {cls.__name__} {{
 {textwrap.indent(unpack_cson, "  ")}
   }}
-
-  static fromCson(
-    objectCson: {{ readonly [key: string]: any }},
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): {cls.__name__} {{
-    return {cls.__name__}.__unpackCson__(objectCson, _session, _graph, _connection);
-  }}"""
+}}
+""",
+    )
 
 
 def _generate_to_cson(cls: type["BuiltinObject"]) -> str:
@@ -365,6 +348,6 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
         value_bytes = value.pack_bytes(Encoding.PROTO)
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.fromProtoString({value_bytes_str!r})"
+        return f"{value.__class__.__name__}.unpackBytesString({{ encoding: {Encoding.PROTO.value}, value: {value_bytes_str!r} }})"
     else:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")

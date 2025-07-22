@@ -1,15 +1,6 @@
-import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
+import type { Graph, PackedCache, Session } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
-import {
-  Vector2Proto,
-  Vector2iProto,
-  Vector3Proto,
-  Vector3iProto,
-  Vector4Proto,
-  Vector4iProto,
-} from "@destack/proto";
-import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400000 ==== */
@@ -34,20 +25,20 @@ export class Vector2 extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector2.x is required`);
@@ -59,7 +50,7 @@ export class Vector2 extends StructFrozen {
     }
     this.y = _y;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -88,7 +79,7 @@ export class Vector2 extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -109,89 +100,6 @@ export class Vector2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector2.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector2): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400000;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2 {
-    return new Vector2({
-      x: objectCson["101"],
-      y: objectCson["102"],
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2 {
-    return Vector2.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector2Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector2.__packProto__(this);
-    }
-    return this._proto as Vector2Proto;
-  }
-
-  static __packProto__(object: Vector2): Vector2Proto {
-    const objectProto: Partial<Vector2Proto> = { metatype: 2400000 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    return objectProto as Vector2Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2 {
-    return new Vector2({
-      x: objectProto.x,
-      y: objectProto.y,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector2Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2 {
-    return Vector2.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector2 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector2Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -387,20 +295,20 @@ export class Vector3 extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector3.x is required`);
@@ -417,7 +325,7 @@ export class Vector3 extends StructFrozen {
     }
     this.z = _z;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -450,7 +358,7 @@ export class Vector3 extends StructFrozen {
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector3 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -472,93 +380,6 @@ export class Vector3 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector3.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector3): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400002;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    objectCson["103"] = object.z;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3 {
-    return new Vector3({
-      x: objectCson["101"],
-      y: objectCson["102"],
-      z: objectCson["103"],
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3 {
-    return Vector3.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector3Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector3.__packProto__(this);
-    }
-    return this._proto as Vector3Proto;
-  }
-
-  static __packProto__(object: Vector3): Vector3Proto {
-    const objectProto: Partial<Vector3Proto> = { metatype: 2400002 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    objectProto.z = object.z;
-    return objectProto as Vector3Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector3Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3 {
-    return new Vector3({
-      x: objectProto.x,
-      y: objectProto.y,
-      z: objectProto.z,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector3Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3 {
-    return Vector3.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector3 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector3Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -786,20 +607,20 @@ export class Vector4 extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector4.x is required`);
@@ -821,7 +642,7 @@ export class Vector4 extends StructFrozen {
     }
     this.w = _w;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -858,7 +679,7 @@ export class Vector4 extends StructFrozen {
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
       propertyReprs.push(`w=${this.w}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector4 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -881,97 +702,6 @@ export class Vector4 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector4.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector4): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400004;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    objectCson["103"] = object.z;
-    objectCson["104"] = object.w;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4 {
-    return new Vector4({
-      x: objectCson["101"],
-      y: objectCson["102"],
-      z: objectCson["103"],
-      w: objectCson["104"],
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4 {
-    return Vector4.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector4Proto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector4.__packProto__(this);
-    }
-    return this._proto as Vector4Proto;
-  }
-
-  static __packProto__(object: Vector4): Vector4Proto {
-    const objectProto: Partial<Vector4Proto> = { metatype: 2400004 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    objectProto.z = object.z;
-    objectProto.w = object.w;
-    return objectProto as Vector4Proto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector4Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4 {
-    return new Vector4({
-      x: objectProto.x,
-      y: objectProto.y,
-      z: objectProto.z,
-      w: objectProto.w,
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector4Proto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4 {
-    return Vector4.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector4 {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector4Proto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1203,20 +933,20 @@ export class Vector2i extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector2i.x is required`);
@@ -1228,7 +958,7 @@ export class Vector2i extends StructFrozen {
     }
     this.y = _y;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1257,7 +987,7 @@ export class Vector2i extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector2i ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1278,89 +1008,6 @@ export class Vector2i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector2i.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector2i): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400001;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2i {
-    return new Vector2i({
-      x: Number(objectCson["101"]),
-      y: Number(objectCson["102"]),
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2i {
-    return Vector2i.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector2iProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector2i.__packProto__(this);
-    }
-    return this._proto as Vector2iProto;
-  }
-
-  static __packProto__(object: Vector2i): Vector2iProto {
-    const objectProto: Partial<Vector2iProto> = { metatype: 2400001 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    return objectProto as Vector2iProto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector2iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2i {
-    return new Vector2i({
-      x: Number(objectProto.x),
-      y: Number(objectProto.y),
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector2iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector2i {
-    return Vector2i.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector2i {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector2iProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1556,20 +1203,20 @@ export class Vector3i extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector3i.x is required`);
@@ -1586,7 +1233,7 @@ export class Vector3i extends StructFrozen {
     }
     this.z = _z;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -1619,7 +1266,7 @@ export class Vector3i extends StructFrozen {
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector3i ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1641,93 +1288,6 @@ export class Vector3i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector3i.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector3i): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400003;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    objectCson["103"] = object.z;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3i {
-    return new Vector3i({
-      x: Number(objectCson["101"]),
-      y: Number(objectCson["102"]),
-      z: Number(objectCson["103"]),
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3i {
-    return Vector3i.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector3iProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector3i.__packProto__(this);
-    }
-    return this._proto as Vector3iProto;
-  }
-
-  static __packProto__(object: Vector3i): Vector3iProto {
-    const objectProto: Partial<Vector3iProto> = { metatype: 2400003 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    objectProto.z = object.z;
-    return objectProto as Vector3iProto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector3iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3i {
-    return new Vector3i({
-      x: Number(objectProto.x),
-      y: Number(objectProto.y),
-      z: Number(objectProto.z),
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector3iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector3i {
-    return Vector3i.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector3i {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector3iProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1945,20 +1505,20 @@ export class Vector4i extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _graph?: Supergraph | null;
+    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
-    _proto?: any | null;
-    _cson?: any | null;
+    _packedCache?: PackedCache[] | null;
   }) {
+    /* super */
     super(
-      // session
+      /* session */
       options._session ?? null,
-      // supergraph
+      /* graph */
       options._graph ?? null,
     );
 
-    // properties
+    /* properties */
     let _x = options.x;
     if (_x === null) {
       throw new Error(`Vector4i.x is required`);
@@ -1980,7 +1540,7 @@ export class Vector4i extends StructFrozen {
     }
     this.w = _w;
 
-    // identity
+    /* identity */
     // @ts-expect-error(readonly)
     this._hash = options._hash ?? null;
     // @ts-expect-error(readonly)
@@ -2017,7 +1577,7 @@ export class Vector4i extends StructFrozen {
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
       propertyReprs.push(`w=${this.w}`);
-      // @ts-expect-error(readonly)
+      // @ts-expect-error(readonly) */
       this._repr = `<Vector4i ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2040,97 +1600,6 @@ export class Vector4i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
-  }
-
-  toCson(): { [key: string]: any } {
-    if (this._cson === null) {
-      // @ts-expect-error(readonly)
-      this._cson = Vector4i.__packCson__(this);
-    }
-    return this._cson;
-  }
-
-  static __packCson__(object: Vector4i): { [key: string]: any } {
-    const objectCson: { [key: string]: any } = {};
-    objectCson["1"] = 2400005;
-    objectCson["101"] = object.x;
-    objectCson["102"] = object.y;
-    objectCson["103"] = object.z;
-    objectCson["104"] = object.w;
-    return objectCson;
-  }
-
-  static __unpackCson__(
-    objectCson: { [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4i {
-    return new Vector4i({
-      x: Number(objectCson["101"]),
-      y: Number(objectCson["102"]),
-      z: Number(objectCson["103"]),
-      w: Number(objectCson["104"]),
-      _cson: objectCson,
-      _graph,
-    });
-  }
-
-  static fromCson(
-    objectCson: { readonly [key: string]: any },
-    _session?: Session | null,
-    _graph?: Graph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4i {
-    return Vector4i.__unpackCson__(objectCson, _session, _graph, _connection);
-  }
-
-  toProto(): Vector4iProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Vector4i.__packProto__(this);
-    }
-    return this._proto as Vector4iProto;
-  }
-
-  static __packProto__(object: Vector4i): Vector4iProto {
-    const objectProto: Partial<Vector4iProto> = { metatype: 2400005 };
-    objectProto.x = object.x;
-    objectProto.y = object.y;
-    objectProto.z = object.z;
-    objectProto.w = object.w;
-    return objectProto as Vector4iProto;
-  }
-
-  static __unpackProto__(
-    objectProto: Vector4iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4i {
-    return new Vector4i({
-      x: Number(objectProto.x),
-      y: Number(objectProto.y),
-      z: Number(objectProto.z),
-      w: Number(objectProto.w),
-      _proto: objectProto,
-      _graph,
-    });
-  }
-
-  static fromProto(
-    objectProto: Vector4iProto,
-    _session?: Session | null,
-    _graph?: Supergraph | null,
-    _connection?: GraphConnection | null,
-  ): Vector4i {
-    return Vector4i.__unpackProto__(objectProto, _session, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Vector4i {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector4iProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

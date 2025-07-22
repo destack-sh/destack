@@ -17,10 +17,12 @@ from destack.proto import AnyObjectProto
 from ..cson import CsonEncoder
 from .generate import PROTO_CLASSES, PROTO_OBJECT_ENCODERS
 
-_cson_encoder = CsonEncoder()
+_cson_encoder = CsonEncoder()  # for generic Values
 
 
 class ProtoEncoder(Encoder[AnyObjectProto]):
+    """Encoder for our protobuf format."""
+
     encoding: ClassVar[Encoding] = Encoding.PROTO
 
     @override
@@ -51,8 +53,8 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         metatype: NodeType | StructType,
         value: AnyObjectProto,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
@@ -65,8 +67,8 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         metatype: NodeType | StructType,
         value: bytes,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
@@ -96,8 +98,8 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         type: Type,
         value: Any,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> Any:
         raise NotImplementedError
@@ -108,8 +110,8 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         type: Type,
         value: bytes,
         *,
-        session: Session,
-        graph: Graph,
+        session: Session | None,
+        graph: Graph | None,
         connection: GraphConnection | None,
     ) -> Any:
         raise NotImplementedError
