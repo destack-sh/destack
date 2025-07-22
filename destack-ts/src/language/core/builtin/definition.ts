@@ -35,7 +35,8 @@ import type {
   Type,
 } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
@@ -339,7 +340,7 @@ export class NodeDefinition extends BuiltinDefinition {
     primaryStoreKeys?: readonly StoreKey[];
     storeDomain?: StoreDomain | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -349,7 +350,7 @@ export class NodeDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1194,9 +1195,8 @@ export class NodeDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
@@ -1223,24 +1223,20 @@ export class NodeDefinition extends BuiltinDefinition {
     const unpackedProperties: any[] = [];
     if (objectCson["120"] != undefined) {
       for (const item of objectCson["120"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedProperties.push(_PropertyDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedIndexes: any[] = [];
     if (objectCson["121"] != undefined) {
       for (const item of objectCson["121"]) {
-        unpackedIndexes.push(
-          _IndexDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedIndexes.push(_IndexDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedConstraints: any[] = [];
     if (objectCson["122"] != undefined) {
       for (const item of objectCson["122"]) {
         unpackedConstraints.push(
-          _ConstraintDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+          _ConstraintDefinition.fromCson(item, _session, _graph, _connection),
         );
       }
     }
@@ -1248,32 +1244,26 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectCson["123"] != undefined) {
       for (const item of objectCson["123"]) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromCson(item, _session, _graph, _connection),
         );
       }
     }
     const unpackedMethods: any[] = [];
     if (objectCson["125"] != undefined) {
       for (const item of objectCson["125"]) {
-        unpackedMethods.push(
-          _MethodDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedMethods.push(_MethodDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedActions: any[] = [];
     if (objectCson["126"] != undefined) {
       for (const item of objectCson["126"]) {
-        unpackedActions.push(
-          _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedActions.push(_ActionDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedConstants: any[] = [];
     if (objectCson["128"] != undefined) {
       for (const item of objectCson["128"]) {
-        unpackedConstants.push(
-          _ConstantDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedConstants.push(_ConstantDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const baseTypeValue = objectCson["130"];
@@ -1390,9 +1380,7 @@ export class NodeDefinition extends BuiltinDefinition {
     const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -1439,18 +1427,17 @@ export class NodeDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinition {
-    return NodeDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return NodeDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NodeDefinitionProto {
@@ -1669,9 +1656,8 @@ export class NodeDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: NodeDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
@@ -1699,7 +1685,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1707,7 +1693,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.indexes) {
       for (const item of objectProto.indexes) {
         unpackedIndexes.push(
-          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _IndexDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1715,7 +1701,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.constraints) {
       for (const item of objectProto.constraints) {
         unpackedConstraints.push(
-          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _ConstraintDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1723,7 +1709,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.permissions) {
       for (const item of objectProto.permissions) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1731,7 +1717,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.methods) {
       for (const item of objectProto.methods) {
         unpackedMethods.push(
-          _MethodDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _MethodDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1739,7 +1725,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.actions) {
       for (const item of objectProto.actions) {
         unpackedActions.push(
-          _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _ActionDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1747,7 +1733,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (objectProto.constants) {
       for (const item of objectProto.constants) {
         unpackedConstants.push(
-          _ConstantDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _ConstantDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1905,23 +1891,22 @@ export class NodeDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: NodeDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeDefinition {
-    return NodeDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return NodeDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NodeDefinition {
@@ -2058,7 +2043,7 @@ export class TraitDefinition extends BuiltinDefinition {
     enumTypes?: readonly EnumType[];
     selfEnumTypes?: readonly EnumType[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -2068,7 +2053,7 @@ export class TraitDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -2417,9 +2402,8 @@ export class TraitDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TraitDefinition {
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
@@ -2429,7 +2413,7 @@ export class TraitDefinition extends BuiltinDefinition {
     if (objectCson["123"] != undefined) {
       for (const item of objectCson["123"]) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromCson(item, _session, _graph, _connection),
         );
       }
     }
@@ -2471,9 +2455,7 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -2499,18 +2481,17 @@ export class TraitDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TraitDefinition {
-    return TraitDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return TraitDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TraitDefinitionProto {
@@ -2596,9 +2577,8 @@ export class TraitDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: TraitDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TraitDefinition {
     const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PERMISSION_DEFINITION
@@ -2608,7 +2588,7 @@ export class TraitDefinition extends BuiltinDefinition {
     if (objectProto.permissions) {
       for (const item of objectProto.permissions) {
         unpackedPermissions.push(
-          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PermissionDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -2669,23 +2649,22 @@ export class TraitDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: TraitDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TraitDefinition {
-    return TraitDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return TraitDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): TraitDefinition {
@@ -2831,7 +2810,7 @@ export class StructDefinition extends BuiltinDefinition {
     enumTypes?: readonly EnumType[];
     selfEnumTypes?: readonly EnumType[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -2841,7 +2820,7 @@ export class StructDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -3284,9 +3263,8 @@ export class StructDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
@@ -3305,41 +3283,31 @@ export class StructDefinition extends BuiltinDefinition {
     const unpackedProperties: any[] = [];
     if (objectCson["120"] != undefined) {
       for (const item of objectCson["120"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedProperties.push(_PropertyDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedMethods: any[] = [];
     if (objectCson["125"] != undefined) {
       for (const item of objectCson["125"]) {
-        unpackedMethods.push(
-          _MethodDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedMethods.push(_MethodDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedActions: any[] = [];
     if (objectCson["126"] != undefined) {
       for (const item of objectCson["126"]) {
-        unpackedActions.push(
-          _ActionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedActions.push(_ActionDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedConstants: any[] = [];
     if (objectCson["128"] != undefined) {
       for (const item of objectCson["128"]) {
-        unpackedConstants.push(
-          _ConstantDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedConstants.push(_ConstantDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedTags: any[] = [];
     if (objectCson["129"] != undefined) {
       for (const item of objectCson["129"]) {
-        unpackedTags.push(
-          _TagDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedTags.push(_TagDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const baseTypeValue = objectCson["130"];
@@ -3376,9 +3344,7 @@ export class StructDefinition extends BuiltinDefinition {
     }
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -3409,18 +3375,17 @@ export class StructDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinition {
-    return StructDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return StructDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): StructDefinitionProto {
@@ -3531,9 +3496,8 @@ export class StructDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: StructDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
@@ -3553,7 +3517,7 @@ export class StructDefinition extends BuiltinDefinition {
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -3561,7 +3525,7 @@ export class StructDefinition extends BuiltinDefinition {
     if (objectProto.methods) {
       for (const item of objectProto.methods) {
         unpackedMethods.push(
-          _MethodDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _MethodDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -3569,7 +3533,7 @@ export class StructDefinition extends BuiltinDefinition {
     if (objectProto.actions) {
       for (const item of objectProto.actions) {
         unpackedActions.push(
-          _ActionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _ActionDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -3577,16 +3541,14 @@ export class StructDefinition extends BuiltinDefinition {
     if (objectProto.constants) {
       for (const item of objectProto.constants) {
         unpackedConstants.push(
-          _ConstantDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _ConstantDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
     const unpackedTags: any[] = [];
     if (objectProto.tags) {
       for (const item of objectProto.tags) {
-        unpackedTags.push(
-          _TagDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
+        unpackedTags.push(_TagDefinition.fromProto(item!, _session, _graph, _graph, _connection));
       }
     }
     const unpackedExtendedBy: any[] = [];
@@ -3646,29 +3608,22 @@ export class StructDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: StructDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StructDefinition {
-    return StructDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StructDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): StructDefinition {
@@ -3736,7 +3691,7 @@ export class EnumDefinition extends BuiltinDefinition {
     options?: readonly OptionDefinition[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -3746,7 +3701,7 @@ export class EnumDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -3923,9 +3878,8 @@ export class EnumDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): EnumDefinition {
     const _OptionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.OPTION_DEFINITION
@@ -3934,16 +3888,12 @@ export class EnumDefinition extends BuiltinDefinition {
     const unpackedOptions: any[] = [];
     if (objectCson["104"] != undefined) {
       for (const item of objectCson["104"]) {
-        unpackedOptions.push(
-          _OptionDefinition.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedOptions.push(_OptionDefinition.fromCson(item, _session, _graph, _connection));
       }
     }
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -3961,18 +3911,17 @@ export class EnumDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): EnumDefinition {
-    return EnumDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return EnumDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): EnumDefinitionProto {
@@ -4014,9 +3963,8 @@ export class EnumDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: EnumDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): EnumDefinition {
     const _OptionDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.OPTION_DEFINITION
@@ -4026,7 +3974,7 @@ export class EnumDefinition extends BuiltinDefinition {
     if (objectProto.options) {
       for (const item of objectProto.options) {
         unpackedOptions.push(
-          _OptionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _OptionDefinition.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -4043,23 +3991,22 @@ export class EnumDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: EnumDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): EnumDefinition {
-    return EnumDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return EnumDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): EnumDefinition {
@@ -4283,7 +4230,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     isEq: boolean;
     isInternal: boolean;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -4293,7 +4240,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -4775,9 +4722,8 @@ export class PropertyDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PropertyDefinition {
     const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.OBJECT_DEFINITION_REFERENCE
@@ -4809,52 +4755,32 @@ export class PropertyDefinition extends BuiltinDefinition {
     const keyTypeValue = objectCson["116"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? _Type.fromCson(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromCson(keyTypeValue, _session, _graph, _connection)
         : null;
     const valueValue = objectCson["120"];
     const unpackedValue =
-      valueValue != undefined
-        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
-        : null;
+      valueValue != undefined ? _Value.fromCson(valueValue, _session, _graph, _connection) : null;
     const valueFactoryValue = objectCson["121"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
     const collectionConstraintValue = objectCson["130"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? _CollectionConstraint.fromCson(
-            collectionConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _CollectionConstraint.fromCson(collectionConstraintValue, _session, _graph, _connection)
         : null;
     const stringConstraintValue = objectCson["131"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? _StringConstraint.fromCson(
-            stringConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _StringConstraint.fromCson(stringConstraintValue, _session, _graph, _connection)
         : null;
     const numberConstraintValue = objectCson["132"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? _NumberConstraint.fromCson(
-            numberConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _NumberConstraint.fromCson(numberConstraintValue, _session, _graph, _connection)
         : null;
     const nodeConstraintValue = objectCson["133"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _graph, _connection)
         : null;
     const edgeTypeValue = objectCson["140"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
@@ -4862,9 +4788,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -4875,17 +4799,10 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     return new PropertyDefinition({
       type: Number(objectCson["100"]),
-      object: _ObjectDefinitionReference.fromCson(
-        objectCson["104"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      object: _ObjectDefinitionReference.fromCson(objectCson["104"], _session, _graph, _connection),
       originalObject: _ObjectDefinitionReference.fromCson(
         objectCson["105"],
         _session,
-        _supergraph,
         _graph,
         _connection,
       ),
@@ -4920,24 +4837,17 @@ export class PropertyDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PropertyDefinition {
-    return PropertyDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PropertyDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): PropertyDefinitionProto {
@@ -5025,9 +4935,8 @@ export class PropertyDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: PropertyDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PropertyDefinition {
     const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.OBJECT_DEFINITION_REFERENCE
@@ -5058,14 +4967,14 @@ export class PropertyDefinition extends BuiltinDefinition {
       object: _ObjectDefinitionReference.fromProto(
         objectProto.object!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       originalObject: _ObjectDefinitionReference.fromProto(
         objectProto.originalObject!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -5083,11 +4992,11 @@ export class PropertyDefinition extends BuiltinDefinition {
         objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       keyType:
         objectProto.keyType != undefined
-          ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          ? _Type.fromProto(objectProto.keyType!, _session, _graph, _graph, _connection)
           : null,
       value:
         objectProto.value != undefined
-          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.value!, _session, _graph, _graph, _connection)
           : null,
       valueFactory:
         objectProto.valueFactory != undefined
@@ -5098,7 +5007,7 @@ export class PropertyDefinition extends BuiltinDefinition {
           ? _CollectionConstraint.fromProto(
               objectProto.collectionConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5108,7 +5017,7 @@ export class PropertyDefinition extends BuiltinDefinition {
           ? _StringConstraint.fromProto(
               objectProto.stringConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5118,7 +5027,7 @@ export class PropertyDefinition extends BuiltinDefinition {
           ? _NumberConstraint.fromProto(
               objectProto.numberConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5128,7 +5037,7 @@ export class PropertyDefinition extends BuiltinDefinition {
           ? _NodeConstraint.fromProto(
               objectProto.nodeConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5151,29 +5060,22 @@ export class PropertyDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: PropertyDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PropertyDefinition {
-    return PropertyDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PropertyDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): PropertyDefinition {
@@ -5371,7 +5273,7 @@ export class OptionDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -5381,7 +5283,7 @@ export class OptionDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -5533,16 +5435,13 @@ export class OptionDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): OptionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -5559,18 +5458,17 @@ export class OptionDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): OptionDefinition {
-    return OptionDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return OptionDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): OptionDefinitionProto {
@@ -5605,9 +5503,8 @@ export class OptionDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: OptionDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): OptionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedTaggings: any[] = [];
@@ -5622,29 +5519,22 @@ export class OptionDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: OptionDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): OptionDefinition {
-    return OptionDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return OptionDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): OptionDefinition {
@@ -5706,7 +5596,7 @@ export class ConstantDefinition extends BuiltinDefinition {
     taggings?: readonly number[];
     value: Value;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -5716,7 +5606,7 @@ export class ConstantDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -5867,17 +5757,14 @@ export class ConstantDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -5887,31 +5774,24 @@ export class ConstantDefinition extends BuiltinDefinition {
       }
     }
     return new ConstantDefinition({
-      value: _Value.fromCson(objectCson["120"], _session, _supergraph, _graph, _connection),
+      value: _Value.fromCson(objectCson["120"], _session, _graph, _connection),
       id: Number(objectCson["2"]),
       name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ConstantDefinition {
-    return ConstantDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ConstantDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ConstantDefinitionProto {
@@ -5946,9 +5826,8 @@ export class ConstantDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: ConstantDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ConstantDefinition {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
@@ -5959,34 +5838,27 @@ export class ConstantDefinition extends BuiltinDefinition {
       }
     }
     return new ConstantDefinition({
-      value: _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection),
+      value: _Value.fromProto(objectProto.value!, _session, _graph, _graph, _connection),
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: ConstantDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ConstantDefinition {
-    return ConstantDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ConstantDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ConstantDefinition {
@@ -6042,7 +5914,7 @@ export class TagDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -6052,7 +5924,7 @@ export class TagDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -6193,16 +6065,13 @@ export class TagDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TagDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -6218,18 +6087,17 @@ export class TagDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): TagDefinition {
-    return TagDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return TagDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TagDefinitionProto {
@@ -6263,9 +6131,8 @@ export class TagDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: TagDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TagDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedTaggings: any[] = [];
@@ -6279,23 +6146,22 @@ export class TagDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: TagDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): TagDefinition {
-    return TagDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return TagDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): TagDefinition {
@@ -6369,7 +6235,7 @@ export class IndexDefinition extends BuiltinDefinition {
     cover?: readonly PropertyReference[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -6379,7 +6245,7 @@ export class IndexDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -6581,9 +6447,8 @@ export class IndexDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): IndexDefinition {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
@@ -6592,24 +6457,18 @@ export class IndexDefinition extends BuiltinDefinition {
     const unpackedProperties: any[] = [];
     if (objectCson["105"] != undefined) {
       for (const item of objectCson["105"]) {
-        unpackedProperties.push(
-          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedProperties.push(_PropertyReference.fromCson(item, _session, _graph, _connection));
       }
     }
     const unpackedCover: any[] = [];
     if (objectCson["106"] != undefined) {
       for (const item of objectCson["106"]) {
-        unpackedCover.push(
-          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedCover.push(_PropertyReference.fromCson(item, _session, _graph, _connection));
       }
     }
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -6628,18 +6487,17 @@ export class IndexDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): IndexDefinition {
-    return IndexDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return IndexDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): IndexDefinitionProto {
@@ -6688,9 +6546,8 @@ export class IndexDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: IndexDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): IndexDefinition {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
@@ -6700,7 +6557,7 @@ export class IndexDefinition extends BuiltinDefinition {
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -6708,7 +6565,7 @@ export class IndexDefinition extends BuiltinDefinition {
     if (objectProto.cover) {
       for (const item of objectProto.cover) {
         unpackedCover.push(
-          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -6726,23 +6583,22 @@ export class IndexDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: IndexDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): IndexDefinition {
-    return IndexDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return IndexDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): IndexDefinition {
@@ -6810,7 +6666,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
     properties?: readonly PropertyReference[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -6820,7 +6676,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -6997,9 +6853,8 @@ export class ConstraintDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ConstraintDefinition {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
@@ -7008,16 +6863,12 @@ export class ConstraintDefinition extends BuiltinDefinition {
     const unpackedProperties: any[] = [];
     if (objectCson["105"] != undefined) {
       for (const item of objectCson["105"]) {
-        unpackedProperties.push(
-          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
-        );
+        unpackedProperties.push(_PropertyReference.fromCson(item, _session, _graph, _connection));
       }
     }
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -7035,24 +6886,17 @@ export class ConstraintDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ConstraintDefinition {
-    return ConstraintDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ConstraintDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ConstraintDefinitionProto {
@@ -7094,9 +6938,8 @@ export class ConstraintDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: ConstraintDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ConstraintDefinition {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
@@ -7106,7 +6949,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -7123,29 +6966,22 @@ export class ConstraintDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: ConstraintDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ConstraintDefinition {
-    return ConstraintDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ConstraintDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ConstraintDefinition {
@@ -7201,7 +7037,7 @@ export class PermissionDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -7211,7 +7047,7 @@ export class PermissionDefinition extends BuiltinDefinition {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -7352,16 +7188,13 @@ export class PermissionDefinition extends BuiltinDefinition {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PermissionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedTaggings: any[] = [];
@@ -7377,24 +7210,17 @@ export class PermissionDefinition extends BuiltinDefinition {
       description: unpackedDescription,
       taggings: unpackedTaggings,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): PermissionDefinition {
-    return PermissionDefinition.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PermissionDefinition.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): PermissionDefinitionProto {
@@ -7428,9 +7254,8 @@ export class PermissionDefinition extends BuiltinDefinition {
   static __unpackProto__(
     objectProto: PermissionDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PermissionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedTaggings: any[] = [];
@@ -7444,29 +7269,22 @@ export class PermissionDefinition extends BuiltinDefinition {
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       taggings: unpackedTaggings,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: PermissionDefinitionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): PermissionDefinition {
-    return PermissionDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return PermissionDefinition.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): PermissionDefinition {

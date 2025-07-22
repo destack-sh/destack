@@ -2,12 +2,12 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   IsOwned,
   IsReactable,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -54,7 +54,7 @@ export class Reaction extends Entity implements IsOwned {
   get parent(): (Entity & IsReactable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsReactable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsReactable) | null;
     }
     return null;
   }
@@ -66,7 +66,7 @@ export class Reaction extends Entity implements IsOwned {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -83,7 +83,7 @@ export class Reaction extends Entity implements IsOwned {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -95,7 +95,7 @@ export class Reaction extends Entity implements IsOwned {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -107,7 +107,7 @@ export class Reaction extends Entity implements IsOwned {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -120,7 +120,7 @@ export class Reaction extends Entity implements IsOwned {
   get precededBy(): Reaction | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Reaction | null;
+      return this._graph.get(nodePtr.id) as Reaction | null;
     }
     return null;
   }
@@ -132,7 +132,7 @@ export class Reaction extends Entity implements IsOwned {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -154,7 +154,7 @@ export class Reaction extends Entity implements IsOwned {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -176,7 +176,7 @@ export class Reaction extends Entity implements IsOwned {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -195,7 +195,7 @@ export class Reaction extends Entity implements IsOwned {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -262,7 +262,7 @@ export class Reaction extends Entity implements IsOwned {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -297,7 +297,7 @@ export class Reaction extends Entity implements IsOwned {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -362,9 +362,9 @@ export class Reaction extends Entity implements IsOwned {
     key?: string | null;
     content: string;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -378,7 +378,7 @@ export class Reaction extends Entity implements IsOwned {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -658,7 +658,7 @@ export class Reaction extends Entity implements IsOwned {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -759,41 +759,40 @@ export class Reaction extends Entity implements IsOwned {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Reaction {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -803,7 +802,7 @@ export class Reaction extends Entity implements IsOwned {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -811,7 +810,6 @@ export class Reaction extends Entity implements IsOwned {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -820,14 +818,14 @@ export class Reaction extends Entity implements IsOwned {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -836,14 +834,8 @@ export class Reaction extends Entity implements IsOwned {
       content: objectCson["101"],
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -862,7 +854,7 @@ export class Reaction extends Entity implements IsOwned {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -872,11 +864,10 @@ export class Reaction extends Entity implements IsOwned {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Reaction {
-    return Reaction.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Reaction.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ReactionProto {
@@ -945,9 +936,8 @@ export class Reaction extends Entity implements IsOwned {
   static __unpackProto__(
     objectProto: ReactionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Reaction {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -956,20 +946,14 @@ export class Reaction extends Entity implements IsOwned {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new Reaction({
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       content: objectProto.content,
       materialization: Number(objectProto.materialization) as Materialization,
@@ -978,7 +962,7 @@ export class Reaction extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -986,14 +970,14 @@ export class Reaction extends Entity implements IsOwned {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1002,7 +986,7 @@ export class Reaction extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1012,7 +996,7 @@ export class Reaction extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1024,7 +1008,7 @@ export class Reaction extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1036,7 +1020,7 @@ export class Reaction extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1045,47 +1029,23 @@ export class Reaction extends Entity implements IsOwned {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1095,11 +1055,10 @@ export class Reaction extends Entity implements IsOwned {
   static fromProto(
     objectProto: ReactionProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Reaction {
-    return Reaction.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Reaction.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Reaction {
@@ -1128,7 +1087,7 @@ export class ReactionEvent extends Event {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1140,7 +1099,7 @@ export class ReactionEvent extends Event {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1152,7 +1111,7 @@ export class ReactionEvent extends Event {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1164,7 +1123,7 @@ export class ReactionEvent extends Event {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1176,7 +1135,7 @@ export class ReactionEvent extends Event {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1188,7 +1147,7 @@ export class ReactionEvent extends Event {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1210,7 +1169,7 @@ export class ReactionEvent extends Event {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1222,7 +1181,7 @@ export class ReactionEvent extends Event {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1254,7 +1213,7 @@ export class ReactionEvent extends Event {
   get node(): Reaction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Reaction | null;
+      return this._graph.get(nodePtr.id) as Reaction | null;
     }
     return null;
   }
@@ -1284,9 +1243,9 @@ export class ReactionEvent extends Event {
     node: Reaction | NodeReference;
     content: string;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1296,7 +1255,7 @@ export class ReactionEvent extends Event {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1522,7 +1481,7 @@ export class ReactionEvent extends Event {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1594,50 +1553,43 @@ export class ReactionEvent extends Event {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new ReactionEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       content: objectCson["102"],
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1649,7 +1601,7 @@ export class ReactionEvent extends Event {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1659,11 +1611,10 @@ export class ReactionEvent extends Event {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionEvent {
-    return ReactionEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return ReactionEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ReactionEventProto {
@@ -1707,26 +1658,19 @@ export class ReactionEvent extends Event {
   static __unpackProto__(
     objectProto: ReactionEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ReactionEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       content: objectProto.content,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1734,14 +1678,14 @@ export class ReactionEvent extends Event {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1750,7 +1694,7 @@ export class ReactionEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1760,7 +1704,7 @@ export class ReactionEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1772,33 +1716,21 @@ export class ReactionEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1808,11 +1740,10 @@ export class ReactionEvent extends Event {
   static fromProto(
     objectProto: ReactionEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionEvent {
-    return ReactionEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return ReactionEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ReactionEvent {
@@ -1854,9 +1785,9 @@ export class ReactionAddedEvent extends ReactionEvent {
     node: Reaction | NodeReference;
     content: string;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(options);
 
@@ -1962,7 +1893,7 @@ export class ReactionAddedEvent extends ReactionEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2034,50 +1965,43 @@ export class ReactionAddedEvent extends ReactionEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionAddedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new ReactionAddedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       content: objectCson["102"],
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2089,7 +2013,7 @@ export class ReactionAddedEvent extends ReactionEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2099,17 +2023,10 @@ export class ReactionAddedEvent extends ReactionEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionAddedEvent {
-    return ReactionAddedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ReactionAddedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ReactionAddedEventProto {
@@ -2153,26 +2070,19 @@ export class ReactionAddedEvent extends ReactionEvent {
   static __unpackProto__(
     objectProto: ReactionAddedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionAddedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ReactionAddedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       content: objectProto.content,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2180,14 +2090,14 @@ export class ReactionAddedEvent extends ReactionEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2196,7 +2106,7 @@ export class ReactionAddedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2206,7 +2116,7 @@ export class ReactionAddedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2218,33 +2128,21 @@ export class ReactionAddedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2254,17 +2152,10 @@ export class ReactionAddedEvent extends ReactionEvent {
   static fromProto(
     objectProto: ReactionAddedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionAddedEvent {
-    return ReactionAddedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ReactionAddedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ReactionAddedEvent {
@@ -2306,9 +2197,9 @@ export class ReactionRemovedEvent extends ReactionEvent {
     node: Reaction | NodeReference;
     content: string;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(options);
 
@@ -2414,7 +2305,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2486,50 +2377,43 @@ export class ReactionRemovedEvent extends ReactionEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionRemovedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new ReactionRemovedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       content: objectCson["102"],
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2541,7 +2425,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2551,17 +2435,10 @@ export class ReactionRemovedEvent extends ReactionEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): ReactionRemovedEvent {
-    return ReactionRemovedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ReactionRemovedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ReactionRemovedEventProto {
@@ -2605,26 +2482,19 @@ export class ReactionRemovedEvent extends ReactionEvent {
   static __unpackProto__(
     objectProto: ReactionRemovedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionRemovedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new ReactionRemovedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       content: objectProto.content,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2632,14 +2502,14 @@ export class ReactionRemovedEvent extends ReactionEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2648,7 +2518,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2658,7 +2528,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2670,33 +2540,21 @@ export class ReactionRemovedEvent extends ReactionEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2706,17 +2564,10 @@ export class ReactionRemovedEvent extends ReactionEvent {
   static fromProto(
     objectProto: ReactionRemovedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): ReactionRemovedEvent {
-    return ReactionRemovedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return ReactionRemovedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): ReactionRemovedEvent {

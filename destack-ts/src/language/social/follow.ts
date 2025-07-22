@@ -2,12 +2,12 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   IsFollowable,
   IsOwned,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -54,7 +54,7 @@ export class Follow extends Entity implements IsOwned {
   get parent(): (Entity & IsFollowable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsFollowable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsFollowable) | null;
     }
     return null;
   }
@@ -66,7 +66,7 @@ export class Follow extends Entity implements IsOwned {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -83,7 +83,7 @@ export class Follow extends Entity implements IsOwned {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -95,7 +95,7 @@ export class Follow extends Entity implements IsOwned {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -107,7 +107,7 @@ export class Follow extends Entity implements IsOwned {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -120,7 +120,7 @@ export class Follow extends Entity implements IsOwned {
   get precededBy(): Follow | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Follow | null;
+      return this._graph.get(nodePtr.id) as Follow | null;
     }
     return null;
   }
@@ -132,7 +132,7 @@ export class Follow extends Entity implements IsOwned {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -154,7 +154,7 @@ export class Follow extends Entity implements IsOwned {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -176,7 +176,7 @@ export class Follow extends Entity implements IsOwned {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -195,7 +195,7 @@ export class Follow extends Entity implements IsOwned {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -262,7 +262,7 @@ export class Follow extends Entity implements IsOwned {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -297,7 +297,7 @@ export class Follow extends Entity implements IsOwned {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -345,9 +345,9 @@ export class Follow extends Entity implements IsOwned {
     source?: Script | NodeReference | null;
     key?: string | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -361,7 +361,7 @@ export class Follow extends Entity implements IsOwned {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -630,7 +630,7 @@ export class Follow extends Entity implements IsOwned {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -729,41 +729,40 @@ export class Follow extends Entity implements IsOwned {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Follow {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -773,7 +772,7 @@ export class Follow extends Entity implements IsOwned {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -781,7 +780,6 @@ export class Follow extends Entity implements IsOwned {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -790,14 +788,14 @@ export class Follow extends Entity implements IsOwned {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -805,14 +803,8 @@ export class Follow extends Entity implements IsOwned {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -831,7 +823,7 @@ export class Follow extends Entity implements IsOwned {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -841,11 +833,10 @@ export class Follow extends Entity implements IsOwned {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Follow {
-    return Follow.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Follow.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FollowProto {
@@ -913,9 +904,8 @@ export class Follow extends Entity implements IsOwned {
   static __unpackProto__(
     objectProto: FollowProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Follow {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -924,20 +914,14 @@ export class Follow extends Entity implements IsOwned {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new Follow({
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -945,7 +929,7 @@ export class Follow extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -953,14 +937,14 @@ export class Follow extends Entity implements IsOwned {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -969,7 +953,7 @@ export class Follow extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -979,7 +963,7 @@ export class Follow extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -991,7 +975,7 @@ export class Follow extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1003,7 +987,7 @@ export class Follow extends Entity implements IsOwned {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1012,47 +996,23 @@ export class Follow extends Entity implements IsOwned {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1062,11 +1022,10 @@ export class Follow extends Entity implements IsOwned {
   static fromProto(
     objectProto: FollowProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Follow {
-    return Follow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Follow.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Follow {
@@ -1095,7 +1054,7 @@ export class FollowEvent extends Event {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1107,7 +1066,7 @@ export class FollowEvent extends Event {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1119,7 +1078,7 @@ export class FollowEvent extends Event {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1131,7 +1090,7 @@ export class FollowEvent extends Event {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1143,7 +1102,7 @@ export class FollowEvent extends Event {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1155,7 +1114,7 @@ export class FollowEvent extends Event {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1177,7 +1136,7 @@ export class FollowEvent extends Event {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1189,7 +1148,7 @@ export class FollowEvent extends Event {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1221,7 +1180,7 @@ export class FollowEvent extends Event {
   get node(): Follow | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Follow | null;
+      return this._graph.get(nodePtr.id) as Follow | null;
     }
     return null;
   }
@@ -1245,9 +1204,9 @@ export class FollowEvent extends Event {
     status?: EventStatus;
     node: Follow | NodeReference;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1257,7 +1216,7 @@ export class FollowEvent extends Event {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1474,7 +1433,7 @@ export class FollowEvent extends Event {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1545,49 +1504,42 @@ export class FollowEvent extends Event {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new FollowEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1599,7 +1551,7 @@ export class FollowEvent extends Event {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1609,11 +1561,10 @@ export class FollowEvent extends Event {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowEvent {
-    return FollowEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return FollowEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FollowEventProto {
@@ -1656,25 +1607,18 @@ export class FollowEvent extends Event {
   static __unpackProto__(
     objectProto: FollowEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new FollowEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1682,14 +1626,14 @@ export class FollowEvent extends Event {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1698,7 +1642,7 @@ export class FollowEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1708,7 +1652,7 @@ export class FollowEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1720,33 +1664,21 @@ export class FollowEvent extends Event {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1756,11 +1688,10 @@ export class FollowEvent extends Event {
   static fromProto(
     objectProto: FollowEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowEvent {
-    return FollowEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return FollowEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): FollowEvent {
@@ -1801,9 +1732,9 @@ export class FollowAddedEvent extends FollowEvent {
     status?: EventStatus;
     node: Follow | NodeReference;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(options);
 
@@ -1905,7 +1836,7 @@ export class FollowAddedEvent extends FollowEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1976,49 +1907,42 @@ export class FollowAddedEvent extends FollowEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowAddedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new FollowAddedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2030,7 +1954,7 @@ export class FollowAddedEvent extends FollowEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2040,11 +1964,10 @@ export class FollowAddedEvent extends FollowEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowAddedEvent {
-    return FollowAddedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return FollowAddedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FollowAddedEventProto {
@@ -2087,25 +2010,18 @@ export class FollowAddedEvent extends FollowEvent {
   static __unpackProto__(
     objectProto: FollowAddedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowAddedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new FollowAddedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2113,14 +2029,14 @@ export class FollowAddedEvent extends FollowEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2129,7 +2045,7 @@ export class FollowAddedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2139,7 +2055,7 @@ export class FollowAddedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2151,33 +2067,21 @@ export class FollowAddedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2187,17 +2091,10 @@ export class FollowAddedEvent extends FollowEvent {
   static fromProto(
     objectProto: FollowAddedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowAddedEvent {
-    return FollowAddedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return FollowAddedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): FollowAddedEvent {
@@ -2238,9 +2135,9 @@ export class FollowRemovedEvent extends FollowEvent {
     status?: EventStatus;
     node: Follow | NodeReference;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(options);
 
@@ -2342,7 +2239,7 @@ export class FollowRemovedEvent extends FollowEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2413,49 +2310,42 @@ export class FollowRemovedEvent extends FollowEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowRemovedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new FollowRemovedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2467,7 +2357,7 @@ export class FollowRemovedEvent extends FollowEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2477,17 +2367,10 @@ export class FollowRemovedEvent extends FollowEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): FollowRemovedEvent {
-    return FollowRemovedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return FollowRemovedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): FollowRemovedEventProto {
@@ -2530,25 +2413,18 @@ export class FollowRemovedEvent extends FollowEvent {
   static __unpackProto__(
     objectProto: FollowRemovedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowRemovedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new FollowRemovedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2556,14 +2432,14 @@ export class FollowRemovedEvent extends FollowEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2572,7 +2448,7 @@ export class FollowRemovedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2582,7 +2458,7 @@ export class FollowRemovedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2594,33 +2470,21 @@ export class FollowRemovedEvent extends FollowEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2630,17 +2494,10 @@ export class FollowRemovedEvent extends FollowEvent {
   static fromProto(
     objectProto: FollowRemovedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): FollowRemovedEvent {
-    return FollowRemovedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return FollowRemovedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): FollowRemovedEvent {

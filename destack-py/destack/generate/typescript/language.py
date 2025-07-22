@@ -234,7 +234,7 @@ def _generate_property(
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr != null) {{
-        return this._supergraph.get(nodePtr.id) as {wrapped_node_type_str} | null;
+        return this._graph.get(nodePtr.id) as {wrapped_node_type_str} | null;
     }}
     return null;
 }}"""
@@ -263,10 +263,10 @@ set {wrapped_ts_name}(node: {wrapped_node_type_str}) {{
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr != null) {{
-        if (this._supergraph === null) {{
+        if (this._graph === null) {{
             return null;
         }}
-        return this._supergraph.get(nodePtr.id) as {wrapped_node_type_str};
+        return this._graph.get(nodePtr.id) as {wrapped_node_type_str};
     }}
     return null;
 }}"""
@@ -392,7 +392,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             header_parts.append(f"{ts_name_in}: {type_str}")
         else:
             header_parts.append(f"{ts_name_in}?: {type_str}")
-    header_parts.extend(("_session?: Session | null", "_supergraph?: Supergraph | null"))
+    header_parts.extend(("_session?: Session | null", "_graph?: Supergraph | null"))
     if issubclass(cls, Node):
         header_parts.extend(("_graph?: Graph | null", "_connection?: GraphConnection | null"))
     elif issubclass(cls, StructFrozen):
@@ -434,7 +434,7 @@ super(
     // session
     options._session ?? null,
     // supergraph
-    options._supergraph ?? null,
+    options._graph ?? null,
     // graph
     options._graph ?? null,
     // connection
@@ -449,7 +449,7 @@ super(
     // session
     options._session ?? null,
     // supergraph
-    options._supergraph ?? null,
+    options._graph ?? null,
 );
 """
 
@@ -1044,7 +1044,16 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
             return f"hashFloat({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+        ):
             return f"hashInt({value_expr})"
         elif prop.primitive_type == PrimitiveType.DECIMAL:
             raise NotImplementedError(f"cannot hash decimal: {prop!r}")
@@ -1103,7 +1112,7 @@ __toRef__(): NodeReference {{
     id: this.id,
     spaceId: this.id,
     _session: this._session,
-    _supergraph: this._supergraph,
+    _graph: this._graph,
   }});
 }}
 """
@@ -1117,7 +1126,7 @@ __toRef__(): NodeReference {{
     spaceId: this.spacePtr?.id ?? null,
     branchId: this.id,
     _session: this._session,
-    _supergraph: this._supergraph,
+    _graph: this._graph,
   }});
 }}
 """
@@ -1132,7 +1141,7 @@ __toRef__(): NodeReference {{
     branchId: this.branchPtr?.id ?? null,
     snapshotId: this.id,
     _session: this._session,
-    _supergraph: this._supergraph,
+    _graph: this._graph,
   }});
 }}
 """
@@ -1148,7 +1157,7 @@ __toRef__(): NodeReference {{
     branchId: this.branchPtr?.id ?? null,
     snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
-    _supergraph: this._supergraph,
+    _graph: this._graph,
   }});
 }}
 """

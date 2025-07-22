@@ -1,4 +1,4 @@
-import type { Session, Supergraph } from "@destack/language/core";
+import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
 import { EnumType, StructFrozen, StructType } from "@destack/language/core";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -159,7 +159,7 @@ export class Length extends StructFrozen {
     unit: LengthType;
     value: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -169,7 +169,7 @@ export class Length extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -257,26 +257,24 @@ export class Length extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Length {
     return new Length({
       unit: Number(objectCson["101"]),
       value: objectCson["102"],
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Length {
-    return Length.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Length.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): LengthProto {
@@ -297,26 +295,24 @@ export class Length extends StructFrozen {
   static __unpackProto__(
     objectProto: LengthProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Length {
     return new Length({
       unit: Number(objectProto.unit) as LengthType,
       value: objectProto.value,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: LengthProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Length {
-    return Length.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Length.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Length {
@@ -372,7 +368,7 @@ export class Offset2 extends StructFrozen {
     width?: Length | null;
     height?: Length | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -382,7 +378,7 @@ export class Offset2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -527,30 +523,23 @@ export class Offset2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Offset2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const topValue = objectCson["101"];
     const unpackedTop =
-      topValue != undefined
-        ? _Length.fromCson(topValue, _session, _supergraph, _graph, _connection)
-        : null;
+      topValue != undefined ? _Length.fromCson(topValue, _session, _graph, _connection) : null;
     const leftValue = objectCson["102"];
     const unpackedLeft =
-      leftValue != undefined
-        ? _Length.fromCson(leftValue, _session, _supergraph, _graph, _connection)
-        : null;
+      leftValue != undefined ? _Length.fromCson(leftValue, _session, _graph, _connection) : null;
     const widthValue = objectCson["103"];
     const unpackedWidth =
-      widthValue != undefined
-        ? _Length.fromCson(widthValue, _session, _supergraph, _graph, _connection)
-        : null;
+      widthValue != undefined ? _Length.fromCson(widthValue, _session, _graph, _connection) : null;
     const heightValue = objectCson["104"];
     const unpackedHeight =
       heightValue != undefined
-        ? _Length.fromCson(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(heightValue, _session, _graph, _connection)
         : null;
     return new Offset2({
       type: Number(objectCson["100"]),
@@ -559,18 +548,17 @@ export class Offset2 extends StructFrozen {
       width: unpackedWidth,
       height: unpackedHeight,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Offset2 {
-    return Offset2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Offset2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Offset2Proto {
@@ -602,42 +590,40 @@ export class Offset2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Offset2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Offset2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     return new Offset2({
       type: Number(objectProto.type) as Anchor,
       top:
         objectProto.top != undefined
-          ? _Length.fromProto(objectProto.top!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.top!, _session, _graph, _graph, _connection)
           : null,
       left:
         objectProto.left != undefined
-          ? _Length.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.left!, _session, _graph, _graph, _connection)
           : null,
       width:
         objectProto.width != undefined
-          ? _Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.width!, _session, _graph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? _Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.height!, _session, _graph, _graph, _connection)
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Offset2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Offset2 {
-    return Offset2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Offset2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Offset2 {
@@ -693,7 +679,7 @@ export class Inset2 extends StructFrozen {
     right?: number | null;
     bottom?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -703,7 +689,7 @@ export class Inset2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -839,9 +825,8 @@ export class Inset2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Inset2 {
     const topValue = objectCson["102"];
     const unpackedTop = topValue != undefined ? Number(topValue) : null;
@@ -858,18 +843,17 @@ export class Inset2 extends StructFrozen {
       right: unpackedRight,
       bottom: unpackedBottom,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Inset2 {
-    return Inset2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Inset2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Inset2Proto {
@@ -901,9 +885,8 @@ export class Inset2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Inset2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Inset2 {
     return new Inset2({
       base: Number(objectProto.base),
@@ -912,18 +895,17 @@ export class Inset2 extends StructFrozen {
       right: objectProto.right != undefined ? Number(objectProto.right) : null,
       bottom: objectProto.bottom != undefined ? Number(objectProto.bottom) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Inset2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Inset2 {
-    return Inset2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Inset2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Inset2 {
@@ -979,7 +961,7 @@ export class Corner2 extends StructFrozen {
     bottomLeft?: number | null;
     bottomRight?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -989,7 +971,7 @@ export class Corner2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1125,9 +1107,8 @@ export class Corner2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Corner2 {
     const topLeftValue = objectCson["102"];
     const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
@@ -1144,18 +1125,17 @@ export class Corner2 extends StructFrozen {
       bottomLeft: unpackedBottomLeft,
       bottomRight: unpackedBottomRight,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Corner2 {
-    return Corner2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Corner2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Corner2Proto {
@@ -1187,9 +1167,8 @@ export class Corner2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Corner2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Corner2 {
     return new Corner2({
       base: Number(objectProto.base),
@@ -1198,18 +1177,17 @@ export class Corner2 extends StructFrozen {
       bottomLeft: objectProto.bottomLeft != undefined ? Number(objectProto.bottomLeft) : null,
       bottomRight: objectProto.bottomRight != undefined ? Number(objectProto.bottomRight) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Corner2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Corner2 {
-    return Corner2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Corner2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Corner2 {
@@ -1253,7 +1231,7 @@ export class Axis2 extends StructFrozen {
     x?: number | null;
     y?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1263,7 +1241,7 @@ export class Axis2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1377,9 +1355,8 @@ export class Axis2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Axis2 {
     const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
@@ -1390,18 +1367,17 @@ export class Axis2 extends StructFrozen {
       x: unpackedX,
       y: unpackedY,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Axis2 {
-    return Axis2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Axis2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Axis2Proto {
@@ -1427,27 +1403,25 @@ export class Axis2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Axis2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Axis2 {
     return new Axis2({
       base: objectProto.base,
       x: objectProto.x != undefined ? objectProto.x : null,
       y: objectProto.y != undefined ? objectProto.y : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Axis2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Axis2 {
-    return Axis2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Axis2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Axis2 {
@@ -1497,7 +1471,7 @@ export class Axis3 extends StructFrozen {
     y?: number | null;
     z?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1507,7 +1481,7 @@ export class Axis3 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1638,9 +1612,8 @@ export class Axis3 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Axis3 {
     const xValue = objectCson["102"];
     const unpackedX = xValue != undefined ? xValue : null;
@@ -1654,18 +1627,17 @@ export class Axis3 extends StructFrozen {
       y: unpackedY,
       z: unpackedZ,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Axis3 {
-    return Axis3.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Axis3.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Axis3Proto {
@@ -1694,9 +1666,8 @@ export class Axis3 extends StructFrozen {
   static __unpackProto__(
     objectProto: Axis3Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Axis3 {
     return new Axis3({
       base: objectProto.base,
@@ -1704,18 +1675,17 @@ export class Axis3 extends StructFrozen {
       y: objectProto.y != undefined ? objectProto.y : null,
       z: objectProto.z != undefined ? objectProto.z : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Axis3Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Axis3 {
-    return Axis3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Axis3.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Axis3 {
@@ -1771,7 +1741,7 @@ export class Grid2 extends StructFrozen {
     columnMinWidth?: Length | null;
     rowHeight?: Length | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1781,7 +1751,7 @@ export class Grid2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1920,25 +1890,24 @@ export class Grid2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Grid2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const columnWidthValue = objectCson["103"];
     const unpackedColumnWidth =
       columnWidthValue != undefined
-        ? _Length.fromCson(columnWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(columnWidthValue, _session, _graph, _connection)
         : null;
     const columnMinWidthValue = objectCson["104"];
     const unpackedColumnMinWidth =
       columnMinWidthValue != undefined
-        ? _Length.fromCson(columnMinWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(columnMinWidthValue, _session, _graph, _connection)
         : null;
     const rowHeightValue = objectCson["105"];
     const unpackedRowHeight =
       rowHeightValue != undefined
-        ? _Length.fromCson(rowHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(rowHeightValue, _session, _graph, _connection)
         : null;
     return new Grid2({
       columns: Number(objectCson["101"]),
@@ -1947,18 +1916,17 @@ export class Grid2 extends StructFrozen {
       columnMinWidth: unpackedColumnMinWidth,
       rowHeight: unpackedRowHeight,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Grid2 {
-    return Grid2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Grid2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Grid2Proto {
@@ -1988,9 +1956,8 @@ export class Grid2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Grid2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Grid2 {
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     return new Grid2({
@@ -1998,35 +1965,28 @@ export class Grid2 extends StructFrozen {
       rows: Number(objectProto.rows),
       columnWidth:
         objectProto.columnWidth != undefined
-          ? _Length.fromProto(objectProto.columnWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.columnWidth!, _session, _graph, _graph, _connection)
           : null,
       columnMinWidth:
         objectProto.columnMinWidth != undefined
-          ? _Length.fromProto(
-              objectProto.columnMinWidth!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _Length.fromProto(objectProto.columnMinWidth!, _session, _graph, _graph, _connection)
           : null,
       rowHeight:
         objectProto.rowHeight != undefined
-          ? _Length.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.rowHeight!, _session, _graph, _graph, _connection)
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Grid2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Grid2 {
-    return Grid2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Grid2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Grid2 {
@@ -2064,7 +2024,7 @@ export class GridSpan2 extends StructFrozen {
     columns: number;
     rows: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -2074,7 +2034,7 @@ export class GridSpan2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -2162,26 +2122,24 @@ export class GridSpan2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GridSpan2 {
     return new GridSpan2({
       columns: Number(objectCson["101"]),
       rows: Number(objectCson["102"]),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GridSpan2 {
-    return GridSpan2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return GridSpan2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): GridSpan2Proto {
@@ -2202,26 +2160,24 @@ export class GridSpan2 extends StructFrozen {
   static __unpackProto__(
     objectProto: GridSpan2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GridSpan2 {
     return new GridSpan2({
       columns: Number(objectProto.columns),
       rows: Number(objectProto.rows),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: GridSpan2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GridSpan2 {
-    return GridSpan2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return GridSpan2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): GridSpan2 {

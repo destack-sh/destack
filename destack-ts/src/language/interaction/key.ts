@@ -2,9 +2,9 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -185,7 +185,7 @@ export class KeyDownEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -197,7 +197,7 @@ export class KeyDownEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -209,7 +209,7 @@ export class KeyDownEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -221,7 +221,7 @@ export class KeyDownEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -233,7 +233,7 @@ export class KeyDownEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -245,7 +245,7 @@ export class KeyDownEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -267,7 +267,7 @@ export class KeyDownEvent extends KeyEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -279,7 +279,7 @@ export class KeyDownEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -311,7 +311,7 @@ export class KeyDownEvent extends KeyEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -383,9 +383,9 @@ export class KeyDownEvent extends KeyEvent {
     ctrlKey: boolean;
     metaKey: boolean;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -395,7 +395,7 @@ export class KeyDownEvent extends KeyEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -683,7 +683,7 @@ export class KeyDownEvent extends KeyEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -767,40 +767,39 @@ export class KeyDownEvent extends KeyEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
@@ -815,14 +814,8 @@ export class KeyDownEvent extends KeyEvent {
       metaKey: objectCson["123"],
       node: unpackedNodePtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -834,7 +827,7 @@ export class KeyDownEvent extends KeyEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -844,11 +837,10 @@ export class KeyDownEvent extends KeyEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyDownEvent {
-    return KeyDownEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return KeyDownEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): KeyDownEventProto {
@@ -901,9 +893,8 @@ export class KeyDownEvent extends KeyEvent {
   static __unpackProto__(
     objectProto: KeyDownEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new KeyDownEvent({
@@ -917,20 +908,14 @@ export class KeyDownEvent extends KeyEvent {
       metaKey: objectProto.metaKey,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -938,14 +923,14 @@ export class KeyDownEvent extends KeyEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -954,7 +939,7 @@ export class KeyDownEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -964,7 +949,7 @@ export class KeyDownEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -976,33 +961,21 @@ export class KeyDownEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1012,11 +985,10 @@ export class KeyDownEvent extends KeyEvent {
   static fromProto(
     objectProto: KeyDownEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyDownEvent {
-    return KeyDownEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return KeyDownEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): KeyDownEvent {
@@ -1045,7 +1017,7 @@ export class KeyUpEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1057,7 +1029,7 @@ export class KeyUpEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1069,7 +1041,7 @@ export class KeyUpEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1081,7 +1053,7 @@ export class KeyUpEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1093,7 +1065,7 @@ export class KeyUpEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1105,7 +1077,7 @@ export class KeyUpEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1127,7 +1099,7 @@ export class KeyUpEvent extends KeyEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1139,7 +1111,7 @@ export class KeyUpEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1171,7 +1143,7 @@ export class KeyUpEvent extends KeyEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1243,9 +1215,9 @@ export class KeyUpEvent extends KeyEvent {
     ctrlKey: boolean;
     metaKey: boolean;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1255,7 +1227,7 @@ export class KeyUpEvent extends KeyEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1543,7 +1515,7 @@ export class KeyUpEvent extends KeyEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1627,40 +1599,39 @@ export class KeyUpEvent extends KeyEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
@@ -1675,14 +1646,8 @@ export class KeyUpEvent extends KeyEvent {
       metaKey: objectCson["123"],
       node: unpackedNodePtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1694,7 +1659,7 @@ export class KeyUpEvent extends KeyEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1704,11 +1669,10 @@ export class KeyUpEvent extends KeyEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyUpEvent {
-    return KeyUpEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return KeyUpEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): KeyUpEventProto {
@@ -1761,9 +1725,8 @@ export class KeyUpEvent extends KeyEvent {
   static __unpackProto__(
     objectProto: KeyUpEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new KeyUpEvent({
@@ -1777,20 +1740,14 @@ export class KeyUpEvent extends KeyEvent {
       metaKey: objectProto.metaKey,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1798,14 +1755,14 @@ export class KeyUpEvent extends KeyEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1814,7 +1771,7 @@ export class KeyUpEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1824,7 +1781,7 @@ export class KeyUpEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1836,33 +1793,21 @@ export class KeyUpEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1872,11 +1817,10 @@ export class KeyUpEvent extends KeyEvent {
   static fromProto(
     objectProto: KeyUpEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyUpEvent {
-    return KeyUpEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return KeyUpEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): KeyUpEvent {
@@ -1905,7 +1849,7 @@ export class KeyPressEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1917,7 +1861,7 @@ export class KeyPressEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1929,7 +1873,7 @@ export class KeyPressEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1941,7 +1885,7 @@ export class KeyPressEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1953,7 +1897,7 @@ export class KeyPressEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1965,7 +1909,7 @@ export class KeyPressEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1987,7 +1931,7 @@ export class KeyPressEvent extends KeyEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1999,7 +1943,7 @@ export class KeyPressEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -2031,7 +1975,7 @@ export class KeyPressEvent extends KeyEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -2103,9 +2047,9 @@ export class KeyPressEvent extends KeyEvent {
     ctrlKey: boolean;
     metaKey: boolean;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -2115,7 +2059,7 @@ export class KeyPressEvent extends KeyEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -2403,7 +2347,7 @@ export class KeyPressEvent extends KeyEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2487,40 +2431,39 @@ export class KeyPressEvent extends KeyEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
@@ -2535,14 +2478,8 @@ export class KeyPressEvent extends KeyEvent {
       metaKey: objectCson["123"],
       node: unpackedNodePtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2554,7 +2491,7 @@ export class KeyPressEvent extends KeyEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2564,11 +2501,10 @@ export class KeyPressEvent extends KeyEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): KeyPressEvent {
-    return KeyPressEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return KeyPressEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): KeyPressEventProto {
@@ -2621,9 +2557,8 @@ export class KeyPressEvent extends KeyEvent {
   static __unpackProto__(
     objectProto: KeyPressEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new KeyPressEvent({
@@ -2637,20 +2572,14 @@ export class KeyPressEvent extends KeyEvent {
       metaKey: objectProto.metaKey,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2658,14 +2587,14 @@ export class KeyPressEvent extends KeyEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2674,7 +2603,7 @@ export class KeyPressEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2684,7 +2613,7 @@ export class KeyPressEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2696,33 +2625,21 @@ export class KeyPressEvent extends KeyEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2732,11 +2649,10 @@ export class KeyPressEvent extends KeyEvent {
   static fromProto(
     objectProto: KeyPressEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): KeyPressEvent {
-    return KeyPressEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return KeyPressEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): KeyPressEvent {

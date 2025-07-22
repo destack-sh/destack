@@ -2,11 +2,11 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   Icon,
   IsActor,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -328,7 +328,7 @@ export class GaugeMetric extends Metric {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -340,7 +340,7 @@ export class GaugeMetric extends Metric {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -357,7 +357,7 @@ export class GaugeMetric extends Metric {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -369,7 +369,7 @@ export class GaugeMetric extends Metric {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -381,7 +381,7 @@ export class GaugeMetric extends Metric {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -394,7 +394,7 @@ export class GaugeMetric extends Metric {
   get precededBy(): GaugeMetric | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as GaugeMetric | null;
+      return this._graph.get(nodePtr.id) as GaugeMetric | null;
     }
     return null;
   }
@@ -406,7 +406,7 @@ export class GaugeMetric extends Metric {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -428,7 +428,7 @@ export class GaugeMetric extends Metric {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -450,7 +450,7 @@ export class GaugeMetric extends Metric {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -469,7 +469,7 @@ export class GaugeMetric extends Metric {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -536,7 +536,7 @@ export class GaugeMetric extends Metric {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -571,7 +571,7 @@ export class GaugeMetric extends Metric {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -636,9 +636,9 @@ export class GaugeMetric extends Metric {
     key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -652,7 +652,7 @@ export class GaugeMetric extends Metric {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -934,7 +934,7 @@ export class GaugeMetric extends Metric {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1036,47 +1036,44 @@ export class GaugeMetric extends Metric {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -1086,7 +1083,7 @@ export class GaugeMetric extends Metric {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -1094,7 +1091,6 @@ export class GaugeMetric extends Metric {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1103,14 +1099,14 @@ export class GaugeMetric extends Metric {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -1119,14 +1115,8 @@ export class GaugeMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1145,7 +1135,7 @@ export class GaugeMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1155,11 +1145,10 @@ export class GaugeMetric extends Metric {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMetric {
-    return GaugeMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return GaugeMetric.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): GaugeMetricProto {
@@ -1230,9 +1219,8 @@ export class GaugeMetric extends Metric {
   static __unpackProto__(
     objectProto: GaugeMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1242,24 +1230,18 @@ export class GaugeMetric extends Metric {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new GaugeMetric({
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -1267,7 +1249,7 @@ export class GaugeMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1275,14 +1257,14 @@ export class GaugeMetric extends Metric {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1291,7 +1273,7 @@ export class GaugeMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1301,7 +1283,7 @@ export class GaugeMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1313,7 +1295,7 @@ export class GaugeMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1325,7 +1307,7 @@ export class GaugeMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1334,47 +1316,23 @@ export class GaugeMetric extends Metric {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1384,11 +1342,10 @@ export class GaugeMetric extends Metric {
   static fromProto(
     objectProto: GaugeMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMetric {
-    return GaugeMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return GaugeMetric.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): GaugeMetric {
@@ -1417,7 +1374,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1429,7 +1386,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get definition(): GaugeMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as GaugeMetric | null;
+      return this._graph.get(nodePtr.id) as GaugeMetric | null;
     }
     return null;
   }
@@ -1441,7 +1398,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1453,7 +1410,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1465,7 +1422,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1477,7 +1434,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1499,7 +1456,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1511,7 +1468,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1543,7 +1500,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -1567,9 +1524,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1579,7 +1536,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1796,7 +1753,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1867,54 +1824,41 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     return new GaugeMeasurementEvent({
-      definition: _NodeReference.fromCson(
-        objectCson["6"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      definition: _NodeReference.fromCson(objectCson["6"], _session, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1927,7 +1871,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       status: Number(objectCson["40"]),
       node: unpackedNodePtr,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1937,17 +1881,10 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMeasurementEvent {
-    return GaugeMeasurementEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return GaugeMeasurementEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): GaugeMeasurementEventProto {
@@ -1990,30 +1927,29 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   static __unpackProto__(
     objectProto: GaugeMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new GaugeMeasurementEvent({
       definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2022,7 +1958,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2032,7 +1968,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2044,20 +1980,14 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
@@ -2065,22 +1995,10 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2090,17 +2008,10 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   static fromProto(
     objectProto: GaugeMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): GaugeMeasurementEvent {
-    return GaugeMeasurementEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return GaugeMeasurementEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): GaugeMeasurementEvent {
@@ -2129,7 +2040,7 @@ export class CounterMetric extends Metric {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2141,7 +2052,7 @@ export class CounterMetric extends Metric {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -2158,7 +2069,7 @@ export class CounterMetric extends Metric {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2170,7 +2081,7 @@ export class CounterMetric extends Metric {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -2182,7 +2093,7 @@ export class CounterMetric extends Metric {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -2195,7 +2106,7 @@ export class CounterMetric extends Metric {
   get precededBy(): CounterMetric | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CounterMetric | null;
+      return this._graph.get(nodePtr.id) as CounterMetric | null;
     }
     return null;
   }
@@ -2207,7 +2118,7 @@ export class CounterMetric extends Metric {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2229,7 +2140,7 @@ export class CounterMetric extends Metric {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2251,7 +2162,7 @@ export class CounterMetric extends Metric {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2270,7 +2181,7 @@ export class CounterMetric extends Metric {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2337,7 +2248,7 @@ export class CounterMetric extends Metric {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -2372,7 +2283,7 @@ export class CounterMetric extends Metric {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -2437,9 +2348,9 @@ export class CounterMetric extends Metric {
     key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -2453,7 +2364,7 @@ export class CounterMetric extends Metric {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -2735,7 +2646,7 @@ export class CounterMetric extends Metric {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2837,47 +2748,44 @@ export class CounterMetric extends Metric {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CounterMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -2887,7 +2795,7 @@ export class CounterMetric extends Metric {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -2895,7 +2803,6 @@ export class CounterMetric extends Metric {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -2904,14 +2811,14 @@ export class CounterMetric extends Metric {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -2920,14 +2827,8 @@ export class CounterMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2946,7 +2847,7 @@ export class CounterMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2956,11 +2857,10 @@ export class CounterMetric extends Metric {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CounterMetric {
-    return CounterMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return CounterMetric.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): CounterMetricProto {
@@ -3031,9 +2931,8 @@ export class CounterMetric extends Metric {
   static __unpackProto__(
     objectProto: CounterMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CounterMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -3043,24 +2942,18 @@ export class CounterMetric extends Metric {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new CounterMetric({
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -3068,7 +2961,7 @@ export class CounterMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3076,14 +2969,14 @@ export class CounterMetric extends Metric {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -3092,7 +2985,7 @@ export class CounterMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3102,7 +2995,7 @@ export class CounterMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3114,7 +3007,7 @@ export class CounterMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3126,7 +3019,7 @@ export class CounterMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3135,47 +3028,23 @@ export class CounterMetric extends Metric {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3185,11 +3054,10 @@ export class CounterMetric extends Metric {
   static fromProto(
     objectProto: CounterMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CounterMetric {
-    return CounterMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return CounterMetric.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): CounterMetric {
@@ -3218,7 +3086,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -3230,7 +3098,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get definition(): CounterMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CounterMetric | null;
+      return this._graph.get(nodePtr.id) as CounterMetric | null;
     }
     return null;
   }
@@ -3242,7 +3110,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -3254,7 +3122,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -3266,7 +3134,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3278,7 +3146,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3300,7 +3168,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -3312,7 +3180,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -3344,7 +3212,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -3368,9 +3236,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -3380,7 +3248,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -3597,7 +3465,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -3668,54 +3536,41 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CounterMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     return new CounterMeasurementEvent({
-      definition: _NodeReference.fromCson(
-        objectCson["6"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      definition: _NodeReference.fromCson(objectCson["6"], _session, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -3728,7 +3583,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       status: Number(objectCson["40"]),
       node: unpackedNodePtr,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3738,17 +3593,10 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CounterMeasurementEvent {
-    return CounterMeasurementEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return CounterMeasurementEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): CounterMeasurementEventProto {
@@ -3791,30 +3639,29 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   static __unpackProto__(
     objectProto: CounterMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CounterMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new CounterMeasurementEvent({
       definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -3823,7 +3670,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3833,7 +3680,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3845,20 +3692,14 @@ export class CounterMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
@@ -3866,22 +3707,10 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3891,17 +3720,10 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   static fromProto(
     objectProto: CounterMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CounterMeasurementEvent {
-    return CounterMeasurementEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return CounterMeasurementEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): CounterMeasurementEvent {
@@ -3930,7 +3752,7 @@ export class HistogramMetric extends Metric {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3942,7 +3764,7 @@ export class HistogramMetric extends Metric {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -3959,7 +3781,7 @@ export class HistogramMetric extends Metric {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3971,7 +3793,7 @@ export class HistogramMetric extends Metric {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -3983,7 +3805,7 @@ export class HistogramMetric extends Metric {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -3996,7 +3818,7 @@ export class HistogramMetric extends Metric {
   get precededBy(): HistogramMetric | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as HistogramMetric | null;
+      return this._graph.get(nodePtr.id) as HistogramMetric | null;
     }
     return null;
   }
@@ -4008,7 +3830,7 @@ export class HistogramMetric extends Metric {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -4030,7 +3852,7 @@ export class HistogramMetric extends Metric {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -4052,7 +3874,7 @@ export class HistogramMetric extends Metric {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -4071,7 +3893,7 @@ export class HistogramMetric extends Metric {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -4138,7 +3960,7 @@ export class HistogramMetric extends Metric {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -4173,7 +3995,7 @@ export class HistogramMetric extends Metric {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -4238,9 +4060,9 @@ export class HistogramMetric extends Metric {
     key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -4254,7 +4076,7 @@ export class HistogramMetric extends Metric {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -4536,7 +4358,7 @@ export class HistogramMetric extends Metric {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -4638,47 +4460,44 @@ export class HistogramMetric extends Metric {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectCson["102"];
     const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
+      iconValue != undefined ? _Icon.fromCson(iconValue, _session, _graph, _connection) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -4688,7 +4507,7 @@ export class HistogramMetric extends Metric {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -4696,7 +4515,6 @@ export class HistogramMetric extends Metric {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -4705,14 +4523,14 @@ export class HistogramMetric extends Metric {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -4721,14 +4539,8 @@ export class HistogramMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -4747,7 +4559,7 @@ export class HistogramMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4757,11 +4569,10 @@ export class HistogramMetric extends Metric {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMetric {
-    return HistogramMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return HistogramMetric.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): HistogramMetricProto {
@@ -4832,9 +4643,8 @@ export class HistogramMetric extends Metric {
   static __unpackProto__(
     objectProto: HistogramMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMetric {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -4844,24 +4654,18 @@ export class HistogramMetric extends Metric {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
     return new HistogramMetric({
       icon:
         objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          ? _Icon.fromProto(objectProto.icon!, _session, _graph, _graph, _connection)
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -4869,7 +4673,7 @@ export class HistogramMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4877,14 +4681,14 @@ export class HistogramMetric extends Metric {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -4893,7 +4697,7 @@ export class HistogramMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4903,7 +4707,7 @@ export class HistogramMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4915,7 +4719,7 @@ export class HistogramMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4927,7 +4731,7 @@ export class HistogramMetric extends Metric {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4936,47 +4740,23 @@ export class HistogramMetric extends Metric {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4986,11 +4766,10 @@ export class HistogramMetric extends Metric {
   static fromProto(
     objectProto: HistogramMetricProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMetric {
-    return HistogramMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return HistogramMetric.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): HistogramMetric {
@@ -5019,7 +4798,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -5031,7 +4810,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get definition(): HistogramMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as HistogramMetric | null;
+      return this._graph.get(nodePtr.id) as HistogramMetric | null;
     }
     return null;
   }
@@ -5043,7 +4822,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -5055,7 +4834,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -5067,7 +4846,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -5079,7 +4858,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -5101,7 +4880,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -5113,7 +4892,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -5145,7 +4924,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -5169,9 +4948,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -5181,7 +4960,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -5398,7 +5177,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -5469,54 +5248,41 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _graph, _connection)
         : null;
     return new HistogramMeasurementEvent({
-      definition: _NodeReference.fromCson(
-        objectCson["6"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      definition: _NodeReference.fromCson(objectCson["6"], _session, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -5529,7 +5295,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       status: Number(objectCson["40"]),
       node: unpackedNodePtr,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -5539,17 +5305,10 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMeasurementEvent {
-    return HistogramMeasurementEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return HistogramMeasurementEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): HistogramMeasurementEventProto {
@@ -5592,30 +5351,29 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   static __unpackProto__(
     objectProto: HistogramMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new HistogramMeasurementEvent({
       definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -5624,7 +5382,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5634,7 +5392,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5646,20 +5404,14 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
@@ -5667,22 +5419,10 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection)
           : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -5692,17 +5432,10 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   static fromProto(
     objectProto: HistogramMeasurementEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): HistogramMeasurementEvent {
-    return HistogramMeasurementEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return HistogramMeasurementEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): HistogramMeasurementEvent {

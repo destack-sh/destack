@@ -2,11 +2,11 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   IsRunnable,
   Materialization,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -185,7 +185,7 @@ export class RunStartedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -197,7 +197,7 @@ export class RunStartedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -209,7 +209,7 @@ export class RunStartedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -221,7 +221,7 @@ export class RunStartedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -233,7 +233,7 @@ export class RunStartedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -245,7 +245,7 @@ export class RunStartedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -267,7 +267,7 @@ export class RunStartedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -279,7 +279,7 @@ export class RunStartedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -311,7 +311,7 @@ export class RunStartedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -323,7 +323,7 @@ export class RunStartedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -348,9 +348,9 @@ export class RunStartedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -360,7 +360,7 @@ export class RunStartedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -588,7 +588,7 @@ export class RunStartedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -662,55 +662,48 @@ export class RunStartedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunStartedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunStartedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -722,7 +715,7 @@ export class RunStartedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -732,11 +725,10 @@ export class RunStartedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunStartedEvent {
-    return RunStartedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return RunStartedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunStartedEventProto {
@@ -782,35 +774,22 @@ export class RunStartedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunStartedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunStartedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunStartedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -818,14 +797,14 @@ export class RunStartedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -834,7 +813,7 @@ export class RunStartedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -844,7 +823,7 @@ export class RunStartedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -856,33 +835,21 @@ export class RunStartedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -892,11 +859,10 @@ export class RunStartedEvent extends RunEvent {
   static fromProto(
     objectProto: RunStartedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunStartedEvent {
-    return RunStartedEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return RunStartedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunStartedEvent {
@@ -925,7 +891,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -937,7 +903,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -949,7 +915,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -961,7 +927,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -973,7 +939,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -985,7 +951,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1007,7 +973,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1019,7 +985,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1051,7 +1017,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -1063,7 +1029,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -1088,9 +1054,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1100,7 +1066,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1328,7 +1294,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1402,55 +1368,48 @@ export class RunPauseRequestedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunPauseRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunPauseRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1462,7 +1421,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1472,17 +1431,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunPauseRequestedEvent {
-    return RunPauseRequestedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunPauseRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunPauseRequestedEventProto {
@@ -1528,35 +1480,22 @@ export class RunPauseRequestedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunPauseRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunPauseRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunPauseRequestedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1564,14 +1503,14 @@ export class RunPauseRequestedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1580,7 +1519,7 @@ export class RunPauseRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1590,7 +1529,7 @@ export class RunPauseRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1602,33 +1541,21 @@ export class RunPauseRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1638,17 +1565,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   static fromProto(
     objectProto: RunPauseRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunPauseRequestedEvent {
-    return RunPauseRequestedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunPauseRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunPauseRequestedEvent {
@@ -1677,7 +1597,7 @@ export class RunPausedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1689,7 +1609,7 @@ export class RunPausedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1701,7 +1621,7 @@ export class RunPausedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1713,7 +1633,7 @@ export class RunPausedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1725,7 +1645,7 @@ export class RunPausedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1737,7 +1657,7 @@ export class RunPausedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1759,7 +1679,7 @@ export class RunPausedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1771,7 +1691,7 @@ export class RunPausedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -1803,7 +1723,7 @@ export class RunPausedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -1815,7 +1735,7 @@ export class RunPausedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -1840,9 +1760,9 @@ export class RunPausedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -1852,7 +1772,7 @@ export class RunPausedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -2080,7 +2000,7 @@ export class RunPausedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2154,55 +2074,48 @@ export class RunPausedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunPausedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunPausedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2214,7 +2127,7 @@ export class RunPausedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2224,11 +2137,10 @@ export class RunPausedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunPausedEvent {
-    return RunPausedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return RunPausedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunPausedEventProto {
@@ -2274,35 +2186,22 @@ export class RunPausedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunPausedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunPausedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunPausedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2310,14 +2209,14 @@ export class RunPausedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -2326,7 +2225,7 @@ export class RunPausedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2336,7 +2235,7 @@ export class RunPausedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -2348,33 +2247,21 @@ export class RunPausedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2384,11 +2271,10 @@ export class RunPausedEvent extends RunEvent {
   static fromProto(
     objectProto: RunPausedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunPausedEvent {
-    return RunPausedEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return RunPausedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunPausedEvent {
@@ -2417,7 +2303,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -2429,7 +2315,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2441,7 +2327,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -2453,7 +2339,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -2465,7 +2351,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -2477,7 +2363,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -2499,7 +2385,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2511,7 +2397,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -2543,7 +2429,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -2555,7 +2441,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -2580,9 +2466,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -2592,7 +2478,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -2820,7 +2706,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -2894,55 +2780,48 @@ export class RunResumeRequestedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunResumeRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunResumeRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -2954,7 +2833,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2964,17 +2843,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunResumeRequestedEvent {
-    return RunResumeRequestedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunResumeRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunResumeRequestedEventProto {
@@ -3020,35 +2892,22 @@ export class RunResumeRequestedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunResumeRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunResumeRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunResumeRequestedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3056,14 +2915,14 @@ export class RunResumeRequestedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -3072,7 +2931,7 @@ export class RunResumeRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3082,7 +2941,7 @@ export class RunResumeRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3094,33 +2953,21 @@ export class RunResumeRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3130,17 +2977,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   static fromProto(
     objectProto: RunResumeRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunResumeRequestedEvent {
-    return RunResumeRequestedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunResumeRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunResumeRequestedEvent {
@@ -3169,7 +3009,7 @@ export class RunResumedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -3181,7 +3021,7 @@ export class RunResumedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3193,7 +3033,7 @@ export class RunResumedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -3205,7 +3045,7 @@ export class RunResumedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -3217,7 +3057,7 @@ export class RunResumedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3229,7 +3069,7 @@ export class RunResumedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3251,7 +3091,7 @@ export class RunResumedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -3263,7 +3103,7 @@ export class RunResumedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -3295,7 +3135,7 @@ export class RunResumedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -3307,7 +3147,7 @@ export class RunResumedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -3332,9 +3172,9 @@ export class RunResumedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -3344,7 +3184,7 @@ export class RunResumedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -3572,7 +3412,7 @@ export class RunResumedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -3646,55 +3486,48 @@ export class RunResumedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunResumedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunResumedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -3706,7 +3539,7 @@ export class RunResumedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3716,11 +3549,10 @@ export class RunResumedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunResumedEvent {
-    return RunResumedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return RunResumedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunResumedEventProto {
@@ -3766,35 +3598,22 @@ export class RunResumedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunResumedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunResumedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunResumedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3802,14 +3621,14 @@ export class RunResumedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -3818,7 +3637,7 @@ export class RunResumedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3828,7 +3647,7 @@ export class RunResumedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -3840,33 +3659,21 @@ export class RunResumedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3876,11 +3683,10 @@ export class RunResumedEvent extends RunEvent {
   static fromProto(
     objectProto: RunResumedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunResumedEvent {
-    return RunResumedEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return RunResumedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunResumedEvent {
@@ -3909,7 +3715,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -3921,7 +3727,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3933,7 +3739,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -3945,7 +3751,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -3957,7 +3763,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3969,7 +3775,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -3991,7 +3797,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -4003,7 +3809,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -4035,7 +3841,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -4047,7 +3853,7 @@ export class RunStopRequestedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -4072,9 +3878,9 @@ export class RunStopRequestedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -4084,7 +3890,7 @@ export class RunStopRequestedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -4312,7 +4118,7 @@ export class RunStopRequestedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -4386,55 +4192,48 @@ export class RunStopRequestedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunStopRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunStopRequestedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -4446,7 +4245,7 @@ export class RunStopRequestedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4456,17 +4255,10 @@ export class RunStopRequestedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunStopRequestedEvent {
-    return RunStopRequestedEvent.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunStopRequestedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunStopRequestedEventProto {
@@ -4512,35 +4304,22 @@ export class RunStopRequestedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunStopRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunStopRequestedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunStopRequestedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4548,14 +4327,14 @@ export class RunStopRequestedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -4564,7 +4343,7 @@ export class RunStopRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4574,7 +4353,7 @@ export class RunStopRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -4586,33 +4365,21 @@ export class RunStopRequestedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4622,17 +4389,10 @@ export class RunStopRequestedEvent extends RunEvent {
   static fromProto(
     objectProto: RunStopRequestedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunStopRequestedEvent {
-    return RunStopRequestedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunStopRequestedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunStopRequestedEvent {
@@ -4661,7 +4421,7 @@ export class RunFailedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -4673,7 +4433,7 @@ export class RunFailedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -4685,7 +4445,7 @@ export class RunFailedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -4697,7 +4457,7 @@ export class RunFailedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -4709,7 +4469,7 @@ export class RunFailedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -4721,7 +4481,7 @@ export class RunFailedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -4743,7 +4503,7 @@ export class RunFailedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -4755,7 +4515,7 @@ export class RunFailedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -4787,7 +4547,7 @@ export class RunFailedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -4799,7 +4559,7 @@ export class RunFailedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -4824,9 +4584,9 @@ export class RunFailedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -4836,7 +4596,7 @@ export class RunFailedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -5064,7 +4824,7 @@ export class RunFailedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -5138,55 +4898,48 @@ export class RunFailedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunFailedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunFailedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -5198,7 +4951,7 @@ export class RunFailedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -5208,11 +4961,10 @@ export class RunFailedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunFailedEvent {
-    return RunFailedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return RunFailedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunFailedEventProto {
@@ -5258,35 +5010,22 @@ export class RunFailedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunFailedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunFailedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunFailedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5294,14 +5033,14 @@ export class RunFailedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -5310,7 +5049,7 @@ export class RunFailedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5320,7 +5059,7 @@ export class RunFailedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -5332,33 +5071,21 @@ export class RunFailedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -5368,11 +5095,10 @@ export class RunFailedEvent extends RunEvent {
   static fromProto(
     objectProto: RunFailedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunFailedEvent {
-    return RunFailedEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return RunFailedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunFailedEvent {
@@ -5401,7 +5127,7 @@ export class RunCompletedEvent extends RunEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -5413,7 +5139,7 @@ export class RunCompletedEvent extends RunEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -5425,7 +5151,7 @@ export class RunCompletedEvent extends RunEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -5437,7 +5163,7 @@ export class RunCompletedEvent extends RunEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -5449,7 +5175,7 @@ export class RunCompletedEvent extends RunEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -5461,7 +5187,7 @@ export class RunCompletedEvent extends RunEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Event | null;
+      return this._graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -5483,7 +5209,7 @@ export class RunCompletedEvent extends RunEvent {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -5495,7 +5221,7 @@ export class RunCompletedEvent extends RunEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
+      return this._graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -5527,7 +5253,7 @@ export class RunCompletedEvent extends RunEvent {
   get node(): Run | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Run | null;
+      return this._graph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
@@ -5539,7 +5265,7 @@ export class RunCompletedEvent extends RunEvent {
   get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -5564,9 +5290,9 @@ export class RunCompletedEvent extends RunEvent {
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -5576,7 +5302,7 @@ export class RunCompletedEvent extends RunEvent {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -5804,7 +5530,7 @@ export class RunCompletedEvent extends RunEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -5878,55 +5604,48 @@ export class RunCompletedEvent extends RunEvent {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunCompletedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const targetPtrValue = objectCson["110"];
     const unpackedTargetPtr =
       targetPtrValue != undefined
-        ? _NodeReference.fromCson(targetPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(targetPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const causedByPtrValue = objectCson["15"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _graph, _connection)
         : null;
     const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunCompletedEvent({
-      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      node: _NodeReference.fromCson(objectCson["101"], _session, _graph, _connection),
       target: unpackedTargetPtr,
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -5938,7 +5657,7 @@ export class RunCompletedEvent extends RunEvent {
       clientEpoch: Number(objectCson["26"]),
       status: Number(objectCson["40"]),
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -5948,11 +5667,10 @@ export class RunCompletedEvent extends RunEvent {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): RunCompletedEvent {
-    return RunCompletedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return RunCompletedEvent.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): RunCompletedEventProto {
@@ -5998,35 +5716,22 @@ export class RunCompletedEvent extends RunEvent {
   static __unpackProto__(
     objectProto: RunCompletedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunCompletedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new RunCompletedEvent({
-      node: _NodeReference.fromProto(
-        objectProto.nodePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      node: _NodeReference.fromProto(objectProto.nodePtr!, _session, _graph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.targetPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.targetPtr!, _session, _graph, _graph, _connection)
           : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -6034,14 +5739,14 @@ export class RunCompletedEvent extends RunEvent {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -6050,7 +5755,7 @@ export class RunCompletedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -6060,7 +5765,7 @@ export class RunCompletedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.causedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -6072,33 +5777,21 @@ export class RunCompletedEvent extends RunEvent {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       client:
         objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.clientPtr!, _session, _graph, _graph, _connection)
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -6108,17 +5801,10 @@ export class RunCompletedEvent extends RunEvent {
   static fromProto(
     objectProto: RunCompletedEventProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): RunCompletedEvent {
-    return RunCompletedEvent.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RunCompletedEvent.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): RunCompletedEvent {

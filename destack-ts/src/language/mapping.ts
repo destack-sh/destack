@@ -110,7 +110,12 @@ import type {
 } from "@destack/language/core/builtin/definition";
 import type { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import type { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
+import type {
+  CustomEvent,
+  Event,
+  EventStatus,
+  SignalEvent,
+} from "@destack/language/core/builtin/event";
 import type {
   ConstraintType,
   IndexType,
@@ -165,15 +170,10 @@ import type {
   ExpressionType,
   Function,
   FunctionType,
-  Histogram,
   Join,
   JoinType,
   Query,
-  QueryResult,
-  QueryResultGroup,
   QueryType,
-  QueryUpdate,
-  QueryUpdateType,
   Select,
   Sort,
   SortMode,
@@ -439,7 +439,7 @@ export type NodeTypeMapping = {
   [NodeType.ENTITY3D]: Entity3D;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
-  [NodeType.SIGNAL]: Signal;
+  [NodeType.SIGNAL_EVENT]: SignalEvent;
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.PERMISSION]: Permission;
   [NodeType.METHOD]: Method;
@@ -669,10 +669,6 @@ export type StructTypeMapping = {
   [StructType.SELECT]: Select;
   [StructType.JOIN]: Join;
   [StructType.QUERY]: Query;
-  [StructType.HISTOGRAM]: Histogram;
-  [StructType.QUERY_RESULT]: QueryResult;
-  [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
-  [StructType.QUERY_UPDATE]: QueryUpdate;
   [StructType.DATUM]: Datum;
   [StructType.DATUM_MUTABLE]: DatumMutable;
   [StructType.TEXT_SPAN]: TextSpan;
@@ -770,7 +766,6 @@ export type EnumTypeMapping = {
   [EnumType.SORT_MODE]: SortMode;
   [EnumType.JOIN_TYPE]: JoinType;
   [EnumType.QUERY_TYPE]: QueryType;
-  [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
   [EnumType.BRANCH_TYPE]: BranchType;
   [EnumType.SNAPSHOT_TYPE]: SnapshotType;

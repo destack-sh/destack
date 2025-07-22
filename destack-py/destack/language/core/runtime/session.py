@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
-    assert_never,
 )
 
 import structlog
@@ -16,14 +15,12 @@ from ..builtin import (
     EditType,
     Entity,
     Event,
-    EventStatus,
     NodeReference,
     PropertyDeclaration,
 )
 from ..common import to_value
-from .graph import Supergraph
+from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle
-from .store import EntityStore, EventStore
 
 if TYPE_CHECKING:
     from destack.language import GraphConnection
@@ -45,7 +42,7 @@ class Session:
         "actor_ptr",
         "closed_at",
         "connections",
-        "event_graph",
+        "graph",
         "oracle",
         "pending_events",
         "runtime",
@@ -58,21 +55,18 @@ class Session:
         *,
         oracle: Oracle = WORLD_ORACLE,
         actor_ptr: NodeReference | None = None,
-        store: "EventStore | EntityStore | None" = None,
+        graph: "Graph",
         epoch: int | None = None,
     ):
         self.oracle: Oracle = oracle
         self.actor_ptr: NodeReference | None = actor_ptr
-        self.store: EventStore | EntityStore | None = store
-        self.supergraph = Supergraph(self)
-        self.event_graph = self.supergraph.create_event_graph()
+        self.graph: Graph = graph
 
         # runtime
         self.pending_events: list[Event] = []
         self.connections: list[GraphConnection] = []
         self.closed_at: datetime | None = None
         self._epoch: int | None = epoch
-        self._token: Any | None = None
 
     def __str__(self) -> str:
         content_parts: list[str] = []
@@ -110,7 +104,7 @@ class Session:
             except ValueError:
                 pass  # token was created in a different context (during testing usually)
             self._token = None
-        self.closed_at = self.oracle.utc()
+        self.closed_at = self.oracle.now()
 
     def append(self, event: Event):
         """Appends an Event."""
@@ -240,29 +234,12 @@ class Session:
         events = list(self.pending_events)
         self.pending_events = []
 
-        # commit
-        if isinstance(self.store, EventStore):
-            applied_events: Sequence[Event] = await self.store.append(events)
-        elif isinstance(self.store, EntityStore):
-            edit_events = [event for event in events if isinstance(event, EditEvent)]
-            if len(edit_events) < len(events):
-                raise ValueError(f"cannot commit {len(events)} Events with {self.store!r}")
-            applied_events: Sequence[Event] = await self.store.commit(edit_events)
-        else:
-            assert_never(self.store)
-
-        # check
-        failed_events: list[Event] = [
-            event for event in events if event.status != EventStatus.APPROVED
-        ]
-        if failed_events:
-            # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
-            #  -> general concept of 'authority' over certain Nodes and their processing?
-            #   (like "who runs the timer"? "who runs physics"?)
-            #  1) update Event status and 2) do something on failure :RejectedEvents
-            #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
-            pass
-        return applied_events
+        # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
+        #  -> general concept of 'authority' over certain Nodes and their processing?
+        #   (like "who runs the timer"? "who runs physics"?)
+        #  1) update Event status and 2) do something on failure :RejectedEvents
+        #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
+        raise NotImplementedError("not implemented")
 
     async def __aenter__(self):
         await self.open()

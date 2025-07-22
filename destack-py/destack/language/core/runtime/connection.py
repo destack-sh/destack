@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, cast
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from ..builtin import Node
-from ..common import Query
+from ..builtin import Event, Node
 from .session import Session
 
 if TYPE_CHECKING:
-    from destack.language import Store
+    from destack.language import Graph, NodeReference
 
 # nocheckin: turn QueryConnections into GraphConnections??
 
@@ -15,48 +15,27 @@ class GraphConnection[NodeT: "Node" = Node]:
     A connection between two Graphs.
     """
 
-    __slots__ = (
-        "graph",
-        "is_live",
-        "nodes",
-        "query",
-        "result",
-        "session",
-        "store",
-    )
+    __slots__ = ("graph", "session", "space_ptr")
 
     def __init__(
         self,
         *,
-        query: Query,
-        store: "Store",
+        space_ptr: "NodeReference",
+        graph: "Graph",
         session: "Session",
-        is_live: bool = False,
     ):
-        super().__init__(
-            connection=cast(GraphConnection, self),
-            type=query.type,
-            query=query,
-            result=None,
-        )
-
-        from .graph import Graph
-
-        self.store: Store = store
-        self.session: Session = session
-        self.graph: Graph = session.supergraph.create_entity_graph()
-        self.is_live: bool = is_live
+        self.space_ptr = space_ptr
+        self.session = session
+        self.graph = graph
 
     def __repr__(self) -> str:
-        return f"<GraphConnection query={self.query!r}>"
+        return f"<GraphConnection space={self.space_ptr!r}>"
 
-    async def execute(self) -> None:
+    async def open(self) -> None:
         raise NotImplementedError
 
-    def close(self) -> None:
-        """Close the GraphConnection."""
+    async def commit(self, events: Sequence["Event"]) -> Sequence["Event"]:
         raise NotImplementedError
 
-    async def wait_closed(self) -> None:
-        """Wait for the GraphConnection to be closed."""
+    async def close(self) -> None:
         raise NotImplementedError

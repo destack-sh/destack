@@ -5,7 +5,6 @@ from typing import (
     Optional,
     assert_never,
     final,
-    override,
 )
 
 import structlog
@@ -17,10 +16,9 @@ from destack.language.registry import (
     NODE_TYPES_BY_TRAIT_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 
-from ..builtin import EMPTY_LIST, NodeType, TraitType
+from ..builtin import NodeType, TraitType
 
 if TYPE_CHECKING:
     from destack.language import Entity, Node
@@ -87,20 +85,6 @@ class Graph[N: Node](abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_roots[M: Entity = Entity](
-        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
-    ) -> Sequence[M]:
-        """Find root Nodes in the graph."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_leaves[M: Entity = Entity](
-        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
-    ) -> Sequence[M]:
-        """Find leaf Nodes in the graph."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def get_children[M: Entity = Entity](
         self,
         node: "Entity",
@@ -132,226 +116,6 @@ class Graph[N: Node](abc.ABC):
         Nodes are BFS but IsOrdered is ignored.
         """
         raise NotImplementedError
-
-
-class EntityGraph(Graph["Entity"]):
-    """
-    A Graph with an arbitrary, hierarchical set of Entities.
-    """
-
-    __slots__ = ("nodes_by_id", "nodes_by_parent", "supergraph")
-
-    def __init__(self, supergraph: "Supergraph"):
-        self.supergraph = supergraph
-        self.nodes_by_id: dict[UUID, Entity] = {}
-        self.nodes_by_parent: dict[UUID, dict[NodeType, list[Entity]]] = {}
-
-    @property
-    @override
-    def nodes(self) -> Collection["Entity"]:
-        return self.nodes_by_id.values()
-
-    @override
-    def __len__(self):
-        return len(self.nodes_by_id)
-
-    @override
-    def get(self, id: UUID) -> Optional["Entity"]:
-        return self.nodes_by_id.get(id)
-
-    @override
-    def has(self, id: UUID) -> bool:
-        return id in self.nodes_by_id
-
-    @override
-    def clear(self):
-        # supergraph
-        for node in self.nodes:
-            if self.supergraph._cached_nodes_by_id.get(node.id) is node:
-                self.supergraph._cached_nodes_by_id.pop(node.id)
-        # nodes
-        self.nodes_by_id.clear()
-        self.nodes_by_parent.clear()
-
-    @override
-    def add(self, node: "Entity"):
-        if (existing := self.nodes_by_id.get(node.id)) is not None:
-            raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
-        # node
-        self.nodes_by_id[node.id] = node
-        # parent
-        if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent:
-                self.nodes_by_parent[parent_ptr.id] = {}
-            child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
-                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent[parent_ptr.id][child_node_type].append(node)
-        # supergraph
-        if (
-            cached := self.supergraph._cached_nodes_by_id.get(node.id)
-        ) is None or cached is _MISSING:
-            self.supergraph._cached_nodes_by_id[node.id] = node
-
-    @override
-    def remove(self, node: "Entity"):
-        # supergraph
-        if self.supergraph._cached_nodes_by_id.get(node.id) is node:
-            self.supergraph._cached_nodes_by_id.pop(node.id)
-        # parent
-        if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent:
-                self.nodes_by_parent[parent_ptr.id] = {}
-            child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
-                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent[parent_ptr.id][child_node_type].remove(node)
-            if not self.nodes_by_parent[parent_ptr.id][child_node_type]:
-                self.nodes_by_parent[parent_ptr.id].pop(child_node_type)
-                if not self.nodes_by_parent[parent_ptr.id]:
-                    self.nodes_by_parent.pop(parent_ptr.id)
-        # node
-        self.nodes_by_id.pop(node.id)
-
-    @override
-    def get_roots[M: "Entity" = "Entity"](
-        self, node_type: NodeType | TraitType | type[M] | None = None
-    ) -> Sequence[M]:
-        node_types = expand_node_types(node_type)
-        if node_types is None:
-            roots = tuple(
-                node
-                for node in self.nodes
-                if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
-            )
-        else:
-            roots = tuple(
-                node
-                for node in self.nodes
-                if (node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id)
-                and node.metatype in node_types
-            )
-        return roots  # type: ignore (must be right type)
-
-    @override
-    def get_leaves[M: "Entity" = "Entity"](
-        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
-    ) -> Sequence[M]:
-        if node is None:
-            node_types = expand_node_types(node_type)
-            if node_types is None:
-                leaves = tuple(node for node in self.nodes if not self.nodes_by_parent.get(node.id))
-            else:
-                leaves = tuple(
-                    node
-                    for node in self.nodes
-                    if not self.nodes_by_parent.get(node.id) and node.metatype in node_types
-                )
-        else:
-            descendants = self.get_descendants(node, node_type)
-            leaves = tuple(node for node in descendants if not self.nodes_by_parent.get(node.id))
-        return leaves  # type: ignore (must be right type)
-
-    @override
-    def get_children[M: "Entity" = "Entity"](
-        self,
-        node: "Node",
-        type: NodeType | TraitType | type[M] | None = None,
-    ) -> Sequence[M]:
-        # bail if no children
-        if not self.nodes_by_parent:
-            return ()
-        children_by_type = self.nodes_by_parent.get(node.id)
-        if not children_by_type:
-            return ()
-
-        if type is None:
-            # collect children across all types
-            children: list = []
-            is_ordered = False
-            for children_of_type in children_by_type.values():
-                node_cls = type_(children_of_type[0])
-                if TraitType.ORDERED in node_cls.__traits__:
-                    is_ordered = True
-                children.extend(children_of_type)
-            if is_ordered:
-                children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
-            return children
-        else:
-            # turn into type
-            node_types = expand_node_types(type, expand_inheritance=True)
-            if not node_types:
-                return ()
-            node_cls = NODE_CLASS_BY_TYPE[node_types[0]]
-
-            # collect
-            if len(node_types) == 1:
-                # collect for single node type
-                children: list = children_by_type.get(node_types[0], EMPTY_LIST)
-                if children and TraitType.ORDERED in node_cls.__traits__:
-                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
-                return children
-            else:
-                # collect for trait (multiple node types)
-                children: list = []
-                for node_type in node_types:
-                    children.extend(children_by_type.get(node_type, EMPTY_LIST))
-                if children and TraitType.ORDERED in node_cls.__traits__:
-                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
-                return children
-
-    @override
-    def get_ancestors[M: "Entity" = "Entity"](
-        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
-    ) -> Sequence[M]:
-        ancestors: list[Entity] = []
-        current = node.parent_ptr
-        node_types = expand_node_types(type, expand_inheritance=True)
-
-        # traverse up the parent chain
-        while current is not None:
-            parent_node = self.get(current.id)
-            if parent_node is None:
-                break
-            if node_types is None or parent_node.metatype in node_types:
-                ancestors.append(parent_node)
-            current = parent_node.parent_ptr
-
-        return ancestors  # type: ignore (must be right type)
-
-    @override
-    def get_descendants[M: "Entity" = "Entity"](
-        self,
-        node: "Entity",
-        type: NodeType | TraitType | type[M] | None = None,
-    ) -> Sequence[M]:
-        if not self.nodes_by_parent:
-            return ()
-
-        queue: list[Entity] = [node]
-        descendants: list[Entity] = []
-        node_types = expand_node_types(type, expand_inheritance=True)
-
-        # BFS
-        while queue:
-            current = queue.pop(0)
-            children_by_type = self.nodes_by_parent.get(current.id)
-            if not children_by_type:
-                continue
-            for children_of_type in children_by_type.values():
-                queue.extend(children_of_type)
-
-            if not node_types:
-                for children_of_type in children_by_type.values():
-                    descendants.extend(children_of_type)
-            else:
-                for node_t in node_types:
-                    descendants.extend(children_by_type.get(node_t, ()))
-
-        return descendants  # type: ignore (must be right type)
-
-
-_MISSING = object()
 
 
 def expand_node_traits(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:

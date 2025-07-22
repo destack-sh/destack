@@ -71,7 +71,6 @@ def __unpack_proto__(cls,
     _object_proto: "{cls.__name__}Proto",
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
-    _supergraph: "Supergraph | None" = None,
     _connection: "GraphConnection | None" = None,
 ) -> "Self":
 {textwrap.indent(unpack_proto, "  ")}
@@ -139,11 +138,10 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
         unpack_method_parts.append(f"    {assignment},")
     if cls.__is_node__:
         unpack_method_parts.append("    _session=_session,")
-        unpack_method_parts.append("    _supergraph=_supergraph,")
         unpack_method_parts.append("    _graph=_graph,")
         unpack_method_parts.append("    _connection=_connection,")
     else:
-        unpack_method_parts.append("    _supergraph=_supergraph,")
+        unpack_method_parts.append("    _graph=_graph,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -323,13 +321,13 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
         enum_type_name = prop.enum_type.camel_name
         return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
+        return f"NodeReference.__unpack_proto__({value_expr}, _graph=_graph)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
+        return f"{struct_cls.__name__}.__unpack_proto__({value_expr}, _graph=_graph)"
     else:
         assert_never(prop.scalar_type)
 

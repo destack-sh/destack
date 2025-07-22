@@ -7,7 +7,8 @@ import { packCson, unpackCson } from "@destack/language/core/common/cson";
 import { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
@@ -37,7 +38,7 @@ export class Value extends StructFrozen {
     type: Type;
     value?: any | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -47,7 +48,7 @@ export class Value extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -135,29 +136,27 @@ export class Value extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Value {
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const valueValue = objectCson["110"];
     const unpackedValue = valueValue != undefined ? valueValue : null;
     return new Value({
-      type: _Type.fromCson(objectCson["100"], _session, _supergraph, _graph, _connection),
+      type: _Type.fromCson(objectCson["100"], _session, _graph, _connection),
       value: unpackedValue,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Value {
-    return Value.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Value.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ValueProto {
@@ -180,27 +179,25 @@ export class Value extends StructFrozen {
   static __unpackProto__(
     objectProto: ValueProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Value {
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     return new Value({
-      type: _Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
+      type: _Type.fromProto(objectProto.type!, _session, _graph, _graph, _connection),
       value: objectProto.value != undefined ? unpackProtoJson(objectProto.value!) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: ValueProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Value {
-    return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Value.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Value {

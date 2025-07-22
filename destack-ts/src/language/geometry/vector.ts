@@ -1,4 +1,4 @@
-import type { Session, Supergraph } from "@destack/language/core";
+import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import {
@@ -34,7 +34,7 @@ export class Vector2 extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -44,7 +44,7 @@ export class Vector2 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -132,26 +132,24 @@ export class Vector2 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector2 {
     return new Vector2({
       x: objectCson["101"],
       y: objectCson["102"],
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector2 {
-    return Vector2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector2.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector2Proto {
@@ -172,26 +170,24 @@ export class Vector2 extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector2 {
     return new Vector2({
       x: objectProto.x,
       y: objectProto.y,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector2Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector2 {
-    return Vector2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector2.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector2 {
@@ -393,7 +389,7 @@ export class Vector3 extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -403,7 +399,7 @@ export class Vector3 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -502,27 +498,25 @@ export class Vector3 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector3 {
     return new Vector3({
       x: objectCson["101"],
       y: objectCson["102"],
       z: objectCson["103"],
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector3 {
-    return Vector3.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector3.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector3Proto {
@@ -544,27 +538,25 @@ export class Vector3 extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector3Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector3 {
     return new Vector3({
       x: objectProto.x,
       y: objectProto.y,
       z: objectProto.z,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector3Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector3 {
-    return Vector3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector3.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector3 {
@@ -798,7 +790,7 @@ export class Vector4 extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -808,7 +800,7 @@ export class Vector4 extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -918,9 +910,8 @@ export class Vector4 extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector4 {
     return new Vector4({
       x: objectCson["101"],
@@ -928,18 +919,17 @@ export class Vector4 extends StructFrozen {
       z: objectCson["103"],
       w: objectCson["104"],
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector4 {
-    return Vector4.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector4.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector4Proto {
@@ -962,9 +952,8 @@ export class Vector4 extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector4Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector4 {
     return new Vector4({
       x: objectProto.x,
@@ -972,18 +961,17 @@ export class Vector4 extends StructFrozen {
       z: objectProto.z,
       w: objectProto.w,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector4Proto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector4 {
-    return Vector4.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector4.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector4 {
@@ -1221,7 +1209,7 @@ export class Vector2i extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1231,7 +1219,7 @@ export class Vector2i extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1319,26 +1307,24 @@ export class Vector2i extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector2i {
     return new Vector2i({
       x: Number(objectCson["101"]),
       y: Number(objectCson["102"]),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector2i {
-    return Vector2i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector2i.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector2iProto {
@@ -1359,26 +1345,24 @@ export class Vector2i extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector2iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector2i {
     return new Vector2i({
       x: Number(objectProto.x),
       y: Number(objectProto.y),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector2iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector2i {
-    return Vector2i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector2i.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector2i {
@@ -1580,7 +1564,7 @@ export class Vector3i extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1590,7 +1574,7 @@ export class Vector3i extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1689,27 +1673,25 @@ export class Vector3i extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector3i {
     return new Vector3i({
       x: Number(objectCson["101"]),
       y: Number(objectCson["102"]),
       z: Number(objectCson["103"]),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector3i {
-    return Vector3i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector3i.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector3iProto {
@@ -1731,27 +1713,25 @@ export class Vector3i extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector3iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector3i {
     return new Vector3i({
       x: Number(objectProto.x),
       y: Number(objectProto.y),
       z: Number(objectProto.z),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector3iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector3i {
-    return Vector3i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector3i.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector3i {
@@ -1975,7 +1955,7 @@ export class Vector4i extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1985,7 +1965,7 @@ export class Vector4i extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -2095,9 +2075,8 @@ export class Vector4i extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector4i {
     return new Vector4i({
       x: Number(objectCson["101"]),
@@ -2105,18 +2084,17 @@ export class Vector4i extends StructFrozen {
       z: Number(objectCson["103"]),
       w: Number(objectCson["104"]),
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Vector4i {
-    return Vector4i.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Vector4i.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): Vector4iProto {
@@ -2139,9 +2117,8 @@ export class Vector4i extends StructFrozen {
   static __unpackProto__(
     objectProto: Vector4iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector4i {
     return new Vector4i({
       x: Number(objectProto.x),
@@ -2149,18 +2126,17 @@ export class Vector4i extends StructFrozen {
       z: Number(objectProto.z),
       w: Number(objectProto.w),
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: Vector4iProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Vector4i {
-    return Vector4i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Vector4i.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Vector4i {

@@ -2,10 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Branch,
   Graph,
+  GraphConnection,
   IsActor,
   NodeClass,
   NodeReference,
-  QueryConnection,
   Session,
   Snapshot,
   Space,
@@ -47,7 +47,7 @@ export class NumberInputView extends InputView {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -59,7 +59,7 @@ export class NumberInputView extends InputView {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -76,7 +76,7 @@ export class NumberInputView extends InputView {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -88,7 +88,7 @@ export class NumberInputView extends InputView {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Branch | null;
+      return this._graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -100,7 +100,7 @@ export class NumberInputView extends InputView {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -113,7 +113,7 @@ export class NumberInputView extends InputView {
   get precededBy(): NumberInputView | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as NumberInputView | null;
+      return this._graph.get(nodePtr.id) as NumberInputView | null;
     }
     return null;
   }
@@ -125,7 +125,7 @@ export class NumberInputView extends InputView {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -147,7 +147,7 @@ export class NumberInputView extends InputView {
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -169,7 +169,7 @@ export class NumberInputView extends InputView {
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -188,7 +188,7 @@ export class NumberInputView extends InputView {
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -255,7 +255,7 @@ export class NumberInputView extends InputView {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -290,7 +290,7 @@ export class NumberInputView extends InputView {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
+      return this._graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -695,9 +695,9 @@ export class NumberInputView extends InputView {
     value?: number | null;
     placeholder?: string | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _graph?: Graph | null;
-    _connection?: QueryConnection | null;
+    _connection?: GraphConnection | null;
   }) {
     super(
       // id
@@ -711,7 +711,7 @@ export class NumberInputView extends InputView {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
       // graph
       options._graph ?? null,
       // connection
@@ -1206,7 +1206,7 @@ export class NumberInputView extends InputView {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _supergraph: this._supergraph,
+      _graph: this._graph,
     });
   }
 
@@ -1368,9 +1368,8 @@ export class NumberInputView extends InputView {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NumberInputView {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1387,33 +1386,31 @@ export class NumberInputView extends InputView {
     const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
     const widthValue = objectCson["120"];
     const unpackedWidth =
-      widthValue != undefined
-        ? _Length.fromCson(widthValue, _session, _supergraph, _graph, _connection)
-        : null;
+      widthValue != undefined ? _Length.fromCson(widthValue, _session, _graph, _connection) : null;
     const heightValue = objectCson["121"];
     const unpackedHeight =
       heightValue != undefined
-        ? _Length.fromCson(heightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(heightValue, _session, _graph, _connection)
         : null;
     const minWidthValue = objectCson["122"];
     const unpackedMinWidth =
       minWidthValue != undefined
-        ? _Length.fromCson(minWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(minWidthValue, _session, _graph, _connection)
         : null;
     const minHeightValue = objectCson["123"];
     const unpackedMinHeight =
       minHeightValue != undefined
-        ? _Length.fromCson(minHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(minHeightValue, _session, _graph, _connection)
         : null;
     const maxWidthValue = objectCson["124"];
     const unpackedMaxWidth =
       maxWidthValue != undefined
-        ? _Length.fromCson(maxWidthValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(maxWidthValue, _session, _graph, _connection)
         : null;
     const maxHeightValue = objectCson["125"];
     const unpackedMaxHeight =
       maxHeightValue != undefined
-        ? _Length.fromCson(maxHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(maxHeightValue, _session, _graph, _connection)
         : null;
     const isVisibleValue = objectCson["130"];
     const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
@@ -1421,85 +1418,79 @@ export class NumberInputView extends InputView {
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const fillValue = objectCson["140"];
     const unpackedFill =
-      fillValue != undefined
-        ? _Fill.fromCson(fillValue, _session, _supergraph, _graph, _connection)
-        : null;
+      fillValue != undefined ? _Fill.fromCson(fillValue, _session, _graph, _connection) : null;
     const shadowValue = objectCson["141"];
     const unpackedShadow =
       shadowValue != undefined
-        ? _Shadow.fromCson(shadowValue, _session, _supergraph, _graph, _connection)
+        ? _Shadow.fromCson(shadowValue, _session, _graph, _connection)
         : null;
     const borderValue = objectCson["142"];
     const unpackedBorder =
       borderValue != undefined
-        ? _Border.fromCson(borderValue, _session, _supergraph, _graph, _connection)
+        ? _Border.fromCson(borderValue, _session, _graph, _connection)
         : null;
     const radiusValue = objectCson["143"];
     const unpackedRadius =
       radiusValue != undefined
-        ? _Corner2.fromCson(radiusValue, _session, _supergraph, _graph, _connection)
+        ? _Corner2.fromCson(radiusValue, _session, _graph, _connection)
         : null;
     const positionValue = objectCson["110"];
     const unpackedPosition =
       positionValue != undefined
-        ? _Vector2.fromCson(positionValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(positionValue, _session, _graph, _connection)
         : null;
     const offsetValue = objectCson["111"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Offset2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Offset2.fromCson(offsetValue, _session, _graph, _connection)
         : null;
     const scaleValue = objectCson["112"];
     const unpackedScale =
-      scaleValue != undefined
-        ? _Vector2.fromCson(scaleValue, _session, _supergraph, _graph, _connection)
-        : null;
+      scaleValue != undefined ? _Vector2.fromCson(scaleValue, _session, _graph, _connection) : null;
     const rotationValue = objectCson["113"];
     const unpackedRotation =
       rotationValue != undefined
-        ? _Vector2.fromCson(rotationValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(rotationValue, _session, _graph, _connection)
         : null;
     const skewValue = objectCson["114"];
     const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
+      skewValue != undefined ? _Vector2.fromCson(skewValue, _session, _graph, _connection) : null;
     const originValue = objectCson["115"];
     const unpackedOrigin =
       originValue != undefined
-        ? _Vector2.fromCson(originValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(originValue, _session, _graph, _connection)
         : null;
     const anchorValue = objectCson["116"];
     const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : null;
     const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _graph, _connection)
         : null;
     const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _graph, _connection)
         : null;
     const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _graph, _connection)
         : null;
     const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _graph, _connection)
         : null;
     const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _graph, _connection)
         : null;
     const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
@@ -1509,7 +1500,7 @@ export class NumberInputView extends InputView {
     const ownedByPtrValue = objectCson["30"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
     if (objectCson["45"] != undefined) {
@@ -1517,7 +1508,6 @@ export class NumberInputView extends InputView {
         unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
-          _supergraph,
           _graph,
           _connection,
         );
@@ -1526,14 +1516,14 @@ export class NumberInputView extends InputView {
     const scriptPtrValue = objectCson["46"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _graph, _connection)
         : null;
     const isExtensibleValue = objectCson["50"];
     const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
     const sourcePtrValue = objectCson["80"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _graph, _connection)
         : null;
     const keyValue = objectCson["85"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
@@ -1562,14 +1552,8 @@ export class NumberInputView extends InputView {
       parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
-      snapshot: _NodeReference.fromCson(
-        objectCson["13"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _graph, _connection),
+      snapshot: _NodeReference.fromCson(objectCson["13"], _session, _graph, _connection),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
       createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
@@ -1588,7 +1572,7 @@ export class NumberInputView extends InputView {
       source: unpackedSourcePtr,
       key: unpackedKey,
       id: String(objectCson["2"]),
-      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1598,11 +1582,10 @@ export class NumberInputView extends InputView {
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NumberInputView {
-    return NumberInputView.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return NumberInputView.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NumberInputViewProto {
@@ -1733,9 +1716,8 @@ export class NumberInputView extends InputView {
   static __unpackProto__(
     objectProto: NumberInputViewProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NumberInputView {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
@@ -1751,7 +1733,7 @@ export class NumberInputView extends InputView {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
           String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+          _Value.fromProto((value as any)!, _session, _graph, _graph, _connection),
         );
       }
     }
@@ -1760,80 +1742,74 @@ export class NumberInputView extends InputView {
       placeholder: objectProto.placeholder != undefined ? objectProto.placeholder : null,
       width:
         objectProto.width != undefined
-          ? _Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.width!, _session, _graph, _graph, _connection)
           : null,
       height:
         objectProto.height != undefined
-          ? _Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.height!, _session, _graph, _graph, _connection)
           : null,
       minWidth:
         objectProto.minWidth != undefined
-          ? _Length.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minWidth!, _session, _graph, _graph, _connection)
           : null,
       minHeight:
         objectProto.minHeight != undefined
-          ? _Length.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.minHeight!, _session, _graph, _graph, _connection)
           : null,
       maxWidth:
         objectProto.maxWidth != undefined
-          ? _Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxWidth!, _session, _graph, _graph, _connection)
           : null,
       maxHeight:
         objectProto.maxHeight != undefined
-          ? _Length.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          ? _Length.fromProto(objectProto.maxHeight!, _session, _graph, _graph, _connection)
           : null,
       isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       fill:
         objectProto.fill != undefined
-          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
+          ? _Fill.fromProto(objectProto.fill!, _session, _graph, _graph, _connection)
           : null,
       shadow:
         objectProto.shadow != undefined
-          ? _Shadow.fromProto(objectProto.shadow!, _session, _supergraph, _graph, _connection)
+          ? _Shadow.fromProto(objectProto.shadow!, _session, _graph, _graph, _connection)
           : null,
       border:
         objectProto.border != undefined
-          ? _Border.fromProto(objectProto.border!, _session, _supergraph, _graph, _connection)
+          ? _Border.fromProto(objectProto.border!, _session, _graph, _graph, _connection)
           : null,
       radius:
         objectProto.radius != undefined
-          ? _Corner2.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
+          ? _Corner2.fromProto(objectProto.radius!, _session, _graph, _graph, _connection)
           : null,
       position:
         objectProto.position != undefined
-          ? _Vector2.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.position!, _session, _graph, _graph, _connection)
           : null,
       offset:
         objectProto.offset != undefined
-          ? _Offset2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          ? _Offset2.fromProto(objectProto.offset!, _session, _graph, _graph, _connection)
           : null,
       scale:
         objectProto.scale != undefined
-          ? _Vector2.fromProto(objectProto.scale!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.scale!, _session, _graph, _graph, _connection)
           : null,
       rotation:
         objectProto.rotation != undefined
-          ? _Vector2.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.rotation!, _session, _graph, _graph, _connection)
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _graph, _graph, _connection)
           : null,
       origin:
         objectProto.origin != undefined
-          ? _Vector2.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.origin!, _session, _graph, _graph, _connection)
           : null,
       anchor: objectProto.anchor != undefined ? (Number(objectProto.anchor) as Anchor) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.parentPtr!, _session, _graph, _graph, _connection)
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       definition:
@@ -1841,7 +1817,7 @@ export class NumberInputView extends InputView {
           ? _NodeReference.fromProto(
               objectProto.definitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1849,14 +1825,14 @@ export class NumberInputView extends InputView {
       branch: _NodeReference.fromProto(
         objectProto.branchPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
-        _supergraph,
+        _graph,
         _graph,
         _connection,
       ),
@@ -1865,7 +1841,7 @@ export class NumberInputView extends InputView {
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1875,7 +1851,7 @@ export class NumberInputView extends InputView {
           ? _NodeReference.fromProto(
               objectProto.instancePtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1887,7 +1863,7 @@ export class NumberInputView extends InputView {
           ? _NodeReference.fromProto(
               objectProto.createdByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1899,7 +1875,7 @@ export class NumberInputView extends InputView {
           ? _NodeReference.fromProto(
               objectProto.updatedByPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1908,47 +1884,23 @@ export class NumberInputView extends InputView {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.ownedByPtr!, _session, _graph, _graph, _connection)
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.scriptPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.scriptPtr!, _session, _graph, _graph, _connection)
           : null,
       isExtensible: objectProto.isExtensible != undefined ? objectProto.isExtensible : null,
       source:
         objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.sourcePtr!, _session, _graph, _graph, _connection)
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
+      space: _NodeReference.fromProto(objectProto.spacePtr!, _session, _graph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1958,11 +1910,10 @@ export class NumberInputView extends InputView {
   static fromProto(
     objectProto: NumberInputViewProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NumberInputView {
-    return NumberInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return NumberInputView.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NumberInputView {

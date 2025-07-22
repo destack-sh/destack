@@ -2,7 +2,8 @@ import { EnumType, StructType } from "@destack/language/core/builtin/common";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
 import {
@@ -67,10 +68,10 @@ export class Icon extends StructFrozen {
   get file(): File | null {
     const nodePtr: NodeReference | null = this.filePtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as File | null;
+      return this._graph.get(nodePtr.id) as File | null;
     }
     return null;
   }
@@ -95,7 +96,7 @@ export class Icon extends StructFrozen {
     fileUrl?: string | null;
     color?: Color | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -105,7 +106,7 @@ export class Icon extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -248,9 +249,8 @@ export class Icon extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Icon {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
@@ -263,15 +263,13 @@ export class Icon extends StructFrozen {
     const filePtrValue = objectCson["104"];
     const unpackedFilePtr =
       filePtrValue != undefined
-        ? _NodeReference.fromCson(filePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(filePtrValue, _session, _graph, _connection)
         : null;
     const fileUrlValue = objectCson["105"];
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
     const colorValue = objectCson["110"];
     const unpackedColor =
-      colorValue != undefined
-        ? _Color.fromCson(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
+      colorValue != undefined ? _Color.fromCson(colorValue, _session, _graph, _connection) : null;
     return new Icon({
       type: Number(objectCson["100"]),
       emoji: unpackedEmoji,
@@ -281,18 +279,17 @@ export class Icon extends StructFrozen {
       fileUrl: unpackedFileUrl,
       color: unpackedColor,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Icon {
-    return Icon.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Icon.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): IconProto {
@@ -330,9 +327,8 @@ export class Icon extends StructFrozen {
   static __unpackProto__(
     objectProto: IconProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Icon {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
@@ -343,32 +339,25 @@ export class Icon extends StructFrozen {
       vscName: objectProto.vscName != undefined ? objectProto.vscName : null,
       file:
         objectProto.filePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.filePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+          ? _NodeReference.fromProto(objectProto.filePtr!, _session, _graph, _graph, _connection)
           : null,
       fileUrl: objectProto.fileUrl != undefined ? objectProto.fileUrl : null,
       color:
         objectProto.color != undefined
-          ? _Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          ? _Color.fromProto(objectProto.color!, _session, _graph, _graph, _connection)
           : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: IconProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Icon {
-    return Icon.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Icon.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Icon {

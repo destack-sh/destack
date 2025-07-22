@@ -62,10 +62,9 @@ from .property import (
 if TYPE_CHECKING:
     from destack.language import (
         Graph,
-        Node,
         GraphConnection,
+        Node,
         Session,
-        Supergraph,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -170,7 +169,7 @@ def _generate_init[ObjectT: BuiltinObject](
 
     method_body_lines = []
     body_properties = dict(properties)
-    body_properties.pop("_supergraph")
+    body_properties.pop("_graph")
     if not is_frozen and is_node:
         method_body_lines.append("__setattr__ = object.__setattr__")
         set_template_str = "__setattr__(self, '{0}', {1})"
@@ -194,7 +193,6 @@ def _generate_init[ObjectT: BuiltinObject](
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         body_properties.pop("_session")
-        body_properties.pop("_graph")
         body_properties.pop("_connection")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
@@ -205,9 +203,9 @@ if _session is None:
     if _session is None:
         raise RuntimeError("no active session for {cls.__name__}")
 {set_template_str.format("_session", "_session")}
-if _supergraph is None:
-    _supergraph = _session.supergraph
-{set_template_str.format("_supergraph", "_supergraph")}
+if _graph is None:
+    _graph = _session.graph
+{set_template_str.format("_graph", "_graph")}
 
 # node identity
 if id is None:
@@ -215,7 +213,7 @@ if id is None:
         if NodeType.ENTITY in inherits:
             method_body_lines.append("""\
     id = uuid4()
-    now = self._session.oracle.utc()
+    now = self._session.oracle.now()
     epoch = self._session.epoch
     created_epoch = epoch
     updated_epoch = epoch
@@ -225,7 +223,7 @@ if id is None:
         elif NodeType.EVENT in inherits:
             method_body_lines.append("""\
     id = uuid7()
-    now = self._session.oracle.utc()
+    now = self._session.oracle.now()
     epoch = self._session.epoch
     created_epoch = epoch
     created_at = now
@@ -266,10 +264,10 @@ else:
         # struct setup
         method_body_lines.append(f"""\
 # session
-if _supergraph is None:
+if _graph is None:
     if (session := ACTIVE_SESSION.get()) is not None:
-        _supergraph = session.supergraph
-{set_template_str.format("_supergraph", "_supergraph")}
+        _graph = session.graph
+{set_template_str.format("_graph", "_graph")}
 """)
 
     # property assignments
@@ -307,14 +305,14 @@ if {arg_name} is None:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
-    {arg_name} = self._session.oracle.utc()""")
+    {arg_name} = self._session.oracle.now()""")
                 else:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     session = ACTIVE_SESSION.get()
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-    {arg_name} = session.oracle.utc()""")
+    {arg_name} = session.oracle.now()""")
             elif prop.default_factory == ValueFactory.EPOCH:
                 if is_node:
                     method_body_lines.append(f"""\
@@ -394,19 +392,13 @@ if {arg_name} is None:
         if is_entity:
             method_body_lines.append(f"""\
 # graph
-if _graph is None:
-    _graph = _supergraph.create_entity_singleton_graph(self)
-else:
-    _graph.add(self)
+_graph.add(self)
 {set_template_str.format("_graph", "_graph")}
 {set_template_str.format("_connection", "_connection")}
 """)
         else:  # is event
             method_body_lines.append(f"""\
 # graph
-if _graph is None:
-    _graph = _session.event_graph
-_graph.add(self)
 {set_template_str.format("_graph", "_graph")}
 {set_template_str.format("_connection", "_connection")}
 """)
@@ -803,7 +795,16 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
             return f"hash_float({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+        ):
             return f"hash_int({value_expr})"
         elif prop.primitive_type == PrimitiveType.DECIMAL:
             raise NotImplementedError(f"cannot hash decimal: {prop!r}")
@@ -931,7 +932,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        return self._supergraph.get(node_ptr.id)
+        return self._graph.get(node_ptr.id)
     else:
         return None
 """
@@ -941,9 +942,9 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        if self._supergraph is None:
+        if self._graph is None:
             return None
-        return self._supergraph.get(node_ptr.id)
+        return self._graph.get(node_ptr.id)
     else:
         return None
 """
@@ -1063,7 +1064,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.name in ("id", "metatype", "parent", "definition", "_supergraph"):
+                if existing.name in ("id", "metatype", "parent", "definition", "_graph"):
                     continue  # may be narrowed/duplicated
                 elif (
                     component.__is_trait__ or component.__is_abstract__
@@ -1271,7 +1272,7 @@ _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", d
 
 @_builtin_object()
 class BuiltinObject[ObjectProtoT: AnyObjectProto]:
-    """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
+    """The base for all intrinsic objects like Structs and Nodes."""
 
     __is_frozen__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = False
@@ -1294,7 +1295,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
 
     __slots__: ClassVar[tuple[str, ...]] = ()
 
-    _supergraph: "Supergraph | None" = builtin_property_runtime()
+    _graph: "Graph | None" = builtin_property_runtime()
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
@@ -1334,7 +1335,6 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         cls,
         _object_data: ObjectProtoT,
         _session: "Session | None" = None,
-        _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
         _connection: "GraphConnection | None" = None,
     ) -> Self:
@@ -1351,7 +1351,6 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         cls,
         _object_data: ObjectProtoT,
         _session: "Session | None" = None,
-        _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
         _connection: "GraphConnection | None" = None,
     ) -> Self:
@@ -1368,7 +1367,6 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         cls,
         _object_cson: dict,
         _session: "Session | None" = None,
-        _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
         _connection: "GraphConnection | None" = None,
     ) -> Self:
@@ -1385,7 +1383,6 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         cls,
         _object_cson: dict,
         _session: "Session | None" = None,
-        _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
         _connection: "GraphConnection | None" = None,
     ) -> Self:

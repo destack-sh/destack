@@ -14,7 +14,8 @@ import { Node, isNode } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { Value } from "@destack/language/core/common/value";
-import type { Supergraph } from "@destack/language/core/runtime/graph";
+import type { GraphConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -198,7 +199,7 @@ export class StringConstraint extends StructFrozen {
     startsWith?: string | null;
     endsWith?: string | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -208,7 +209,7 @@ export class StringConstraint extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -313,9 +314,8 @@ export class StringConstraint extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StringConstraint {
     const formatValue = objectCson["40"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
@@ -331,18 +331,17 @@ export class StringConstraint extends StructFrozen {
       startsWith: unpackedStartsWith,
       endsWith: unpackedEndsWith,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): StringConstraint {
-    return StringConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return StringConstraint.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): StringConstraintProto {
@@ -373,9 +372,8 @@ export class StringConstraint extends StructFrozen {
   static __unpackProto__(
     objectProto: StringConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StringConstraint {
     return new StringConstraint({
       format: objectProto.format != undefined ? (Number(objectProto.format) as StringFormat) : null,
@@ -383,24 +381,17 @@ export class StringConstraint extends StructFrozen {
       startsWith: objectProto.startsWith != undefined ? objectProto.startsWith : null,
       endsWith: objectProto.endsWith != undefined ? objectProto.endsWith : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: StringConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): StringConstraint {
-    return StringConstraint.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StringConstraint.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): StringConstraint {
@@ -462,7 +453,7 @@ export class NumberConstraint extends StructFrozen {
     precision?: number | null;
     scale?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -472,7 +463,7 @@ export class NumberConstraint extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -611,9 +602,8 @@ export class NumberConstraint extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NumberConstraint {
     const formatValue = objectCson["40"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
@@ -635,18 +625,17 @@ export class NumberConstraint extends StructFrozen {
       precision: unpackedPrecision,
       scale: unpackedScale,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NumberConstraint {
-    return NumberConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return NumberConstraint.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NumberConstraintProto {
@@ -683,9 +672,8 @@ export class NumberConstraint extends StructFrozen {
   static __unpackProto__(
     objectProto: NumberConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NumberConstraint {
     return new NumberConstraint({
       format: objectProto.format != undefined ? (Number(objectProto.format) as NumberFormat) : null,
@@ -695,24 +683,17 @@ export class NumberConstraint extends StructFrozen {
       precision: objectProto.precision != undefined ? Number(objectProto.precision) : null,
       scale: objectProto.scale != undefined ? Number(objectProto.scale) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: NumberConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NumberConstraint {
-    return NumberConstraint.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return NumberConstraint.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NumberConstraint {
@@ -750,7 +731,7 @@ export class CollectionConstraint extends StructFrozen {
     minLength?: number | null;
     maxLength?: number | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -760,7 +741,7 @@ export class CollectionConstraint extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -843,9 +824,8 @@ export class CollectionConstraint extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CollectionConstraint {
     const minLengthValue = objectCson["41"];
     const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : null;
@@ -855,24 +835,17 @@ export class CollectionConstraint extends StructFrozen {
       minLength: unpackedMinLength,
       maxLength: unpackedMaxLength,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): CollectionConstraint {
-    return CollectionConstraint.__unpackCson__(
-      objectCson,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return CollectionConstraint.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): CollectionConstraintProto {
@@ -897,32 +870,24 @@ export class CollectionConstraint extends StructFrozen {
   static __unpackProto__(
     objectProto: CollectionConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CollectionConstraint {
     return new CollectionConstraint({
       minLength: objectProto.minLength != undefined ? Number(objectProto.minLength) : null,
       maxLength: objectProto.maxLength != undefined ? Number(objectProto.maxLength) : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: CollectionConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): CollectionConstraint {
-    return CollectionConstraint.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return CollectionConstraint.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): CollectionConstraint {
@@ -960,7 +925,7 @@ export class NodeConstraint extends StructFrozen {
     nodeTypes?: readonly NodeType[];
     nodeTraits?: readonly TraitType[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -970,7 +935,7 @@ export class NodeConstraint extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1081,9 +1046,8 @@ export class NodeConstraint extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeConstraint {
     const unpackedNodeTypes: any[] = [];
     if (objectCson["41"] != undefined) {
@@ -1101,18 +1065,17 @@ export class NodeConstraint extends StructFrozen {
       nodeTypes: unpackedNodeTypes,
       nodeTraits: unpackedNodeTraits,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): NodeConstraint {
-    return NodeConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return NodeConstraint.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): NodeConstraintProto {
@@ -1145,9 +1108,8 @@ export class NodeConstraint extends StructFrozen {
   static __unpackProto__(
     objectProto: NodeConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeConstraint {
     const unpackedNodeTypes: any[] = [];
     if (objectProto.nodeTypes) {
@@ -1165,18 +1127,17 @@ export class NodeConstraint extends StructFrozen {
       nodeTypes: unpackedNodeTypes,
       nodeTraits: unpackedNodeTraits,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: NodeConstraintProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): NodeConstraint {
-    return NodeConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return NodeConstraint.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): NodeConstraint {
@@ -1241,10 +1202,10 @@ export class Type extends StructFrozen {
   get customDefinition(): Entity | null {
     const nodePtr: NodeReference | null = this.customDefinitionPtr;
     if (nodePtr != null) {
-      if (this._supergraph === null) {
+      if (this._graph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1314,7 +1275,7 @@ export class Type extends StructFrozen {
     isRequired?: boolean | null;
     isMain?: boolean | null;
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
@@ -1324,7 +1285,7 @@ export class Type extends StructFrozen {
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -1623,9 +1584,8 @@ export class Type extends StructFrozen {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Type {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
@@ -1656,63 +1616,37 @@ export class Type extends StructFrozen {
     const customDefinitionPtrValue = objectCson["116"];
     const unpackedCustomDefinitionPtr =
       customDefinitionPtrValue != undefined
-        ? _NodeReference.fromCson(
-            customDefinitionPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _NodeReference.fromCson(customDefinitionPtrValue, _session, _graph, _connection)
         : null;
     const keyTypeValue = objectCson["117"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? _Type.fromCson(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromCson(keyTypeValue, _session, _graph, _connection)
         : null;
     const valueValue = objectCson["130"];
     const unpackedValue =
-      valueValue != undefined
-        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
-        : null;
+      valueValue != undefined ? _Value.fromCson(valueValue, _session, _graph, _connection) : null;
     const valueFactoryValue = objectCson["131"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
     const collectionConstraintValue = objectCson["140"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? _CollectionConstraint.fromCson(
-            collectionConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _CollectionConstraint.fromCson(collectionConstraintValue, _session, _graph, _connection)
         : null;
     const stringConstraintValue = objectCson["141"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? _StringConstraint.fromCson(
-            stringConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _StringConstraint.fromCson(stringConstraintValue, _session, _graph, _connection)
         : null;
     const numberConstraintValue = objectCson["142"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? _NumberConstraint.fromCson(
-            numberConstraintValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+        ? _NumberConstraint.fromCson(numberConstraintValue, _session, _graph, _connection)
         : null;
     const nodeConstraintValue = objectCson["143"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _graph, _connection)
         : null;
     const isRequiredValue = objectCson["150"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
@@ -1737,18 +1671,17 @@ export class Type extends StructFrozen {
       isRequired: unpackedIsRequired,
       isMain: unpackedIsMain,
       _cson: objectCson,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Type {
-    return Type.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Type.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): TypeProto {
@@ -1814,9 +1747,8 @@ export class Type extends StructFrozen {
   static __unpackProto__(
     objectProto: TypeProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Type {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
@@ -1852,18 +1784,18 @@ export class Type extends StructFrozen {
           ? _NodeReference.fromProto(
               objectProto.customDefinitionPtr!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
           : null,
       keyType:
         objectProto.keyType != undefined
-          ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          ? _Type.fromProto(objectProto.keyType!, _session, _graph, _graph, _connection)
           : null,
       value:
         objectProto.value != undefined
-          ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          ? _Value.fromProto(objectProto.value!, _session, _graph, _graph, _connection)
           : null,
       valueFactory:
         objectProto.valueFactory != undefined
@@ -1874,7 +1806,7 @@ export class Type extends StructFrozen {
           ? _CollectionConstraint.fromProto(
               objectProto.collectionConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1884,7 +1816,7 @@ export class Type extends StructFrozen {
           ? _StringConstraint.fromProto(
               objectProto.stringConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1894,7 +1826,7 @@ export class Type extends StructFrozen {
           ? _NumberConstraint.fromProto(
               objectProto.numberConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1904,7 +1836,7 @@ export class Type extends StructFrozen {
           ? _NodeConstraint.fromProto(
               objectProto.nodeConstraint!,
               _session,
-              _supergraph,
+              _graph,
               _graph,
               _connection,
             )
@@ -1912,18 +1844,17 @@ export class Type extends StructFrozen {
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
       isMain: objectProto.isMain != undefined ? objectProto.isMain : null,
       _proto: objectProto,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: TypeProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Type {
-    return Type.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Type.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Type {

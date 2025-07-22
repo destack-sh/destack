@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type { Session, Supergraph } from "@destack/language/core";
+import type { Graph, GraphConnection, Session, Supergraph } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
@@ -177,13 +177,13 @@ export class Schedule extends Struct {
     byMinute?: readonly number[];
     bySecond?: readonly number[];
     _session?: Session | null;
-    _supergraph?: Supergraph | null;
+    _graph?: Supergraph | null;
   }) {
     super(
       // session
       options._session ?? null,
       // supergraph
-      options._supergraph ?? null,
+      options._graph ?? null,
     );
 
     // properties
@@ -544,9 +544,8 @@ export class Schedule extends Struct {
   static __unpackCson__(
     objectCson: { [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Schedule {
     const startValue = objectCson["110"];
     const unpackedStart =
@@ -635,18 +634,17 @@ export class Schedule extends Struct {
       byHour: unpackedByHour,
       byMinute: unpackedByMinute,
       bySecond: unpackedBySecond,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromCson(
     objectCson: { readonly [key: string]: any },
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Graph | null,
+    _connection?: GraphConnection | null,
   ): Schedule {
-    return Schedule.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+    return Schedule.__unpackCson__(objectCson, _session, _graph, _connection);
   }
 
   toProto(): ScheduleProto {
@@ -745,9 +743,8 @@ export class Schedule extends Struct {
   static __unpackProto__(
     objectProto: ScheduleProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Schedule {
     const unpackedBySetPos: any[] = [];
     if (objectProto.bySetPos) {
@@ -827,18 +824,17 @@ export class Schedule extends Struct {
       byHour: unpackedByHour,
       byMinute: unpackedByMinute,
       bySecond: unpackedBySecond,
-      _supergraph,
+      _graph,
     });
   }
 
   static fromProto(
     objectProto: ScheduleProto,
     _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
+    _graph?: Supergraph | null,
+    _connection?: GraphConnection | null,
   ): Schedule {
-    return Schedule.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return Schedule.__unpackProto__(objectProto, _session, _graph, _connection);
   }
 
   static fromProtoString(packedProtoString: string): Schedule {

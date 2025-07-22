@@ -31,8 +31,7 @@ from .trait import (
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
-        EntityGraph,
-        EntitySingletonGraph,
+        Graph,
         IsActor,
         NodeReference,
         Script,
@@ -96,6 +95,8 @@ class Entity(Node):
     parent: Optional["Entity"] = builtin_property_parent(
         description="The parent of this Entity. Most Entities can be attached to any other Entity."
     )
+    if TYPE_CHECKING:
+        parent_ptr: Optional[NodeReference] = None
 
     # 1-20: identity
     materialization: Materialization = builtin_property(
@@ -282,8 +283,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     )
     # aliases: list[str]?
 
-    """The specific Graph this Entity is part of."""
-    _graph: "EntityGraph | EntitySingletonGraph" = builtin_property_runtime(default=None)
+    """The Graph this Entity is part of."""
+    _graph: "Graph" = builtin_property_runtime(default=None)
 
     def _do_set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
@@ -374,52 +375,14 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        from ..runtime import EntitySingletonGraph
 
         # prepare graph & nodes
-        supergraph = self._supergraph
-        old_graph = self._graph
-        if parent is not None:
-            # move to new parent
-            assert old_graph.supergraph is parent._supergraph, (
-                f"{self!r} is not in supergraph of {parent!r}"
-            )
-            if not isinstance(parent, self.__parent_classes__):
-                raise ValueError(
-                    f"{parent!r} cannot parent {self!r} (allowed: {self.__parent_types__})"
-                )
-            if self.space_ptr.id != parent.space_ptr.id:
-                raise ValueError(f"cannot move {self!r} to {parent!r} (different Space)")
-            new_graph = parent._graph
-            parent_ptr = parent.to_ref()
-            # promote parent to polygraph if needed
-            if isinstance(new_graph, EntitySingletonGraph):
-                new_graph = supergraph.promote_to_polygraph(new_graph)
-                parent._graph = new_graph
-        else:
-            # detach from parent
-            if self.parent_ptr is None:
-                return  # nothing to do
-            new_graph = supergraph.create_entity_graph()
-            parent_ptr = None
         session = self._session
         nodes: tuple[Entity, ...] = (self, *self._graph.get_descendants(self))
 
         # assign order
         if parent is not None and isinstance(self, IsOrdered):
             parent._assign_order(self, after=after, before=before)
-
-        # move to new graph
-        self.parent_ptr = parent_ptr
-        if old_graph is not new_graph:
-            if len(nodes) == len(old_graph):  # all nodes were moved
-                supergraph.remove_graph(old_graph)
-            else:
-                for node in nodes:
-                    old_graph.remove(node)
-            for node in nodes:
-                node._graph = new_graph
-                new_graph.add(node)
 
         # create new nodes
         if self._is_new and parent is not None and not parent._is_new:
@@ -551,24 +514,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
         return self._graph.get_descendants(self, type=type)
-
-    @builtin_method(25)
-    def get_roots[N: Entity = Entity](
-        self,
-        type: NodeType | TraitType | type[N] | None = None,
-        include_deleted: bool = False,
-    ) -> Sequence[N]:
-        """Gets the roots of this Node."""
-        return self._graph.get_roots(node_type=type)
-
-    @builtin_method(26)
-    def get_leaves[N: Entity = Entity](
-        self,
-        type: NodeType | TraitType | type[N] | None = None,
-        include_deleted: bool = False,
-    ) -> Sequence[N]:
-        """Gets the leaves of this Node."""
-        return self._graph.get_leaves(node_type=type, node=self)
 
     @builtin_method(30)
     def add_tag(self, tag: "Tag") -> "Tagging":

@@ -61,7 +61,6 @@ class EnumType(Enum):
     FUNCTION_TYPE = 305
     EXPRESSION_TYPE = 306
     QUERY_TYPE = 320
-    QUERY_UPDATE_TYPE = 321
 
     # time
     BRANCH_TYPE = 2_000
@@ -255,13 +254,9 @@ class StructType(Enum):
     CONDITION = 204
     SORT = 205
     SELECT = 206
-    HISTOGRAM = 207
 
     # query
     QUERY = 300
-    QUERY_RESULT = 301
-    QUERY_RESULT_GROUP = 302
-    QUERY_UPDATE = 303
 
     # references
     NODE_REFERENCE = 1_000
@@ -505,7 +500,8 @@ class NodeType(Enum):
 
     # space
     # nocheckin: Context (as local instance?)
-    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?)
+    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
+    #   merge Oracle / actor_ptr / client_ptr /epoch into Context?)
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
     SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
     # CONTEXT?
@@ -555,7 +551,7 @@ class NodeType(Enum):
     PERMISSION = 50_000, "Permission", "Permission for something", "fas fa-user-shield"
 
     # event
-    SIGNAL = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
+    SIGNAL_EVENT = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
     EDIT_EVENT = 90_100, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
     MEASUREMENT_EVENT = 90_200, "Measurement of a Metric", None, "fas fa-gauge"
@@ -1219,36 +1215,42 @@ class PrimitiveType(Enum):
     A fundamental scalar data type.
     """
 
-    BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"
+    BOOLEAN = 1, "Boolean", "Boolean flag", "fas fa-toggle-large-on"
     # integer
-    INT16 = 4, "Integer", "Very small integer", "fas fa-tally"
-    INT32 = 5, "Integer", "Small integer", "fas fa-tally"
-    INT64 = 6, "Integer", "Integer number", "fas fa-tally"
+    INT8 = 10, "Integer", "8-bit signed integer", "fas fa-tally"
+    INT16 = 11, "Integer", "16-bit signed integer", "fas fa-tally"
+    INT32 = 12, "Integer", "32-bit signed integer", "fas fa-tally"
+    INT64 = 13, "Integer", "64-bit signed integer", "fas fa-tally"
+    UINT8 = 15, "Integer", "8-bit unsigned integer", "fas fa-tally"
+    UINT16 = 16, "Integer", "16-bit unsigned integer", "fas fa-tally"
+    UINT32 = 17, "Integer", "32-bit unsigned integer", "fas fa-tally"
+    UINT64 = 18, "Integer", "64-bit unsigned integer", "fas fa-tally"
+    DECIMAL = 20, "Decimal", "Decimal number", "fas fa-tally"
     # numeric(precision, scale)
-    DECIMAL = 10, "Decimal", "Decimal number", "fas fa-tally"
     # float
-    FLOAT32 = 16, "Float", "Small float", "fas fa-hashtag"
-    FLOAT64 = 17, "Float", "Floating point number", "fas fa-hashtag"
+    FLOAT32 = 30, "Float", "Small float", "fas fa-hashtag"
+    FLOAT64 = 31, "Float", "Floating point number", "fas fa-hashtag"
     # string
-    STRING = 20, "String", "Plain text", "fas fa-font-case"
-    UUID = 21, "UUID", "UUID", "fas fa-fingerprint"
+    STRING = 40, "String", "Plain text", "fas fa-font-case"
+    UUID = 41, "UUID", "UUID", "fas fa-fingerprint"
     # bytes
-    BYTES = 30, "Bytes", "Binary data", "fas fa-file-lines"
+    BYTES = 50, "Bytes", "Binary data", "fas fa-file-lines"
     # VECTOR?
     # time
-    DATETIME = 40, "Date & Time", "Date & time", "fas fa-calendar-days"
-    DATE = 41, "Date", "Date", "fas fa-calendar-days"
-    TIME = 42, "Time", "Time", "fas fa-clock"
-    DURATION = 43, "Duration", "Duration", "fas fa-stopwatch"
+    DATETIME = 60, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATE = 61, "Date", "Date", "fas fa-calendar-days"
+    TIME = 62, "Time", "Time", "fas fa-clock"
+    DURATION = 63, "Duration", "Duration", "fas fa-stopwatch"
     # compound
-    JSON = 50, "JSON", "JSON", "fas fa-brackets-curly"
+    JSON = 70, "JSON", "JSON", "fas fa-brackets-curly"
     # custom
-    CSON = 60, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
-    PROTO = 61, "PROTO", "Protocol Buffers", "fas fa-file-lines"
+    CSON = 80, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
+    PROTO = 81, "PROTO", "Protocol Buffers", "fas fa-file-lines"
 
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.BOOLEAN: bool,
+    PrimitiveType.INT8: int,
     PrimitiveType.INT16: int,
     PrimitiveType.INT32: int,
     PrimitiveType.INT64: int,
