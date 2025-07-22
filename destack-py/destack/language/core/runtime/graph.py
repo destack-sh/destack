@@ -28,36 +28,22 @@ tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-class Graph[N: Node](abc.ABC):
+class Graph(abc.ABC):
     """
     A Graph is a collection of Entities.
     """
 
     @final
-    def __str__(self):
-        return f"{len(self.nodes)} nodes"
-
-    @final
     def __repr__(self):
-        return f"<Graph {self}>"
-
-    @property
-    @abc.abstractmethod
-    def nodes(self) -> Collection[N]:
-        """All nodes in the graph"""
-        raise NotImplementedError
-
-    def __len__(self):
-        """Number of nodes in the graph"""
-        raise NotImplementedError
+        return f"<{self.__class__.__name__}>"
 
     @abc.abstractmethod
-    def get(self, id: UUID) -> Optional[N]:
+    def get(self, id: UUID) -> Optional["Entity"]:
         """Gets a Node by id"""
         raise NotImplementedError
 
     @final
-    def get_or_error(self, id: UUID) -> N:
+    def get_or_error(self, id: UUID) -> "Entity":
         """Gets a Node by id, raising an error if not found"""
         node = self.get(id)
         if node is None:
@@ -75,12 +61,12 @@ class Graph[N: Node](abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def add(self, node: N):
+    def add(self, node: "Entity"):
         """Add a new Node to the graph (must not exist, excluding descendants)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def remove(self, node: N):
+    def remove(self, node: "Entity"):
         """Remove a Node from the graph (must exist, excluding descendants)."""
         raise NotImplementedError
 
@@ -88,7 +74,7 @@ class Graph[N: Node](abc.ABC):
     def get_children[M: Entity = Entity](
         self,
         node: "Entity",
-        type: NodeType | TraitType | type[M] | None = None,
+        type: NodeType | type[M] | None = None,
     ) -> Sequence[M]:
         """
         Collect child Nodes (one level down).
@@ -98,7 +84,7 @@ class Graph[N: Node](abc.ABC):
 
     @abc.abstractmethod
     def get_ancestors[M: Entity = Entity](
-        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+        self, node: "Entity", type: NodeType | type[M] | None = None
     ) -> Sequence[M]:
         """Gets the ancestors of this Node (recursively up)."""
         raise NotImplementedError
@@ -107,7 +93,7 @@ class Graph[N: Node](abc.ABC):
     def get_descendants[M: Entity = Entity](
         self,
         node: "Entity",
-        type: NodeType | TraitType | type[M] | None = None,
+        type: NodeType | type[M] | None = None,
     ) -> Sequence[M]:
         """
         Collect descendant Nodes (recursively down).
@@ -118,24 +104,9 @@ class Graph[N: Node](abc.ABC):
         raise NotImplementedError
 
 
-def expand_node_traits(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
+def expand_node_inheritance(types: Collection[NodeType]) -> tuple[NodeType, ...]:
     """
-    Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes.
-    """
-    node_types: set[NodeType] = set()
-    for typ in types:
-        if isinstance(typ, NodeType):
-            node_types.add(typ)
-        elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
-        else:
-            assert_never(typ)
-    return tuple(node_types)
-
-
-def expand_node_inheritance(types: Collection[NodeType | TraitType]) -> tuple[NodeType, ...]:
-    """
-    Expand a collection of NodeTypes and Traits into a flat collection of NodeTypes.
+    Expand a collection of NodeTypes into a flat collection of NodeTypes.
     """
     node_types: set[NodeType] = set()
     for typ in types:
@@ -152,7 +123,7 @@ def expand_node_inheritance(types: Collection[NodeType | TraitType]) -> tuple[No
 
 
 def expand_node_types(
-    node_type: "NodeType | TraitType | Collection[NodeType | TraitType] | type[Node] | None",
+    node_type: "NodeType | Collection[NodeType] | type[Node] | None",
     expand_inheritance: bool = True,
 ) -> Sequence["NodeType"]:
     """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""

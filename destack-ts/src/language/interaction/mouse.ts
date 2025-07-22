@@ -2,7 +2,6 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
   NodeReference,
   Session,
   Snapshot,
@@ -103,7 +102,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -135,7 +134,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): Node | null;
+  abstract get node(): Entity | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -236,7 +235,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -268,7 +267,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): Node | null;
+  abstract get node(): Entity | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -405,10 +404,10 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -449,10 +448,10 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -503,13 +502,13 @@ export class SingleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -944,10 +943,10 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -988,10 +987,10 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1042,13 +1041,13 @@ export class DoubleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -1483,10 +1482,10 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1527,10 +1526,10 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1581,13 +1580,13 @@ export class TripleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
@@ -2022,10 +2021,10 @@ export class WheelEvent extends MouseEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2066,10 +2065,10 @@ export class WheelEvent extends MouseEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2125,13 +2124,13 @@ export class WheelEvent extends MouseEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;

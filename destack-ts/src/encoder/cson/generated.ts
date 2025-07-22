@@ -4,7 +4,7 @@ import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack
 import { Temporal } from 'temporal-polyfill';
 import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
-import type { NotificationDismissedEvent, CutEvent, IndexDefinition, Timer, Environment, Node, FocusOutEvent, Permission, EditEvent, PasteEvent, Corner2, InviteRejectedEvent, StrokePath, Shape3D, View, Membership, LabelView, ConstraintDefinition, SanctionRequestedEvent, Invite, TextSpan, Organization, MethodDefinition, RunStopRequestedEvent, CopyEvent, Entity3D, RunEvent, TimerStartedEvent, PointerMoveEvent, DragStartEvent, CustomProperty, Trigger, LayoutView, Vector2i, InviteRescindedEvent, MouseEvent, SingleClickEvent, Universe, SpanEvent, TimerPausedEvent, ReactionRemovedEvent, PointerEnterEvent, GradientStyle, ReactionEvent, Condition, RunPauseRequestedEvent, Join, SceneEvent, Text, Function, PointerUpEvent, SignalEvent, Space, ColorStyle, ActionDefinition, SanctionRevokedEvent, Select, Transition, PointerEvent, NodeDefinitionReference, ContentView, Folder, CollectionConstraint, Arrow2D, WheelEvent, Path2D, Follow, Stroke, SanctionGrantedEvent, PropertyReference, Polygon2D, Axis3, Grid2, GridSpan2, File, Shadow, MeasurementEvent, Entity, EntitlementExpiredEvent, PointerOverEvent, StringConstraint, ObjectDefinitionReference, RunResumeRequestedEvent, Run, LineShape2D, Sanction, Cursor, StarRemovedEvent, ShadowStyle, StructDefinitionReference, Index, PropertyDefinition, PointerLeaveEvent, TriggerEvent, GaugeMetric, ConstantDefinition, SanctionEvent, StrokeStyle, Expression, TraitDefinition, TimerResumedEvent, TimerCancelledEvent, ArrowShape2D, BorderStyle, Stage, FollowEvent, Aggregation, RectangleShape2D, KeyPressEvent, Type, Offset2, CustomOption, RunCompletedEvent, Fill, Resource, FrameView, DragEnterEvent, ReactionAddedEvent, Tagging, Vector4, HistogramMeasurementEvent, FillStyle, RunResumedEvent, Length, Line2D, KeyDownEvent, BuiltinDefinition, CustomEnum, InviteAcceptedEvent, Metric, StrokePoint, Machine, EntitlementRequestedEvent, EffectStyle, NumberInputView, Axis2, MembershipEvent, NodeDefinition, Event, LogEvent, Layer, MigrationOperationDefinition, CustomStruct, RoleUnassignedEvent, FollowRemovedEvent, Palette, TextView, NotificationSentEvent, Gradient, StarEvent, Role, TripleClickEvent, NodeReference, KeyEvent, PolygonShape2D, HistogramMetric, Snapshot, Rectangle2D, Branch, Entity2D, Reaction, KeyUpEvent, CounterMeasurementEvent, PermissionDefinition, Route, TagDefinition, Vector3, PointerDownEvent, SliderInputView, InviteEvent, OptionDefinition, DragOverEvent, ScreenCursor, Datum, FocusInEvent, DoubleClickEvent, Client, Color, Action, EntitlementGrantedEvent, Vector4i, Scene, DragEndEvent, Struct, Shape2D, NotificationRescindedEvent, InviteSentEvent, NodeConstraint, DragEvent, Service, EntitlementRevokedEvent, Database, GaugeMeasurementEvent, Script, Effect, ClipboardEvent, Team, MigrationDefinition, Vector2, Inset2, SanctionExpiredEvent, EntitlementEvent, NotificationEvent, InputEvent, Handle, Sort, TransitionStyle, Style, PointerLongPressEvent, Notification, MembershipLeftEvent, RoleEvent, Quaternion, RunFailedEvent, Migration, Star, CustomEvent, CounterMetric, Value, RunPausedEvent, FontStyle, Entitlement, EnumDefinition, ViewEvent, DatumMutable, RunStartedEvent, FollowAddedEvent, GradientStop, EllipseShape2D, Constraint, RoleAssignedEvent, PathShape2D, DropEvent, MigrationOperation, FocusEvent, TimerEvent, SplitView, Tag, Record, NotificationReadEvent, StructDefinition, ClickEvent, MembershipJoinedEvent, InputView, Method, Font, Vector3i, Schedule, Theme, TimerCompletedEvent, User, Query, Border, StarAddedEvent, StrokeCap, Icon, NotificationExpiredEvent, NumberConstraint, DragLeaveEvent, Ellipse2D, EventCursor, Variant } from '@destack/language';
+import type { NodeDefinitionReference, Action, RoleAssignedEvent, TransitionStyle, ShadowStyle, DragOverEvent, KeyUpEvent, Datum, Event, StrokePoint, TimerCompletedEvent, Invite, Cursor, Icon, CollectionConstraint, Vector2, SanctionRevokedEvent, PolygonShape2D, Variant, MouseEvent, CustomStruct, DragLeaveEvent, Schedule, Scene, Client, SanctionExpiredEvent, RunStopRequestedEvent, Database, Migration, TimerCancelledEvent, SplitView, BorderStyle, InputEvent, Script, Service, DragStartEvent, SceneEvent, Sanction, NotificationEvent, InviteAcceptedEvent, FontStyle, RoleEvent, EventCursor, ArrowShape2D, KeyDownEvent, Node, RunResumeRequestedEvent, RunPauseRequestedEvent, EnumDefinition, Axis3, Entity2D, Route, Gradient, Struct, LayoutView, ConstantDefinition, Role, TimerResumedEvent, NodeDefinition, PropertyDefinition, DoubleClickEvent, LabelView, Resource, TimerStartedEvent, DragEnterEvent, PointerLongPressEvent, Aggregation, GradientStyle, NumberInputView, Star, RunEvent, EntitlementEvent, KeyEvent, ConstraintDefinition, Polygon2D, FollowEvent, CustomOption, Function, PointerLeaveEvent, Permission, StarAddedEvent, CustomEvent, Effect, StrokeCap, Timer, Ellipse2D, EntitlementRequestedEvent, Sort, CounterMeasurementEvent, EntitlementRevokedEvent, RectangleShape2D, CustomProperty, RunPausedEvent, Machine, WheelEvent, Type, File, EntitlementGrantedEvent, Join, Entity3D, Method, GaugeMeasurementEvent, Layer, DragEndEvent, FrameView, Metric, NodeReference, TripleClickEvent, Fill, NotificationSentEvent, Length, ColorStyle, PointerOverEvent, TriggerEvent, ActionDefinition, Condition, InviteRescindedEvent, EllipseShape2D, DropEvent, CustomEnum, TimerPausedEvent, Folder, SanctionGrantedEvent, Membership, PointerDownEvent, Record, RunResumedEvent, CopyEvent, RunStartedEvent, View, Expression, StrokePath, RoleUnassignedEvent, StrokeStyle, Branch, Organization, MethodDefinition, Handle, EntitlementExpiredEvent, SignalEvent, Team, Stroke, DatumMutable, Font, Style, ReactionEvent, PointerEvent, Follow, StringConstraint, Vector3, StarEvent, BuiltinDefinition, FollowRemovedEvent, NotificationDismissedEvent, NotificationRescindedEvent, SliderInputView, Offset2, Notification, FollowAddedEvent, InviteEvent, Vector3i, NotificationExpiredEvent, ContentView, Select, RunCompletedEvent, FocusInEvent, Corner2, Vector2i, TextSpan, ReactionAddedEvent, SanctionRequestedEvent, ReactionRemovedEvent, Grid2, User, TagDefinition, Constraint, PathShape2D, Border, OptionDefinition, LineShape2D, Index, Shape3D, PointerEnterEvent, PointerUpEvent, GaugeMetric, Stage, EditEvent, SanctionEvent, RunFailedEvent, PropertyReference, InviteRejectedEvent, CutEvent, Vector4, StarRemovedEvent, InviteSentEvent, ClickEvent, Reaction, Value, Space, Query, Arrow2D, SpanEvent, Universe, KeyPressEvent, FocusOutEvent, NotificationReadEvent, Rectangle2D, Axis2, GridSpan2, ViewEvent, Tagging, ScreenCursor, LogEvent, SingleClickEvent, MeasurementEvent, PermissionDefinition, MigrationDefinition, Entitlement, NumberConstraint, Transition, Vector4i, Inset2, Tag, StructDefinitionReference, IndexDefinition, StructDefinition, DragEvent, MembershipLeftEvent, EffectStyle, HistogramMetric, MembershipEvent, Theme, Shape2D, Quaternion, FocusEvent, GradientStop, Environment, PointerMoveEvent, Entity, InputView, MigrationOperation, CounterMetric, TraitDefinition, ObjectDefinitionReference, MigrationOperationDefinition, Shadow, TimerEvent, Palette, Snapshot, ClipboardEvent, Line2D, Path2D, FillStyle, MembershipJoinedEvent, HistogramMeasurementEvent, Text, TextView, Color, Trigger, PasteEvent, Run } from '@destack/language';
 export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -1984,14 +1984,15 @@ export function loadEncoders(): void {
         if (object._enumType != null) {
           objectCson["113"] = object._enumType;
         }
-        if (object._nodeType != null) {
-          objectCson["114"] = object._nodeType;
+        if (object._nodeTypes.length > 0) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object._nodeTypes) {
+            packedNodeTypes.push(item);
+          }
+          objectCson["114"] = packedNodeTypes;
         }
         if (object._structType != null) {
           objectCson["115"] = object._structType;
-        }
-        if (object._customDefinitionPtr != null) {
-          objectCson["116"] = object._customDefinitionPtr.pack(1);
         }
         if (object._keyType != null) {
           objectCson["117"] = object._keyType.pack(1);
@@ -2010,9 +2011,6 @@ export function loadEncoders(): void {
         }
         if (object._numberConstraint != null) {
           objectCson["132"] = object._numberConstraint.pack(1);
-        }
-        if (object._nodeConstraint != null) {
-          objectCson["133"] = object._nodeConstraint.pack(1);
         }
         if (object._edgeType != null) {
           objectCson["140"] = object._edgeType;
@@ -2050,7 +2048,6 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
         const iconValue = objectCson["102"];
@@ -2059,12 +2056,14 @@ export function loadEncoders(): void {
         const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
         const enumTypeValue = objectCson["113"];
         const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-        const nodeTypeValue = objectCson["114"];
-        const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+        const unpackedNodeTypes: any[] = [];
+        if (objectCson["114"] != undefined) {
+          for (const item of objectCson["114"]) {
+            unpackedNodeTypes.push(Number(item))
+          }
+        }
         const structTypeValue = objectCson["115"];
         const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-        const customDefinitionPtrValue = objectCson["116"];
-        const unpackedCustomDefinitionPtr = customDefinitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: customDefinitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const keyTypeValue = objectCson["117"];
         const unpackedKeyType = keyTypeValue != undefined ? _Type.unpack({ encoding: 1, value: keyTypeValue, _session, _graph, _connection }) as Type : null;
         const valueValue = objectCson["120"];
@@ -2077,8 +2076,6 @@ export function loadEncoders(): void {
         const unpackedStringConstraint = stringConstraintValue != undefined ? _StringConstraint.unpack({ encoding: 1, value: stringConstraintValue, _session, _graph, _connection }) as StringConstraint : null;
         const numberConstraintValue = objectCson["132"];
         const unpackedNumberConstraint = numberConstraintValue != undefined ? _NumberConstraint.unpack({ encoding: 1, value: numberConstraintValue, _session, _graph, _connection }) as NumberConstraint : null;
-        const nodeConstraintValue = objectCson["133"];
-        const unpackedNodeConstraint = nodeConstraintValue != undefined ? _NodeConstraint.unpack({ encoding: 1, value: nodeConstraintValue, _session, _graph, _connection }) as NodeConstraint : null;
         const edgeTypeValue = objectCson["140"];
         const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
         const cascadeValue = objectCson["141"];
@@ -2130,16 +2127,14 @@ export function loadEncoders(): void {
           scalarType: Number(objectCson["111"]),
           primitiveType: unpackedPrimitiveType,
           enumType: unpackedEnumType,
-          nodeType: unpackedNodeType,
+          nodeTypes: unpackedNodeTypes,
           structType: unpackedStructType,
-          customDefinition: unpackedCustomDefinitionPtr,
           keyType: unpackedKeyType,
           value: unpackedValue,
           valueFactory: unpackedValueFactory,
           collectionConstraint: unpackedCollectionConstraint,
           stringConstraint: unpackedStringConstraint,
           numberConstraint: unpackedNumberConstraint,
-          nodeConstraint: unpackedNodeConstraint,
           edgeType: unpackedEdgeType,
           cascade: unpackedCascade,
           isRequired: unpackedIsRequired,
@@ -3153,10 +3148,10 @@ export function loadEncoders(): void {
         const { value: objectCson, _session, _graph, _connection } = options;
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const expiresAtValue = objectCson["110"];
         const unpackedExpiresAt = expiresAtValue != undefined ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO('UTC') : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -3186,10 +3181,10 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[360500] as typeof Entitlement)({
-          parent: unpackedParentPtr,
           type: Number(objectCson["100"]),
           expiresAt: unpackedExpiresAt,
           target: _NodeReference.unpack({ encoding: 1, value: objectCson["111"], _session, _graph, _connection }) as NodeReference,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -3647,12 +3642,12 @@ export function loadEncoders(): void {
         const { value: objectCson, _session, _graph, _connection } = options;
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const rolePtrValue = objectCson["111"];
         const unpackedRolePtr = rolePtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: rolePtrValue, _session, _graph, _connection }) as NodeReference : null;
         const roleTypeValue = objectCson["112"];
         const unpackedRoleType = roleTypeValue != undefined ? Number(roleTypeValue) : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -3682,10 +3677,10 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[360100] as typeof Invite)({
-          parent: unpackedParentPtr,
           member: _NodeReference.unpack({ encoding: 1, value: objectCson["110"], _session, _graph, _connection }) as NodeReference,
           role: unpackedRolePtr,
           roleType: unpackedRoleType,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -3969,12 +3964,12 @@ export function loadEncoders(): void {
         const { value: objectCson, _session, _graph, _connection } = options;
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const rolePtrValue = objectCson["111"];
         const unpackedRolePtr = rolePtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: rolePtrValue, _session, _graph, _connection }) as NodeReference : null;
         const roleTypeValue = objectCson["112"];
         const unpackedRoleType = roleTypeValue != undefined ? Number(roleTypeValue) : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -4004,10 +3999,10 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[360000] as typeof Membership)({
-          parent: unpackedParentPtr,
           member: _NodeReference.unpack({ encoding: 1, value: objectCson["110"], _session, _graph, _connection }) as NodeReference,
           role: unpackedRolePtr,
           roleType: unpackedRoleType,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -4281,10 +4276,10 @@ export function loadEncoders(): void {
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const iconValue = objectCson["102"];
         const unpackedIcon = iconValue != undefined ? _Icon.unpack({ encoding: 1, value: iconValue, _session, _graph, _connection }) as Icon : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -4314,9 +4309,9 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[360200] as typeof Role)({
-          parent: unpackedParentPtr,
           type: Number(objectCson["100"]),
           icon: unpackedIcon,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -4756,10 +4751,10 @@ export function loadEncoders(): void {
         const { value: objectCson, _session, _graph, _connection } = options;
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const expiresAtValue = objectCson["110"];
         const unpackedExpiresAt = expiresAtValue != undefined ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO('UTC') : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -4789,10 +4784,10 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[360400] as typeof Sanction)({
-          parent: unpackedParentPtr,
           type: Number(objectCson["100"]),
           expiresAt: unpackedExpiresAt,
           target: _NodeReference.unpack({ encoding: 1, value: objectCson["111"], _session, _graph, _connection }) as NodeReference,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -17104,8 +17099,8 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[1400000] as typeof Reaction)({
-          parent: unpackedParentPtr,
           content: objectCson["101"],
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -18023,8 +18018,6 @@ export function loadEncoders(): void {
         const { value: objectCson, _session, _graph, _connection } = options;
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-        const parentPtrValue = objectCson["3"];
-        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const machinePtrValue = objectCson["110"];
         const unpackedMachinePtr = machinePtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: machinePtrValue, _session, _graph, _connection }) as NodeReference : null;
         const userPtrValue = objectCson["111"];
@@ -18047,6 +18040,8 @@ export function loadEncoders(): void {
         const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
         const browserVersionValue = objectCson["44"];
         const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
+        const parentPtrValue = objectCson["3"];
+        const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: parentPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
         const unpackedDefinitionPtr = definitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: definitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const precededByPtrValue = objectCson["14"];
@@ -18076,7 +18071,6 @@ export function loadEncoders(): void {
         const keyValue = objectCson["85"];
         const unpackedKey = keyValue != undefined ? keyValue : null;
         return new (NODE_CLASS_BY_TYPE[121300] as typeof Client)({
-          parent: unpackedParentPtr,
           type: Number(objectCson["100"]),
           machine: unpackedMachinePtr,
           user: unpackedUserPtr,
@@ -18089,6 +18083,7 @@ export function loadEncoders(): void {
           operatingSystem: unpackedOperatingSystem,
           browserName: unpackedBrowserName,
           browserVersion: unpackedBrowserVersion,
+          parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack({ encoding: 1, value: objectCson["12"], _session, _graph, _connection }) as NodeReference,
@@ -19849,8 +19844,12 @@ export function loadEncoders(): void {
         if (object.enumType != null) {
           objectCson["113"] = object.enumType;
         }
-        if (object.nodeType != null) {
-          objectCson["114"] = object.nodeType;
+        if (object.nodeTypes.length > 0) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object.nodeTypes) {
+            packedNodeTypes.push(item);
+          }
+          objectCson["114"] = packedNodeTypes;
         }
         if (object.structType != null) {
           objectCson["115"] = object.structType;
@@ -19872,9 +19871,6 @@ export function loadEncoders(): void {
         }
         if (object.numberConstraint != null) {
           objectCson["132"] = object.numberConstraint.pack(1);
-        }
-        if (object.nodeConstraint != null) {
-          objectCson["133"] = object.nodeConstraint.pack(1);
         }
         if (object.edgeType != null) {
           objectCson["140"] = object.edgeType;
@@ -19908,14 +19904,17 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
         const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
         const primitiveTypeValue = objectCson["112"];
         const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
         const enumTypeValue = objectCson["113"];
         const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-        const nodeTypeValue = objectCson["114"];
-        const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+        const unpackedNodeTypes: any[] = [];
+        if (objectCson["114"] != undefined) {
+          for (const item of objectCson["114"]) {
+            unpackedNodeTypes.push(Number(item))
+          }
+        }
         const structTypeValue = objectCson["115"];
         const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
         const keyTypeValue = objectCson["116"];
@@ -19930,8 +19929,6 @@ export function loadEncoders(): void {
         const unpackedStringConstraint = stringConstraintValue != undefined ? _StringConstraint.unpack({ encoding: 1, value: stringConstraintValue, _session, _graph, _connection }) as StringConstraint : null;
         const numberConstraintValue = objectCson["132"];
         const unpackedNumberConstraint = numberConstraintValue != undefined ? _NumberConstraint.unpack({ encoding: 1, value: numberConstraintValue, _session, _graph, _connection }) as NumberConstraint : null;
-        const nodeConstraintValue = objectCson["133"];
-        const unpackedNodeConstraint = nodeConstraintValue != undefined ? _NodeConstraint.unpack({ encoding: 1, value: nodeConstraintValue, _session, _graph, _connection }) as NodeConstraint : null;
         const edgeTypeValue = objectCson["140"];
         const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
         const cascadeValue = objectCson["141"];
@@ -19954,7 +19951,7 @@ export function loadEncoders(): void {
           scalarType: Number(objectCson["111"]),
           primitiveType: unpackedPrimitiveType,
           enumType: unpackedEnumType,
-          nodeType: unpackedNodeType,
+          nodeTypes: unpackedNodeTypes,
           structType: unpackedStructType,
           keyType: unpackedKeyType,
           value: unpackedValue,
@@ -19962,7 +19959,6 @@ export function loadEncoders(): void {
           collectionConstraint: unpackedCollectionConstraint,
           stringConstraint: unpackedStringConstraint,
           numberConstraint: unpackedNumberConstraint,
-          nodeConstraint: unpackedNodeConstraint,
           edgeType: unpackedEdgeType,
           cascade: unpackedCascade,
           isRequired: objectCson["150"],
@@ -20884,58 +20880,6 @@ export function loadEncoders(): void {
 
     CSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintCsonEncoder();
 
-    class NodeConstraintCsonEncoder implements _CsonObjectEncoder {
-      packObject(object: NodeConstraint): any {
-        const objectCson: { [key: string]: any } = {};
-        objectCson["1"] = 113;
-        if (object.nodeTypes.length > 0) {
-          const packedNodeTypes: any[] = [];
-          for (const item of object.nodeTypes) {
-            packedNodeTypes.push(item);
-          }
-          objectCson["41"] = packedNodeTypes;
-        }
-        if (object.nodeTraits.length > 0) {
-          const packedNodeTraits: any[] = [];
-          for (const item of object.nodeTraits) {
-            packedNodeTraits.push(item);
-          }
-          objectCson["42"] = packedNodeTraits;
-        }
-        return objectCson;
-      }
-
-      unpackObject(options: {
-        value: any;
-        _session?: Session | null;
-        _graph?: Graph | null;
-        _connection?: GraphConnection | null;
-      }): NodeConstraint {
-        const { value: objectCson, _session, _graph, _connection } = options;
-
-        const unpackedNodeTypes: any[] = [];
-        if (objectCson["41"] != undefined) {
-          for (const item of objectCson["41"]) {
-            unpackedNodeTypes.push(Number(item))
-          }
-        }
-        const unpackedNodeTraits: any[] = [];
-        if (objectCson["42"] != undefined) {
-          for (const item of objectCson["42"]) {
-            unpackedNodeTraits.push(Number(item))
-          }
-        }
-        return new (STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint)({
-          nodeTypes: unpackedNodeTypes,
-          nodeTraits: unpackedNodeTraits,
-          _packedCache: [{ encoding: 1, isBytes: false, packed: objectCson }],
-          _graph,
-        });
-      }
-    }
-
-    CSON_OBJECT_ENCODERS[getObjectKey(2, 113)] = new NodeConstraintCsonEncoder();
-
     class TypeCsonEncoder implements _CsonObjectEncoder {
       packObject(object: Type): any {
         const objectCson: { [key: string]: any } = {};
@@ -20951,14 +20895,15 @@ export function loadEncoders(): void {
         if (object.enumType != null) {
           objectCson["113"] = object.enumType;
         }
-        if (object.nodeType != null) {
-          objectCson["114"] = object.nodeType;
+        if (object.nodeTypes.length > 0) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object.nodeTypes) {
+            packedNodeTypes.push(item);
+          }
+          objectCson["114"] = packedNodeTypes;
         }
         if (object.structType != null) {
           objectCson["115"] = object.structType;
-        }
-        if (object.customDefinitionPtr != null) {
-          objectCson["116"] = object.customDefinitionPtr.pack(1);
         }
         if (object.keyType != null) {
           objectCson["117"] = object.keyType.pack(1);
@@ -20977,9 +20922,6 @@ export function loadEncoders(): void {
         }
         if (object.numberConstraint != null) {
           objectCson["142"] = object.numberConstraint.pack(1);
-        }
-        if (object.nodeConstraint != null) {
-          objectCson["143"] = object.nodeConstraint.pack(1);
         }
         if (object.isRequired != null) {
           objectCson["150"] = object.isRequired;
@@ -21002,20 +20944,20 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
-        const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const nameValue = objectCson["101"];
         const unpackedName = nameValue != undefined ? nameValue : null;
         const primitiveTypeValue = objectCson["112"];
         const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
         const enumTypeValue = objectCson["113"];
         const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-        const nodeTypeValue = objectCson["114"];
-        const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+        const unpackedNodeTypes: any[] = [];
+        if (objectCson["114"] != undefined) {
+          for (const item of objectCson["114"]) {
+            unpackedNodeTypes.push(Number(item))
+          }
+        }
         const structTypeValue = objectCson["115"];
         const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-        const customDefinitionPtrValue = objectCson["116"];
-        const unpackedCustomDefinitionPtr = customDefinitionPtrValue != undefined ? _NodeReference.unpack({ encoding: 1, value: customDefinitionPtrValue, _session, _graph, _connection }) as NodeReference : null;
         const keyTypeValue = objectCson["117"];
         const unpackedKeyType = keyTypeValue != undefined ? _Type.unpack({ encoding: 1, value: keyTypeValue, _session, _graph, _connection }) as Type : null;
         const valueValue = objectCson["130"];
@@ -21028,8 +20970,6 @@ export function loadEncoders(): void {
         const unpackedStringConstraint = stringConstraintValue != undefined ? _StringConstraint.unpack({ encoding: 1, value: stringConstraintValue, _session, _graph, _connection }) as StringConstraint : null;
         const numberConstraintValue = objectCson["142"];
         const unpackedNumberConstraint = numberConstraintValue != undefined ? _NumberConstraint.unpack({ encoding: 1, value: numberConstraintValue, _session, _graph, _connection }) as NumberConstraint : null;
-        const nodeConstraintValue = objectCson["143"];
-        const unpackedNodeConstraint = nodeConstraintValue != undefined ? _NodeConstraint.unpack({ encoding: 1, value: nodeConstraintValue, _session, _graph, _connection }) as NodeConstraint : null;
         const isRequiredValue = objectCson["150"];
         const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
         const isMainValue = objectCson["154"];
@@ -21040,16 +20980,14 @@ export function loadEncoders(): void {
           scalarType: Number(objectCson["111"]),
           primitiveType: unpackedPrimitiveType,
           enumType: unpackedEnumType,
-          nodeType: unpackedNodeType,
+          nodeTypes: unpackedNodeTypes,
           structType: unpackedStructType,
-          customDefinition: unpackedCustomDefinitionPtr,
           keyType: unpackedKeyType,
           value: unpackedValue,
           valueFactory: unpackedValueFactory,
           collectionConstraint: unpackedCollectionConstraint,
           stringConstraint: unpackedStringConstraint,
           numberConstraint: unpackedNumberConstraint,
-          nodeConstraint: unpackedNodeConstraint,
           isRequired: unpackedIsRequired,
           isMain: unpackedIsMain,
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectCson }],
@@ -21329,9 +21267,6 @@ export function loadEncoders(): void {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 202;
         objectCson["100"] = object.type;
-        if (object.customDefinition != null) {
-          objectCson["101"] = object.customDefinition.pack(1);
-        }
         objectCson["102"] = object.recursive;
         if (object.depth != null) {
           objectCson["103"] = object.depth;
@@ -21349,17 +21284,13 @@ export function loadEncoders(): void {
         _connection?: GraphConnection | null;
       }): Join {
         const { value: objectCson, _session, _graph, _connection } = options;
-        const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
         const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
-        const customDefinitionValue = objectCson["101"];
-        const unpackedCustomDefinition = customDefinitionValue != undefined ? _NodeDefinitionReference.unpack({ encoding: 1, value: customDefinitionValue, _session, _graph, _connection }) as NodeDefinitionReference : null;
         const depthValue = objectCson["103"];
         const unpackedDepth = depthValue != undefined ? Number(depthValue) : null;
         const onValue = objectCson["104"];
         const unpackedOn = onValue != undefined ? _Condition.unpack({ encoding: 1, value: onValue, _session, _graph, _connection }) as Condition : null;
         return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
           type: Number(objectCson["100"]),
-          customDefinition: unpackedCustomDefinition,
           recursive: objectCson["102"],
           depth: unpackedDepth,
           on: unpackedOn,

@@ -16,14 +16,12 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type {
   CollectionConstraint,
-  NodeConstraint,
   NumberConstraint,
   StringConstraint,
   Type,
@@ -147,10 +145,10 @@ export class CustomProperty extends Entity {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -169,10 +167,10 @@ export class CustomProperty extends Entity {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -188,14 +186,14 @@ export class CustomProperty extends Entity {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -412,20 +410,20 @@ export class CustomProperty extends Entity {
   _enumType: EnumType | null;
 
   /**
-   * CustomProperty.nodeType
+   * CustomProperty.nodeTypes
    */
   /**
-   * CustomProperty.nodeType
+   * CustomProperty.nodeTypes
    */
-  get nodeType(): NodeType | null {
-    return this._nodeType;
+  get nodeTypes(): readonly NodeType[] {
+    return this._nodeTypes;
   }
-  set nodeType(value: NodeType | null) {
-    const prop = (this.constructor as NodeClass).__properties__["node_type"];
+  set nodeTypes(value: readonly NodeType[]) {
+    const prop = (this.constructor as NodeClass).__properties__["node_types"];
     this._session.updateSetProperty(this, prop, value);
-    this._nodeType = value;
+    this._nodeTypes = value;
   }
-  _nodeType: NodeType | null;
+  _nodeTypes: readonly NodeType[];
 
   /**
    * CustomProperty.structType
@@ -442,36 +440,6 @@ export class CustomProperty extends Entity {
     this._structType = value;
   }
   _structType: StructType | null;
-
-  /**
-   * CustomProperty.customDefinition
-   */
-  get customDefinition(): Entity | null {
-    const nodePtr: NodeReference | null = this.customDefinitionPtr;
-    if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  set customDefinition(node: Entity | null) {
-    if (node === null) {
-      this.customDefinitionPtr = null;
-    } else {
-      this.customDefinitionPtr = node.toRef();
-    }
-  }
-  /**
-   * CustomProperty.customDefinition
-   */
-  get customDefinitionPtr(): NodeReference | null {
-    return this._customDefinitionPtr;
-  }
-  set customDefinitionPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_definition"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customDefinitionPtr = value;
-  }
-  _customDefinitionPtr: NodeReference | null;
 
   /**
    * CustomProperty.keyType
@@ -568,22 +536,6 @@ export class CustomProperty extends Entity {
     this._numberConstraint = value;
   }
   _numberConstraint: NumberConstraint | null;
-
-  /**
-   * CustomProperty.nodeConstraint
-   */
-  /**
-   * CustomProperty.nodeConstraint
-   */
-  get nodeConstraint(): NodeConstraint | null {
-    return this._nodeConstraint;
-  }
-  set nodeConstraint(value: NodeConstraint | null) {
-    const prop = (this.constructor as NodeClass).__properties__["node_constraint"];
-    this._session.updateSetProperty(this, prop, value);
-    this._nodeConstraint = value;
-  }
-  _nodeConstraint: NodeConstraint | null;
 
   /**
    * CustomProperty.edgeType
@@ -709,12 +661,12 @@ export class CustomProperty extends Entity {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -728,16 +680,14 @@ export class CustomProperty extends Entity {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeType?: NodeType | null;
+    nodeTypes?: readonly NodeType[];
     structType?: StructType | null;
-    customDefinition?: Entity | NodeReference | null;
     keyType?: Type | null;
     value?: Value | null;
     valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    nodeConstraint?: NodeConstraint | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired?: boolean | null;
@@ -912,15 +862,13 @@ export class CustomProperty extends Entity {
     this._primitiveType = _primitiveType;
     let _enumType = options.enumType ?? null;
     this._enumType = _enumType;
-    let _nodeType = options.nodeType ?? null;
-    this._nodeType = _nodeType;
+    let _nodeTypes = options.nodeTypes ?? null;
+    if (_nodeTypes === null) {
+      _nodeTypes = [];
+    }
+    this._nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this._structType = _structType;
-    let _customDefinition = options.customDefinition ?? null;
-    if (_customDefinition != null && _customDefinition.constructor.name != "NodeReference") {
-      _customDefinition = (_customDefinition as Node).toRef();
-    }
-    this._customDefinitionPtr = _customDefinition as NodeReference | null;
     let _keyType = options.keyType ?? null;
     this._keyType = _keyType;
     let _value = options.value ?? null;
@@ -933,8 +881,6 @@ export class CustomProperty extends Entity {
     this._stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
     this._numberConstraint = _numberConstraint;
-    let _nodeConstraint = options.nodeConstraint ?? null;
-    this._nodeConstraint = _nodeConstraint;
     let _edgeType = options.edgeType ?? null;
     this._edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -1015,13 +961,15 @@ export class CustomProperty extends Entity {
     if (!(this._enumType === other._enumType)) {
       return false;
     }
-    if (!(this._nodeType === other._nodeType)) {
+    if (this._nodeTypes.length != other._nodeTypes.length) {
       return false;
+    }
+    for (let i = 0; i < this._nodeTypes.length; i++) {
+      if (!(this._nodeTypes[i] === other._nodeTypes[i])) {
+        return false;
+      }
     }
     if (!(this._structType === other._structType)) {
-      return false;
-    }
-    if (!(this._customDefinitionPtr?.id === other._customDefinitionPtr?.id)) {
       return false;
     }
     if (
@@ -1055,12 +1003,6 @@ export class CustomProperty extends Entity {
     if (
       (this._numberConstraint == null) !== (other._numberConstraint == null) ||
       (this._numberConstraint != null && !this._numberConstraint.equals(other._numberConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this._nodeConstraint == null) !== (other._nodeConstraint == null) ||
-      (this._nodeConstraint != null && !this._nodeConstraint.equals(other._nodeConstraint))
     ) {
       return false;
     }
@@ -1138,14 +1080,13 @@ export class CustomProperty extends Entity {
     if (this._enumType != null) {
       h = (h * 31 + this._enumType) & 0xffffffff;
     }
-    if (this._nodeType != null) {
-      h = (h * 31 + this._nodeType) & 0xffffffff;
+    if (this._nodeTypes && this._nodeTypes.length > 0) {
+      for (const _item of this._nodeTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
     }
     if (this._structType != null) {
       h = (h * 31 + this._structType) & 0xffffffff;
-    }
-    if (this._customDefinitionPtr != null) {
-      h = (h * 31 + hashString(this._customDefinitionPtr.id)) & 0xffffffff;
     }
     if (this._keyType != null) {
       h = (h * 31 + this._keyType.hash()) & 0xffffffff;
@@ -1164,9 +1105,6 @@ export class CustomProperty extends Entity {
     }
     if (this._numberConstraint != null) {
       h = (h * 31 + this._numberConstraint.hash()) & 0xffffffff;
-    }
-    if (this._nodeConstraint != null) {
-      h = (h * 31 + this._nodeConstraint.hash()) & 0xffffffff;
     }
     if (this._edgeType != null) {
       h = (h * 31 + this._edgeType) & 0xffffffff;
@@ -1282,14 +1220,11 @@ export class CustomProperty extends Entity {
     if (this.enumType != null) {
       propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
     }
-    if (this.nodeType != null) {
-      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+    if (this.nodeTypes.length > 0) {
+      propertyReprs.push(`nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`);
     }
     if (this.structType != null) {
       propertyReprs.push(`structType=${StructType[this.structType]}`);
-    }
-    if (this.customDefinition != null) {
-      propertyReprs.push(`customDefinition=${this.customDefinition?.repr()}`);
     }
     if (this.keyType != null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);

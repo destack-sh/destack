@@ -1357,7 +1357,6 @@ enum StructTypeProto {
   STRUCT_TYPE_NUMBER_CONSTRAINT = 110;
   STRUCT_TYPE_STRING_CONSTRAINT = 111;
   STRUCT_TYPE_COLLECTION_CONSTRAINT = 112;
-  STRUCT_TYPE_NODE_CONSTRAINT = 113;
   STRUCT_TYPE_EXPRESSION = 200;
   STRUCT_TYPE_FUNCTION = 201;
   STRUCT_TYPE_JOIN = 202;
@@ -2258,16 +2257,14 @@ message CustomPropertyProto {
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
   optional EnumTypeProto enum_type = 113;
-  optional NodeTypeProto node_type = 114;
+  repeated NodeTypeProto node_types = 114;
   optional StructTypeProto struct_type = 115;
-  optional NodeReferenceProto custom_definition_ptr = 116;
   optional TypeProto key_type = 117;
   optional ValueProto value = 120;
   optional ValueFactoryProto value_factory = 121;
   optional CollectionConstraintProto collection_constraint = 130;
   optional StringConstraintProto string_constraint = 131;
   optional NumberConstraintProto number_constraint = 132;
-  optional NodeConstraintProto node_constraint = 133;
   optional EdgeTypeProto edge_type = 140;
   optional CascadeActionProto cascade = 141;
   optional bool is_required = 150;
@@ -3924,7 +3921,6 @@ message InviteSentEventProto {
 message JoinProto {
   StructTypeProto metatype = 1;
   JoinTypeProto type = 100;
-  optional NodeDefinitionReferenceProto custom_definition = 101;
   bool recursive = 102;
   optional int64 depth = 103 [jstype = JS_NUMBER];
   optional ConditionProto on = 104;
@@ -4630,12 +4626,6 @@ message NodeProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-}
-
-message NodeConstraintProto {
-  StructTypeProto metatype = 1;
-  repeated NodeTypeProto node_types = 41;
-  repeated TraitTypeProto node_traits = 42;
 }
 
 message NodeDefinitionProto {
@@ -5381,7 +5371,7 @@ message PropertyDefinitionProto {
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
   optional EnumTypeProto enum_type = 113;
-  optional NodeTypeProto node_type = 114;
+  repeated NodeTypeProto node_types = 114;
   optional StructTypeProto struct_type = 115;
   optional TypeProto key_type = 116;
   optional ValueProto value = 120;
@@ -5389,7 +5379,6 @@ message PropertyDefinitionProto {
   optional CollectionConstraintProto collection_constraint = 130;
   optional StringConstraintProto string_constraint = 131;
   optional NumberConstraintProto number_constraint = 132;
-  optional NodeConstraintProto node_constraint = 133;
   optional EdgeTypeProto edge_type = 140;
   optional CascadeActionProto cascade = 141;
   bool is_required = 150;
@@ -7467,16 +7456,14 @@ message TypeProto {
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
   optional EnumTypeProto enum_type = 113;
-  optional NodeTypeProto node_type = 114;
+  repeated NodeTypeProto node_types = 114;
   optional StructTypeProto struct_type = 115;
-  optional NodeReferenceProto custom_definition_ptr = 116;
   optional TypeProto key_type = 117;
   optional ValueProto value = 130;
   optional ValueFactoryProto value_factory = 131;
   optional CollectionConstraintProto collection_constraint = 140;
   optional StringConstraintProto string_constraint = 141;
   optional NumberConstraintProto number_constraint = 142;
-  optional NodeConstraintProto node_constraint = 143;
   optional bool is_required = 150;
   optional bool is_main = 154;
 }

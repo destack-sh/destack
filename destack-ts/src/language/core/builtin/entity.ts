@@ -3,7 +3,6 @@ import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/co
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
@@ -92,7 +91,7 @@ export abstract class Entity extends Node {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -108,7 +107,7 @@ export abstract class Entity extends Node {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -121,8 +120,8 @@ export abstract class Entity extends Node {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */

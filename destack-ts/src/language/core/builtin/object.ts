@@ -34,6 +34,10 @@ export abstract class BuiltinObject {
     this._graph = _graph;
   }
 
+  get metatype(): NodeType | StructType {
+    return (this.constructor as typeof BuiltinObject).metatype;
+  }
+
   // methods
 
   /** Check if this object is equal to another object. */

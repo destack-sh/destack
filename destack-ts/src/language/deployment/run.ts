@@ -2,8 +2,6 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
-  IsRunnable,
   Materialization,
   NodeReference,
   Session,
@@ -110,7 +108,7 @@ export abstract class RunEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -148,7 +146,7 @@ export abstract class RunEvent extends Event {
   /**
    * RunEvent.target
    */
-  abstract get target(): (Entity & IsRunnable) | null;
+  abstract get target(): Entity | null;
   declare readonly targetPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -250,10 +248,10 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -306,10 +304,10 @@ export class RunStartedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -325,14 +323,14 @@ export class RunStartedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -701,10 +699,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -757,10 +755,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -776,14 +774,14 @@ export class RunPauseRequestedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1152,10 +1150,10 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1208,10 +1206,10 @@ export class RunPausedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1227,14 +1225,14 @@ export class RunPausedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1603,10 +1601,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1659,10 +1657,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1678,14 +1676,14 @@ export class RunResumeRequestedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -2054,10 +2052,10 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2110,10 +2108,10 @@ export class RunResumedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2129,14 +2127,14 @@ export class RunResumedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -2505,10 +2503,10 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2561,10 +2559,10 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2580,14 +2578,14 @@ export class RunStopRequestedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -2956,10 +2954,10 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3012,10 +3010,10 @@ export class RunFailedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3031,14 +3029,14 @@ export class RunFailedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -3407,10 +3405,10 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3463,10 +3461,10 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Entity & IsRunnable) | null {
+  get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsRunnable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -3482,14 +3480,14 @@ export class RunCompletedEvent extends RunEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Entity & IsRunnable) | NodeReference | null;
+    target?: Entity | NodeReference | null;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -3834,7 +3832,7 @@ export abstract class Run extends Entity {
   /**
    * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -3850,7 +3848,7 @@ export abstract class Run extends Entity {
   /**
    * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsActor) | null;
+  abstract get updatedBy(): Entity | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -3863,8 +3861,8 @@ export abstract class Run extends Entity {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsActor) | null;
-  abstract set ownedBy(value: (Entity & IsActor) | null);
+  abstract get ownedBy(): Entity | null;
+  abstract set ownedBy(value: Entity | null);
   /**
    * Entity.ownedBy
    */
@@ -3928,8 +3926,8 @@ export abstract class Run extends Entity {
   /**
    * Run.target
    */
-  abstract get target(): (Entity & IsRunnable) | null;
-  abstract set target(value: (Entity & IsRunnable) | null);
+  abstract get target(): Entity | null;
+  abstract set target(value: Entity | null);
   /**
    * Run.target
    */

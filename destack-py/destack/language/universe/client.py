@@ -4,12 +4,10 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     ClientType,
     Entity,
-    IsActor,
     NodeReference,
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -25,7 +23,6 @@ class Client(
     """A Client to connect with the system."""
 
     # meta
-    parent: Optional[IsActor] = builtin_property_parent()
     type: ClientType = builtin_property(100, is_repr=True)
 
     machine: Optional["Machine"] = builtin_property(110)

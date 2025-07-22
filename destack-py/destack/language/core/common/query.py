@@ -303,7 +303,6 @@ class Join(StructFrozen):
     """Join a Query with another Query."""
 
     type: JoinType = builtin_property(100, is_repr=True)
-    custom_definition: Optional[NodeDefinitionReference] = builtin_property(101, is_repr=True)
     # query_name?
     recursive: bool = builtin_property(102, default=False, is_repr=True)  # for tree joins
     depth: int | None = builtin_property(103, default=None, is_repr=True)  # for tree joins

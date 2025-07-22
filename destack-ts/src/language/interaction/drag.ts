@@ -2,7 +2,6 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
   NodeReference,
   Session,
   Snapshot,
@@ -82,7 +81,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -114,7 +113,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * InputEvent.node
    */
-  abstract get node(): Node | null;
+  abstract get node(): Entity | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -221,10 +220,10 @@ export class DragStartEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -265,10 +264,10 @@ export class DragStartEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -289,13 +288,13 @@ export class DragStartEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;
@@ -663,10 +662,10 @@ export class DragEndEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -707,10 +706,10 @@ export class DragEndEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -731,13 +730,13 @@ export class DragEndEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;
@@ -1105,10 +1104,10 @@ export class DragOverEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1149,10 +1148,10 @@ export class DragOverEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1173,13 +1172,13 @@ export class DragOverEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;
@@ -1547,10 +1546,10 @@ export class DragEnterEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1591,10 +1590,10 @@ export class DragEnterEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1615,13 +1614,13 @@ export class DragEnterEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;
@@ -1989,10 +1988,10 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2033,10 +2032,10 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2057,13 +2056,13 @@ export class DragLeaveEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;
@@ -2431,10 +2430,10 @@ export class DropEvent extends DragEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2475,10 +2474,10 @@ export class DropEvent extends DragEvent {
   /**
    * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2499,13 +2498,13 @@ export class DropEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
     _graph?: Graph | null;

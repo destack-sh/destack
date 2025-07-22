@@ -252,7 +252,6 @@ class StructType(Enum):
     NUMBER_CONSTRAINT = 110
     STRING_CONSTRAINT = 111
     COLLECTION_CONSTRAINT = 112
-    NODE_CONSTRAINT = 113
 
     # expressions
     EXPRESSION = 200

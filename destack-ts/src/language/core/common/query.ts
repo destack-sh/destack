@@ -928,11 +928,6 @@ export class Join extends StructFrozen {
   readonly type: JoinType;
 
   /**
-   * Join.customDefinition
-   */
-  readonly customDefinition: NodeDefinitionReference | null;
-
-  /**
    * Join.recursive
    */
   readonly recursive: boolean;
@@ -949,7 +944,6 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    customDefinition?: NodeDefinitionReference | null;
     recursive?: boolean;
     depth?: number | null;
     on?: Condition | null;
@@ -973,8 +967,6 @@ export class Join extends StructFrozen {
       throw new Error(`Join.type is required`);
     }
     this.type = _type;
-    let _customDefinition = options.customDefinition ?? null;
-    this.customDefinition = _customDefinition;
     let _recursive = options.recursive ?? null;
     if (_recursive === null) {
       _recursive = false;
@@ -1006,12 +998,6 @@ export class Join extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.customDefinition == null) !== (other.customDefinition == null) ||
-      (this.customDefinition != null && !this.customDefinition.equals(other.customDefinition))
-    ) {
-      return false;
-    }
     if (!(this.recursive === other.recursive)) {
       return false;
     }
@@ -1031,9 +1017,6 @@ export class Join extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${JoinType[this.type]}`);
-      if (this.customDefinition != null) {
-        propertyReprs.push(`customDefinition=${this.customDefinition.repr()}`);
-      }
       propertyReprs.push(`recursive=${this.recursive}`);
       if (this.depth != null) {
         propertyReprs.push(`depth=${this.depth}`);
@@ -1054,9 +1037,6 @@ export class Join extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.customDefinition != null) {
-      h = (h * 31 + this.customDefinition.hash()) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
     if (this.depth != null) {
       h = (h * 31 + hashInt(this.depth)) & 0xffffffff;

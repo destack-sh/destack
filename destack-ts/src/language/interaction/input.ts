@@ -1,12 +1,5 @@
-import type {
-  Branch,
-  EventStatus,
-  IsActor,
-  NodeReference,
-  Snapshot,
-  Space,
-} from "@destack/language/core";
-import { Entity, Event, Node, NodeType } from "@destack/language/core";
+import type { Branch, EventStatus, NodeReference, Snapshot, Space } from "@destack/language/core";
+import { Entity, Event, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
@@ -67,7 +60,7 @@ export abstract class InputEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -99,7 +92,7 @@ export abstract class InputEvent extends Event {
   /**
    * InputEvent.node
    */
-  abstract get node(): Node | null;
+  abstract get node(): Entity | null;
   declare readonly nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */

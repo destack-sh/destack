@@ -20,6 +20,7 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
+from .const import EMPTY_LIST
 from .meta import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
         IndexType,
         MethodDefinition,
         Node,
-        NodeConstraint,
         NumberConstraint,
         ObjectDefinitionReference,
         Sort,
@@ -504,7 +504,7 @@ class PropertyDefinition(BuiltinDefinition):
     scalar_type: ScalarType = builtin_property(111, is_repr=True)
     primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
     enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(114, is_repr=True)
+    node_types: list[NodeType] = builtin_property(114, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
     key_type: Optional["Type"] = builtin_property(116, is_repr=True)  # for maps
 
@@ -516,7 +516,6 @@ class PropertyDefinition(BuiltinDefinition):
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(130)
     string_constraint: Optional["StringConstraint"] = builtin_property(131)
     number_constraint: Optional["NumberConstraint"] = builtin_property(132)
-    node_constraint: Optional["NodeConstraint"] = builtin_property(133)
 
     # relationship
     edge_type: EdgeType | None = builtin_property(140)
@@ -577,7 +576,6 @@ class PropertyDefinition(BuiltinDefinition):
             scalar_type=type.scalar_type,
             primitive_type=type.primitive_type,
             enum_type=type.enum_type,
-            node_type=type.node_type,
             struct_type=type.struct_type,
             key_type=type.key_type,
             value=type.value,
@@ -585,7 +583,6 @@ class PropertyDefinition(BuiltinDefinition):
             collection_constraint=type.collection_constraint,
             string_constraint=type.string_constraint,
             number_constraint=type.number_constraint,
-            node_constraint=type.node_constraint,
             # node
             edge_type=prop.edge_type,
             cascade=prop.cascade,
@@ -613,7 +610,7 @@ class PropertyDefinition(BuiltinDefinition):
                 scalar_type=self.scalar_type,
                 primitive_type=self.primitive_type,
                 enum_type=self.enum_type,
-                node_type=self.node_type,
+                node_types=self.node_types or EMPTY_LIST,
                 struct_type=self.struct_type,
                 key_type=self.key_type,
                 value=self.value,
@@ -621,7 +618,6 @@ class PropertyDefinition(BuiltinDefinition):
                 collection_constraint=self.collection_constraint,
                 string_constraint=self.string_constraint,
                 number_constraint=self.number_constraint,
-                node_constraint=self.node_constraint,
                 is_required=self.is_required,
             )
             self._type = type  # type: ignore (frozen)

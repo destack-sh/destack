@@ -32,7 +32,7 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
-from .const import EMPTY_DICT, UNSET
+from .const import EMPTY_DICT, EMPTY_LIST, UNSET
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -84,13 +84,11 @@ def _resolve_trait_type(name: str) -> TraitType | None:
     return trait
 
 
-def _resolve_node_types(class_name: str) -> tuple[NodeType | TraitType, ...] | None:
+def _resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     """Get the NodeType for the given node name."""
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
     if node_type := NodeType.__members__.get(enum_name):
         return (node_type,)
-    if trait := _resolve_trait_type(class_name):
-        return (trait,)
     if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
     if class_name == "Node":
@@ -120,7 +118,7 @@ class TypeDeclaration:
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    node_types: Sequence[NodeType | TraitType] | None = None  # for node scalar nodes
+    node_types: Sequence[NodeType] | None = None  # for node scalar nodes
     key_type: "TypeDeclaration | None" = None
     is_required: bool = True
     is_self: bool = False
@@ -135,7 +133,6 @@ class TypeDeclaration:
         """Create the Type for this Property."""
         from ..common.type import (
             CollectionConstraint,
-            NodeConstraint,
             NumberConstraint,
             NumberFormat,
             StringConstraint,
@@ -155,7 +152,6 @@ class TypeDeclaration:
         string_constraint = None
         number_constraint = None
         collection_constraint = None
-        node_constraint = None
 
         # constraints
         if self.constraint is not None:
@@ -165,8 +161,6 @@ class TypeDeclaration:
                 number_constraint = self.constraint
             elif isinstance(self.constraint, CollectionConstraint):
                 collection_constraint = self.constraint
-            elif isinstance(self.constraint, NodeConstraint):
-                node_constraint = self.constraint
             else:
                 assert_never(self.constraint)
 
@@ -187,7 +181,7 @@ class TypeDeclaration:
             scalar_type=self.scalar_type,
             primitive_type=self.primitive_type,
             enum_type=self.enum_type,
-            node_type=None,
+            node_types=list(self.node_types) if self.node_types else EMPTY_LIST,
             struct_type=self.struct_type,
             is_required=self.is_required,
             value=default,
@@ -196,7 +190,6 @@ class TypeDeclaration:
             string_constraint=string_constraint,
             number_constraint=number_constraint,
             collection_constraint=collection_constraint,
-            node_constraint=node_constraint,
         )
 
         return type_obj
@@ -211,7 +204,7 @@ def parse_type_annotation(
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
-    node_types: list[NodeType | TraitType] | None = None
+    node_types: list[NodeType] | None = None
 
     # try to resolve
     if not isinstance(py_type, type):
@@ -254,17 +247,17 @@ def parse_type_annotation(
             return result
         else:
             # only node unions are supported for now (no real unions)
-            node_types = []
+            union_node_types: list[NodeType] = []
             for union_type in non_none_types:
                 union_class_name = get_class_name(union_type)
                 if union_class_name and (node_t := _resolve_node_types(union_class_name)):
-                    node_types.extend(node_t)
-            assert node_types, f"non-node union: {py_type!r}"
+                    union_node_types.extend(node_t)
+            assert union_node_types, f"non-node union: {py_type!r}"
             return TypeDeclaration(
                 cardinality=TypeCardinality.SCALAR,
                 py_type=py_type,
                 scalar_type=ScalarType.NODE_REFERENCE,
-                node_types=tuple(node_types),
+                node_types=tuple(union_node_types),
                 is_required=is_required,
             )
 

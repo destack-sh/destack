@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -6,15 +6,13 @@ from destack.language.core import (
     Entity,
     Event,
     IsOwned,
-    IsReactable,
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import IsReactable
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,8 +29,6 @@ if TYPE_CHECKING:
 )
 class Reaction(IsOwned, Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
-
-    parent: Optional["IsReactable"] = builtin_property_parent()
 
     content: str = builtin_property(101, is_repr=True)
 

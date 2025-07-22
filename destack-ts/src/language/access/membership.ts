@@ -3,8 +3,6 @@ import type {
   Branch,
   Graph,
   GraphConnection,
-  IsActor,
-  IsJoinable,
   IsOwnable,
   NodeClass,
   NodeReference,
@@ -88,7 +86,7 @@ export abstract class MembershipEvent extends Event {
   /**
    * The Actor that created this Event.
    */
-  abstract get createdBy(): (Entity & IsActor) | null;
+  abstract get createdBy(): Entity | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -126,13 +124,13 @@ export abstract class MembershipEvent extends Event {
   /**
    * MembershipEvent.joinable
    */
-  abstract get joinable(): (Entity & IsJoinable) | null;
+  abstract get joinable(): Entity | null;
   declare readonly joinablePtr: NodeReference;
 
   /**
    * MembershipEvent.member
    */
-  abstract get member(): (Entity & IsActor) | null;
+  abstract get member(): Entity | null;
   declare readonly memberPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -234,10 +232,10 @@ export class MembershipJoinedEvent extends MembershipEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -290,10 +288,10 @@ export class MembershipJoinedEvent extends MembershipEvent {
   /**
    * MembershipEvent.joinable
    */
-  get joinable(): (Entity & IsJoinable) | null {
+  get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsJoinable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -302,10 +300,10 @@ export class MembershipJoinedEvent extends MembershipEvent {
   /**
    * MembershipEvent.member
    */
-  get member(): (Entity & IsActor) | null {
+  get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -338,15 +336,15 @@ export class MembershipJoinedEvent extends MembershipEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Membership | NodeReference;
-    joinable: (Entity & IsJoinable) | NodeReference;
-    member: (Entity & IsActor) | NodeReference;
+    joinable: Entity | NodeReference;
+    member: Entity | NodeReference;
     role: Role | NodeReference;
     roleType: RoleType;
     _session?: Session | null;
@@ -751,10 +749,10 @@ export class MembershipLeftEvent extends MembershipEvent {
   /**
    * The Actor that created this Event.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -807,10 +805,10 @@ export class MembershipLeftEvent extends MembershipEvent {
   /**
    * MembershipEvent.joinable
    */
-  get joinable(): (Entity & IsJoinable) | null {
+  get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsJoinable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -819,10 +817,10 @@ export class MembershipLeftEvent extends MembershipEvent {
   /**
    * MembershipEvent.member
    */
-  get member(): (Entity & IsActor) | null {
+  get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -838,15 +836,15 @@ export class MembershipLeftEvent extends MembershipEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node: Membership | NodeReference;
-    joinable: (Entity & IsJoinable) | NodeReference;
-    member: (Entity & IsActor) | NodeReference;
+    joinable: Entity | NodeReference;
+    member: Entity | NodeReference;
     _session?: Session | null;
     _graph?: Graph | null;
     _connection?: GraphConnection | null;
@@ -1144,12 +1142,12 @@ export class Membership extends Entity implements IsOwnable {
   static metatype: NodeType = NodeType.MEMBERSHIP;
 
   /**
-   * Membership.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): (Entity & IsJoinable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsJoinable) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1246,10 +1244,10 @@ export class Membership extends Entity implements IsOwnable {
   /**
    * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsActor) | null {
+  get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1268,10 +1266,10 @@ export class Membership extends Entity implements IsOwnable {
   /**
    * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsActor) | null {
+  get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1287,14 +1285,14 @@ export class Membership extends Entity implements IsOwnable {
   /**
    * Entity.ownedBy
    */
-  get ownedBy(): (Entity & IsActor) | null {
+  get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsActor) | null) {
+  set ownedBy(node: Entity | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -1417,14 +1415,14 @@ export class Membership extends Entity implements IsOwnable {
   /**
    * Membership.member
    */
-  get member(): (Entity & IsActor) | null {
+  get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as (Entity & IsActor) | null;
+      return this._graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  set member(node: Entity & IsActor) {
+  set member(node: Entity) {
     this.memberPtr = node.toRef();
   }
   /**
@@ -1488,7 +1486,7 @@ export class Membership extends Entity implements IsOwnable {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsJoinable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -1498,12 +1496,12 @@ export class Membership extends Entity implements IsOwnable {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
+    createdBy?: Entity | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    updatedBy?: Entity | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
     customValues?: { readonly [key: string]: Value };
@@ -1511,7 +1509,7 @@ export class Membership extends Entity implements IsOwnable {
     isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
-    member: (Entity & IsActor) | NodeReference;
+    member: Entity | NodeReference;
     role?: Role | NodeReference | null;
     roleType?: RoleType | null;
     _session?: Session | null;
@@ -1764,15 +1762,15 @@ export class Membership extends Entity implements IsOwnable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this._memberPtr.id)) & 0xffffffff;
     if (this._rolePtr != null) {
       h = (h * 31 + hashString(this._rolePtr.id)) & 0xffffffff;
     }
     if (this._roleType != null) {
       h = (h * 31 + this._roleType) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;

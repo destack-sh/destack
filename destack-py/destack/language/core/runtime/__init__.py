@@ -3,7 +3,6 @@ from .encoder import Encoder
 from .graph import (
     Graph,
     expand_node_inheritance,
-    expand_node_traits,
     expand_node_types,
 )
 from .oracle import WORLD_ORACLE, Oracle, WorldOracle
@@ -20,7 +19,6 @@ __all__ = [
     "Session",
     "WorldOracle",
     "expand_node_inheritance",
-    "expand_node_traits",
     "expand_node_types",
     "get_active_aliasing",
 ]

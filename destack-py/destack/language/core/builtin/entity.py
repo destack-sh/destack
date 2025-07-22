@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from destack.language import (
         Branch,
         Graph,
-        IsActor,
         NodeReference,
         Script,
         Snapshot,
@@ -180,7 +179,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_by: Optional["IsActor"] = builtin_property(
+    created_by: Optional["Entity"] = builtin_property(
         22,
         default=None,
         is_internal=True,
@@ -204,7 +203,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_by: Optional["IsActor"] = builtin_property(
+    updated_by: Optional["Entity"] = builtin_property(
         25,
         default=None,
         is_internal=True,
@@ -223,7 +222,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 """,
         tags=("tracking",),
     )
-    owned_by: Optional["IsActor"] = builtin_property(30, is_repr=True, tags=("tracking",))
+    owned_by: Optional["Entity"] = builtin_property(30, is_repr=True, tags=("tracking",))
     # controlled_by, ...
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
@@ -463,7 +462,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @builtin_method(20)
     def get_children[N: Entity = Entity](
         self,
-        type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | type[N] | None = None,
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the children of this Entity."""
@@ -472,7 +471,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @builtin_method(21)
     def get_child[N: Entity = Entity](
         self,
-        type: NodeType | type[N] | TraitType,
+        type: NodeType | type[N],
         name: str,
         include_deleted: bool = False,
     ) -> N | None:
@@ -487,7 +486,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @builtin_method(22)
     def child[N: Entity = Entity](
         self,
-        type: NodeType | type[N] | TraitType,
+        type: NodeType | type[N],
         name: str,
         include_deleted: bool = False,
     ) -> N:
@@ -500,7 +499,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @builtin_method(23)
     def get_ancestors[N: Entity = Entity](
         self,
-        type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | type[N] | None = None,
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the ancestors of this Node."""
@@ -509,7 +508,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @builtin_method(24)
     def get_descendants[N: Entity = Entity](
         self,
-        type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | type[N] | None = None,
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""

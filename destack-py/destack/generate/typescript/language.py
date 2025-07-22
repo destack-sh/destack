@@ -1454,9 +1454,9 @@ def _get_type_dependencies(
                 else:
                     assert_never(node_type)
         else:
-            if type.node_type is not None:
-                node_cls = NODE_CLASS_BY_TYPE[type.node_type]
-                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[type.node_type]
+            for node_type in type.node_types:
+                node_cls = NODE_CLASS_BY_TYPE[node_type]
+                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
         if is_value:
             value_dependencies.add("NodeReference")
     elif type.scalar_type == ScalarType.STRUCT:

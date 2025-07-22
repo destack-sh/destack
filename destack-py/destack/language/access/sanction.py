@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     UNSET,
@@ -7,14 +7,11 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsActor,
-    IsJoinable,
     NodeReference,
     NodeType,
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -26,7 +23,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SANCTION_EVENT, frozen=True, is_abstract=True)
 class SanctionEvent(Event["Sanction"]):
     node: "Sanction" = builtin_property(101)
-    target: "IsActor" = builtin_property(110)
+    target: "Entity" = builtin_property(110)
 
 
 @builtin_node(NodeType.SANCTION_REQUESTED_EVENT, frozen=True)
@@ -66,9 +63,8 @@ class Sanction(
 ):
     """A Sanction on some Actor."""
 
-    parent: Union["IsActor", "IsJoinable", None] = builtin_property_parent()
     type: SanctionType = builtin_property(100)
     expires_at: Optional[datetime] = builtin_property(110)
-    target: IsActor = builtin_property(111)
+    target: "Entity" = builtin_property(111)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET

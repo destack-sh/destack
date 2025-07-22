@@ -6,8 +6,8 @@ import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/encoder/proto/wiring';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
 import type { AnyNodeProto, AnyStructProto } from '@destack/proto';
-import type { NotificationDismissedEvent, CutEvent, IndexDefinition, Timer, Environment, Node, FocusOutEvent, Permission, EditEvent, PasteEvent, Corner2, InviteRejectedEvent, StrokePath, Shape3D, View, Membership, LabelView, ConstraintDefinition, SanctionRequestedEvent, Invite, TextSpan, Organization, MethodDefinition, RunStopRequestedEvent, CopyEvent, Entity3D, RunEvent, TimerStartedEvent, PointerMoveEvent, DragStartEvent, CustomProperty, Trigger, LayoutView, Vector2i, InviteRescindedEvent, MouseEvent, SingleClickEvent, Universe, SpanEvent, TimerPausedEvent, ReactionRemovedEvent, PointerEnterEvent, GradientStyle, ReactionEvent, Condition, RunPauseRequestedEvent, Join, SceneEvent, Text, Function, PointerUpEvent, SignalEvent, Space, ColorStyle, ActionDefinition, SanctionRevokedEvent, Select, Transition, PointerEvent, NodeDefinitionReference, ContentView, Folder, CollectionConstraint, Arrow2D, WheelEvent, Path2D, Follow, Stroke, SanctionGrantedEvent, PropertyReference, Polygon2D, Axis3, Grid2, GridSpan2, File, Shadow, MeasurementEvent, Entity, EntitlementExpiredEvent, PointerOverEvent, StringConstraint, ObjectDefinitionReference, RunResumeRequestedEvent, Run, LineShape2D, Sanction, Cursor, StarRemovedEvent, ShadowStyle, StructDefinitionReference, Index, PropertyDefinition, PointerLeaveEvent, TriggerEvent, GaugeMetric, ConstantDefinition, SanctionEvent, StrokeStyle, Expression, TraitDefinition, TimerResumedEvent, TimerCancelledEvent, ArrowShape2D, BorderStyle, Stage, FollowEvent, Aggregation, RectangleShape2D, KeyPressEvent, Type, Offset2, CustomOption, RunCompletedEvent, Fill, Resource, FrameView, DragEnterEvent, ReactionAddedEvent, Tagging, Vector4, HistogramMeasurementEvent, FillStyle, RunResumedEvent, Length, Line2D, KeyDownEvent, BuiltinDefinition, CustomEnum, InviteAcceptedEvent, Metric, StrokePoint, Machine, EntitlementRequestedEvent, EffectStyle, NumberInputView, Axis2, MembershipEvent, NodeDefinition, Event, LogEvent, Layer, MigrationOperationDefinition, CustomStruct, RoleUnassignedEvent, FollowRemovedEvent, Palette, TextView, NotificationSentEvent, Gradient, StarEvent, Role, TripleClickEvent, NodeReference, KeyEvent, PolygonShape2D, HistogramMetric, Snapshot, Rectangle2D, Branch, Entity2D, Reaction, KeyUpEvent, CounterMeasurementEvent, PermissionDefinition, Route, TagDefinition, Vector3, PointerDownEvent, SliderInputView, InviteEvent, OptionDefinition, DragOverEvent, ScreenCursor, Datum, FocusInEvent, DoubleClickEvent, Client, Color, Action, EntitlementGrantedEvent, Vector4i, Scene, DragEndEvent, Struct, Shape2D, NotificationRescindedEvent, InviteSentEvent, NodeConstraint, DragEvent, Service, EntitlementRevokedEvent, Database, GaugeMeasurementEvent, Script, Effect, ClipboardEvent, Team, MigrationDefinition, Vector2, Inset2, SanctionExpiredEvent, EntitlementEvent, NotificationEvent, InputEvent, Handle, Sort, TransitionStyle, Style, PointerLongPressEvent, Notification, MembershipLeftEvent, RoleEvent, Quaternion, RunFailedEvent, Migration, Star, CustomEvent, CounterMetric, Value, RunPausedEvent, FontStyle, Entitlement, EnumDefinition, ViewEvent, DatumMutable, RunStartedEvent, FollowAddedEvent, GradientStop, EllipseShape2D, Constraint, RoleAssignedEvent, PathShape2D, DropEvent, MigrationOperation, FocusEvent, TimerEvent, SplitView, Tag, Record, NotificationReadEvent, StructDefinition, ClickEvent, MembershipJoinedEvent, InputView, Method, Font, Vector3i, Schedule, Theme, TimerCompletedEvent, User, Query, Border, StarAddedEvent, StrokeCap, Icon, NotificationExpiredEvent, NumberConstraint, DragLeaveEvent, Ellipse2D, EventCursor, Variant } from '@destack/language';
-import { PointerLongPressEventProto, NumberConstraintProto, StrokePointProto, PermissionProto, RoleAssignedEventProto, EntitlementProto, TextViewProto, StructProto, SanctionExpiredEventProto, FollowAddedEventProto, ExpressionProto, TextSpanProto, MetricProto, DragEventProto, StarRemovedEventProto, PasteEventProto, TagDefinitionProto, MigrationOperationProto, FollowEventProto, PaletteProto, NotificationSentEventProto, SignalEventProto, Corner2Proto, Arrow2DProto, MembershipLeftEventProto, OrganizationProto, PointerEventProto, BuiltinDefinitionProto, IndexProto, ValueProto, EnumDefinitionProto, MigrationOperationDefinitionProto, EditEventProto, NotificationProto, TeamProto, RunFailedEventProto, ArrowShape2DProto, DatumProto, StructDefinitionProto, FillProto, RectangleShape2DProto, PathShape2DProto, MethodProto, FileProto, Inset2Proto, CustomEventProto, EffectStyleProto, BranchProto, PolygonShape2DProto, DoubleClickEventProto, ScriptProto, Vector2Proto, RunStartedEventProto, ScheduleProto, StrokeStyleProto, HistogramMetricProto, ColorStyleProto, StarProto, MouseEventProto, LengthProto, RunCompletedEventProto, ReactionRemovedEventProto, TripleClickEventProto, SceneProto, IndexDefinitionProto, TimerPausedEventProto, JoinProto, ClipboardEventProto, DatumMutableProto, DragStartEventProto, FontProto, RunResumedEventProto, UniverseProto, UserProto, EntitlementExpiredEventProto, TimerResumedEventProto, Axis2Proto, LabelViewProto, VariantProto, StageProto, CutEventProto, EventCursorProto, LayerProto, QuaternionProto, CustomPropertyProto, InviteSentEventProto, DragEnterEventProto, SingleClickEventProto, Vector3iProto, GradientStyleProto, RunProto, ViewEventProto, InviteEventProto, KeyUpEventProto, EntitlementRevokedEventProto, NotificationExpiredEventProto, PermissionDefinitionProto, ConditionProto, StrokePathProto, Shape3DProto, FillStyleProto, KeyDownEventProto, GaugeMetricProto, FolderProto, ConstantDefinitionProto, MigrationDefinitionProto, Entity2DProto, NotificationEventProto, Line2DProto, FunctionProto, MembershipEventProto, SelectProto, TriggerEventProto, InviteRejectedEventProto, FrameViewProto, Grid2Proto, EventProto, KeyPressEventProto, SortProto, AggregationProto, RecordProto, FocusInEventProto, Rectangle2DProto, TagProto, EllipseShape2DProto, CustomStructProto, SpaceProto, Path2DProto, ShadowStyleProto, Vector4Proto, CustomOptionProto, NodeDefinitionReferenceProto, StarEventProto, MigrationProto, FocusEventProto, ResourceProto, PointerLeaveEventProto, TimerEventProto, MachineProto, TraitDefinitionProto, EntitlementEventProto, RunStopRequestedEventProto, Vector2iProto, NotificationDismissedEventProto, EntitlementRequestedEventProto, GradientProto, ActionProto, InviteProto, QueryProto, EntitlementGrantedEventProto, LineShape2DProto, ColorProto, MembershipJoinedEventProto, SanctionRevokedEventProto, NotificationRescindedEventProto, StructDefinitionReferenceProto, StrokeProto, NotificationReadEventProto, LayoutViewProto, GradientStopProto, TimerCancelledEventProto, FontStyleProto, BorderStyleProto, CustomEnumProto, StyleProto, TransitionProto, OptionDefinitionProto, InviteRescindedEventProto, SanctionEventProto, DropEventProto, StarAddedEventProto, PropertyDefinitionProto, InviteAcceptedEventProto, ConstraintDefinitionProto, TextProto, ShadowProto, Entity3DProto, SceneEventProto, ReactionEventProto, NodeProto, GaugeMeasurementEventProto, IconProto, Shape2DProto, PointerDownEventProto, HandleProto, NodeDefinitionProto, KeyEventProto, ScreenCursorProto, EnvironmentProto, Vector3Proto, RoleProto, PointerMoveEventProto, RunPauseRequestedEventProto, TriggerProto, TaggingProto, ServiceProto, LogEventProto, FollowProto, DragOverEventProto, DragLeaveEventProto, ContentViewProto, TransitionStyleProto, StringConstraintProto, TimerProto, Axis3Proto, MembershipProto, DatabaseProto, EntityProto, ClickEventProto, ReactionProto, MethodDefinitionProto, TypeProto, TimerCompletedEventProto, Offset2Proto, ThemeProto, CounterMetricProto, NodeConstraintProto, GridSpan2Proto, CopyEventProto, ActionDefinitionProto, StrokeCapProto, NumberInputViewProto, ClientProto, PointerOverEventProto, ConstraintProto, RunEventProto, ViewProto, RouteProto, RoleUnassignedEventProto, PropertyReferenceProto, RoleEventProto, DragEndEventProto, Polygon2DProto, WheelEventProto, InputEventProto, HistogramMeasurementEventProto, SanctionGrantedEventProto, MeasurementEventProto, ReactionAddedEventProto, EffectProto, FollowRemovedEventProto, SpanEventProto, CollectionConstraintProto, RunResumeRequestedEventProto, Vector4iProto, InputViewProto, TimerStartedEventProto, NodeReferenceProto, Ellipse2DProto, PointerEnterEventProto, SplitViewProto, ObjectDefinitionReferenceProto, PointerUpEventProto, CursorProto, SnapshotProto, CounterMeasurementEventProto, BorderProto, FocusOutEventProto, SanctionProto, SanctionRequestedEventProto, SliderInputViewProto, RunPausedEventProto } from '@destack/proto';
+import type { NodeDefinitionReference, Action, RoleAssignedEvent, TransitionStyle, ShadowStyle, DragOverEvent, KeyUpEvent, Datum, Event, StrokePoint, TimerCompletedEvent, Invite, Cursor, Icon, CollectionConstraint, Vector2, SanctionRevokedEvent, PolygonShape2D, Variant, MouseEvent, CustomStruct, DragLeaveEvent, Schedule, Scene, Client, SanctionExpiredEvent, RunStopRequestedEvent, Database, Migration, TimerCancelledEvent, SplitView, BorderStyle, InputEvent, Script, Service, DragStartEvent, SceneEvent, Sanction, NotificationEvent, InviteAcceptedEvent, FontStyle, RoleEvent, EventCursor, ArrowShape2D, KeyDownEvent, Node, RunResumeRequestedEvent, RunPauseRequestedEvent, EnumDefinition, Axis3, Entity2D, Route, Gradient, Struct, LayoutView, ConstantDefinition, Role, TimerResumedEvent, NodeDefinition, PropertyDefinition, DoubleClickEvent, LabelView, Resource, TimerStartedEvent, DragEnterEvent, PointerLongPressEvent, Aggregation, GradientStyle, NumberInputView, Star, RunEvent, EntitlementEvent, KeyEvent, ConstraintDefinition, Polygon2D, FollowEvent, CustomOption, Function, PointerLeaveEvent, Permission, StarAddedEvent, CustomEvent, Effect, StrokeCap, Timer, Ellipse2D, EntitlementRequestedEvent, Sort, CounterMeasurementEvent, EntitlementRevokedEvent, RectangleShape2D, CustomProperty, RunPausedEvent, Machine, WheelEvent, Type, File, EntitlementGrantedEvent, Join, Entity3D, Method, GaugeMeasurementEvent, Layer, DragEndEvent, FrameView, Metric, NodeReference, TripleClickEvent, Fill, NotificationSentEvent, Length, ColorStyle, PointerOverEvent, TriggerEvent, ActionDefinition, Condition, InviteRescindedEvent, EllipseShape2D, DropEvent, CustomEnum, TimerPausedEvent, Folder, SanctionGrantedEvent, Membership, PointerDownEvent, Record, RunResumedEvent, CopyEvent, RunStartedEvent, View, Expression, StrokePath, RoleUnassignedEvent, StrokeStyle, Branch, Organization, MethodDefinition, Handle, EntitlementExpiredEvent, SignalEvent, Team, Stroke, DatumMutable, Font, Style, ReactionEvent, PointerEvent, Follow, StringConstraint, Vector3, StarEvent, BuiltinDefinition, FollowRemovedEvent, NotificationDismissedEvent, NotificationRescindedEvent, SliderInputView, Offset2, Notification, FollowAddedEvent, InviteEvent, Vector3i, NotificationExpiredEvent, ContentView, Select, RunCompletedEvent, FocusInEvent, Corner2, Vector2i, TextSpan, ReactionAddedEvent, SanctionRequestedEvent, ReactionRemovedEvent, Grid2, User, TagDefinition, Constraint, PathShape2D, Border, OptionDefinition, LineShape2D, Index, Shape3D, PointerEnterEvent, PointerUpEvent, GaugeMetric, Stage, EditEvent, SanctionEvent, RunFailedEvent, PropertyReference, InviteRejectedEvent, CutEvent, Vector4, StarRemovedEvent, InviteSentEvent, ClickEvent, Reaction, Value, Space, Query, Arrow2D, SpanEvent, Universe, KeyPressEvent, FocusOutEvent, NotificationReadEvent, Rectangle2D, Axis2, GridSpan2, ViewEvent, Tagging, ScreenCursor, LogEvent, SingleClickEvent, MeasurementEvent, PermissionDefinition, MigrationDefinition, Entitlement, NumberConstraint, Transition, Vector4i, Inset2, Tag, StructDefinitionReference, IndexDefinition, StructDefinition, DragEvent, MembershipLeftEvent, EffectStyle, HistogramMetric, MembershipEvent, Theme, Shape2D, Quaternion, FocusEvent, GradientStop, Environment, PointerMoveEvent, Entity, InputView, MigrationOperation, CounterMetric, TraitDefinition, ObjectDefinitionReference, MigrationOperationDefinition, Shadow, TimerEvent, Palette, Snapshot, ClipboardEvent, Line2D, Path2D, FillStyle, MembershipJoinedEvent, HistogramMeasurementEvent, Text, TextView, Color, Trigger, PasteEvent, Run } from '@destack/language';
+import { Axis2Proto, ClipboardEventProto, FrameViewProto, EntitlementExpiredEventProto, StringConstraintProto, ShadowStyleProto, RunEventProto, RunCompletedEventProto, FollowRemovedEventProto, TagProto, ReactionRemovedEventProto, UniverseProto, DatumMutableProto, PermissionDefinitionProto, SelectProto, Shape2DProto, GradientStyleProto, CounterMeasurementEventProto, HandleProto, AggregationProto, Grid2Proto, StarAddedEventProto, MigrationDefinitionProto, CopyEventProto, UserProto, ColorStyleProto, EnumDefinitionProto, SanctionGrantedEventProto, RoleEventProto, EllipseShape2DProto, LineShape2DProto, InviteRejectedEventProto, ConditionProto, RunFailedEventProto, ReactionEventProto, NodeReferenceProto, CutEventProto, InputViewProto, EventCursorProto, MeasurementEventProto, RunPausedEventProto, TimerProto, NumberInputViewProto, PointerUpEventProto, SpanEventProto, StyleProto, MachineProto, Shape3DProto, Corner2Proto, RunStartedEventProto, EntityProto, MembershipProto, TimerPausedEventProto, FocusInEventProto, RunResumedEventProto, StarEventProto, GradientStopProto, TextSpanProto, PointerEnterEventProto, CustomEventProto, DatabaseProto, Vector2Proto, Vector3Proto, StructDefinitionProto, KeyDownEventProto, SceneProto, JoinProto, TaggingProto, MembershipLeftEventProto, ScheduleProto, NodeDefinitionReferenceProto, TypeProto, GaugeMetricProto, Offset2Proto, Vector2iProto, FileProto, OptionDefinitionProto, VariantProto, DragEndEventProto, DatumProto, KeyPressEventProto, PointerEventProto, ExpressionProto, StrokeProto, FollowEventProto, ServiceProto, InviteAcceptedEventProto, TripleClickEventProto, InputEventProto, CounterMetricProto, MigrationOperationDefinitionProto, StrokeStyleProto, InviteRescindedEventProto, CustomOptionProto, LengthProto, TimerCompletedEventProto, RunPauseRequestedEventProto, RectangleShape2DProto, StrokePathProto, SingleClickEventProto, SanctionProto, EntitlementEventProto, NotificationProto, NodeDefinitionProto, TimerEventProto, RunStopRequestedEventProto, SanctionExpiredEventProto, TimerResumedEventProto, SanctionRevokedEventProto, IndexProto, RoleProto, Line2DProto, SnapshotProto, MouseEventProto, SortProto, CollectionConstraintProto, Entity3DProto, StageProto, BuiltinDefinitionProto, QuaternionProto, PermissionProto, BranchProto, NotificationReadEventProto, HistogramMeasurementEventProto, WheelEventProto, NotificationEventProto, EditEventProto, SanctionRequestedEventProto, InviteSentEventProto, FocusEventProto, FollowAddedEventProto, Vector3iProto, TraitDefinitionProto, IndexDefinitionProto, RouteProto, NumberConstraintProto, Arrow2DProto, ReactionProto, LayerProto, ReactionAddedEventProto, EntitlementGrantedEventProto, StarRemovedEventProto, BorderProto, InviteProto, LogEventProto, FunctionProto, EffectStyleProto, MetricProto, PathShape2DProto, DragEventProto, ViewEventProto, StarProto, DoubleClickEventProto, PaletteProto, CustomPropertyProto, LabelViewProto, EnvironmentProto, RunProto, PointerLeaveEventProto, SceneEventProto, TransitionProto, DragOverEventProto, ScreenCursorProto, QueryProto, Ellipse2DProto, ThemeProto, BorderStyleProto, TextViewProto, PropertyDefinitionProto, CustomStructProto, MembershipJoinedEventProto, SignalEventProto, ResourceProto, FollowProto, NotificationDismissedEventProto, Vector4Proto, RunResumeRequestedEventProto, ShadowProto, Axis3Proto, NodeProto, StrokePointProto, KeyEventProto, ActionDefinitionProto, MethodDefinitionProto, CustomEnumProto, Inset2Proto, Polygon2DProto, TriggerProto, ContentViewProto, ScriptProto, TimerStartedEventProto, NotificationExpiredEventProto, CursorProto, OrganizationProto, EffectProto, Entity2DProto, EventProto, StructProto, SpaceProto, ArrowShape2DProto, DragStartEventProto, PointerDownEventProto, ConstraintProto, KeyUpEventProto, NotificationRescindedEventProto, StructDefinitionReferenceProto, ConstraintDefinitionProto, Path2DProto, DragEnterEventProto, ConstantDefinitionProto, EntitlementRequestedEventProto, PasteEventProto, TimerCancelledEventProto, ObjectDefinitionReferenceProto, ValueProto, SliderInputViewProto, DropEventProto, PointerMoveEventProto, ClickEventProto, TextProto, FillProto, EntitlementRevokedEventProto, GradientProto, EntitlementProto, FillStyleProto, SplitViewProto, RoleUnassignedEventProto, Vector4iProto, SanctionEventProto, RoleAssignedEventProto, ActionProto, TagDefinitionProto, MethodProto, InviteEventProto, PolygonShape2DProto, MigrationProto, PointerLongPressEventProto, HistogramMetricProto, TeamProto, DragLeaveEventProto, FontProto, StrokeCapProto, PropertyReferenceProto, ClientProto, TriggerEventProto, MigrationOperationProto, ViewProto, RecordProto, MembershipEventProto, PointerOverEventProto, FocusOutEventProto, IconProto, GaugeMeasurementEventProto, Rectangle2DProto, LayoutViewProto, NotificationSentEventProto, FolderProto, TransitionStyleProto, ColorProto, GridSpan2Proto, FontStyleProto } from '@destack/proto';
 export const PROTO_ENCODERS: { [key: string]: _ProtoObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -1892,14 +1892,15 @@ export function loadEncoders(): void {
         if (object._enumType != null) {
           objectProto.enumType = Number(object._enumType) as any;
         }
-        if (object._nodeType != null) {
-          objectProto.nodeType = Number(object._nodeType) as any;
+        if (object._nodeTypes) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object._nodeTypes) {
+            packedNodeTypes.push(Number(item) as any);
+          }
+          objectProto.nodeTypes = packedNodeTypes;
         }
         if (object._structType != null) {
           objectProto.structType = Number(object._structType) as any;
-        }
-        if (object._customDefinitionPtr != null) {
-          objectProto.customDefinitionPtr = object._customDefinitionPtr.pack(2);
         }
         if (object._keyType != null) {
           objectProto.keyType = object._keyType.pack(2);
@@ -1918,9 +1919,6 @@ export function loadEncoders(): void {
         }
         if (object._numberConstraint != null) {
           objectProto.numberConstraint = object._numberConstraint.pack(2);
-        }
-        if (object._nodeConstraint != null) {
-          objectProto.nodeConstraint = object._nodeConstraint.pack(2);
         }
         if (object._edgeType != null) {
           objectProto.edgeType = Number(object._edgeType) as any;
@@ -1958,9 +1956,14 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+        const unpackedNodeTypes: any[] = [];
+        if (objectProto.nodeTypes) {
+          for (const item of objectProto.nodeTypes) {
+            unpackedNodeTypes.push(Number(item) as any);
+          }
+        }
         const unpackedCustomValues = {} as any;
         if (objectProto.customValues) {
           for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1974,16 +1977,14 @@ export function loadEncoders(): void {
           scalarType: Number(objectProto.scalarType) as any,
           primitiveType: objectProto.primitiveType != undefined ? Number(objectProto.primitiveType) as any : null,
           enumType: objectProto.enumType != undefined ? Number(objectProto.enumType) as any : null,
-          nodeType: objectProto.nodeType != undefined ? Number(objectProto.nodeType) as any : null,
+          nodeTypes: unpackedNodeTypes,
           structType: objectProto.structType != undefined ? Number(objectProto.structType) as any : null,
-          customDefinition: objectProto.customDefinitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.customDefinitionPtr, _session, _graph, _connection }) as NodeReference : null,
           keyType: objectProto.keyType != undefined ? _Type.unpack({ encoding: 2, value: objectProto.keyType, _session, _graph, _connection }) as Type : null,
           value: objectProto.value != undefined ? _Value.unpack({ encoding: 2, value: objectProto.value, _session, _graph, _connection }) as Value : null,
           valueFactory: objectProto.valueFactory != undefined ? Number(objectProto.valueFactory) as any : null,
           collectionConstraint: objectProto.collectionConstraint != undefined ? _CollectionConstraint.unpack({ encoding: 2, value: objectProto.collectionConstraint, _session, _graph, _connection }) as CollectionConstraint : null,
           stringConstraint: objectProto.stringConstraint != undefined ? _StringConstraint.unpack({ encoding: 2, value: objectProto.stringConstraint, _session, _graph, _connection }) as StringConstraint : null,
           numberConstraint: objectProto.numberConstraint != undefined ? _NumberConstraint.unpack({ encoding: 2, value: objectProto.numberConstraint, _session, _graph, _connection }) as NumberConstraint : null,
-          nodeConstraint: objectProto.nodeConstraint != undefined ? _NodeConstraint.unpack({ encoding: 2, value: objectProto.nodeConstraint, _session, _graph, _connection }) as NodeConstraint : null,
           edgeType: objectProto.edgeType != undefined ? Number(objectProto.edgeType) as any : null,
           cascade: objectProto.cascade != undefined ? Number(objectProto.cascade) as any : null,
           isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
@@ -3020,10 +3021,10 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[360500] as typeof Entitlement)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           type: Number(objectProto.type) as any,
           expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
           target: _NodeReference.unpack({ encoding: 2, value: objectProto.targetPtr, _session, _graph, _connection }) as NodeReference,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -3534,10 +3535,10 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[360100] as typeof Invite)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           member: _NodeReference.unpack({ encoding: 2, value: objectProto.memberPtr, _session, _graph, _connection }) as NodeReference,
           role: objectProto.rolePtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.rolePtr, _session, _graph, _connection }) as NodeReference : null,
           roleType: objectProto.roleType != undefined ? Number(objectProto.roleType) as any : null,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -3860,10 +3861,10 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[360000] as typeof Membership)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           member: _NodeReference.unpack({ encoding: 2, value: objectProto.memberPtr, _session, _graph, _connection }) as NodeReference,
           role: objectProto.rolePtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.rolePtr, _session, _graph, _connection }) as NodeReference : null,
           roleType: objectProto.roleType != undefined ? Number(objectProto.roleType) as any : null,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -4176,9 +4177,9 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[360200] as typeof Role)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           type: Number(objectProto.type) as any,
           icon: objectProto.icon != undefined ? _Icon.unpack({ encoding: 2, value: objectProto.icon, _session, _graph, _connection }) as Icon : null,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -4671,10 +4672,10 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[360400] as typeof Sanction)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           type: Number(objectProto.type) as any,
           expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
           target: _NodeReference.unpack({ encoding: 2, value: objectProto.targetPtr, _session, _graph, _connection }) as NodeReference,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -16377,8 +16378,8 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[1400000] as typeof Reaction)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           content: objectProto.content,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -17345,7 +17346,6 @@ export function loadEncoders(): void {
           }
         }
         return new (NODE_CLASS_BY_TYPE[121300] as typeof Client)({
-          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           type: Number(objectProto.type) as any,
           machine: objectProto.machinePtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.machinePtr, _session, _graph, _connection }) as NodeReference : null,
           user: objectProto.userPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.userPtr, _session, _graph, _connection }) as NodeReference : null,
@@ -17358,6 +17358,7 @@ export function loadEncoders(): void {
           operatingSystem: objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
           browserName: objectProto.browserName != undefined ? objectProto.browserName : null,
           browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
+          parent: objectProto.parentPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.parentPtr, _session, _graph, _connection }) as NodeReference : null,
           materialization: Number(objectProto.materialization) as any,
           definition: objectProto.definitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.definitionPtr, _session, _graph, _connection }) as NodeReference : null,
           branch: _NodeReference.unpack({ encoding: 2, value: objectProto.branchPtr, _session, _graph, _connection }) as NodeReference,
@@ -19216,8 +19217,12 @@ export function loadEncoders(): void {
         if (object.enumType != null) {
           objectProto.enumType = Number(object.enumType) as any;
         }
-        if (object.nodeType != null) {
-          objectProto.nodeType = Number(object.nodeType) as any;
+        if (object.nodeTypes) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object.nodeTypes) {
+            packedNodeTypes.push(Number(item) as any);
+          }
+          objectProto.nodeTypes = packedNodeTypes;
         }
         if (object.structType != null) {
           objectProto.structType = Number(object.structType) as any;
@@ -19239,9 +19244,6 @@ export function loadEncoders(): void {
         }
         if (object.numberConstraint != null) {
           objectProto.numberConstraint = object.numberConstraint.pack(2);
-        }
-        if (object.nodeConstraint != null) {
-          objectProto.nodeConstraint = object.nodeConstraint.pack(2);
         }
         if (object.edgeType != null) {
           objectProto.edgeType = Number(object.edgeType) as any;
@@ -19275,8 +19277,13 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
         const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+        const unpackedNodeTypes: any[] = [];
+        if (objectProto.nodeTypes) {
+          for (const item of objectProto.nodeTypes) {
+            unpackedNodeTypes.push(Number(item) as any);
+          }
+        }
         const unpackedTaggings: any[] = [];
         if (objectProto.taggings) {
           for (const item of objectProto.taggings) {
@@ -19291,7 +19298,7 @@ export function loadEncoders(): void {
           scalarType: Number(objectProto.scalarType) as any,
           primitiveType: objectProto.primitiveType != undefined ? Number(objectProto.primitiveType) as any : null,
           enumType: objectProto.enumType != undefined ? Number(objectProto.enumType) as any : null,
-          nodeType: objectProto.nodeType != undefined ? Number(objectProto.nodeType) as any : null,
+          nodeTypes: unpackedNodeTypes,
           structType: objectProto.structType != undefined ? Number(objectProto.structType) as any : null,
           keyType: objectProto.keyType != undefined ? _Type.unpack({ encoding: 2, value: objectProto.keyType, _session, _graph, _connection }) as Type : null,
           value: objectProto.value != undefined ? _Value.unpack({ encoding: 2, value: objectProto.value, _session, _graph, _connection }) as Value : null,
@@ -19299,7 +19306,6 @@ export function loadEncoders(): void {
           collectionConstraint: objectProto.collectionConstraint != undefined ? _CollectionConstraint.unpack({ encoding: 2, value: objectProto.collectionConstraint, _session, _graph, _connection }) as CollectionConstraint : null,
           stringConstraint: objectProto.stringConstraint != undefined ? _StringConstraint.unpack({ encoding: 2, value: objectProto.stringConstraint, _session, _graph, _connection }) as StringConstraint : null,
           numberConstraint: objectProto.numberConstraint != undefined ? _NumberConstraint.unpack({ encoding: 2, value: objectProto.numberConstraint, _session, _graph, _connection }) as NumberConstraint : null,
-          nodeConstraint: objectProto.nodeConstraint != undefined ? _NodeConstraint.unpack({ encoding: 2, value: objectProto.nodeConstraint, _session, _graph, _connection }) as NodeConstraint : null,
           edgeType: objectProto.edgeType != undefined ? Number(objectProto.edgeType) as any : null,
           cascade: objectProto.cascade != undefined ? Number(objectProto.cascade) as any : null,
           isRequired: objectProto.isRequired,
@@ -20431,77 +20437,6 @@ export function loadEncoders(): void {
 
     PROTO_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintProtoEncoder();
 
-    class NodeConstraintProtoEncoder implements _ProtoObjectEncoder {
-      packObject(object: NodeConstraint): NodeConstraintProto {
-        const objectProto: Partial<NodeConstraintProto> = { metatype: 113 };
-        if (object.nodeTypes) {
-          const packedNodeTypes: any[] = [];
-          for (const item of object.nodeTypes) {
-            packedNodeTypes.push(Number(item) as any);
-          }
-          objectProto.nodeTypes = packedNodeTypes;
-        }
-        if (object.nodeTraits) {
-          const packedNodeTraits: any[] = [];
-          for (const item of object.nodeTraits) {
-            packedNodeTraits.push(Number(item) as any);
-          }
-          objectProto.nodeTraits = packedNodeTraits;
-        }
-        return objectProto as NodeConstraintProto;
-      }
-
-      unpackObject(options: {
-        value: NodeConstraintProto;
-        _session?: Session | null;
-        _graph?: Graph | null;
-        _connection?: GraphConnection | null;
-      }): NodeConstraint {
-        const { value: objectProto, _session, _graph, _connection } = options;
-
-        const unpackedNodeTypes: any[] = [];
-        if (objectProto.nodeTypes) {
-          for (const item of objectProto.nodeTypes) {
-            unpackedNodeTypes.push(Number(item) as any);
-          }
-        }
-        const unpackedNodeTraits: any[] = [];
-        if (objectProto.nodeTraits) {
-          for (const item of objectProto.nodeTraits) {
-            unpackedNodeTraits.push(Number(item) as any);
-          }
-        }
-        return new (STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint)({
-          nodeTypes: unpackedNodeTypes,
-          nodeTraits: unpackedNodeTraits,
-          _packedCache: [{ encoding: 2, isBytes: false, packed: objectProto }],
-          _graph,
-        });
-      }
-
-      packObjectBytes(object: NodeConstraint): Uint8Array {
-        const proto = this.packObject(object);
-        return NodeConstraintProto.toBinary(proto);
-      }
-
-      unpackObjectBytes(options: {
-        value: Uint8Array;
-        _session: Session | null;
-        _graph: Graph | null;
-        _connection: GraphConnection | null;
-      }): NodeConstraint {
-        const proto = NodeConstraintProto.fromBinary(options.value);
-        return this.unpackObject({
-          value: proto,
-          _session: options._session,
-          _graph: options._graph,
-          _connection: options._connection,
-        });
-      }
-    }
-
-    PROTO_OBJECT_ENCODERS[getObjectKey(2, 113)] = new NodeConstraintProtoEncoder();
-
     class TypeProtoEncoder implements _ProtoObjectEncoder {
       packObject(object: Type): TypeProto {
         const objectProto: Partial<TypeProto> = { metatype: 101 };
@@ -20516,14 +20451,15 @@ export function loadEncoders(): void {
         if (object.enumType != null) {
           objectProto.enumType = Number(object.enumType) as any;
         }
-        if (object.nodeType != null) {
-          objectProto.nodeType = Number(object.nodeType) as any;
+        if (object.nodeTypes) {
+          const packedNodeTypes: any[] = [];
+          for (const item of object.nodeTypes) {
+            packedNodeTypes.push(Number(item) as any);
+          }
+          objectProto.nodeTypes = packedNodeTypes;
         }
         if (object.structType != null) {
           objectProto.structType = Number(object.structType) as any;
-        }
-        if (object.customDefinitionPtr != null) {
-          objectProto.customDefinitionPtr = object.customDefinitionPtr.pack(2);
         }
         if (object.keyType != null) {
           objectProto.keyType = object.keyType.pack(2);
@@ -20542,9 +20478,6 @@ export function loadEncoders(): void {
         }
         if (object.numberConstraint != null) {
           objectProto.numberConstraint = object.numberConstraint.pack(2);
-        }
-        if (object.nodeConstraint != null) {
-          objectProto.nodeConstraint = object.nodeConstraint.pack(2);
         }
         if (object.isRequired != null) {
           objectProto.isRequired = object.isRequired;
@@ -20567,24 +20500,26 @@ export function loadEncoders(): void {
         const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
         const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
         const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-        const _NodeConstraint = STRUCT_CLASS_BY_TYPE[113] as typeof NodeConstraint;
-        const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+        const unpackedNodeTypes: any[] = [];
+        if (objectProto.nodeTypes) {
+          for (const item of objectProto.nodeTypes) {
+            unpackedNodeTypes.push(Number(item) as any);
+          }
+        }
         return new (STRUCT_CLASS_BY_TYPE[101] as typeof Type)({
           name: objectProto.name != undefined ? objectProto.name : null,
           cardinality: Number(objectProto.cardinality) as any,
           scalarType: Number(objectProto.scalarType) as any,
           primitiveType: objectProto.primitiveType != undefined ? Number(objectProto.primitiveType) as any : null,
           enumType: objectProto.enumType != undefined ? Number(objectProto.enumType) as any : null,
-          nodeType: objectProto.nodeType != undefined ? Number(objectProto.nodeType) as any : null,
+          nodeTypes: unpackedNodeTypes,
           structType: objectProto.structType != undefined ? Number(objectProto.structType) as any : null,
-          customDefinition: objectProto.customDefinitionPtr != undefined ? _NodeReference.unpack({ encoding: 2, value: objectProto.customDefinitionPtr, _session, _graph, _connection }) as NodeReference : null,
           keyType: objectProto.keyType != undefined ? _Type.unpack({ encoding: 2, value: objectProto.keyType, _session, _graph, _connection }) as Type : null,
           value: objectProto.value != undefined ? _Value.unpack({ encoding: 2, value: objectProto.value, _session, _graph, _connection }) as Value : null,
           valueFactory: objectProto.valueFactory != undefined ? Number(objectProto.valueFactory) as any : null,
           collectionConstraint: objectProto.collectionConstraint != undefined ? _CollectionConstraint.unpack({ encoding: 2, value: objectProto.collectionConstraint, _session, _graph, _connection }) as CollectionConstraint : null,
           stringConstraint: objectProto.stringConstraint != undefined ? _StringConstraint.unpack({ encoding: 2, value: objectProto.stringConstraint, _session, _graph, _connection }) as StringConstraint : null,
           numberConstraint: objectProto.numberConstraint != undefined ? _NumberConstraint.unpack({ encoding: 2, value: objectProto.numberConstraint, _session, _graph, _connection }) as NumberConstraint : null,
-          nodeConstraint: objectProto.nodeConstraint != undefined ? _NodeConstraint.unpack({ encoding: 2, value: objectProto.nodeConstraint, _session, _graph, _connection }) as NodeConstraint : null,
           isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
           isMain: objectProto.isMain != undefined ? objectProto.isMain : null,
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectProto }],
@@ -20996,9 +20931,6 @@ export function loadEncoders(): void {
       packObject(object: Join): JoinProto {
         const objectProto: Partial<JoinProto> = { metatype: 202 };
         objectProto.type = Number(object.type) as any;
-        if (object.customDefinition != null) {
-          objectProto.customDefinition = object.customDefinition.pack(2);
-        }
         objectProto.recursive = object.recursive;
         if (object.depth != null) {
           objectProto.depth = object.depth;
@@ -21016,11 +20948,9 @@ export function loadEncoders(): void {
         _connection?: GraphConnection | null;
       }): Join {
         const { value: objectProto, _session, _graph, _connection } = options;
-        const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
         const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
         return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
           type: Number(objectProto.type) as any,
-          customDefinition: objectProto.customDefinition != undefined ? _NodeDefinitionReference.unpack({ encoding: 2, value: objectProto.customDefinition, _session, _graph, _connection }) as NodeDefinitionReference : null,
           recursive: objectProto.recursive,
           depth: objectProto.depth != undefined ? Number(objectProto.depth) : null,
           on: objectProto.on != undefined ? _Condition.unpack({ encoding: 2, value: objectProto.on, _session, _graph, _connection }) as Condition : null,

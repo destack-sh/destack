@@ -231,7 +231,6 @@ AnyStructProto = Union[
     StringConstraintProto,
     NumberConstraintProto,
     CollectionConstraintProto,
-    NodeConstraintProto,
     TypeProto,
     ValueProto,
     FunctionProto,

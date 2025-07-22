@@ -114,7 +114,7 @@ def get_scalar_type_strategy(
     elif typ.scalar_type == ScalarType.NODE_REFERENCE:
         return node_references(st.sampled_from(NODE_TYPES))
     elif typ.scalar_type == ScalarType.NODE_VALUE:
-        return from_object_type(typ.node_type or NodeType.SPACE)
+        return from_object_type(typ.node_types[0] if typ.node_types else NodeType.SPACE)
     else:
         assert_never(typ.scalar_type)
 
@@ -320,7 +320,7 @@ def draw_type_base_dict(
         "primitive_type": primitive_type,
         "enum_type": enum_type,
         "struct_type": struct_type,
-        "node_type": node_type,
+        "node_types": [node_type] if node_type else [],
         "is_required": True,
     }
 
