@@ -1,5 +1,7 @@
+import { MemoryGraph } from "@destack/graph/memory";
 import {
   BuiltinObject,
+  Encoding,
   EventCursor,
   Folder,
   Join,
@@ -11,7 +13,6 @@ import {
   UserStatus,
 } from "@destack/language";
 import { ENCODERS } from "@destack/language/core/builtin/const";
-import { MemoryGraph } from "@destack/graph/memory";
 import { createAndActivateSpace } from "@destack/test/conftest";
 import { uuid4 } from "@destack/utils";
 import { afterEach, beforeEach, expect, test } from "bun:test";

@@ -13,11 +13,11 @@ export function getObjectKey(kind: ObjectKind, metatype: NodeType | StructType) 
   return `${kind}-${metatype}`;
 }
 
-/** All the BuiltinObject encoders for our CSON format. */
-export const CSON_OBJECT_ENCODERS: Record<string, _CsonObjectEncoder> = {};
+/** All the BuiltinObject encoders for our JSON format. */
+export const JSON_OBJECT_ENCODERS: Record<string, _JsonObjectEncoder> = {};
 
-/** A CSON encoder for a BuiltinObject. */
-export interface _CsonObjectEncoder {
+/** A JSON encoder for a BuiltinObject. */
+export interface _JsonObjectEncoder {
   /** Pack a BuiltinObject into some encoded format. */
   packObject(object: BuiltinObject): any;
 
@@ -28,4 +28,4 @@ export interface _CsonObjectEncoder {
     _graph: Graph | null;
     _connection: GraphConnection | null;
   }): BuiltinObject;
-}
+} 

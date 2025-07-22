@@ -171,7 +171,11 @@ export function validateOrderKey(key: string) {
 // `a` is an order key or null (START).
 // `b` is an order key or null (END).
 // `a < b` lexicographically if both are non-null.
-export function getOrderKey(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
+export function getOrderKey(
+  a: string | null,
+  b: string | null,
+  digits: string = BASE_95_DIGITS,
+): string {
   if (a != null) validateOrderKey(a);
   if (b != null) validateOrderKey(b);
   if (a != null && b != null && a >= b) throw new Error(a + " >= " + b);

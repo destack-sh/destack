@@ -294,8 +294,9 @@ enum EffectTypeProto {
 // The encoding scheme.
 enum EncodingProto {
   ENCODING_UNSPECIFIED = 0;
-  ENCODING_CSON = 1;
-  ENCODING_PROTO = 2;
+  ENCODING_JSON = 1;
+  ENCODING_CSON = 2;
+  ENCODING_PROTO = 10;
 }
 
 // A Type of Entitlement.

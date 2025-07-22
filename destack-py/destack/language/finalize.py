@@ -189,11 +189,13 @@ def finalize():
         node_cls.__enum_types__ = tuple(all_enum_types)
 
     # finalize encoders
-    from destack.encoder import CsonEncoder, ProtoEncoder
+    from destack.encoder import CsonEncoder, JsonEncoder, ProtoEncoder
     from destack.language.core import ENCODERS, Encoding
 
+    ENCODERS[Encoding.JSON] = JsonEncoder()
     ENCODERS[Encoding.CSON] = CsonEncoder()
     ENCODERS[Encoding.PROTO] = ProtoEncoder()
+    assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 
     # generate definition refs
     from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference

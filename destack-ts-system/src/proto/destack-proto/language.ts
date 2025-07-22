@@ -25259,13 +25259,17 @@ export enum EncodingProto {
      */
     ENCODING_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ENCODING_CSON = 1;
+     * @generated from protobuf enum value: ENCODING_JSON = 1;
      */
-    ENCODING_CSON = 1,
+    ENCODING_JSON = 1,
     /**
-     * @generated from protobuf enum value: ENCODING_PROTO = 2;
+     * @generated from protobuf enum value: ENCODING_CSON = 2;
      */
-    ENCODING_PROTO = 2
+    ENCODING_CSON = 2,
+    /**
+     * @generated from protobuf enum value: ENCODING_PROTO = 10;
+     */
+    ENCODING_PROTO = 10
 }
 /**
  * A Type of Entitlement.

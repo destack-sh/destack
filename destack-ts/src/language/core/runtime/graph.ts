@@ -1,4 +1,4 @@
-import type { Entity, Node, NodeClass } from "@destack/language/core/builtin";
+import type { Entity, NodeClass } from "@destack/language/core/builtin";
 import { NodeType } from "@destack/language/core/builtin/common";
 import { TraitClass } from "@destack/language/core/builtin/trait";
 import { NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";

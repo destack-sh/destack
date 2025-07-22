@@ -33,8 +33,13 @@ export function copy<T>(obj: T): T {
 
 export type FilterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
 
-export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
-  return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
+export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(
+  input: Partial<Record<T, U>>,
+) {
+  return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<
+    U,
+    T
+  >;
 }
 
 // 53-bit cyrb53a hash
@@ -166,7 +171,10 @@ export function assertNever(value?: never, msg?: string): never {
 }
 
 /** Groups items by the given key function. */
-export function groupByList<T, K extends string | number>(items: T[], keyFn: (item: T) => K): Record<K, T[]> {
+export function groupByList<T, K extends string | number>(
+  items: T[],
+  keyFn: (item: T) => K,
+): Record<K, T[]> {
   const result = {} as Record<K, T[]>;
   for (const item of items) {
     const key = keyFn(item);
