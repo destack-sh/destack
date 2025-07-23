@@ -9,14 +9,14 @@ import type * as grpc from "@grpc/grpc-js";
  * @generated from protobuf service grpc.health.v1.Health
  */
 export interface IHealth extends grpc.UntypedServiceImplementation {
-    /**
-     * @generated from protobuf rpc: Check
-     */
-    check: grpc.handleUnaryCall<HealthCheckRequest, HealthCheckResponse>;
-    /**
-     * @generated from protobuf rpc: Watch
-     */
-    watch: grpc.handleServerStreamingCall<HealthCheckRequest, HealthCheckResponse>;
+  /**
+   * @generated from protobuf rpc: Check
+   */
+  check: grpc.handleUnaryCall<HealthCheckRequest, HealthCheckResponse>;
+  /**
+   * @generated from protobuf rpc: Watch
+   */
+  watch: grpc.handleServerStreamingCall<HealthCheckRequest, HealthCheckResponse>;
 }
 /**
  * @grpc/grpc-js definition for the protobuf service grpc.health.v1.Health.
@@ -30,24 +30,24 @@ export interface IHealth extends grpc.UntypedServiceImplementation {
  * ```
  */
 export const healthDefinition: grpc.ServiceDefinition<IHealth> = {
-    check: {
-        path: "/grpc.health.v1.Health/Check",
-        originalName: "Check",
-        requestStream: false,
-        responseStream: false,
-        responseDeserialize: bytes => HealthCheckResponse.fromBinary(bytes),
-        requestDeserialize: bytes => HealthCheckRequest.fromBinary(bytes),
-        responseSerialize: value => Buffer.from(HealthCheckResponse.toBinary(value)),
-        requestSerialize: value => Buffer.from(HealthCheckRequest.toBinary(value))
-    },
-    watch: {
-        path: "/grpc.health.v1.Health/Watch",
-        originalName: "Watch",
-        requestStream: false,
-        responseStream: true,
-        responseDeserialize: bytes => HealthCheckResponse.fromBinary(bytes),
-        requestDeserialize: bytes => HealthCheckRequest.fromBinary(bytes),
-        responseSerialize: value => Buffer.from(HealthCheckResponse.toBinary(value)),
-        requestSerialize: value => Buffer.from(HealthCheckRequest.toBinary(value))
-    }
+  check: {
+    path: "/grpc.health.v1.Health/Check",
+    originalName: "Check",
+    requestStream: false,
+    responseStream: false,
+    responseDeserialize: (bytes) => HealthCheckResponse.fromBinary(bytes),
+    requestDeserialize: (bytes) => HealthCheckRequest.fromBinary(bytes),
+    responseSerialize: (value) => Buffer.from(HealthCheckResponse.toBinary(value)),
+    requestSerialize: (value) => Buffer.from(HealthCheckRequest.toBinary(value)),
+  },
+  watch: {
+    path: "/grpc.health.v1.Health/Watch",
+    originalName: "Watch",
+    requestStream: false,
+    responseStream: true,
+    responseDeserialize: (bytes) => HealthCheckResponse.fromBinary(bytes),
+    requestDeserialize: (bytes) => HealthCheckRequest.fromBinary(bytes),
+    responseSerialize: (value) => Buffer.from(HealthCheckResponse.toBinary(value)),
+    requestSerialize: (value) => Buffer.from(HealthCheckRequest.toBinary(value)),
+  },
 };

@@ -1,6 +1,6 @@
 import { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
 import { batch } from "@preact/signals-react";
-import { EditEvent, Entity, Event, Session } from "destack";
+import { EditEvent, Entity, Session } from "destack";
 
 /** A reactive variant of Session. */
 export class ReactiveSession extends Session {
@@ -48,12 +48,11 @@ export class ReactiveSession extends Session {
     this._dirtyEntities.clear();
   }
 
-  override async flush(): Promise<void> {
+  override async flush() {
     await super.flush();
   }
 
-  override async commit(): Promise<Event[]> {
-    const events = await super.commit();
-    return events;
+  override async commit() {
+    await super.commit();
   }
 }

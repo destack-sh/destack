@@ -23,8 +23,8 @@ import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
   NODE_CLASS_BY_TYPE,
-  STRUCT_CLASS_BY_TYPE,
   registerNodeClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Handle } from "@destack/language/universe";
 import { hashBool, hashString } from "@destack/utils/hash";

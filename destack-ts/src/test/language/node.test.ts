@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { MemoryGraph } from "@destack/graph/memory";
 import { ACTIVE_SPACE, Folder, Region, Session, Space, Tag, Universe } from "@destack/language";
 import { uuid4 } from "@destack/utils/uuid";
-import { afterEach, beforeEach, expect, test } from "bun:test";
 
 let session: Session;
 

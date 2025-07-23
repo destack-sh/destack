@@ -8,7 +8,7 @@ import { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";
 import type { Session } from "@destack/language/core/runtime/session";
-import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/registry";
+import { registerStructClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */

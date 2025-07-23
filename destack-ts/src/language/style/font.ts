@@ -24,10 +24,10 @@ import {
 import type { Length } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Fill } from "@destack/language/style/fill";
 import { Style } from "@destack/language/style/style";

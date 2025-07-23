@@ -26,9 +26,9 @@ import { Shape2D } from "@destack/language/geometry/shape";
 import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerNodeClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Stroke } from "@destack/language/style";
 import { hashBool, hashString } from "@destack/utils/hash";

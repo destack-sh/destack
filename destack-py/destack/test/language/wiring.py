@@ -1,3 +1,5 @@
+import gzip
+
 from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
@@ -18,7 +20,7 @@ from destack.utils.uuid import uuid4
 
 
 def _test_roundtrip_object(obj: BuiltinObject, session: Session):
-    for _, encoder in ENCODERS.items():
+    for encoding, encoder in ENCODERS.items():
         # pack/unpack
         packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj)
         packed_obj_bytes = encoder.pack_object_bytes(obj.__kind__, obj.metatype, obj)
@@ -35,6 +37,7 @@ def _test_roundtrip_object(obj: BuiltinObject, session: Session):
         assert unpacked_obj_bytes.hash() == obj.hash(), (
             f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
         )
+        print(encoding.name, len(packed_obj_bytes), len(gzip.compress(packed_obj_bytes)))
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):

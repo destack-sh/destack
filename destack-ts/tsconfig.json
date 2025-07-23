@@ -12,7 +12,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@destack/*": ["src/*"],
+      "@destack/*": ["src/*"]
     }
   },
   "include": ["src/**/*"],

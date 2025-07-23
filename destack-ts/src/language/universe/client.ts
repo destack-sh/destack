@@ -21,7 +21,7 @@ import {
 } from "@destack/language/core";
 import type { Machine } from "@destack/language/infrastructure";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { User } from "@destack/language/universe/user";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";

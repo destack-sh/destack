@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 export enum PyodideWorkerStatus {
   INITIALIZING = "INITIALIZING",
@@ -7,14 +7,12 @@ export enum PyodideWorkerStatus {
   ERROR = "ERROR",
 }
 
-export type PyodideRequest = 
-  | { type: 'init' }
-  | { type: 'run'; data: { code: string } };
+export type PyodideRequest = { type: "init" } | { type: "run"; data: { code: string } };
 
-export type PyodideResponse = 
-  | { type: 'status'; message: PyodideWorkerStatus }
-  | { type: 'result'; result: string | null; stdout: string; duration: number }
-  | { type: 'error'; message: string; duration: number };
+export type PyodideResponse =
+  | { type: "status"; message: PyodideWorkerStatus }
+  | { type: "result"; result: string | null; stdout: string; duration: number }
+  | { type: "error"; message: string; duration: number };
 
 export function usePyodideWorker(): {
   status: PyodideWorkerStatus;
@@ -24,7 +22,7 @@ export function usePyodideWorker(): {
   runCode: (code: string) => void;
 } {
   const workerRef = useRef<Worker | null>(null);
-  
+
   const [status, setStatus] = useState<PyodideWorkerStatus>(PyodideWorkerStatus.INITIALIZING);
   const [output, setOutput] = useState<string>("");
   const [duration, setDuration] = useState<number | null>(null);
@@ -32,41 +30,41 @@ export function usePyodideWorker(): {
 
   // initialize web worker
   useEffect(() => {
-    workerRef.current = new Worker('/pyodide.js');
-    
+    workerRef.current = new Worker("/pyodide.js");
+
     workerRef.current.onmessage = (event) => {
       const data = event.data as PyodideResponse;
-      
+
       switch (data.type) {
-        case 'status':
+        case "status":
           setStatus(data.message);
           break;
-        case 'result':
+        case "result":
           setIsRunning(false);
-          const resultOutput = data.stdout ? 
-            `${data.stdout}${data.result ? `\n${data.result}` : ''}` : 
-            (data.result || '');
+          const resultOutput = data.stdout
+            ? `${data.stdout}${data.result ? `\n${data.result}` : ""}`
+            : data.result || "";
           setOutput(resultOutput);
           setDuration(data.duration);
           break;
-        case 'error':
+        case "error":
           setIsRunning(false);
           setOutput(`Error: ${data.message}`);
           setDuration(data.duration);
           break;
       }
     };
-    
+
     workerRef.current.onerror = (error) => {
       setStatus(PyodideWorkerStatus.ERROR);
       setOutput(`Worker Error: ${error.message}`);
       setDuration(null);
     };
-    
+
     // initialize Pyodide in the worker
-    const initRequest: PyodideRequest = { type: 'init' };
+    const initRequest: PyodideRequest = { type: "init" };
     workerRef.current.postMessage(initRequest);
-    
+
     return () => {
       workerRef.current?.terminate();
       workerRef.current = null;
@@ -79,12 +77,12 @@ export function usePyodideWorker(): {
     setIsRunning(true);
     setOutput("");
     setDuration(null);
-    
+
     const runRequest: PyodideRequest = {
-      type: 'run',
-      data: { code }
+      type: "run",
+      data: { code },
     };
-    
+
     workerRef.current.postMessage(runRequest);
   };
 
@@ -93,6 +91,6 @@ export function usePyodideWorker(): {
     output,
     duration,
     isRunning,
-    runCode
+    runCode,
   };
 }

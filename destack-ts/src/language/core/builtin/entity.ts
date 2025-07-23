@@ -1,7 +1,7 @@
 import { Tag, Tagging } from "@destack/language/core/builtin/base";
 import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/common";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node, hasTrait } from "@destack/language/core/builtin/node";
+import { hasTrait, Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";

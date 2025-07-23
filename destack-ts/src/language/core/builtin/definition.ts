@@ -37,8 +37,8 @@ import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
-  STRUCT_CLASS_BY_TYPE,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import { assertNever } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";

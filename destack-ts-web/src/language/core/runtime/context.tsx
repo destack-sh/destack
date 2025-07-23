@@ -1,7 +1,7 @@
-import { ReactiveSession } from "@destack-web/language/core/runtime/session";
 import { ACTIVE_SESSION, Supergraph } from "@destack/language";
+import { ReactiveSession } from "@destack-web/language/core/runtime/session";
 import { useSignals } from "@preact/signals-react/runtime";
-import React, { createContext, useContext, type ReactNode } from "react";
+import React, { createContext, type ReactNode, useContext } from "react";
 
 const SessionContext = createContext<ReactiveSession | null>(null);
 

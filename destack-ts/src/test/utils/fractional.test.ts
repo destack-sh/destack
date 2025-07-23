@@ -1,5 +1,5 @@
-import { BASE_62_DIGITS, getOrderKey } from "@destack/utils/fractional";
 import { expect, test } from "bun:test";
+import { BASE_62_DIGITS, getOrderKey } from "@destack/utils/fractional";
 
 test.each([
   [null, null, "a0"],

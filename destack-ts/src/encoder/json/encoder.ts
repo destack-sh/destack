@@ -1,4 +1,4 @@
-import { JSON_OBJECT_ENCODERS, getObjectKey } from "@destack/encoder/json/generate";
+import { getObjectKey, JSON_OBJECT_ENCODERS } from "@destack/encoder/json/generate";
 import { loadEncoders } from "@destack/encoder/json/generated";
 import { packJson, unpackJson } from "@destack/encoder/json/wiring";
 import {

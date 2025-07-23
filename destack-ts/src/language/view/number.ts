@@ -21,7 +21,7 @@ import {
 import type { Corner2, Length, Offset2, Vector2 } from "@destack/language/geometry";
 import { Anchor } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
 import { InputView } from "@destack/language/view/input";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";

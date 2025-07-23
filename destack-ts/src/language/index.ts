@@ -21,4 +21,5 @@ export * from "@destack/language/universe";
 export * from "@destack/language/view";
 
 import { finalize } from "@destack/language/finalize";
+
 finalize();
