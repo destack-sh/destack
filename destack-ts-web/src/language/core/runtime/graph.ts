@@ -1,7 +1,7 @@
-import { Graph, Node } from "destack";
+import { Graph } from "destack";
 
 /** A reactive Graph. */
-export interface ReactiveGraph<T extends Node> extends Graph<T> {
+export interface ReactiveGraph extends Graph {
   /** Touch a Node reactively. */
   touch(id: string): void;
 
