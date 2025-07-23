@@ -28,6 +28,7 @@ from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
+        BinaryWriter,
         ConstantDefinition,
         MethodDefinition,
         StructDefinition,
@@ -191,11 +192,7 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
                     return cached.packed
         # pack the object
         encoder = ENCODERS[encoding]
-        packed_object = encoder.pack_object(
-            kind=self.__kind__,
-            metatype=self.metatype,
-            object=self,
-        )
+        packed_object = encoder.pack_object(self.__kind__, self.metatype, self)
         # cache the result
         new_cache = PackedCache(encoding=encoding, is_bytes=False, packed=packed_object)
         if self._packed_cache is None:
@@ -206,26 +203,22 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
 
     @builtin_method(31)
     @override
-    def pack_bytes(self, encoding: Encoding) -> bytes:
+    def pack_binary(self, encoding: Encoding, writer: "BinaryWriter") -> None:
         # check if we have a cached packed bytes representation
         if self._packed_cache is not None:
             for cached in self._packed_cache:
                 if cached.encoding == encoding and cached.is_bytes:
-                    return cached.packed
+                    writer.write_bytes(cached.packed)
+                    return
         # pack the object as bytes
         encoder = ENCODERS[encoding]
-        packed_object_bytes = encoder.pack_object_bytes(
-            kind=self.__kind__,
-            metatype=self.metatype,
-            object=self,
-        )
+        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer)
         # cache the result
-        new_cache = PackedCache(encoding=encoding, is_bytes=True, packed=packed_object_bytes)
+        new_cache = PackedCache(encoding=encoding, is_bytes=True, packed=writer.to_bytes())
         if self._packed_cache is None:
             object.__setattr__(self, "_packed_cache", (new_cache,))
         else:
             object.__setattr__(self, "_packed_cache", (*self._packed_cache, new_cache))
-        return packed_object_bytes
 
     @builtin_method(60)
     def clone(self, **override: Any) -> Self:

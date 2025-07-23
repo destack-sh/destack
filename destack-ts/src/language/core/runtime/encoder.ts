@@ -12,7 +12,7 @@ export interface Encoder<T> {
   packObject(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): T;
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
-  packObjectBytes(
+  packObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
@@ -27,7 +27,7 @@ export interface Encoder<T> {
   ): BuiltinObject;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackObjectBytes(
+  unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     value: Uint8Array,

@@ -62,7 +62,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Graph, Node, Session
+    from destack.language import BinaryReader, BinaryWriter, Graph, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -1348,12 +1348,11 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         return packed_object
 
     @builtin_method(31)
-    def pack_bytes(self, encoding: Encoding) -> bytes:
+    def pack_binary(self, encoding: Encoding, writer: "BinaryWriter") -> None:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        packed_object_bytes = encoder.pack_object_bytes(self.__kind__, self.metatype, self)
-        return packed_object_bytes
+        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer)
 
     @builtin_method(32)
     @classmethod
@@ -1366,15 +1365,19 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
 
     @builtin_method(33)
     @classmethod
-    def unpack_bytes(cls, encoding: Encoding, value: bytes, session: "Session | None") -> Self:
+    def unpack_binary(
+        cls, encoding: Encoding, reader: "BinaryReader", session: "Session | None"
+    ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object_bytes(cls.__kind__, cls.metatype, value, session)
+        unpacked_object = encoder.unpack_object_binary(cls.__kind__, cls.metatype, reader, session)
         return cast(Self, unpacked_object)
 
     @builtin_method(34)
     @classmethod
-    def unpack_bytes_base64(cls, encoding: Encoding, value: str, session: "Session | None") -> Self:
-        value_bytes = base64.b64decode(value)
-        return cls.unpack_bytes(encoding, value_bytes, session)
+    def unpack_binary_base64(
+        cls, encoding: Encoding, value: str, session: "Session | None"
+    ) -> Self:
+        reader = BinaryReader(base64.b64decode(value))
+        return cls.unpack_binary(encoding, reader, session)

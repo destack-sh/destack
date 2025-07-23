@@ -1,9 +1,12 @@
+import gzip
 from typing import Any, NamedTuple
 
 from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
     ENCODERS,
+    BinaryReader,
+    BinaryWriter,
     BuiltinObject,
     Encoder,
     Encoding,
@@ -34,16 +37,18 @@ def _do_test_roundtrip_object(
 ) -> EncoderResult:
     # pack/unpack
     packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj)
-    packed_obj_bytes = encoder.pack_object_bytes(obj.__kind__, obj.metatype, obj)
+    writer = BinaryWriter()
+    packed_obj_bytes = encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
     unpacked_obj = encoder.unpack_object(obj.__kind__, obj.metatype, packed_obj, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
     # pack/unpack as bytes
-    packed_obj_bytes = encoder.pack_object_bytes(obj.__kind__, obj.metatype, obj)
-    unpacked_obj_bytes = encoder.unpack_object_bytes(
-        obj.__kind__, obj.metatype, packed_obj_bytes, session
-    )
+    writer = BinaryWriter()
+    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
+    packed_obj_bytes = writer.to_bytes()
+    reader = BinaryReader(packed_obj_bytes)
+    unpacked_obj_bytes = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
     assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
 
@@ -98,4 +103,10 @@ def test_roundtrip_user(session: Session, space: Space):
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_roundtrip_builtin_object(obj: BuiltinObject, session: Session, space: Space):
     for encoding, encoder in ENCODERS.items():
-        _ = _do_test_roundtrip_object(obj, session, encoder, encoding)
+        result = _do_test_roundtrip_object(obj, session, encoder, encoding)
+        print(
+            obj.__class__.__name__,
+            encoding.name,
+            len(result.packed_obj_bytes),
+            len(gzip.compress(result.packed_obj_bytes)),
+        )

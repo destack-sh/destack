@@ -73,7 +73,7 @@ export abstract class StructFrozen extends Struct {
     return packedObject;
   }
 
-  packBytes(encoding: Encoding): Uint8Array {
+  packBinary(encoding: Encoding): Uint8Array {
     // check if we have a cached packed bytes representation
     if (this._packedCache != null) {
       for (const cached of this._packedCache) {
@@ -84,7 +84,7 @@ export abstract class StructFrozen extends Struct {
     }
     // pack the object as bytes
     const encoder = ENCODERS[encoding]!;
-    const packedObjectBytes = encoder.packObjectBytes(ObjectKind.STRUCT, this.metatype, this);
+    const packedObjectBytes = encoder.packObjectBinary(ObjectKind.STRUCT, this.metatype, this);
     // cache the result
     const newCache: PackedCache = {
       encoding: encoding,

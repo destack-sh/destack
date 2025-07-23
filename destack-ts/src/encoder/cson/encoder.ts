@@ -27,7 +27,7 @@ export class CsonEncoder implements Encoder<any> {
     return encoder.packObject(object);
   }
 
-  packObjectBytes(
+  packObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
@@ -57,7 +57,7 @@ export class CsonEncoder implements Encoder<any> {
     return encoder.unpackObject(value, session);
   }
 
-  unpackObjectBytes(
+  unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     value: Uint8Array,

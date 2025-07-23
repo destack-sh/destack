@@ -12,18 +12,16 @@ from destack.language.core import (
     StructType,
     Type,
 )
-from destack.proto import AnyObjectProto
 
 from ..cson import CsonEncoder
-from .generate import PROTO_CLASSES, PROTO_OBJECT_ENCODERS
 
 _cson_encoder = CsonEncoder()  # for generic Values
 
 
-class ProtoEncoder(Encoder[AnyObjectProto]):
-    """Encoder for our protobuf format."""
+class KompaktEncoder(Encoder[bytes]):
+    """Encoder for our kompaktbuf format."""
 
-    encoding: ClassVar[Encoding] = Encoding.PROTO
+    encoding: ClassVar[Encoding] = Encoding.KOMPAKT
 
     @override
     def pack_object(
@@ -31,9 +29,8 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         object: BuiltinObject,
-    ) -> AnyObjectProto:
-        encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
-        return encoder.pack_object(object)
+    ) -> bytes:
+        raise NotImplementedError
 
     @override
     def pack_object_binary(
@@ -43,20 +40,17 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         object: BuiltinObject,
         writer: BinaryWriter,
     ) -> None:
-        encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
-        object_packed = encoder.pack_object(object)
-        writer.write_bytes(object_packed.SerializeToString())
+        raise NotImplementedError
 
     @override
     def unpack_object(
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        value: AnyObjectProto,
+        value: bytes,
         session: Session | None,
     ) -> BuiltinObject:
-        encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
-        return encoder.unpack_object(value, session)
+        raise NotImplementedError
 
     @override
     def unpack_object_binary(
@@ -66,10 +60,7 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         reader: BinaryReader,
         session: Session | None,
     ) -> BuiltinObject:
-        encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
-        proto_cls = PROTO_CLASSES[kind, metatype]
-        value_decoded = proto_cls.FromString(reader.read_bytes())
-        return encoder.unpack_object(value_decoded, session)
+        raise NotImplementedError
 
     @override
     def pack_value(

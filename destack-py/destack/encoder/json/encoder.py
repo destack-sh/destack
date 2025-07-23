@@ -2,6 +2,8 @@ import json
 from typing import Any, ClassVar, override
 
 from destack.language.core import (
+    BinaryReader,
+    BinaryWriter,
     BuiltinObject,
     Encoder,
     Encoding,
@@ -33,15 +35,16 @@ class JsonEncoder(Encoder[Json]):
         return encoder.pack_object(object)
 
     @override
-    def pack_object_bytes(
+    def pack_object_binary(
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
         object: BuiltinObject,
-    ) -> bytes:
+        writer: BinaryWriter,
+    ) -> None:
         encoder = JSON_OBJECT_ENCODERS[kind, metatype]
         object_packed = encoder.pack_object(object)
-        return json.dumps(object_packed).encode("utf-8")
+        writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
     def pack_value(
@@ -52,12 +55,13 @@ class JsonEncoder(Encoder[Json]):
         return pack_json(value, type)
 
     @override
-    def pack_value_bytes(
+    def pack_value_binary(
         self,
         value: Any,
         type: Type,
-    ) -> bytes:
-        return json.dumps(pack_json(value, type)).encode("utf-8")
+        writer: BinaryWriter,
+    ) -> None:
+        writer.write_bytes(json.dumps(pack_json(value, type)).encode("utf-8"))
 
     @override
     def unpack_value(
@@ -69,13 +73,13 @@ class JsonEncoder(Encoder[Json]):
         return unpack_json(value, type, session)
 
     @override
-    def unpack_value_bytes(
+    def unpack_value_binary(
         self,
         type: Type,
-        value: bytes,
+        reader: BinaryReader,
         session: Session | None,
     ) -> Any:
-        value_decoded = json.loads(value.decode("utf-8"))
+        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return unpack_json(value_decoded, type, session)
 
     @override
@@ -90,13 +94,13 @@ class JsonEncoder(Encoder[Json]):
         return encoder.unpack_object(value, session)
 
     @override
-    def unpack_object_bytes(
+    def unpack_object_binary(
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        value: bytes,
+        reader: BinaryReader,
         session: Session | None,
     ) -> BuiltinObject:
         encoder = JSON_OBJECT_ENCODERS[kind, metatype]
-        value_decoded = json.loads(value.decode("utf-8"))
+        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return encoder.unpack_object(value_decoded, session)
