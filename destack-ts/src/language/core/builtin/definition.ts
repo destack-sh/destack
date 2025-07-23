@@ -2,6 +2,7 @@ import {
   CascadeAction,
   EdgeType,
   EnumType,
+  GraphDomain,
   NodeType,
   PrimitiveType,
   PropertyType,
@@ -129,6 +130,11 @@ export class NodeDefinition extends BuiltinDefinition {
    * Whether this Node can be extended by custom Nodes.
    */
   readonly isExtensible: boolean;
+
+  /**
+   * Whether this Node cannot be extended by custom Nodes.
+   */
+  readonly isFinal: boolean;
 
   /**
    * Whether this Node cannot be modified.
@@ -260,6 +266,11 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly expectedDescendantTypes: readonly NodeType[];
 
+  /**
+   * NodeDefinition.domain
+   */
+  readonly domain: GraphDomain | null;
+
   constructor(options: {
     id: number;
     type: NodeType;
@@ -269,6 +280,7 @@ export class NodeDefinition extends BuiltinDefinition {
     taggings?: readonly number[];
     isAbstract: boolean;
     isExtensible: boolean;
+    isFinal: boolean;
     isFrozen: boolean;
     properties?: readonly PropertyDefinition[];
     indexes?: readonly IndexDefinition[];
@@ -295,6 +307,7 @@ export class NodeDefinition extends BuiltinDefinition {
     expectedChildTypes?: readonly NodeType[];
     expectedAncestorTypes?: readonly NodeType[];
     expectedDescendantTypes?: readonly NodeType[];
+    domain?: GraphDomain | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -341,6 +354,11 @@ export class NodeDefinition extends BuiltinDefinition {
       throw new Error(`NodeDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
+    let _isFinal = options.isFinal;
+    if (_isFinal === null) {
+      throw new Error(`NodeDefinition.isFinal is required`);
+    }
+    this.isFinal = _isFinal;
     let _isFrozen = options.isFrozen;
     if (_isFrozen === null) {
       throw new Error(`NodeDefinition.isFrozen is required`);
@@ -468,6 +486,8 @@ export class NodeDefinition extends BuiltinDefinition {
       _expectedDescendantTypes = [];
     }
     this.expectedDescendantTypes = _expectedDescendantTypes;
+    let _domain = options.domain ?? null;
+    this.domain = _domain;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -491,6 +511,9 @@ export class NodeDefinition extends BuiltinDefinition {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.isFinal === other.isFinal)) {
       return false;
     }
     if (!(this.isFrozen === other.isFrozen)) {
@@ -691,6 +714,9 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
+    if (!(this.domain === other.domain)) {
+      return false;
+    }
     if (!(this.id === other.id)) {
       return false;
     }
@@ -723,6 +749,7 @@ export class NodeDefinition extends BuiltinDefinition {
       propertyReprs.push(`type=${NodeType[this.type]}`);
       propertyReprs.push(`isAbstract=${this.isAbstract}`);
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
+      propertyReprs.push(`isFinal=${this.isFinal}`);
       propertyReprs.push(`isFrozen=${this.isFrozen}`);
       if (this.baseType != null) {
         propertyReprs.push(`baseType=${NodeType[this.baseType]}`);
@@ -757,6 +784,7 @@ export class NodeDefinition extends BuiltinDefinition {
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isFinal)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
@@ -880,6 +908,9 @@ export class NodeDefinition extends BuiltinDefinition {
       for (const _item of this.expectedDescendantTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
+    }
+    if (this.domain != null) {
+      h = (h * 31 + this.domain) & 0xffffffff;
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;

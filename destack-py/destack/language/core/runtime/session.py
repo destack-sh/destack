@@ -8,6 +8,8 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
+from destack.utils.uuid import UUID
+
 from ..builtin import (
     ACTIVE_SESSION,
     EditEvent,
@@ -23,7 +25,7 @@ from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle
 
 if TYPE_CHECKING:
-    from destack.language import GraphConnection
+    from destack.language import Client, GraphConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,11 +39,13 @@ class Session:
     """
 
     __slots__ = (
-        "_epoch",
         "_token",
         "actor_ptr",
+        "client_nonce",
+        "client_ptr",
         "closed_at",
         "connections",
+        "epoch",
         "graph",
         "oracle",
         "pending_events",
@@ -51,18 +55,23 @@ class Session:
     def __init__(
         self,
         *,
-        oracle: Oracle = WORLD_ORACLE,
-        actor_ptr: NodeReference | None = None,
         graph: "Graph",
-        epoch: int | None = None,
+        epoch: int,
+        actor: "Entity | NodeReference",
+        client: "Client | NodeReference",
+        client_nonce: UUID,
+        oracle: Oracle = WORLD_ORACLE,
     ):
-        self.oracle: Oracle = oracle
-        self.actor_ptr: NodeReference | None = actor_ptr
+        self.epoch: int = epoch
         self.graph: Graph = graph
+        self.actor_ptr: NodeReference = actor.to_ref() if isinstance(actor, Entity) else actor
+        self.client_ptr: NodeReference = client.to_ref() if isinstance(client, Entity) else client
+        self.client_nonce: UUID = client_nonce
+        self.oracle: Oracle = oracle
+
         self.pending_events: list[Event] = []
         self.connections: list[GraphConnection] = []
         self.closed_at: datetime | None = None
-        self._epoch: int | None = epoch
         self._token: Any | None = None
 
     def __str__(self) -> str:
@@ -71,20 +80,14 @@ class Session:
             content_parts.append(f"actor={self.actor_ptr!r}")
         if self.graph is not None:
             content_parts.append(f"graph={self.graph!r}")
-        if self._epoch is not None:
-            content_parts.append(f"epoch={self._epoch}")
+        if self.epoch is not None:
+            content_parts.append(f"epoch={self.epoch}")
         if self.closed_at is not None:
             content_parts.append(f"closed_at={self.closed_at.isoformat()}")
         return ", ".join(content_parts)
 
     def __repr__(self) -> str:
         return f"<Session {self!s}>"
-
-    @property
-    def epoch(self) -> int:
-        """The epoch of the Session."""
-        assert self._epoch is not None, f"{self!r} has no epoch"
-        return self._epoch
 
     async def open(self):
         """Opens the Session."""
@@ -118,6 +121,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -132,6 +136,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -151,6 +156,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
             node=node,
             property_id=prop.id,
             operation=operation,
@@ -174,6 +180,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
             node=node,
             value=to_value(parent),
             reverse_value=to_value(old_parent),
@@ -190,6 +197,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
             node=node,
         )
         self.pending_events.append(edit)
@@ -202,6 +210,7 @@ class Session:
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            created_by_ptr=self.actor_ptr,
             node=node,
         )
         self.pending_events.append(edit)

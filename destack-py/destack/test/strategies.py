@@ -242,7 +242,15 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     node_type = draw(node_types)
     node_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     space_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
-    return NodeReference(type=node_type, id=node_id, space_id=space_id)
+    branch_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
+    snapshot_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
+    return NodeReference(
+        type=node_type,
+        id=node_id,
+        space_id=space_id,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
+    )
 
 
 @cacheable

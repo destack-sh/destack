@@ -64,7 +64,7 @@ export class Icon extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as File | null;
+      return this._session.graph.get(nodePtr) as File | null;
     }
     return null;
   }

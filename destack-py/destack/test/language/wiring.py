@@ -40,7 +40,11 @@ def _test_roundtrip_object(obj: BuiltinObject, session: Session):
 def test_roundtrip_node_reference(session: Session, space: Space):
     """Pack and unpack a NodeReference."""
     node_ref = NodeReference(
-        type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
+        type=NodeType.FOLDER,
+        id=uuid4(),
+        space_id=space.id,
+        branch_id=space.branch_ptr.id,
+        snapshot_id=space.snapshot_ptr.id,
     )
     _test_roundtrip_object(node_ref, session)
 
@@ -63,7 +67,7 @@ def test_roundtrip_user(session: Session, space: Space):
         status=UserStatus.ACTIVE,
         name="Florian",
         slug="florian",
-        space_ptr=NodeReference(id=uuid4(), type=NodeType.SPACE),
+        space_ptr=space.to_ref(),
     )
     _test_roundtrip_object(user, session)
 

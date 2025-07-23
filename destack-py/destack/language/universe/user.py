@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Entity,
@@ -27,7 +27,8 @@ class UserStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.USER)
+@builtin_node(NodeType.USER, is_final=True)
+@final
 class User(
     IsActor,
     IsFollowable,

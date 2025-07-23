@@ -4,8 +4,6 @@ import { packJson, unpackJson } from "@destack/encoder/json/wiring";
 import {
   BuiltinObject,
   Encoder,
-  Graph,
-  GraphConnection,
   NodeType,
   ObjectKind,
   Session,
@@ -19,91 +17,80 @@ export class JsonEncoder implements Encoder<any> {
     loadEncoders();
   }
 
-  packObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): any {
-    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObject(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): any {
+    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no JsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no JsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.packObject(options.object);
+    return encoder.packObject(object);
   }
 
-  packObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): Uint8Array {
-    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    object: BuiltinObject,
+  ): Uint8Array {
+    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no JsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no JsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = encoder.packObject(options.object);
+    const objectPacked = encoder.packObject(object);
     return new TextEncoder().encode(JSON.stringify(objectPacked));
   }
 
-  unpackObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: any;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObject(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: any,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no JsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no JsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObject(options);
+    return encoder.unpackObject(value, session);
   }
 
-  unpackObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: Uint8Array;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: Uint8Array,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no JsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no JsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = JSON.parse(new TextDecoder().decode(options.value));
-    return encoder.unpackObject({
-      ...options,
-      value: objectPacked,
-    });
+    const objectPacked = JSON.parse(new TextDecoder().decode(value));
+    return encoder.unpackObject(objectPacked, session);
   }
 
-  packValue(options: { value: any; type: Type }): any {
-    const json = packJson(options.value, options.type);
+  packValue(value: any, type: Type): any {
+    const json = packJson(value, type);
     return json;
   }
 
-  packValueBytes(options: { value: any; type: Type }): Uint8Array {
-    const json = packJson(options.value, options.type);
+  packValueBytes(value: any, type: Type): Uint8Array {
+    const json = packJson(value, type);
     return new TextEncoder().encode(JSON.stringify(json));
   }
 
-  unpackValue(options: { type: Type; value: any }): any {
-    const json = unpackJson(options.value, options.type);
+  unpackValue(type: Type, value: any): any {
+    const json = unpackJson(value, type);
     return json;
   }
 
-  unpackValueBytes(options: { type: Type; value: Uint8Array }): any {
-    const jsonValue = JSON.parse(new TextDecoder().decode(options.value));
-    const json = unpackJson(jsonValue, options.type);
+  unpackValueBytes(type: Type, value: Uint8Array): any {
+    const jsonValue = JSON.parse(new TextDecoder().decode(value));
+    const json = unpackJson(jsonValue, type);
     return json;
   }
-} 
+}

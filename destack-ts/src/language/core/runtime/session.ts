@@ -1,6 +1,6 @@
 import {
   Client,
-  IsActor,
+  NodeReference,
   type Entity,
   type Event,
   type GraphConnection,
@@ -18,43 +18,44 @@ import { Temporal } from "temporal-polyfill";
  * A managed Session for interacting with Destack.
  */
 export class Session {
-  oracle: Oracle;
-  client: Client | null;
-  clientNonce: string | null;
-  actor: (Entity & IsActor) | null;
   graph: Graph;
+  epoch: number;
+  clientPtr: NodeReference;
+  clientNonce: string;
+  actorPtr: NodeReference;
+  oracle: Oracle;
 
   pendingEvents: Event[];
   connections: GraphConnection[];
 
   closedAt: Temporal.ZonedDateTime | null;
   _token: string | null;
-  _epoch: number | null;
 
   constructor(options: {
-    oracle?: Oracle;
-    client?: Client | null;
-    clientNonce?: string | null;
-    actor?: (Entity & IsActor) | null;
     graph: Graph;
-    epoch?: number;
+    epoch: number;
+    actor: Entity | NodeReference;
+    client: Client | NodeReference;
+    clientNonce: string;
+    oracle?: Oracle;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
-    this.client = options?.client ?? null;
-    this.clientNonce = options?.clientNonce ?? null;
-    this.actor = options?.actor ?? null;
+    this.clientPtr = options.client.toRef();
+    this.clientNonce = options.clientNonce;
+    this.actorPtr = options.actor.toRef();
     this.graph = options.graph;
+    this.epoch = options.epoch;
+
     this.pendingEvents = [];
     this.connections = [];
     this.closedAt = null;
-    this._epoch = options?.epoch ?? null;
     this._token = null;
   }
 
   repr(): string {
     const contentParts: string[] = [];
-    if (this.actor) {
-      contentParts.push(`actor=${this.actor.repr()}`);
+    if (this.actorPtr) {
+      contentParts.push(`actor=${this.actorPtr.repr()}`);
     }
     if (this.graph) {
       contentParts.push(`graph=${this.graph.repr()}`);
@@ -63,13 +64,6 @@ export class Session {
       contentParts.push(`closed_at=${this.closedAt.toString()}`);
     }
     return `<${this.constructor.name} ${contentParts.join(", ")}>`;
-  }
-
-  get epoch(): number {
-    if (this._epoch == null) {
-      throw new Error(`${this.repr()} has no epoch`);
-    }
-    return this._epoch;
   }
 
   /**

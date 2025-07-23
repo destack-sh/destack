@@ -69,7 +69,11 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObject(this.__kind__, this.metatype, this);
+    return encoder.packObject(
+      (this.constructor as typeof BuiltinObject).__kind__,
+      this.metatype,
+      this,
+    );
   }
 
   /** Pack a BuiltinObject into some encoded format. */
@@ -87,7 +91,11 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObjectBytes(this.__kind__, this.metatype, this);
+    return encoder.packObjectBytes(
+      (this.constructor as typeof BuiltinObject).__kind__,
+      this.metatype,
+      this,
+    );
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */

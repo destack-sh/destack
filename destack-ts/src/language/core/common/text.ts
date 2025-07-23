@@ -53,7 +53,7 @@ export class TextSpan extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as Node | null;
+      return this._session.graph.get(nodePtr) as Node | null;
     }
     return null;
   }

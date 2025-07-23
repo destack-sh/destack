@@ -179,11 +179,15 @@ def _generate_init[ObjectT: BuiltinObject](
         if NodeType.ENTITY in inherits:
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")
+            body_properties.pop("created_by")
             body_properties.pop("updated_at")
             body_properties.pop("updated_epoch")
+            body_properties.pop("updated_by")
         elif NodeType.EVENT in inherits:
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")
+            body_properties.pop("created_by")
+            body_properties.pop("client")
             body_properties.pop("client_created_at")
             body_properties.pop("client_epoch")
         else:
@@ -205,22 +209,26 @@ if id is None:
         if NodeType.ENTITY in inherits:
             method_body_lines.append("""\
     id = uuid4()
-    now = self._session.oracle.now()
-    epoch = self._session.epoch
-    created_epoch = epoch
-    updated_epoch = epoch
-    created_at = now
-    updated_at = now
+    _now = self._session.oracle.now()
+    _epoch = self._session.epoch
+    created_at = _now
+    created_epoch = _epoch
+    created_by_ptr = self._session.actor_ptr
+    updated_at = _now
+    updated_epoch = _epoch
+    updated_by_ptr = self._session.actor_ptr
 """)
         elif NodeType.EVENT in inherits:
             method_body_lines.append("""\
     id = uuid7()
-    now = self._session.oracle.now()
-    epoch = self._session.epoch
-    created_epoch = epoch
-    created_at = now
-    client_epoch = epoch
-    client_created_at = now
+    _now = self._session.oracle.now()
+    _epoch = self._session.epoch
+    created_epoch = _epoch
+    created_at = _now
+    client_ptr = self._session.client_ptr
+    client_nonce = self._session.client_nonce
+    client_epoch = _epoch
+    client_created_at = _now
 """)
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
@@ -235,13 +243,18 @@ else:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
+{set_template_str.format("created_by_ptr", "created_by_ptr")}
 {set_template_str.format("updated_at", "updated_at")}
 {set_template_str.format("updated_epoch", "updated_epoch")}
+{set_template_str.format("updated_by_ptr", "updated_by_ptr")}
 """)
         elif NodeType.EVENT in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
+{set_template_str.format("created_by_ptr", "created_by_ptr")}
+{set_template_str.format("client_ptr", "client_ptr")}
+{set_template_str.format("client_nonce", "client_nonce")}
 {set_template_str.format("client_created_at", "client_created_at")}
 {set_template_str.format("client_epoch", "client_epoch")}
 """)
@@ -307,6 +320,18 @@ if {arg_name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.epoch""")
+            elif prop.default_factory == ValueFactory.ACTOR:
+                method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name}_ptr = self._session.actor_ptr""")
+            elif prop.default_factory == ValueFactory.CLIENT:
+                method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name}_ptr = self._session.client_ptr""")
+            elif prop.default_factory == ValueFactory.CLIENT_NONCE:
+                method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name} = self._session.client_nonce""")
             elif prop.default_factory == ValueFactory.REGION:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
@@ -546,6 +571,8 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=self.id,
+        branch_id=self.branch_ptr.id,
+        snapshot_id=self.snapshot_ptr.id,
     )
 """
     elif node_type == NodeType.BRANCH:
@@ -554,8 +581,9 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         type=NodeType.{node_type.name},
         id=self.id,
-        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        space_id=self.space_ptr.id,
         branch_id=self.id,
+        snapshot_id=self.snapshot_ptr.id,
     )
 """
     elif node_type == NodeType.SNAPSHOT:
@@ -564,8 +592,8 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         type=NodeType.{node_type.name},
         id=self.id,
-        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
-        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
+        space_id=self.space_ptr.id,
+        branch_id=self.branch_ptr.id,
         snapshot_id=self.id,
     )
 """
@@ -575,10 +603,10 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         type=NodeType.{node_type.name},
         id=self.id,
-        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
-        definition_id=definition_ptr.id if (definition_ptr := self.definition_ptr) is not None else None,
-        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
-        snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
+        space_id=self.space_ptr.id,
+        branch_id=self.branch_ptr.id,
+        snapshot_id=self.snapshot_ptr.id,
+        definition_id=self.definition_ptr.id if self.definition_ptr is not None else None,
     )
 """
 
@@ -911,7 +939,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        return self._session.graph.get(node_ptr.id)
+        return self._session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
     else:
         return None
 """
@@ -923,7 +951,7 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
     if node_ptr is not None:
         if self._session is None:
             return None
-        return self._session.graph.get(node_ptr.id)
+        return self._session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
     else:
         return None
 """

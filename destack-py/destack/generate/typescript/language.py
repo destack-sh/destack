@@ -251,7 +251,7 @@ def _generate_property(
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr != null) {{
-        return this._session.graph.get(nodePtr.id) as {wrapped_node_type_str} | null;
+        return this._session.graph.get(nodePtr) as {wrapped_node_type_str} | null;
     }}
     return null;
 }}"""
@@ -283,7 +283,7 @@ get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
         if (this._session === null) {{
             return null;
         }}
-        return this._session.graph.get(nodePtr.id) as {wrapped_node_type_str};
+        return this._session.graph.get(nodePtr) as {wrapped_node_type_str};
     }}
     return null;
 }}"""
@@ -510,6 +510,7 @@ if (_{ts_name_in} === null) {{
 
         # init default factory
         if prop.default_factory is not None:
+            # nocheckin: make ValueFactory/PrimitiveType/... enum checks exhaustive everywhere
             if prop.default_factory == ValueFactory.UUID4:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
@@ -596,20 +597,20 @@ if (options.id == null) {{
   const epoch = this._session.epoch;
   this.createdAt = now;
   this.createdEpoch = epoch;
-  this.createdByPtr = null;
+  this.createdByPtr = this._session.actorPtr;
   this.updatedAt = now;
   this.updatedEpoch = epoch;
-  this.updatedByPtr = null;
+  this.updatedByPtr = this._session.actorPtr;
 }} else {{
   if (options.createdAt == null || options.updatedAt == null || options.createdEpoch == null || options.updatedEpoch == null) {{
     throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : this._session.actorPtr;
   this.updatedAt = options.updatedAt;
   this.updatedEpoch = options.updatedEpoch;
-  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.constructor.name == "NodeReference" ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.constructor.name == "NodeReference" ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : this._session.actorPtr;
 }}
 """
         elif issubclass(cls, Event):
@@ -619,7 +620,7 @@ if (options.id == null) {{
   const epoch = this._session.epoch;
   this.createdAt = now;
   this.createdEpoch = epoch;
-  this.createdByPtr = null;
+  this.createdByPtr = this._session.actorPtr;
   this.clientCreatedAt = now;
   this.clientEpoch = epoch;
 }} else {{
@@ -1115,6 +1116,8 @@ return new _NodeReference({{
   type: NodeType.{node_type.name},
   id: this.id,
   spaceId: this.id,
+  branchId: this.branchPtr.id,
+  snapshotId: this.snapshotPtr.id,
   _session: this._session,
 }});
 """
@@ -1124,8 +1127,9 @@ const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof
 return new _NodeReference({{
   type: NodeType.{node_type.name},
   id: this.id,
-  spaceId: this.spacePtr?.id ?? null,
+  spaceId: this.spacePtr.id,
   branchId: this.id,
+  snapshotId: this.snapshotPtr.id,
   _session: this._session,
 }});
 """
@@ -1135,8 +1139,8 @@ const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof
 return new _NodeReference({{
   type: NodeType.{node_type.name},
   id: this.id,
-  spaceId: this.spacePtr?.id ?? null,
-  branchId: this.branchPtr?.id ?? null,
+  spaceId: this.spacePtr.id,
+  branchId: this.branchPtr.id,
   snapshotId: this.id,
   _session: this._session,
 }});
@@ -1147,10 +1151,10 @@ const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof
 return new _NodeReference({{
   type: NodeType.{node_type.name},
   id: this.id,
-  spaceId: this.spacePtr?.id ?? null,
-  definitionId: this.definitionPtr?.id ?? null,
-  branchId: this.branchPtr?.id ?? null,
-  snapshotId: this.snapshotPtr?.id ?? null,
+  spaceId: this.spacePtr.id,
+  definitionId: this.definitionPtr.id,
+  branchId: this.branchPtr.id,
+  snapshotId: this.snapshotPtr.id,
   _session: this._session,
 }});
 """

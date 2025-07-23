@@ -4,8 +4,6 @@ import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
 import {
   BuiltinObject,
   Encoder,
-  Graph,
-  GraphConnection,
   NodeType,
   ObjectKind,
   Session,

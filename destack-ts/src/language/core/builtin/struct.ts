@@ -1,4 +1,4 @@
-import type { Encoding, Graph, PackedCache, StructDefinition } from "@destack/language/core";
+import type { Encoding, PackedCache, StructDefinition } from "@destack/language/core";
 import { ObjectKind, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION, ENCODERS } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
@@ -13,9 +13,9 @@ export abstract class Struct extends BuiltinObject {
   static readonly __isStruct__: boolean = true;
   static readonly __definition__: StructDefinition;
 
-  constructor(_session: Session | null, _graph: Graph | null) {
+  constructor(_session: Session | null) {
     _session = _session ?? ACTIVE_SESSION.get();
-    super(_session, _graph);
+    super(_session);
   }
 
   get metatype(): StructType {
@@ -56,11 +56,7 @@ export abstract class StructFrozen extends Struct {
     }
     // pack the object
     const encoder = ENCODERS[encoding]!;
-    const packedObject = encoder.packObject({
-      kind: ObjectKind.STRUCT,
-      metatype: this.metatype,
-      object: this,
-    });
+    const packedObject = encoder.packObject(ObjectKind.STRUCT, this.metatype, this);
     // cache the result
     const newCache: PackedCache = {
       encoding: encoding,
@@ -88,11 +84,7 @@ export abstract class StructFrozen extends Struct {
     }
     // pack the object as bytes
     const encoder = ENCODERS[encoding]!;
-    const packedObjectBytes = encoder.packObjectBytes({
-      kind: ObjectKind.STRUCT,
-      metatype: this.metatype,
-      object: this,
-    });
+    const packedObjectBytes = encoder.packObjectBytes(ObjectKind.STRUCT, this.metatype, this);
     // cache the result
     const newCache: PackedCache = {
       encoding: encoding,

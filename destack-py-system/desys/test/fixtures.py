@@ -14,7 +14,8 @@ from destack.test.fixtures import create_space
 _setup_test_env()
 
 from destack.graph import MemoryGraph
-from destack.language import Session
+from destack.language import Session, Universe
+from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -25,7 +26,13 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(graph=MemoryGraph())
+    session = Session(
+        graph=MemoryGraph(),
+        actor=Universe.ACTOR,
+        client=Universe.CLIENT,
+        client_nonce=uuid4(),
+        epoch=0,
+    )
     await session.open()
     yield session
     await session.close()
@@ -37,6 +44,7 @@ def space(session: Session):
         session,
         name="Test",
         slug="test",
+        owned_by=Universe.ACTOR,
     )
     with space.active(), branch.active(), snapshot.active():
         yield space
