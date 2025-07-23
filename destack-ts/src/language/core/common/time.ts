@@ -346,7 +346,7 @@ export class Branch extends Entity implements IsOwnable {
       options.id ?? null,
       /* parent */
       options.parent != null
-        ? options.parent.constructor.name == "NodeReference"
+        ? options.parent.constructor.name === "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
@@ -358,12 +358,12 @@ export class Branch extends Entity implements IsOwnable {
 
     /* properties */
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent.constructor.name != "NodeReference") {
+    if (_parent != null && _parent.constructor.name !== "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent as NodeReference | null;
     let _space = options.space ?? null;
-    if (_space != null && _space.constructor.name != "NodeReference") {
+    if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -386,12 +386,12 @@ export class Branch extends Entity implements IsOwnable {
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.constructor.name != "NodeReference") {
+    if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.constructor.name != "NodeReference") {
+    if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -406,7 +406,7 @@ export class Branch extends Entity implements IsOwnable {
     }
     this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
+    if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -421,19 +421,19 @@ export class Branch extends Entity implements IsOwnable {
     }
     this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
+    if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
-    if (_instance != null && _instance.constructor.name != "NodeReference") {
+    if (_instance != null && _instance.constructor.name !== "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
     this.instancePtr = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy.constructor.name != "NodeReference") {
+    if (_ownedBy != null && _ownedBy.constructor.name !== "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
@@ -459,14 +459,14 @@ export class Branch extends Entity implements IsOwnable {
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
-    if (_script != null && _script.constructor.name != "NodeReference") {
+    if (_script != null && _script.constructor.name !== "NodeReference") {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
-    if (_source != null && _source.constructor.name != "NodeReference") {
+    if (_source != null && _source.constructor.name !== "NodeReference") {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source as NodeReference | null;
@@ -501,7 +501,7 @@ export class Branch extends Entity implements IsOwnable {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.constructor.name == "NodeReference"
+          ? options.createdBy.constructor.name === "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : this._session.actorPtr;
@@ -509,7 +509,7 @@ export class Branch extends Entity implements IsOwnable {
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy.constructor.name == "NodeReference"
+          ? options.updatedBy.constructor.name === "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
           : this._session.actorPtr;
@@ -1007,7 +1007,7 @@ export class Snapshot extends Entity implements IsOwnable {
       options.id ?? null,
       /* parent */
       options.parent != null
-        ? options.parent.constructor.name == "NodeReference"
+        ? options.parent.constructor.name === "NodeReference"
           ? (options.parent as NodeReference)
           : (options.parent as Node).toRef()
         : null,
@@ -1019,12 +1019,12 @@ export class Snapshot extends Entity implements IsOwnable {
 
     /* properties */
     let _parent = options.parent ?? null;
-    if (_parent != null && _parent.constructor.name != "NodeReference") {
+    if (_parent != null && _parent.constructor.name !== "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent as NodeReference | null;
     let _space = options.space ?? null;
-    if (_space != null && _space.constructor.name != "NodeReference") {
+    if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -1047,12 +1047,12 @@ export class Snapshot extends Entity implements IsOwnable {
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.constructor.name != "NodeReference") {
+    if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.constructor.name != "NodeReference") {
+    if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -1067,7 +1067,7 @@ export class Snapshot extends Entity implements IsOwnable {
     }
     this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
+    if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -1082,19 +1082,19 @@ export class Snapshot extends Entity implements IsOwnable {
     }
     this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
+    if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
-    if (_instance != null && _instance.constructor.name != "NodeReference") {
+    if (_instance != null && _instance.constructor.name !== "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
     this.instancePtr = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy.constructor.name != "NodeReference") {
+    if (_ownedBy != null && _ownedBy.constructor.name !== "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
@@ -1120,14 +1120,14 @@ export class Snapshot extends Entity implements IsOwnable {
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
-    if (_script != null && _script.constructor.name != "NodeReference") {
+    if (_script != null && _script.constructor.name !== "NodeReference") {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
-    if (_source != null && _source.constructor.name != "NodeReference") {
+    if (_source != null && _source.constructor.name !== "NodeReference") {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source as NodeReference | null;
@@ -1172,7 +1172,7 @@ export class Snapshot extends Entity implements IsOwnable {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.constructor.name == "NodeReference"
+          ? options.createdBy.constructor.name === "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : this._session.actorPtr;
@@ -1180,7 +1180,7 @@ export class Snapshot extends Entity implements IsOwnable {
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
-          ? options.updatedBy.constructor.name == "NodeReference"
+          ? options.updatedBy.constructor.name === "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
           : this._session.actorPtr;

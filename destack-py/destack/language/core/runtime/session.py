@@ -235,7 +235,7 @@ class Session:
         self.flush()
         # events = list(self.pending_events)
         # self.pending_events = []
-        # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)
+        # nocheckin: 'process' Events (.status, time/epoch, in Space? who has authority?)
         #  -> general concept of 'authority' over certain Nodes and their processing?
         #   (like "who runs the timer"? "who runs physics"?)
         #  1) update Event status and 2) do something on failure :RejectedEvents

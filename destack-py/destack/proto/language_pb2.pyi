@@ -1052,7 +1052,6 @@ class PrimitiveTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRIMITIVE_TYPE_UINT16: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_UINT32: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_UINT64: _ClassVar[PrimitiveTypeProto]
-    PRIMITIVE_TYPE_DECIMAL: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_FLOAT32: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_FLOAT64: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_STRING: _ClassVar[PrimitiveTypeProto]
@@ -2315,7 +2314,6 @@ PRIMITIVE_TYPE_UINT8: PrimitiveTypeProto
 PRIMITIVE_TYPE_UINT16: PrimitiveTypeProto
 PRIMITIVE_TYPE_UINT32: PrimitiveTypeProto
 PRIMITIVE_TYPE_UINT64: PrimitiveTypeProto
-PRIMITIVE_TYPE_DECIMAL: PrimitiveTypeProto
 PRIMITIVE_TYPE_FLOAT32: PrimitiveTypeProto
 PRIMITIVE_TYPE_FLOAT64: PrimitiveTypeProto
 PRIMITIVE_TYPE_STRING: PrimitiveTypeProto

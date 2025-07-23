@@ -813,8 +813,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             PrimitiveType.UINT64,
         ):
             return f"hash_int({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DECIMAL:
-            raise NotImplementedError(f"cannot hash decimal: {prop!r}")
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hash_bool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:

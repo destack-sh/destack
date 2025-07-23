@@ -262,10 +262,14 @@ def uuids():
 
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.BOOLEAN: st.booleans(),
+    PrimitiveType.INT8: st.integers(min_value=-(2**7), max_value=2**7 - 1),
     PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
     PrimitiveType.INT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
     PrimitiveType.INT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
-    PrimitiveType.DECIMAL: st.decimals(),
+    PrimitiveType.UINT8: st.integers(min_value=0, max_value=2**8 - 1),
+    PrimitiveType.UINT16: st.integers(min_value=0, max_value=2**16 - 1),
+    PrimitiveType.UINT32: st.integers(min_value=0, max_value=2**32 - 1),
+    PrimitiveType.UINT64: st.integers(min_value=0, max_value=2**64 - 1),
     PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.STRING: st.text(min_size=1),
@@ -279,17 +283,27 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
 }
 
 MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
+    PrimitiveType.INT8: -(2**7),
     PrimitiveType.INT16: -(2**15),
     PrimitiveType.INT32: -(2**31),
     PrimitiveType.INT64: -(2**63),
+    PrimitiveType.UINT8: 0,
+    PrimitiveType.UINT16: 0,
+    PrimitiveType.UINT32: 0,
+    PrimitiveType.UINT64: 0,
     PrimitiveType.FLOAT32: -3.4e38,
     PrimitiveType.FLOAT64: -1.7e308,
 }
 
 MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
+    PrimitiveType.INT8: 2**7 - 1,
     PrimitiveType.INT16: 2**15 - 1,
     PrimitiveType.INT32: 2**31 - 1,
     PrimitiveType.INT64: 2**63 - 1,
+    PrimitiveType.UINT8: 2**8 - 1,
+    PrimitiveType.UINT16: 2**16 - 1,
+    PrimitiveType.UINT32: 2**32 - 1,
+    PrimitiveType.UINT64: 2**64 - 1,
     PrimitiveType.FLOAT32: 3.4e38,
     PrimitiveType.FLOAT64: 1.7e308,
 }

@@ -98,7 +98,18 @@ export function unpackCson(
 /** Pack a scalar value to a CSON object. */
 function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomProperty): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.BYTES) {
+    if (type.primitiveType === null) {
+      throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
+      return value;
+    } else if (type.primitiveType == PrimitiveType.STRING) {
+      return value;
+    } else if (type.primitiveType == PrimitiveType.UUID) {
+      return value;
+    } else if (
+      type.primitiveType == PrimitiveType.BYTES ||
+      type.primitiveType == PrimitiveType.PROTO
+    ) {
       return base64Encode(value as Uint8Array);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return (value as Temporal.ZonedDateTime).toString({ timeZoneName: "never" });
@@ -108,8 +119,26 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
       return (value as Temporal.PlainTime).toString();
     } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaToISOFormat(value as Temporal.Duration);
-    } else {
+    } else if (
+      type.primitiveType == PrimitiveType.INT8 ||
+      type.primitiveType == PrimitiveType.INT16 ||
+      type.primitiveType == PrimitiveType.INT32 ||
+      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.UINT8 ||
+      type.primitiveType == PrimitiveType.UINT16 ||
+      type.primitiveType == PrimitiveType.UINT32 ||
+      type.primitiveType == PrimitiveType.UINT64 ||
+      type.primitiveType == PrimitiveType.FLOAT32 ||
+      type.primitiveType == PrimitiveType.FLOAT64
+    ) {
       return value;
+    } else if (
+      type.primitiveType == PrimitiveType.JSON ||
+      type.primitiveType == PrimitiveType.CSON
+    ) {
+      return value;
+    } else {
+      assertNever(type.primitiveType);
     }
   } else if (type.scalarType == ScalarType.ENUM) {
     return value;
@@ -140,8 +169,19 @@ function _unpackScalarCson(
   },
 ): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.BYTES) {
+    if (type.primitiveType === null) {
+      throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
+      return value;
+    } else if (
+      type.primitiveType == PrimitiveType.BYTES ||
+      type.primitiveType == PrimitiveType.PROTO
+    ) {
       return base64Decode(value);
+    } else if (type.primitiveType == PrimitiveType.UUID) {
+      return value;
+    } else if (type.primitiveType == PrimitiveType.STRING) {
+      return value;
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return Temporal.Instant.from(value).toZonedDateTimeISO("UTC");
     } else if (type.primitiveType == PrimitiveType.DATE) {
@@ -156,13 +196,23 @@ function _unpackScalarCson(
     ) {
       return Number(value);
     } else if (
+      type.primitiveType == PrimitiveType.INT8 ||
       type.primitiveType == PrimitiveType.INT16 ||
       type.primitiveType == PrimitiveType.INT32 ||
-      type.primitiveType == PrimitiveType.INT64
+      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.UINT8 ||
+      type.primitiveType == PrimitiveType.UINT16 ||
+      type.primitiveType == PrimitiveType.UINT32 ||
+      type.primitiveType == PrimitiveType.UINT64
     ) {
       return Number(value);
-    } else {
+    } else if (
+      type.primitiveType == PrimitiveType.JSON ||
+      type.primitiveType == PrimitiveType.CSON
+    ) {
       return value;
+    } else {
+      assertNever(type.primitiveType);
     }
   } else if (type.scalarType == ScalarType.ENUM) {
     return value;

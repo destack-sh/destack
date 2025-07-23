@@ -292,7 +292,7 @@ export class FocusInEvent extends FocusEvent {
 
     /* properties */
     let _space = options.space ?? null;
-    if (_space != null && _space.constructor.name != "NodeReference") {
+    if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -307,12 +307,12 @@ export class FocusInEvent extends FocusEvent {
     }
     this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.constructor.name != "NodeReference") {
+    if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.constructor.name != "NodeReference") {
+    if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -327,7 +327,7 @@ export class FocusInEvent extends FocusEvent {
     }
     this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
+    if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -342,17 +342,17 @@ export class FocusInEvent extends FocusEvent {
     }
     this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
+    if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
+    if (_causedBy != null && _causedBy.constructor.name !== "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
     this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.constructor.name != "NodeReference") {
+    if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
@@ -379,7 +379,7 @@ export class FocusInEvent extends FocusEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.constructor.name != "NodeReference") {
+    if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
     this.nodePtr = _node as NodeReference | null;
@@ -406,7 +406,7 @@ export class FocusInEvent extends FocusEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.constructor.name == "NodeReference"
+          ? options.createdBy.constructor.name === "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
@@ -717,7 +717,7 @@ export class FocusOutEvent extends FocusEvent {
 
     /* properties */
     let _space = options.space ?? null;
-    if (_space != null && _space.constructor.name != "NodeReference") {
+    if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
@@ -732,12 +732,12 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.spacePtr = _space as NodeReference;
     let _definition = options.definition ?? null;
-    if (_definition != null && _definition.constructor.name != "NodeReference") {
+    if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
-    if (_branch != null && _branch.constructor.name != "NodeReference") {
+    if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
@@ -752,7 +752,7 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.constructor.name != "NodeReference") {
+    if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
@@ -767,17 +767,17 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.constructor.name != "NodeReference") {
+    if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
-    if (_causedBy != null && _causedBy.constructor.name != "NodeReference") {
+    if (_causedBy != null && _causedBy.constructor.name !== "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
     this.causedByPtr = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
-    if (_client != null && _client.constructor.name != "NodeReference") {
+    if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
@@ -804,7 +804,7 @@ export class FocusOutEvent extends FocusEvent {
     }
     this.status = _status;
     let _node = options.node ?? null;
-    if (_node != null && _node.constructor.name != "NodeReference") {
+    if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
     this.nodePtr = _node as NodeReference | null;
@@ -831,7 +831,7 @@ export class FocusOutEvent extends FocusEvent {
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
-          ? options.createdBy.constructor.name == "NodeReference"
+          ? options.createdBy.constructor.name === "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;

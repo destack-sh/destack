@@ -290,6 +290,7 @@ def _generate_pack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value_e
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
@@ -298,8 +299,27 @@ def _generate_pack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value_e
             return f"pack_proto_duration({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
             return f"pack_proto_json({value_expr})"
-        else:
+        elif prop.primitive_type in (
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.STRING,
+            PrimitiveType.BYTES,
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.PROTO,
+        ):
             return value_expr
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -316,6 +336,7 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
@@ -324,8 +345,27 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
             return f"unpack_proto_duration({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
             return f"unpack_proto_json({value_expr})"
+        elif prop.primitive_type in (
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.STRING,
+            PrimitiveType.BYTES,
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.PROTO,
+        ):
+            return value_expr
         else:
-            return f"{value_expr}"
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None
         enum_type_name = prop.enum_type.camel_name

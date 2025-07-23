@@ -4,7 +4,7 @@ import { JSON_OBJECT_ENCODERS, _JsonObjectEncoder, getObjectKey } from '@destack
 import { Temporal } from 'temporal-polyfill';
 import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
-import { Metric, Query, InviteSentEvent, TagDefinition, SanctionRevokedEvent, TimerResumedEvent, SanctionEvent, Star, NodeDefinitionType, AggregationType, SpanEvent, Scene, ActionDefinition, Tagging, DropEvent, DragLeaveEvent, MigrationOperationDefinition, RegionContinent, IndexDefinition, NotificationDismissedEvent, PointerLeaveEvent, StructDefinition, Value, Line2D, EdgeDirection, MouseEvent, StrokePath, DatumMutable, DayOfWeek, ClickEvent, TimerStartedEvent, Vector3, TypeCardinality, LabelView, Record, InviteEvent, RoleEvent, Text, Layer, SceneEvent, Stage, NodeDefinition, EffectType, FocusOutEvent, Shape2D, EntitlementGrantedEvent, NotificationSentEvent, FollowEvent, KeyEvent, FrameView, EnumType, Border, DragEnterEvent, Tenancy, Cloud, Overflow, EnvironmentType, TransitionType, Database, StructType, ColorShade, RunStatus, Distribute, StarRemovedEvent, Vector2i, CustomEvent, Materialization, InviteRescindedEvent, ModelProvider, TextSplitType, NodeDefinitionReference, NumberFormat, GraphKey, EntitlementType, SingleClickEvent, MigrationType, Branch, DragEvent, ObjectDefinitionReference, NotificationReadEvent, Join, MachineType, NodeType, NodeReference, GradientType, EditEvent, RunStopRequestedEvent, ColorType, Polygon2D, HistogramMetric, MouseButton, RunFailedEvent, Easing, FollowRemovedEvent, CustomOption, Tag, RunPauseRequestedEvent, Shadow, Method, Timer, Effect, SortMode, BranchType, Theme, StructDefinitionType, Node, Script, Snapshot, Transition, RuntimeLanguage, RoleType, DragStartEvent, SpringType, Grid2, Space, PropertyReference, EditOperation, ClientType, ValueFactory, EntitlementRequestedEvent, MigrationDefinition, ShadowStyle, DragOverEvent, Service, OperatingSystem, ObjectKind, PathShape2D, ColorStyle, Role, TextAlign, PointerMoveEvent, Encoding, Arrow2D, FileRetentionMode, Corner2, Follow, FontType, LengthType, PointerDownEvent, Function, CounterMeasurementEvent, ScalarType, Axis3, ShadowPosition, UserStatus, RegionArea, ToolType, Path2D, SplitView, Client, Schedule, MeasurementEvent, Vector2, Entity3D, FocusInEvent, ConstraintType, ColorHue, DoubleClickEvent, PointerLongPressEvent, ObjectDefinitionType, RunCompletedEvent, ScheduleFrequency, InputEvent, EntitlementEvent, Resource, GradientStop, KeyDownEvent, Organization, SnapshotType, InputView, FillPosition, EventStatus, ConstantDefinition, Environment, MembershipJoinedEvent, RepeatType, CutEvent, FunctionType, PointerUpEvent, Direction, Anchor, RunStartedEvent, Entitlement, PolygonShape2D, SanctionGrantedEvent, FillStyle, Entity, BuiltinDefinition, CustomStruct, Trigger, ExpressionType, Length, Layout, NotificationRescindedEvent, BorderType, Membership, CustomProperty, IndexType, RunResumeRequestedEvent, EntitlementExpiredEvent, StrokeType, CustomEnum, NumberInputView, MigrationOperation, StrokeCap, TextSpan, Font, UniverseCategory, Datum, Folder, PrimitiveType, EditType, RunPausedEvent, FontWeight, Color, Quaternion, DragEndEvent, Event, ArrowShape2D, SanctionExpiredEvent, NumberConstraint, TriggerEvent, OptionDefinition, MethodDefinition, Style, Route, Permission, FileFormat, Rectangle2D, ResourceStatus, ShadowType, DatabaseType, GraphDomain, FocusEvent, GridSpan2, Ellipse2D, ClipboardEvent, Palette, PointerEvent, MembershipLeftEvent, PropertyDefinition, InviteRejectedEvent, LogLevel, Invite, Sanction, Gradient, SortType, InviteAcceptedEvent, Fill, Icon, Notification, Machine, ContentView, Vector3i, Variant, StarEvent, Expression, EntitlementRevokedEvent, FontStyle, FolderType, RunEvent, SliderInputView, ColorIntent, ConditionalType, ModeType, View, EffectStyle, Axis2, NotificationStatus, ViewEvent, TextSpanType, TripleClickEvent, FollowAddedEvent, TimerType, Offset2, QueryType, TimerEvent, PropertyType, StrokePoint, SignalEvent, Month, EllipseShape2D, Stroke, TextTransform, SanctionType, Reaction, PropertyReferenceType, GradientStyle, MethodType, Constraint, Vector4, StructDefinitionReference, File, Migration, ReactionEvent, Action, CopyEvent, Inset2, ArrowHeadType, Region, Align, LineShape2D, TraitType, KeyUpEvent, EdgeType, GaugeMeasurementEvent, LogEvent, Entity2D, Universe, GaugeMetric, Handle, NotificationEvent, IconType, Sort, StarAddedEvent, RoleUnassignedEvent, Aggregation, Condition, FillType, TextView, WheelEvent, Team, KeyPressEvent, TimerPausedEvent, ReactionRemovedEvent, User, StringFormat, SanctionRequestedEvent, RunResumedEvent, PasteEvent, CounterMetric, PointerOverEvent, Select, MethodCardinality, FontSize, Shape3D, RectangleShape2D, OrganizationStatus, TimerCompletedEvent, PermissionDefinition, CollectionConstraint, CascadeAction, PlatformType, RoleAssignedEvent, Vector4i, ModelDeveloper, LayerType, TimerCancelledEvent, ConstraintDefinition, MembershipEvent, JoinType, EnumDefinition, StrokeStyle, StringConstraint, NotificationExpiredEvent, PointerEnterEvent, FileType, TransitionStyle, TriggerType, TraitDefinition, SnapshotStatus, Struct, LayoutView, BorderStyle, Index, Run, TextDecoration, HistogramMeasurementEvent, FillSize, ReactionAddedEvent, OffscreenBehavior, Type } from '@destack/language';
+import { RoleUnassignedEvent, Folder, StructDefinitionReference, GridSpan2, Handle, Event, Length, Struct, Encoding, Schedule, ModeType, Entitlement, PrimitiveType, SceneEvent, EffectStyle, Follow, Datum, Region, LogEvent, PointerUpEvent, Trigger, SortType, Metric, Variant, Node, MethodCardinality, LayoutView, ConstraintDefinition, PointerLeaveEvent, TraitType, NotificationExpiredEvent, ColorIntent, PolygonShape2D, RoleAssignedEvent, WheelEvent, AggregationType, PointerLongPressEvent, NotificationEvent, FontStyle, Migration, TransitionType, SignalEvent, Index, FollowRemovedEvent, Vector4, DragEnterEvent, Distribute, GradientStyle, FontType, EntitlementEvent, Quaternion, Database, SanctionRevokedEvent, Theme, Run, KeyUpEvent, Icon, ArrowShape2D, Vector2, CustomStruct, LayerType, GraphDomain, EntitlementGrantedEvent, Universe, SanctionExpiredEvent, Vector4i, Offset2, Shadow, FillStyle, TextSpan, TypeCardinality, NumberInputView, GaugeMeasurementEvent, Palette, TextDecoration, JoinType, FontWeight, FillType, TextSpanType, Line2D, SnapshotType, InviteRescindedEvent, ConditionalType, PointerDownEvent, MigrationType, DayOfWeek, MouseButton, Invite, Tenancy, UserStatus, StrokeStyle, Resource, SanctionRequestedEvent, ValueFactory, ClickEvent, FolderType, GaugeMetric, StarRemovedEvent, Tag, DragEvent, Shape3D, FunctionType, TagDefinition, PropertyReferenceType, ActionDefinition, MembershipJoinedEvent, PointerOverEvent, StringFormat, ShadowPosition, RunResumeRequestedEvent, LengthType, Axis2, FillPosition, InputEvent, DatumMutable, RuntimeLanguage, SpringType, NodeDefinition, Service, ColorType, GraphKey, Expression, BorderType, TriggerType, File, EllipseShape2D, EffectType, Join, Space, MethodType, Branch, RunPausedEvent, Text, Entity2D, CustomEnum, InviteAcceptedEvent, TransitionStyle, StringConstraint, OffscreenBehavior, ArrowHeadType, NodeType, SpanEvent, TimerType, CustomProperty, Function, FollowEvent, NotificationSentEvent, Scene, ToolType, ModelProvider, Action, MouseEvent, RunFailedEvent, CollectionConstraint, Align, TimerResumedEvent, Team, ConstraintType, PointerEnterEvent, LabelView, OptionDefinition, ScalarType, DragStartEvent, TimerEvent, MigrationOperationDefinition, Border, StrokePoint, Layout, Vector2i, ResourceStatus, SortMode, TimerCancelledEvent, StructDefinitionType, EventStatus, ReactionAddedEvent, TextSplitType, KeyDownEvent, NotificationRescindedEvent, Client, FrameView, LineShape2D, BuiltinDefinition, Tagging, Snapshot, PermissionDefinition, OperatingSystem, RunStartedEvent, Query, FocusInEvent, Permission, InviteSentEvent, SplitView, GradientStop, EditOperation, ViewEvent, RegionContinent, MeasurementEvent, User, Sort, Stroke, TimerCompletedEvent, TraitDefinition, Effect, CounterMeasurementEvent, TextAlign, Environment, Membership, Ellipse2D, NotificationStatus, StarAddedEvent, Sanction, NumberFormat, MigrationDefinition, FollowAddedEvent, ClipboardEvent, Organization, MigrationOperation, DropEvent, KeyPressEvent, RunStatus, Grid2, Timer, ColorShade, Vector3i, NotificationDismissedEvent, ObjectKind, InviteRejectedEvent, Layer, Star, SliderInputView, Easing, CascadeAction, CustomOption, PropertyDefinition, SnapshotStatus, RunResumedEvent, TimerStartedEvent, StructType, KeyEvent, MachineType, Polygon2D, SingleClickEvent, CutEvent, CopyEvent, View, Select, Color, EnumDefinition, TextTransform, Value, ReactionRemovedEvent, Axis3, DragOverEvent, FocusEvent, MethodDefinition, BorderStyle, Materialization, EditEvent, RegionArea, FillSize, NodeDefinitionReference, ObjectDefinitionType, Overflow, StructDefinition, ShadowStyle, SanctionGrantedEvent, FocusOutEvent, Transition, Machine, BranchType, PlatformType, ShadowType, EditType, SanctionEvent, ClientType, Method, InviteEvent, OrganizationStatus, Record, DoubleClickEvent, Month, Type, Direction, EnvironmentType, EntitlementType, NodeDefinitionType, CounterMetric, Entity3D, RoleEvent, EdgeType, PointerEvent, Condition, EdgeDirection, ReactionEvent, DatabaseType, InputView, IconType, Corner2, Constraint, FontSize, IndexDefinition, ContentView, TripleClickEvent, RunPauseRequestedEvent, Entity, UniverseCategory, IndexType, SanctionType, Arrow2D, LogLevel, ColorStyle, StrokeCap, Gradient, Rectangle2D, Path2D, MembershipEvent, RectangleShape2D, ConstantDefinition, PasteEvent, ColorHue, NodeReference, NotificationReadEvent, HistogramMetric, RunEvent, Notification, RepeatType, FileRetentionMode, Style, ScheduleFrequency, Shape2D, GradientType, Font, PathShape2D, Role, MembershipLeftEvent, Cloud, PropertyReference, FileFormat, Script, Stage, Inset2, Fill, StarEvent, ModelDeveloper, PropertyType, DragLeaveEvent, FileType, PointerMoveEvent, Route, Vector3, TextView, HistogramMeasurementEvent, EntitlementRevokedEvent, RunCompletedEvent, Aggregation, ObjectDefinitionReference, NumberConstraint, TimerPausedEvent, CustomEvent, TriggerEvent, ExpressionType, Anchor, EntitlementRequestedEvent, RunStopRequestedEvent, QueryType, EntitlementExpiredEvent, RoleType, EnumType, StrokePath, DragEndEvent, Reaction, StrokeType } from '@destack/language';
 export const JSON_ENCODERS: { [key: string]: _JsonObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -17,7 +17,7 @@ export function loadEncoders(): void {
       packObject(object: Tag): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TAG";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -35,10 +35,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -51,7 +51,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -94,7 +94,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -129,7 +129,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -142,7 +142,7 @@ export function loadEncoders(): void {
       packObject(object: Tagging): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TAGGING";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -160,10 +160,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -176,7 +176,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -214,7 +214,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -249,7 +249,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -262,7 +262,7 @@ export function loadEncoders(): void {
       packObject(object: CustomEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUSTOM_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -280,10 +280,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -296,7 +296,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -359,7 +359,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -397,7 +397,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -410,7 +410,7 @@ export function loadEncoders(): void {
       packObject(object: EditEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "EDIT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -424,12 +424,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["type"] = EditType[object.type];
         objectJson["node"] = object.nodePtr.pack(1);
@@ -437,7 +437,7 @@ export function loadEncoders(): void {
           objectJson["operation"] = EditOperation[object.operation];
         }
         if (object.propertyId != null) {
-          objectJson["propertyId"] = object.propertyId;
+          objectJson["propertyId"] = Number(object.propertyId);
         }
         if (object.customPropertyPtr != null) {
           objectJson["customProperty"] = object.customPropertyPtr.pack(1);
@@ -499,11 +499,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -516,7 +516,7 @@ export function loadEncoders(): void {
       packObject(object: Permission): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PERMISSION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -534,10 +534,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -550,7 +550,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -587,7 +587,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -621,7 +621,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -634,7 +634,7 @@ export function loadEncoders(): void {
       packObject(object: Method): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "METHOD";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -652,10 +652,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -668,7 +668,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -739,7 +739,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -778,7 +778,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -791,7 +791,7 @@ export function loadEncoders(): void {
       packObject(object: Action): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ACTION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -809,10 +809,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -825,7 +825,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -896,7 +896,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -935,7 +935,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -948,7 +948,7 @@ export function loadEncoders(): void {
       packObject(object: CustomEnum): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUSTOM_ENUM";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -966,10 +966,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -982,7 +982,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1025,7 +1025,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1060,7 +1060,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1073,7 +1073,7 @@ export function loadEncoders(): void {
       packObject(object: CustomOption): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUSTOM_OPTION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1091,10 +1091,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1107,7 +1107,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1150,7 +1150,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1185,7 +1185,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1198,7 +1198,7 @@ export function loadEncoders(): void {
       packObject(object: Index): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INDEX";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1216,10 +1216,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1232,7 +1232,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1284,7 +1284,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1320,7 +1320,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1333,7 +1333,7 @@ export function loadEncoders(): void {
       packObject(object: Constraint): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CONSTRAINT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1351,10 +1351,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1367,7 +1367,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1419,7 +1419,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1455,7 +1455,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1468,7 +1468,7 @@ export function loadEncoders(): void {
       packObject(object: Migration): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MIGRATION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1486,10 +1486,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1502,7 +1502,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1540,7 +1540,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1575,7 +1575,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1588,7 +1588,7 @@ export function loadEncoders(): void {
       packObject(object: MigrationOperation): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MIGRATION_OPERATION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1606,10 +1606,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1622,7 +1622,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1659,7 +1659,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1693,7 +1693,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1706,7 +1706,7 @@ export function loadEncoders(): void {
       packObject(object: CustomProperty): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUSTOM_PROPERTY";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1724,10 +1724,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1740,7 +1740,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -1883,7 +1883,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -1938,7 +1938,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -1951,7 +1951,7 @@ export function loadEncoders(): void {
       packObject(object: Space): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SPACE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -1969,10 +1969,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -1985,7 +1985,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -2029,7 +2029,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -2067,7 +2067,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           _session,
         });
       }
@@ -2079,7 +2079,7 @@ export function loadEncoders(): void {
       packObject(object: CustomStruct): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUSTOM_STRUCT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -2097,10 +2097,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -2113,7 +2113,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -2162,7 +2162,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -2198,7 +2198,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2211,7 +2211,7 @@ export function loadEncoders(): void {
       packObject(object: Branch): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "BRANCH";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -2229,10 +2229,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -2245,7 +2245,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -2283,7 +2283,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -2318,7 +2318,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2331,7 +2331,7 @@ export function loadEncoders(): void {
       packObject(object: Snapshot): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SNAPSHOT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -2349,10 +2349,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -2365,7 +2365,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -2404,7 +2404,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -2440,7 +2440,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2453,7 +2453,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementRequestedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENTITLEMENT_REQUESTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2467,12 +2467,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -2499,11 +2499,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2516,7 +2516,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementGrantedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENTITLEMENT_GRANTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2530,12 +2530,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -2562,11 +2562,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2579,7 +2579,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementRevokedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENTITLEMENT_REVOKED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2593,12 +2593,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -2625,11 +2625,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2642,7 +2642,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementExpiredEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENTITLEMENT_EXPIRED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2656,12 +2656,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -2688,11 +2688,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2705,7 +2705,7 @@ export function loadEncoders(): void {
       packObject(object: Entitlement): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENTITLEMENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -2723,10 +2723,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -2739,7 +2739,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -2783,7 +2783,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -2820,7 +2820,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2833,7 +2833,7 @@ export function loadEncoders(): void {
       packObject(object: InviteSentEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INVITE_SENT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2847,12 +2847,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -2885,11 +2885,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2902,7 +2902,7 @@ export function loadEncoders(): void {
       packObject(object: InviteRescindedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INVITE_RESCINDED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2916,12 +2916,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -2950,11 +2950,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -2967,7 +2967,7 @@ export function loadEncoders(): void {
       packObject(object: InviteAcceptedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INVITE_ACCEPTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -2981,12 +2981,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -3019,11 +3019,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3036,7 +3036,7 @@ export function loadEncoders(): void {
       packObject(object: InviteRejectedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INVITE_REJECTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3050,12 +3050,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -3084,11 +3084,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3101,7 +3101,7 @@ export function loadEncoders(): void {
       packObject(object: Invite): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INVITE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -3119,10 +3119,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -3135,7 +3135,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -3183,7 +3183,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -3220,7 +3220,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3233,7 +3233,7 @@ export function loadEncoders(): void {
       packObject(object: MembershipJoinedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MEMBERSHIP_JOINED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3247,12 +3247,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -3285,11 +3285,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3302,7 +3302,7 @@ export function loadEncoders(): void {
       packObject(object: MembershipLeftEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MEMBERSHIP_LEFT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3316,12 +3316,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["joinable"] = object.joinablePtr.pack(1);
@@ -3350,11 +3350,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3367,7 +3367,7 @@ export function loadEncoders(): void {
       packObject(object: Membership): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MEMBERSHIP";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -3385,10 +3385,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -3401,7 +3401,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -3449,7 +3449,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -3486,7 +3486,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3499,7 +3499,7 @@ export function loadEncoders(): void {
       packObject(object: RoleAssignedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ROLE_ASSIGNED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3513,12 +3513,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["actor"] = object.actorPtr.pack(1);
@@ -3545,11 +3545,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3562,7 +3562,7 @@ export function loadEncoders(): void {
       packObject(object: RoleUnassignedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ROLE_UNASSIGNED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3576,12 +3576,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["actor"] = object.actorPtr.pack(1);
@@ -3608,11 +3608,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3625,7 +3625,7 @@ export function loadEncoders(): void {
       packObject(object: Role): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ROLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -3643,10 +3643,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -3659,7 +3659,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -3703,7 +3703,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -3739,7 +3739,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3752,7 +3752,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionRequestedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SANCTION_REQUESTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3766,12 +3766,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -3798,11 +3798,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3815,7 +3815,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionGrantedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SANCTION_GRANTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3829,12 +3829,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -3861,11 +3861,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3878,7 +3878,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionRevokedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SANCTION_REVOKED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3892,12 +3892,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -3924,11 +3924,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -3941,7 +3941,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionExpiredEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SANCTION_EXPIRED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -3955,12 +3955,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["target"] = object.targetPtr.pack(1);
@@ -3987,11 +3987,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4004,7 +4004,7 @@ export function loadEncoders(): void {
       packObject(object: Sanction): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SANCTION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4022,10 +4022,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4038,7 +4038,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4082,7 +4082,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4119,7 +4119,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4132,7 +4132,7 @@ export function loadEncoders(): void {
       packObject(object: ColorStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "COLOR_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4150,10 +4150,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4166,7 +4166,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4193,16 +4193,16 @@ export function loadEncoders(): void {
           objectJson["intent"] = ColorIntent[object._intent];
         }
         if (object._x != null) {
-          objectJson["x"] = object._x;
+          objectJson["x"] = Number(object._x);
         }
         if (object._y != null) {
-          objectJson["y"] = object._y;
+          objectJson["y"] = Number(object._y);
         }
         if (object._z != null) {
-          objectJson["z"] = object._z;
+          objectJson["z"] = Number(object._z);
         }
         if (object._alpha != null) {
-          objectJson["alpha"] = object._alpha;
+          objectJson["alpha"] = Number(object._alpha);
         }
         if (object._dark != null) {
           objectJson["dark"] = object._dark.pack(1);
@@ -4221,13 +4221,13 @@ export function loadEncoders(): void {
         const intentValue = objectJson["intent"];
         const unpackedIntent = intentValue != undefined ? ColorIntent[intentValue] as any : null;
         const xValue = objectJson["x"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectJson["y"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectJson["z"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         const alphaValue = objectJson["alpha"];
-        const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
+        const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
         const darkValue = objectJson["dark"];
         const unpackedDark = darkValue != undefined ? _Color.unpack(1, darkValue, _session) as Color : null;
         const parentPtrValue = objectJson["parent"];
@@ -4245,7 +4245,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4288,7 +4288,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4301,7 +4301,7 @@ export function loadEncoders(): void {
       packObject(object: BorderStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "BORDER_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4319,10 +4319,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4335,7 +4335,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4390,7 +4390,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4428,7 +4428,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4441,7 +4441,7 @@ export function loadEncoders(): void {
       packObject(object: GradientStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "GRADIENT_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4459,10 +4459,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4475,7 +4475,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4493,7 +4493,7 @@ export function loadEncoders(): void {
         }
         objectJson["type"] = GradientType[object._type];
         if (object._angle != null) {
-          objectJson["angle"] = object._angle;
+          objectJson["angle"] = Number(object._angle);
         }
         if (object._stops.length > 0) {
           const packedStops: any[] = [];
@@ -4518,7 +4518,7 @@ export function loadEncoders(): void {
         const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
         const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
         const angleValue = objectJson["angle"];
-        const unpackedAngle = angleValue != undefined ? angleValue : null;
+        const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
         const unpackedStops: any[] = [];
         if (objectJson["stops"] != undefined) {
           for (const item of objectJson["stops"]) {
@@ -4544,7 +4544,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4583,7 +4583,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4596,7 +4596,7 @@ export function loadEncoders(): void {
       packObject(object: FillStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FILL_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4614,10 +4614,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4630,7 +4630,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4695,7 +4695,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4735,7 +4735,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4748,7 +4748,7 @@ export function loadEncoders(): void {
       packObject(object: FontStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FONT_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4766,10 +4766,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4782,7 +4782,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4862,7 +4862,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -4905,7 +4905,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -4918,7 +4918,7 @@ export function loadEncoders(): void {
       packObject(object: Palette): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PALETTE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -4936,10 +4936,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -4952,7 +4952,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -4995,7 +4995,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5030,7 +5030,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5043,7 +5043,7 @@ export function loadEncoders(): void {
       packObject(object: ShadowStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SHADOW_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5061,10 +5061,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5077,7 +5077,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5102,13 +5102,13 @@ export function loadEncoders(): void {
           objectJson["offset"] = object._offset.pack(1);
         }
         if (object._blur != null) {
-          objectJson["blur"] = object._blur;
+          objectJson["blur"] = Number(object._blur);
         }
         if (object._spread != null) {
-          objectJson["spread"] = object._spread;
+          objectJson["spread"] = Number(object._spread);
         }
         if (object._diffusion != null) {
-          objectJson["diffusion"] = object._diffusion;
+          objectJson["diffusion"] = Number(object._diffusion);
         }
         return objectJson;
       }
@@ -5127,7 +5127,7 @@ export function loadEncoders(): void {
         const spreadValue = objectJson["spread"];
         const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
         const diffusionValue = objectJson["diffusion"];
-        const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
+        const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
         const parentPtrValue = objectJson["parent"];
         const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack(1, parentPtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -5143,7 +5143,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5184,7 +5184,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5197,7 +5197,7 @@ export function loadEncoders(): void {
       packObject(object: StrokeStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STROKE_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5215,10 +5215,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5231,7 +5231,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5248,10 +5248,10 @@ export function loadEncoders(): void {
           objectJson["key"] = object._key;
         }
         objectJson["type"] = StrokeType[object._type];
-        objectJson["size"] = object._size;
-        objectJson["thinning"] = object._thinning;
-        objectJson["smoothing"] = object._smoothing;
-        objectJson["streamline"] = object._streamline;
+        objectJson["size"] = Number(object._size);
+        objectJson["thinning"] = Number(object._thinning);
+        objectJson["smoothing"] = Number(object._smoothing);
+        objectJson["streamline"] = Number(object._streamline);
         objectJson["easing"] = Easing[object._easing];
         if (object._start != null) {
           objectJson["start"] = object._start.pack(1);
@@ -5285,7 +5285,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5299,9 +5299,9 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2101100] as typeof StrokeStyle)({
           type: StrokeType[objectJson["type"]] as any,
           size: Number(objectJson["size"]),
-          thinning: objectJson["thinning"],
-          smoothing: objectJson["smoothing"],
-          streamline: objectJson["streamline"],
+          thinning: Number(objectJson["thinning"]),
+          smoothing: Number(objectJson["smoothing"]),
+          streamline: Number(objectJson["streamline"]),
           easing: Easing[objectJson["easing"]] as any,
           start: unpackedStart,
           end: unpackedEnd,
@@ -5327,7 +5327,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5340,7 +5340,7 @@ export function loadEncoders(): void {
       packObject(object: Theme): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "THEME";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5358,10 +5358,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5374,7 +5374,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5411,7 +5411,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5445,7 +5445,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5458,7 +5458,7 @@ export function loadEncoders(): void {
       packObject(object: TransitionStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TRANSITION_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5476,10 +5476,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5492,7 +5492,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5510,29 +5510,29 @@ export function loadEncoders(): void {
         }
         objectJson["type"] = TransitionType[object._type];
         if (object._delay != null) {
-          objectJson["delay"] = object._delay;
+          objectJson["delay"] = Number(object._delay);
         }
         if (object._duration != null) {
-          objectJson["duration"] = object._duration;
+          objectJson["duration"] = Number(object._duration);
         }
         if (object._ease.length > 0) {
           const packedEase: any[] = [];
           for (const item of object._ease) {
-            packedEase.push(item);
+            packedEase.push(Number(item));
           }
           objectJson["ease"] = packedEase;
         }
         if (object._stiffness != null) {
-          objectJson["stiffness"] = object._stiffness;
+          objectJson["stiffness"] = Number(object._stiffness);
         }
         if (object._damping != null) {
-          objectJson["damping"] = object._damping;
+          objectJson["damping"] = Number(object._damping);
         }
         if (object._mass != null) {
-          objectJson["mass"] = object._mass;
+          objectJson["mass"] = Number(object._mass);
         }
         if (object._bounce != null) {
-          objectJson["bounce"] = object._bounce;
+          objectJson["bounce"] = Number(object._bounce);
         }
         if (object._springType != null) {
           objectJson["springType"] = SpringType[object._springType];
@@ -5544,23 +5544,23 @@ export function loadEncoders(): void {
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const delayValue = objectJson["delay"];
-        const unpackedDelay = delayValue != undefined ? delayValue : null;
+        const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
         const durationValue = objectJson["duration"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const unpackedEase: any[] = [];
         if (objectJson["ease"] != undefined) {
           for (const item of objectJson["ease"]) {
-            unpackedEase.push(item)
+            unpackedEase.push(Number(item))
           }
         }
         const stiffnessValue = objectJson["stiffness"];
-        const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+        const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
         const dampingValue = objectJson["damping"];
-        const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+        const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
         const massValue = objectJson["mass"];
-        const unpackedMass = massValue != undefined ? massValue : null;
+        const unpackedMass = massValue != undefined ? Number(massValue) : null;
         const bounceValue = objectJson["bounce"];
-        const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+        const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
         const springTypeValue = objectJson["springType"];
         const unpackedSpringType = springTypeValue != undefined ? SpringType[springTypeValue] as any : null;
         const parentPtrValue = objectJson["parent"];
@@ -5578,7 +5578,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5621,7 +5621,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5634,7 +5634,7 @@ export function loadEncoders(): void {
       packObject(object: EffectStyle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "EFFECT_STYLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5652,10 +5652,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5668,7 +5668,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5686,13 +5686,13 @@ export function loadEncoders(): void {
         }
         objectJson["type"] = EffectType[object._type];
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._offset != null) {
           objectJson["offset"] = object._offset.pack(1);
         }
         if (object._scale != null) {
-          objectJson["scale"] = object._scale;
+          objectJson["scale"] = Number(object._scale);
         }
         if (object._rotate != null) {
           objectJson["rotate"] = object._rotate.pack(1);
@@ -5701,16 +5701,16 @@ export function loadEncoders(): void {
           objectJson["skew"] = object._skew.pack(1);
         }
         if (object._perspective != null) {
-          objectJson["perspective"] = object._perspective;
+          objectJson["perspective"] = Number(object._perspective);
         }
         if (object._delay != null) {
           objectJson["delay"] = timedeltaToISOFormat(object._delay);
         }
         if (object._duration != null) {
-          objectJson["duration"] = object._duration;
+          objectJson["duration"] = Number(object._duration);
         }
         if (object._threshold != null) {
-          objectJson["threshold"] = object._threshold;
+          objectJson["threshold"] = Number(object._threshold);
         }
         if (object._once != null) {
           objectJson["once"] = object._once;
@@ -5737,23 +5737,23 @@ export function loadEncoders(): void {
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const offsetValue = objectJson["offset"];
         const unpackedOffset = offsetValue != undefined ? _Vector2.unpack(1, offsetValue, _session) as Vector2 : null;
         const scaleValue = objectJson["scale"];
-        const unpackedScale = scaleValue != undefined ? scaleValue : null;
+        const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
         const rotateValue = objectJson["rotate"];
         const unpackedRotate = rotateValue != undefined ? _Axis3.unpack(1, rotateValue, _session) as Axis3 : null;
         const skewValue = objectJson["skew"];
         const unpackedSkew = skewValue != undefined ? _Vector2.unpack(1, skewValue, _session) as Vector2 : null;
         const perspectiveValue = objectJson["perspective"];
-        const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
+        const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
         const delayValue = objectJson["delay"];
         const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
         const durationValue = objectJson["duration"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const thresholdValue = objectJson["threshold"];
-        const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
+        const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
         const onceValue = objectJson["once"];
         const unpackedOnce = onceValue != undefined ? onceValue : null;
         const repeatValue = objectJson["repeat"];
@@ -5779,7 +5779,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -5828,7 +5828,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -5841,7 +5841,7 @@ export function loadEncoders(): void {
       packObject(object: File): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FILE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -5859,10 +5859,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -5875,7 +5875,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -5905,19 +5905,19 @@ export function loadEncoders(): void {
           objectJson["format"] = FileFormat[object._format];
         }
         if (object._size != null) {
-          objectJson["size"] = object._size;
+          objectJson["size"] = Number(object._size);
         }
         if (object._sha256 != null) {
           objectJson["sha256"] = object._sha256;
         }
         if (object._width != null) {
-          objectJson["width"] = object._width;
+          objectJson["width"] = Number(object._width);
         }
         if (object._height != null) {
-          objectJson["height"] = object._height;
+          objectJson["height"] = Number(object._height);
         }
         if (object._aspectRatio != null) {
-          objectJson["aspectRatio"] = object._aspectRatio;
+          objectJson["aspectRatio"] = Number(object._aspectRatio);
         }
         if (object._codec != null) {
           objectJson["codec"] = object._codec;
@@ -5938,10 +5938,10 @@ export function loadEncoders(): void {
           objectJson["faviconUrl"] = object._faviconUrl;
         }
         if (object._thumbnailWidth != null) {
-          objectJson["thumbnailWidth"] = object._thumbnailWidth;
+          objectJson["thumbnailWidth"] = Number(object._thumbnailWidth);
         }
         if (object._thumbnailHeight != null) {
-          objectJson["thumbnailHeight"] = object._thumbnailHeight;
+          objectJson["thumbnailHeight"] = Number(object._thumbnailHeight);
         }
         if (object._content != null) {
           objectJson["content"] = base64Encode(object._content);
@@ -5967,7 +5967,7 @@ export function loadEncoders(): void {
         const heightValue = objectJson["height"];
         const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
         const aspectRatioValue = objectJson["aspectRatio"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const codecValue = objectJson["codec"];
         const unpackedCodec = codecValue != undefined ? codecValue : null;
         const durationValue = objectJson["duration"];
@@ -6003,7 +6003,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -6056,7 +6056,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6069,7 +6069,7 @@ export function loadEncoders(): void {
       packObject(object: Environment): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENVIRONMENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -6087,10 +6087,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -6103,7 +6103,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -6146,7 +6146,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -6181,7 +6181,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6194,7 +6194,7 @@ export function loadEncoders(): void {
       packObject(object: LogEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "LOG_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6208,12 +6208,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -6259,12 +6259,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
           node: unpackedNodePtr,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6277,7 +6277,7 @@ export function loadEncoders(): void {
       packObject(object: RunStartedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_STARTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6291,12 +6291,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6327,11 +6327,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6344,7 +6344,7 @@ export function loadEncoders(): void {
       packObject(object: RunPauseRequestedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_PAUSE_REQUESTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6358,12 +6358,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6394,11 +6394,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6411,7 +6411,7 @@ export function loadEncoders(): void {
       packObject(object: RunPausedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_PAUSED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6425,12 +6425,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6461,11 +6461,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6478,7 +6478,7 @@ export function loadEncoders(): void {
       packObject(object: RunResumeRequestedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_RESUME_REQUESTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6492,12 +6492,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6528,11 +6528,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6545,7 +6545,7 @@ export function loadEncoders(): void {
       packObject(object: RunResumedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_RESUMED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6559,12 +6559,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6595,11 +6595,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6612,7 +6612,7 @@ export function loadEncoders(): void {
       packObject(object: RunStopRequestedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_STOP_REQUESTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6626,12 +6626,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6662,11 +6662,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6679,7 +6679,7 @@ export function loadEncoders(): void {
       packObject(object: RunFailedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_FAILED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6693,12 +6693,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6729,11 +6729,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6746,7 +6746,7 @@ export function loadEncoders(): void {
       packObject(object: RunCompletedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RUN_COMPLETED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6760,12 +6760,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         if (object.targetPtr != null) {
@@ -6796,11 +6796,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6813,7 +6813,7 @@ export function loadEncoders(): void {
       packObject(object: SpanEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SPAN_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -6827,12 +6827,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -6857,11 +6857,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -6874,7 +6874,7 @@ export function loadEncoders(): void {
       packObject(object: ArrowShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ARROW_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -6892,10 +6892,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -6908,7 +6908,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -6992,7 +6992,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7038,7 +7038,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7051,7 +7051,7 @@ export function loadEncoders(): void {
       packObject(object: EllipseShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ELLIPSE_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7069,10 +7069,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7085,7 +7085,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -7165,7 +7165,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7207,7 +7207,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7220,7 +7220,7 @@ export function loadEncoders(): void {
       packObject(object: LineShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "LINE_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7238,10 +7238,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7254,7 +7254,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -7336,7 +7336,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7380,7 +7380,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7393,7 +7393,7 @@ export function loadEncoders(): void {
       packObject(object: PathShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PATH_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7411,10 +7411,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7427,7 +7427,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -7520,7 +7520,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7563,7 +7563,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7576,7 +7576,7 @@ export function loadEncoders(): void {
       packObject(object: PolygonShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POLYGON_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7594,10 +7594,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7610,7 +7610,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -7703,7 +7703,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7746,7 +7746,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7759,7 +7759,7 @@ export function loadEncoders(): void {
       packObject(object: RectangleShape2D): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "RECTANGLE_SHAPE2D";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7777,10 +7777,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7793,7 +7793,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -7883,7 +7883,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -7927,7 +7927,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -7940,7 +7940,7 @@ export function loadEncoders(): void {
       packObject(object: Database): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DATABASE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -7958,10 +7958,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -7974,7 +7974,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -8045,7 +8045,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -8088,7 +8088,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8101,7 +8101,7 @@ export function loadEncoders(): void {
       packObject(object: Machine): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MACHINE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -8119,10 +8119,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -8135,7 +8135,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -8177,10 +8177,10 @@ export function loadEncoders(): void {
         if (object._clientPtr != null) {
           objectJson["client"] = object._clientPtr.pack(1);
         }
-        objectJson["cpu"] = object._cpu;
-        objectJson["ram"] = object._ram;
-        objectJson["width"] = object._width;
-        objectJson["height"] = object._height;
+        objectJson["cpu"] = Number(object._cpu);
+        objectJson["ram"] = Number(object._ram);
+        objectJson["width"] = Number(object._width);
+        objectJson["height"] = Number(object._height);
         objectJson["isHeadless"] = object._isHeadless;
         return objectJson;
       }
@@ -8219,7 +8219,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -8239,8 +8239,8 @@ export function loadEncoders(): void {
           grpcUrl: unpackedGrpcUrl,
           vncUrl: unpackedVncUrl,
           client: unpackedClientPtr,
-          cpu: objectJson["cpu"],
-          ram: objectJson["ram"],
+          cpu: Number(objectJson["cpu"]),
+          ram: Number(objectJson["ram"]),
           width: Number(objectJson["width"]),
           height: Number(objectJson["height"]),
           isHeadless: objectJson["isHeadless"],
@@ -8268,7 +8268,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8281,7 +8281,7 @@ export function loadEncoders(): void {
       packObject(object: CopyEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "COPY_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8295,12 +8295,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8329,11 +8329,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8346,7 +8346,7 @@ export function loadEncoders(): void {
       packObject(object: CutEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CUT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8360,12 +8360,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8394,11 +8394,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8411,7 +8411,7 @@ export function loadEncoders(): void {
       packObject(object: PasteEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PASTE_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8425,12 +8425,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8459,11 +8459,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8476,7 +8476,7 @@ export function loadEncoders(): void {
       packObject(object: DragStartEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DRAG_START_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8490,12 +8490,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8527,11 +8527,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8544,7 +8544,7 @@ export function loadEncoders(): void {
       packObject(object: DragEndEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DRAG_END_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8558,12 +8558,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8595,11 +8595,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8612,7 +8612,7 @@ export function loadEncoders(): void {
       packObject(object: DragOverEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DRAG_OVER_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8626,12 +8626,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8663,11 +8663,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8680,7 +8680,7 @@ export function loadEncoders(): void {
       packObject(object: DragEnterEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DRAG_ENTER_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8694,12 +8694,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8731,11 +8731,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8748,7 +8748,7 @@ export function loadEncoders(): void {
       packObject(object: DragLeaveEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DRAG_LEAVE_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8762,12 +8762,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8799,11 +8799,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8816,7 +8816,7 @@ export function loadEncoders(): void {
       packObject(object: DropEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DROP_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8830,12 +8830,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8867,11 +8867,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8884,7 +8884,7 @@ export function loadEncoders(): void {
       packObject(object: FocusInEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOCUS_IN_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8898,12 +8898,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8932,11 +8932,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -8949,7 +8949,7 @@ export function loadEncoders(): void {
       packObject(object: FocusOutEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOCUS_OUT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -8963,12 +8963,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -8997,11 +8997,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9014,7 +9014,7 @@ export function loadEncoders(): void {
       packObject(object: KeyDownEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "KEY_DOWN_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9028,12 +9028,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -9078,11 +9078,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9095,7 +9095,7 @@ export function loadEncoders(): void {
       packObject(object: KeyUpEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "KEY_UP_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9109,12 +9109,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -9159,11 +9159,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9176,7 +9176,7 @@ export function loadEncoders(): void {
       packObject(object: KeyPressEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "KEY_PRESS_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9190,12 +9190,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -9240,11 +9240,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9257,7 +9257,7 @@ export function loadEncoders(): void {
       packObject(object: PointerDownEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_DOWN_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9271,19 +9271,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9296,7 +9296,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9322,11 +9322,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9339,7 +9339,7 @@ export function loadEncoders(): void {
       packObject(object: PointerUpEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_UP_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9353,19 +9353,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9378,7 +9378,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9404,11 +9404,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9421,7 +9421,7 @@ export function loadEncoders(): void {
       packObject(object: PointerMoveEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_MOVE_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9435,19 +9435,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9460,7 +9460,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9486,11 +9486,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9503,7 +9503,7 @@ export function loadEncoders(): void {
       packObject(object: PointerEnterEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_ENTER_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9517,19 +9517,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9542,7 +9542,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9568,11 +9568,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9585,7 +9585,7 @@ export function loadEncoders(): void {
       packObject(object: PointerOverEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_OVER_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9599,19 +9599,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9624,7 +9624,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9650,11 +9650,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9667,7 +9667,7 @@ export function loadEncoders(): void {
       packObject(object: PointerLeaveEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_LEAVE_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9681,19 +9681,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9706,7 +9706,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9732,11 +9732,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9749,7 +9749,7 @@ export function loadEncoders(): void {
       packObject(object: PointerLongPressEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "POINTER_LONG_PRESS_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9763,19 +9763,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9788,7 +9788,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9814,11 +9814,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9831,7 +9831,7 @@ export function loadEncoders(): void {
       packObject(object: SingleClickEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SINGLE_CLICK_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9845,19 +9845,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9871,7 +9871,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9898,11 +9898,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9915,7 +9915,7 @@ export function loadEncoders(): void {
       packObject(object: DoubleClickEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "DOUBLE_CLICK_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -9929,19 +9929,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -9955,7 +9955,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -9982,11 +9982,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -9999,7 +9999,7 @@ export function loadEncoders(): void {
       packObject(object: TripleClickEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TRIPLE_CLICK_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10013,19 +10013,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -10039,7 +10039,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -10066,11 +10066,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10083,7 +10083,7 @@ export function loadEncoders(): void {
       packObject(object: WheelEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "WHEEL_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10097,19 +10097,19 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
         }
         objectJson["position"] = object.position.pack(1);
         if (object.pressure != null) {
-          objectJson["pressure"] = object.pressure;
+          objectJson["pressure"] = Number(object.pressure);
         }
         objectJson["shiftKey"] = object.shiftKey;
         objectJson["altKey"] = object.altKey;
@@ -10124,7 +10124,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectJson["pressure"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectJson["node"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(1, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -10152,11 +10152,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10169,7 +10169,7 @@ export function loadEncoders(): void {
       packObject(object: Script): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SCRIPT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -10187,10 +10187,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -10203,7 +10203,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -10241,7 +10241,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -10276,7 +10276,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10289,7 +10289,7 @@ export function loadEncoders(): void {
       packObject(object: Service): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SERVICE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -10307,10 +10307,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -10323,7 +10323,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -10366,7 +10366,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -10401,7 +10401,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10414,7 +10414,7 @@ export function loadEncoders(): void {
       packObject(object: TimerStartedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER_STARTED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10428,12 +10428,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -10458,11 +10458,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10475,7 +10475,7 @@ export function loadEncoders(): void {
       packObject(object: TimerPausedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER_PAUSED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10489,12 +10489,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -10519,11 +10519,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10536,7 +10536,7 @@ export function loadEncoders(): void {
       packObject(object: TimerResumedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER_RESUMED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10550,12 +10550,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -10580,11 +10580,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10597,7 +10597,7 @@ export function loadEncoders(): void {
       packObject(object: TimerCompletedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER_COMPLETED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10611,12 +10611,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -10641,11 +10641,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10658,7 +10658,7 @@ export function loadEncoders(): void {
       packObject(object: TimerCancelledEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER_CANCELLED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -10672,12 +10672,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -10702,11 +10702,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10719,7 +10719,7 @@ export function loadEncoders(): void {
       packObject(object: Timer): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TIMER";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -10737,10 +10737,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -10753,7 +10753,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -10797,7 +10797,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -10833,7 +10833,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -10846,7 +10846,7 @@ export function loadEncoders(): void {
       packObject(object: Trigger): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TRIGGER";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -10864,10 +10864,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -10880,7 +10880,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -10911,7 +10911,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._arguments).length > 0) {
           const packedArguments: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._arguments)) {
-            packedArguments[String(String(key))] = value.pack(1);
+            packedArguments[String(key)] = value.pack(1);
           }
           objectJson["arguments"] = packedArguments;
         }
@@ -10935,7 +10935,7 @@ export function loadEncoders(): void {
         const unpackedArguments = {} as any;
         if (objectJson["arguments"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["arguments"])) {
-            unpackedArguments[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedArguments[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const parentPtrValue = objectJson["parent"];
@@ -10953,7 +10953,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -10992,7 +10992,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11005,7 +11005,7 @@ export function loadEncoders(): void {
       packObject(object: GaugeMetric): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "GAUGE_METRIC";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -11023,10 +11023,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -11039,7 +11039,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -11082,7 +11082,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -11117,7 +11117,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11130,7 +11130,7 @@ export function loadEncoders(): void {
       packObject(object: GaugeMeasurementEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "GAUGE_MEASUREMENT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         objectJson["definition"] = object.definitionPtr.pack(1);
         objectJson["branch"] = object.branchPtr.pack(1);
@@ -11142,12 +11142,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -11173,12 +11173,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
           node: unpackedNodePtr,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11191,7 +11191,7 @@ export function loadEncoders(): void {
       packObject(object: CounterMetric): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "COUNTER_METRIC";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -11209,10 +11209,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -11225,7 +11225,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -11268,7 +11268,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -11303,7 +11303,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11316,7 +11316,7 @@ export function loadEncoders(): void {
       packObject(object: CounterMeasurementEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "COUNTER_MEASUREMENT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         objectJson["definition"] = object.definitionPtr.pack(1);
         objectJson["branch"] = object.branchPtr.pack(1);
@@ -11328,12 +11328,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -11359,12 +11359,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
           node: unpackedNodePtr,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11377,7 +11377,7 @@ export function loadEncoders(): void {
       packObject(object: HistogramMetric): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "HISTOGRAM_METRIC";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -11395,10 +11395,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -11411,7 +11411,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -11454,7 +11454,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -11489,7 +11489,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11502,7 +11502,7 @@ export function loadEncoders(): void {
       packObject(object: HistogramMeasurementEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "HISTOGRAM_MEASUREMENT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         objectJson["definition"] = object.definitionPtr.pack(1);
         objectJson["branch"] = object.branchPtr.pack(1);
@@ -11514,12 +11514,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         if (object.nodePtr != null) {
           objectJson["node"] = object.nodePtr.pack(1);
@@ -11545,12 +11545,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
           node: unpackedNodePtr,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11563,7 +11563,7 @@ export function loadEncoders(): void {
       packObject(object: Layer): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "LAYER";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -11581,10 +11581,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -11597,7 +11597,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -11621,7 +11621,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         return objectJson;
       }
@@ -11635,7 +11635,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const parentPtrValue = objectJson["parent"];
         const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack(1, parentPtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectJson["definition"];
@@ -11651,7 +11651,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -11689,7 +11689,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -11702,7 +11702,7 @@ export function loadEncoders(): void {
       packObject(object: FrameView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FRAME_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -11720,10 +11720,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -11736,7 +11736,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -11795,7 +11795,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -11834,7 +11834,7 @@ export function loadEncoders(): void {
           objectJson["gridSpan"] = object._gridSpan.pack(1);
         }
         if (object._aspectRatio != null) {
-          objectJson["aspectRatio"] = object._aspectRatio;
+          objectJson["aspectRatio"] = Number(object._aspectRatio);
         }
         if (object._isWrap != null) {
           objectJson["isWrap"] = object._isWrap;
@@ -11873,7 +11873,7 @@ export function loadEncoders(): void {
         const gridSpanValue = objectJson["gridSpan"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectJson["aspectRatio"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectJson["isWrap"];
         const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
         const widthValue = objectJson["width"];
@@ -11891,7 +11891,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -11929,7 +11929,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -11992,7 +11992,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -12005,7 +12005,7 @@ export function loadEncoders(): void {
       packObject(object: LabelView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "LABEL_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -12023,10 +12023,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -12039,7 +12039,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -12098,7 +12098,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -12137,7 +12137,7 @@ export function loadEncoders(): void {
           objectJson["gridSpan"] = object._gridSpan.pack(1);
         }
         if (object._aspectRatio != null) {
-          objectJson["aspectRatio"] = object._aspectRatio;
+          objectJson["aspectRatio"] = Number(object._aspectRatio);
         }
         if (object._isWrap != null) {
           objectJson["isWrap"] = object._isWrap;
@@ -12176,7 +12176,7 @@ export function loadEncoders(): void {
         const gridSpanValue = objectJson["gridSpan"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectJson["aspectRatio"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectJson["isWrap"];
         const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
         const widthValue = objectJson["width"];
@@ -12194,7 +12194,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -12232,7 +12232,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -12295,7 +12295,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -12308,7 +12308,7 @@ export function loadEncoders(): void {
       packObject(object: NumberInputView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NUMBER_INPUT_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -12326,10 +12326,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -12342,7 +12342,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -12401,7 +12401,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -12416,7 +12416,7 @@ export function loadEncoders(): void {
           objectJson["radius"] = object._radius.pack(1);
         }
         if (object._value != null) {
-          objectJson["value"] = object._value;
+          objectJson["value"] = Number(object._value);
         }
         if (object._placeholder != null) {
           objectJson["placeholder"] = object._placeholder;
@@ -12435,7 +12435,7 @@ export function loadEncoders(): void {
         const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
         const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
         const valueValue = objectJson["value"];
-        const unpackedValue = valueValue != undefined ? valueValue : null;
+        const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
         const placeholderValue = objectJson["placeholder"];
         const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
         const widthValue = objectJson["width"];
@@ -12453,7 +12453,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -12491,7 +12491,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -12546,7 +12546,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -12559,7 +12559,7 @@ export function loadEncoders(): void {
       packObject(object: SliderInputView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SLIDER_INPUT_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -12577,10 +12577,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -12593,7 +12593,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -12652,7 +12652,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -12667,16 +12667,16 @@ export function loadEncoders(): void {
           objectJson["radius"] = object._radius.pack(1);
         }
         if (object._value != null) {
-          objectJson["value"] = object._value;
+          objectJson["value"] = Number(object._value);
         }
         if (object._minValue != null) {
-          objectJson["minValue"] = object._minValue;
+          objectJson["minValue"] = Number(object._minValue);
         }
         if (object._maxValue != null) {
-          objectJson["maxValue"] = object._maxValue;
+          objectJson["maxValue"] = Number(object._maxValue);
         }
         if (object._step != null) {
-          objectJson["step"] = object._step;
+          objectJson["step"] = Number(object._step);
         }
         return objectJson;
       }
@@ -12692,13 +12692,13 @@ export function loadEncoders(): void {
         const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
         const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
         const valueValue = objectJson["value"];
-        const unpackedValue = valueValue != undefined ? valueValue : null;
+        const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
         const minValueValue = objectJson["minValue"];
-        const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
+        const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
         const maxValueValue = objectJson["maxValue"];
-        const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
+        const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
         const stepValue = objectJson["step"];
-        const unpackedStep = stepValue != undefined ? stepValue : null;
+        const unpackedStep = stepValue != undefined ? Number(stepValue) : null;
         const widthValue = objectJson["width"];
         const unpackedWidth = widthValue != undefined ? _Length.unpack(1, widthValue, _session) as Length : null;
         const heightValue = objectJson["height"];
@@ -12714,7 +12714,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -12752,7 +12752,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -12809,7 +12809,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -12822,7 +12822,7 @@ export function loadEncoders(): void {
       packObject(object: SplitView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SPLIT_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -12840,10 +12840,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -12856,7 +12856,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -12915,7 +12915,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -12954,7 +12954,7 @@ export function loadEncoders(): void {
           objectJson["gridSpan"] = object._gridSpan.pack(1);
         }
         if (object._aspectRatio != null) {
-          objectJson["aspectRatio"] = object._aspectRatio;
+          objectJson["aspectRatio"] = Number(object._aspectRatio);
         }
         if (object._isWrap != null) {
           objectJson["isWrap"] = object._isWrap;
@@ -12993,7 +12993,7 @@ export function loadEncoders(): void {
         const gridSpanValue = objectJson["gridSpan"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectJson["aspectRatio"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectJson["isWrap"];
         const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
         const widthValue = objectJson["width"];
@@ -13011,7 +13011,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -13049,7 +13049,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -13112,7 +13112,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13125,7 +13125,7 @@ export function loadEncoders(): void {
       packObject(object: TextView): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TEXT_VIEW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -13143,10 +13143,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -13159,7 +13159,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -13218,7 +13218,7 @@ export function loadEncoders(): void {
           objectJson["isVisible"] = object._isVisible;
         }
         if (object._opacity != null) {
-          objectJson["opacity"] = object._opacity;
+          objectJson["opacity"] = Number(object._opacity);
         }
         if (object._fill != null) {
           objectJson["fill"] = object._fill.pack(1);
@@ -13277,7 +13277,7 @@ export function loadEncoders(): void {
         const isVisibleValue = objectJson["isVisible"];
         const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectJson["fill"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(1, fillValue, _session) as Fill : null;
         const shadowValue = objectJson["shadow"];
@@ -13315,7 +13315,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -13371,7 +13371,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13384,7 +13384,7 @@ export function loadEncoders(): void {
       packObject(object: Scene): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SCENE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -13402,10 +13402,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -13418,7 +13418,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -13466,7 +13466,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -13502,7 +13502,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13515,7 +13515,7 @@ export function loadEncoders(): void {
       packObject(object: Stage): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STAGE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -13533,10 +13533,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -13549,7 +13549,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -13586,7 +13586,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -13620,7 +13620,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13633,7 +13633,7 @@ export function loadEncoders(): void {
       packObject(object: Follow): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOLLOW";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -13651,10 +13651,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -13667,7 +13667,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -13704,7 +13704,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -13738,7 +13738,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13751,7 +13751,7 @@ export function loadEncoders(): void {
       packObject(object: FollowEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOLLOW_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -13765,12 +13765,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -13795,11 +13795,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13812,7 +13812,7 @@ export function loadEncoders(): void {
       packObject(object: FollowAddedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOLLOW_ADDED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -13826,12 +13826,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -13856,11 +13856,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13873,7 +13873,7 @@ export function loadEncoders(): void {
       packObject(object: FollowRemovedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOLLOW_REMOVED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -13887,12 +13887,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -13917,11 +13917,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13934,7 +13934,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationSentEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION_SENT_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -13948,12 +13948,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -13978,11 +13978,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -13995,7 +13995,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationRescindedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION_RESCINDED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14009,12 +14009,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14039,11 +14039,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14056,7 +14056,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationReadEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION_READ_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14070,12 +14070,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14100,11 +14100,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14117,7 +14117,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationDismissedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION_DISMISSED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14131,12 +14131,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14161,11 +14161,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14178,7 +14178,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationExpiredEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION_EXPIRED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14192,12 +14192,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14222,11 +14222,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14239,7 +14239,7 @@ export function loadEncoders(): void {
       packObject(object: Notification): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NOTIFICATION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -14257,10 +14257,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -14273,7 +14273,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -14318,7 +14318,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -14355,7 +14355,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14368,7 +14368,7 @@ export function loadEncoders(): void {
       packObject(object: Reaction): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "REACTION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -14386,10 +14386,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -14402,7 +14402,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -14440,7 +14440,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -14475,7 +14475,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14488,7 +14488,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "REACTION_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14502,12 +14502,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["content"] = object.content;
@@ -14534,11 +14534,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14551,7 +14551,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionAddedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "REACTION_ADDED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14565,12 +14565,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["content"] = object.content;
@@ -14597,11 +14597,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14614,7 +14614,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionRemovedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "REACTION_REMOVED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14628,12 +14628,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         objectJson["content"] = object.content;
@@ -14660,11 +14660,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14677,7 +14677,7 @@ export function loadEncoders(): void {
       packObject(object: Star): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STAR";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -14695,10 +14695,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -14711,7 +14711,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -14748,7 +14748,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -14782,7 +14782,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14795,7 +14795,7 @@ export function loadEncoders(): void {
       packObject(object: StarEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STAR_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14809,12 +14809,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14839,11 +14839,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14856,7 +14856,7 @@ export function loadEncoders(): void {
       packObject(object: StarAddedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STAR_ADDED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14870,12 +14870,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14900,11 +14900,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14917,7 +14917,7 @@ export function loadEncoders(): void {
       packObject(object: StarRemovedEvent): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STAR_REMOVED_EVENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["space"] = object.spacePtr.pack(1);
         if (object.definitionPtr != null) {
           objectJson["definition"] = object.definitionPtr.pack(1);
@@ -14931,12 +14931,12 @@ export function loadEncoders(): void {
           objectJson["causedBy"] = object.causedByPtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["client"] = object.clientPtr.pack(1);
-        objectJson["clientNonce"] = String(object.clientNonce);
+        objectJson["clientNonce"] = object.clientNonce;
         objectJson["clientCreatedAt"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
-        objectJson["clientEpoch"] = object.clientEpoch;
+        objectJson["clientEpoch"] = Number(object.clientEpoch);
         objectJson["status"] = EventStatus[object.status];
         objectJson["node"] = object.nodePtr.pack(1);
         return objectJson;
@@ -14961,11 +14961,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectJson["createdEpoch"]),
           createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
           client: _NodeReference.unpack(1, objectJson["client"], _session) as NodeReference,
-          clientNonce: String(objectJson["clientNonce"]),
+          clientNonce: objectJson["clientNonce"],
           clientCreatedAt: Temporal.Instant.from(objectJson["clientCreatedAt"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectJson["clientEpoch"]),
           status: EventStatus[objectJson["status"]] as any,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -14978,7 +14978,7 @@ export function loadEncoders(): void {
       packObject(object: Folder): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "FOLDER";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -14996,10 +14996,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15012,7 +15012,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15066,7 +15066,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15104,7 +15104,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15117,7 +15117,7 @@ export function loadEncoders(): void {
       packObject(object: Client): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CLIENT";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -15135,10 +15135,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15154,7 +15154,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15239,7 +15239,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15284,7 +15284,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15297,7 +15297,7 @@ export function loadEncoders(): void {
       packObject(object: Handle): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "HANDLE";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -15315,10 +15315,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15331,7 +15331,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15369,7 +15369,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15404,7 +15404,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15417,7 +15417,7 @@ export function loadEncoders(): void {
       packObject(object: Organization): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ORGANIZATION";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -15435,10 +15435,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15451,7 +15451,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15495,7 +15495,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15532,7 +15532,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15545,7 +15545,7 @@ export function loadEncoders(): void {
       packObject(object: Team): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TEAM";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -15563,10 +15563,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15579,7 +15579,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15617,7 +15617,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15652,7 +15652,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15665,7 +15665,7 @@ export function loadEncoders(): void {
       packObject(object: User): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "USER";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         if (object.parentPtr != null) {
           objectJson["parent"] = object.parentPtr.pack(1);
         }
@@ -15683,10 +15683,10 @@ export function loadEncoders(): void {
           objectJson["instance"] = object.instancePtr.pack(1);
         }
         objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: 'never' });
-        objectJson["createdEpoch"] = object.createdEpoch;
+        objectJson["createdEpoch"] = Number(object.createdEpoch);
         objectJson["createdBy"] = object.createdByPtr.pack(1);
         objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: 'never' });
-        objectJson["updatedEpoch"] = object.updatedEpoch;
+        objectJson["updatedEpoch"] = Number(object.updatedEpoch);
         objectJson["updatedBy"] = object.updatedByPtr.pack(1);
         if (object.deletedAt != null) {
           objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: 'never' });
@@ -15699,7 +15699,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -15764,7 +15764,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectJson["script"];
@@ -15806,7 +15806,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
           _session,
         });
@@ -15930,7 +15930,7 @@ export function loadEncoders(): void {
           objectJson["structType"] = StructType[object.structType];
         }
         if (object.id != null) {
-          objectJson["id"] = object.id;
+          objectJson["id"] = Number(object.id);
         }
         if (object.customPropertyPtr != null) {
           objectJson["customProperty"] = object.customPropertyPtr.pack(1);
@@ -15970,13 +15970,13 @@ export function loadEncoders(): void {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NODE_REFERENCE";
         objectJson["type"] = NodeType[object.type];
-        objectJson["id"] = String(object.id);
-        objectJson["spaceId"] = String(object.spaceId);
+        objectJson["id"] = object.id;
+        objectJson["spaceId"] = object.spaceId;
         if (object.definitionId != null) {
-          objectJson["definitionId"] = String(object.definitionId);
+          objectJson["definitionId"] = object.definitionId;
         }
-        objectJson["branchId"] = String(object.branchId);
-        objectJson["snapshotId"] = String(object.snapshotId);
+        objectJson["branchId"] = object.branchId;
+        objectJson["snapshotId"] = object.snapshotId;
         if (object.storeKey != null) {
           objectJson["storeKey"] = GraphKey[object.storeKey];
         }
@@ -15986,16 +15986,16 @@ export function loadEncoders(): void {
       unpackObject(objectJson: any, _session: Session | null): NodeReference {
 
         const definitionIdValue = objectJson["definitionId"];
-        const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
+        const unpackedDefinitionId = definitionIdValue != undefined ? definitionIdValue : null;
         const storeKeyValue = objectJson["storeKey"];
         const unpackedStoreKey = storeKeyValue != undefined ? GraphKey[storeKeyValue] as any : null;
         return new (STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference)({
           type: NodeType[objectJson["type"]] as any,
-          id: String(objectJson["id"]),
-          spaceId: String(objectJson["spaceId"]),
+          id: objectJson["id"],
+          spaceId: objectJson["spaceId"],
           definitionId: unpackedDefinitionId,
-          branchId: String(objectJson["branchId"]),
-          snapshotId: String(objectJson["snapshotId"]),
+          branchId: objectJson["branchId"],
+          snapshotId: objectJson["snapshotId"],
           storeKey: unpackedStoreKey,
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
@@ -16009,7 +16009,7 @@ export function loadEncoders(): void {
       packObject(object: NodeDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "NODE_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = NodeType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -16021,7 +16021,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -16422,7 +16422,7 @@ export function loadEncoders(): void {
       packObject(object: TraitDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TRAIT_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = TraitType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -16434,7 +16434,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -16575,7 +16575,7 @@ export function loadEncoders(): void {
       packObject(object: StructDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STRUCT_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = StructType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -16587,7 +16587,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -16782,7 +16782,7 @@ export function loadEncoders(): void {
       packObject(object: EnumDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ENUM_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = EnumType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -16801,7 +16801,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -16847,7 +16847,7 @@ export function loadEncoders(): void {
       packObject(object: PropertyDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PROPERTY_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = PropertyType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -16861,7 +16861,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17011,7 +17011,7 @@ export function loadEncoders(): void {
       packObject(object: OptionDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "OPTION_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = EnumType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17023,7 +17023,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17061,7 +17061,7 @@ export function loadEncoders(): void {
       packObject(object: ConstantDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CONSTANT_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["name"] = object.name;
         if (object.icon != null) {
           objectJson["icon"] = object.icon.pack(1);
@@ -17072,7 +17072,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17112,7 +17112,7 @@ export function loadEncoders(): void {
       packObject(object: TagDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "TAG_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["name"] = object.name;
         if (object.icon != null) {
           objectJson["icon"] = object.icon.pack(1);
@@ -17123,7 +17123,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17160,7 +17160,7 @@ export function loadEncoders(): void {
       packObject(object: IndexDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INDEX_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = IndexType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17186,7 +17186,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17239,7 +17239,7 @@ export function loadEncoders(): void {
       packObject(object: ConstraintDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CONSTRAINT_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = ConstraintType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17258,7 +17258,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17304,7 +17304,7 @@ export function loadEncoders(): void {
       packObject(object: PermissionDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "PERMISSION_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["name"] = object.name;
         if (object.icon != null) {
           objectJson["icon"] = object.icon.pack(1);
@@ -17315,7 +17315,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17352,7 +17352,7 @@ export function loadEncoders(): void {
       packObject(object: MethodDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "METHOD_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = MethodType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17371,7 +17371,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17447,7 +17447,7 @@ export function loadEncoders(): void {
       packObject(object: ActionDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "ACTION_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = MethodType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17466,7 +17466,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17599,7 +17599,7 @@ export function loadEncoders(): void {
       packObject(object: MigrationDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MIGRATION_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["type"] = MigrationType[object.type];
         objectJson["name"] = object.name;
         if (object.icon != null) {
@@ -17611,7 +17611,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17649,7 +17649,7 @@ export function loadEncoders(): void {
       packObject(object: MigrationOperationDefinition): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "MIGRATION_OPERATION_DEFINITION";
-        objectJson["id"] = object.id;
+        objectJson["id"] = Number(object.id);
         objectJson["name"] = object.name;
         if (object.icon != null) {
           objectJson["icon"] = object.icon.pack(1);
@@ -17660,7 +17660,7 @@ export function loadEncoders(): void {
         if (object.taggings.length > 0) {
           const packedTaggings: any[] = [];
           for (const item of object.taggings) {
-            packedTaggings.push(item);
+            packedTaggings.push(Number(item));
           }
           objectJson["taggings"] = packedTaggings;
         }
@@ -17743,19 +17743,19 @@ export function loadEncoders(): void {
           objectJson["format"] = NumberFormat[object.format];
         }
         if (object.minValue != null) {
-          objectJson["minValue"] = object.minValue;
+          objectJson["minValue"] = Number(object.minValue);
         }
         if (object.maxValue != null) {
-          objectJson["maxValue"] = object.maxValue;
+          objectJson["maxValue"] = Number(object.maxValue);
         }
         if (object.stepValue != null) {
-          objectJson["stepValue"] = object.stepValue;
+          objectJson["stepValue"] = Number(object.stepValue);
         }
         if (object.precision != null) {
-          objectJson["precision"] = object.precision;
+          objectJson["precision"] = Number(object.precision);
         }
         if (object.scale != null) {
-          objectJson["scale"] = object.scale;
+          objectJson["scale"] = Number(object.scale);
         }
         return objectJson;
       }
@@ -17765,11 +17765,11 @@ export function loadEncoders(): void {
         const formatValue = objectJson["format"];
         const unpackedFormat = formatValue != undefined ? NumberFormat[formatValue] as any : null;
         const minValueValue = objectJson["minValue"];
-        const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
+        const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
         const maxValueValue = objectJson["maxValue"];
-        const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
+        const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
         const stepValueValue = objectJson["stepValue"];
-        const unpackedStepValue = stepValueValue != undefined ? stepValueValue : null;
+        const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : null;
         const precisionValue = objectJson["precision"];
         const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : null;
         const scaleValue = objectJson["scale"];
@@ -17794,10 +17794,10 @@ export function loadEncoders(): void {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "COLLECTION_CONSTRAINT";
         if (object.minLength != null) {
-          objectJson["minLength"] = object.minLength;
+          objectJson["minLength"] = Number(object.minLength);
         }
         if (object.maxLength != null) {
-          objectJson["maxLength"] = object.maxLength;
+          objectJson["maxLength"] = Number(object.maxLength);
         }
         return objectJson;
       }
@@ -18160,7 +18160,7 @@ export function loadEncoders(): void {
         objectJson["type"] = JoinType[object.type];
         objectJson["recursive"] = object.recursive;
         if (object.depth != null) {
-          objectJson["depth"] = object.depth;
+          objectJson["depth"] = Number(object.depth);
         }
         if (object.on != null) {
           objectJson["on"] = object.on.pack(1);
@@ -18191,7 +18191,7 @@ export function loadEncoders(): void {
       packObject(object: Query): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "QUERY";
-        objectJson["id"] = String(object.id);
+        objectJson["id"] = object.id;
         objectJson["type"] = QueryType[object.type];
         objectJson["domain"] = GraphDomain[object.domain];
         objectJson["name"] = object.name;
@@ -18233,10 +18233,10 @@ export function loadEncoders(): void {
           objectJson["sort"] = packedSort;
         }
         if (object.limit != null) {
-          objectJson["limit"] = object.limit;
+          objectJson["limit"] = Number(object.limit);
         }
         if (object.offset != null) {
-          objectJson["offset"] = object.offset;
+          objectJson["offset"] = Number(object.offset);
         }
         return objectJson;
       }
@@ -18283,7 +18283,7 @@ export function loadEncoders(): void {
         const offsetValue = objectJson["offset"];
         const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[300] as typeof Query)({
-          id: String(objectJson["id"]),
+          id: objectJson["id"],
           type: QueryType[objectJson["type"]] as any,
           domain: GraphDomain[objectJson["domain"]] as any,
           name: objectJson["name"],
@@ -18314,7 +18314,7 @@ export function loadEncoders(): void {
         if (Object.keys(object.customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object.customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -18327,7 +18327,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         return new (STRUCT_CLASS_BY_TYPE[2] as typeof Datum)({
@@ -18349,7 +18349,7 @@ export function loadEncoders(): void {
         if (Object.keys(object.customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object.customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(1);
+            packedCustomValues[String(key)] = value.pack(1);
           }
           objectJson["customValues"] = packedCustomValues;
         }
@@ -18362,7 +18362,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectJson["customValues"] != undefined) {
           for (const [key, value] of Object.entries(objectJson["customValues"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(1, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
           }
         }
         return new (STRUCT_CLASS_BY_TYPE[3] as typeof DatumMutable)({
@@ -18523,16 +18523,16 @@ export function loadEncoders(): void {
           objectJson["intent"] = ColorIntent[object.intent];
         }
         if (object.x != null) {
-          objectJson["x"] = object.x;
+          objectJson["x"] = Number(object.x);
         }
         if (object.y != null) {
-          objectJson["y"] = object.y;
+          objectJson["y"] = Number(object.y);
         }
         if (object.z != null) {
-          objectJson["z"] = object.z;
+          objectJson["z"] = Number(object.z);
         }
         if (object.alpha != null) {
-          objectJson["alpha"] = object.alpha;
+          objectJson["alpha"] = Number(object.alpha);
         }
         return objectJson;
       }
@@ -18548,13 +18548,13 @@ export function loadEncoders(): void {
         const intentValue = objectJson["intent"];
         const unpackedIntent = intentValue != undefined ? ColorIntent[intentValue] as any : null;
         const xValue = objectJson["x"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectJson["y"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectJson["z"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         const alphaValue = objectJson["alpha"];
-        const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
+        const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2100300] as typeof Color)({
           type: ColorType[objectJson["type"]] as any,
           style: unpackedStylePtr,
@@ -18620,7 +18620,7 @@ export function loadEncoders(): void {
         if (object.color != null) {
           objectJson["color"] = object.color.pack(1);
         }
-        objectJson["position"] = object.position;
+        objectJson["position"] = Number(object.position);
         return objectJson;
       }
 
@@ -18630,7 +18630,7 @@ export function loadEncoders(): void {
         const unpackedColor = colorValue != undefined ? _Color.unpack(1, colorValue, _session) as Color : null;
         return new (STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop)({
           color: unpackedColor,
-          position: objectJson["position"],
+          position: Number(objectJson["position"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -18648,7 +18648,7 @@ export function loadEncoders(): void {
           objectJson["style"] = object.stylePtr.pack(1);
         }
         if (object.angle != null) {
-          objectJson["angle"] = object.angle;
+          objectJson["angle"] = Number(object.angle);
         }
         if (object.stops.length > 0) {
           const packedStops: any[] = [];
@@ -18670,7 +18670,7 @@ export function loadEncoders(): void {
         const stylePtrValue = objectJson["style"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(1, stylePtrValue, _session) as NodeReference : null;
         const angleValue = objectJson["angle"];
-        const unpackedAngle = angleValue != undefined ? angleValue : null;
+        const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
         const unpackedStops: any[] = [];
         if (objectJson["stops"] != undefined) {
           for (const item of objectJson["stops"]) {
@@ -18843,13 +18843,13 @@ export function loadEncoders(): void {
           objectJson["offset"] = object.offset.pack(1);
         }
         if (object.blur != null) {
-          objectJson["blur"] = object.blur;
+          objectJson["blur"] = Number(object.blur);
         }
         if (object.spread != null) {
-          objectJson["spread"] = object.spread;
+          objectJson["spread"] = Number(object.spread);
         }
         if (object.diffusion != null) {
-          objectJson["diffusion"] = object.diffusion;
+          objectJson["diffusion"] = Number(object.diffusion);
         }
         return objectJson;
       }
@@ -18869,7 +18869,7 @@ export function loadEncoders(): void {
         const spreadValue = objectJson["spread"];
         const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
         const diffusionValue = objectJson["diffusion"];
-        const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
+        const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow)({
           type: ShadowType[objectJson["type"]] as any,
           style: unpackedStylePtr,
@@ -18892,10 +18892,10 @@ export function loadEncoders(): void {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "STROKE";
         objectJson["type"] = StrokeType[object.type];
-        objectJson["size"] = object.size;
-        objectJson["thinning"] = object.thinning;
-        objectJson["smoothing"] = object.smoothing;
-        objectJson["streamline"] = object.streamline;
+        objectJson["size"] = Number(object.size);
+        objectJson["thinning"] = Number(object.thinning);
+        objectJson["smoothing"] = Number(object.smoothing);
+        objectJson["streamline"] = Number(object.streamline);
         objectJson["easing"] = Easing[object.easing];
         if (object.color != null) {
           objectJson["color"] = object.color.pack(1);
@@ -18921,9 +18921,9 @@ export function loadEncoders(): void {
         return new (STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke)({
           type: StrokeType[objectJson["type"]] as any,
           size: Number(objectJson["size"]),
-          thinning: objectJson["thinning"],
-          smoothing: objectJson["smoothing"],
-          streamline: objectJson["streamline"],
+          thinning: Number(objectJson["thinning"]),
+          smoothing: Number(objectJson["smoothing"]),
+          streamline: Number(objectJson["streamline"]),
           easing: Easing[objectJson["easing"]] as any,
           color: unpackedColor,
           start: unpackedStart,
@@ -18966,11 +18966,11 @@ export function loadEncoders(): void {
         objectJson["metatype"] = "STROKE_POINT";
         objectJson["point"] = object.point.pack(1);
         objectJson["originalPoint"] = object.originalPoint.pack(1);
-        objectJson["pressure"] = object.pressure;
+        objectJson["pressure"] = Number(object.pressure);
         objectJson["direction"] = object.direction.pack(1);
-        objectJson["distance"] = object.distance;
-        objectJson["runningLength"] = object.runningLength;
-        objectJson["radius"] = object.radius;
+        objectJson["distance"] = Number(object.distance);
+        objectJson["runningLength"] = Number(object.runningLength);
+        objectJson["radius"] = Number(object.radius);
         return objectJson;
       }
 
@@ -18979,11 +18979,11 @@ export function loadEncoders(): void {
         return new (STRUCT_CLASS_BY_TYPE[2101103] as typeof StrokePoint)({
           point: _Vector2.unpack(1, objectJson["point"], _session) as Vector2,
           originalPoint: _Vector2.unpack(1, objectJson["originalPoint"], _session) as Vector2,
-          pressure: objectJson["pressure"],
+          pressure: Number(objectJson["pressure"]),
           direction: _Vector2.unpack(1, objectJson["direction"], _session) as Vector2,
-          distance: objectJson["distance"],
-          runningLength: objectJson["runningLength"],
-          radius: objectJson["radius"],
+          distance: Number(objectJson["distance"]),
+          runningLength: Number(objectJson["runningLength"]),
+          radius: Number(objectJson["radius"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19033,29 +19033,29 @@ export function loadEncoders(): void {
           objectJson["style"] = object.stylePtr.pack(1);
         }
         if (object.delay != null) {
-          objectJson["delay"] = object.delay;
+          objectJson["delay"] = Number(object.delay);
         }
         if (object.duration != null) {
-          objectJson["duration"] = object.duration;
+          objectJson["duration"] = Number(object.duration);
         }
         if (object.ease.length > 0) {
           const packedEase: any[] = [];
           for (const item of object.ease) {
-            packedEase.push(item);
+            packedEase.push(Number(item));
           }
           objectJson["ease"] = packedEase;
         }
         if (object.stiffness != null) {
-          objectJson["stiffness"] = object.stiffness;
+          objectJson["stiffness"] = Number(object.stiffness);
         }
         if (object.damping != null) {
-          objectJson["damping"] = object.damping;
+          objectJson["damping"] = Number(object.damping);
         }
         if (object.mass != null) {
-          objectJson["mass"] = object.mass;
+          objectJson["mass"] = Number(object.mass);
         }
         if (object.bounce != null) {
-          objectJson["bounce"] = object.bounce;
+          objectJson["bounce"] = Number(object.bounce);
         }
         if (object.springType != null) {
           objectJson["springType"] = SpringType[object.springType];
@@ -19068,23 +19068,23 @@ export function loadEncoders(): void {
         const stylePtrValue = objectJson["style"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(1, stylePtrValue, _session) as NodeReference : null;
         const delayValue = objectJson["delay"];
-        const unpackedDelay = delayValue != undefined ? delayValue : null;
+        const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
         const durationValue = objectJson["duration"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const unpackedEase: any[] = [];
         if (objectJson["ease"] != undefined) {
           for (const item of objectJson["ease"]) {
-            unpackedEase.push(item)
+            unpackedEase.push(Number(item))
           }
         }
         const stiffnessValue = objectJson["stiffness"];
-        const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+        const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
         const dampingValue = objectJson["damping"];
-        const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+        const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
         const massValue = objectJson["mass"];
-        const unpackedMass = massValue != undefined ? massValue : null;
+        const unpackedMass = massValue != undefined ? Number(massValue) : null;
         const bounceValue = objectJson["bounce"];
-        const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+        const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
         const springTypeValue = objectJson["springType"];
         const unpackedSpringType = springTypeValue != undefined ? SpringType[springTypeValue] as any : null;
         return new (STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition)({
@@ -19115,13 +19115,13 @@ export function loadEncoders(): void {
           objectJson["style"] = object.stylePtr.pack(1);
         }
         if (object.opacity != null) {
-          objectJson["opacity"] = object.opacity;
+          objectJson["opacity"] = Number(object.opacity);
         }
         if (object.offset != null) {
           objectJson["offset"] = object.offset.pack(1);
         }
         if (object.scale != null) {
-          objectJson["scale"] = object.scale;
+          objectJson["scale"] = Number(object.scale);
         }
         if (object.rotate != null) {
           objectJson["rotate"] = object.rotate.pack(1);
@@ -19130,16 +19130,16 @@ export function loadEncoders(): void {
           objectJson["skew"] = object.skew.pack(1);
         }
         if (object.perspective != null) {
-          objectJson["perspective"] = object.perspective;
+          objectJson["perspective"] = Number(object.perspective);
         }
         if (object.delay != null) {
           objectJson["delay"] = timedeltaToISOFormat(object.delay);
         }
         if (object.duration != null) {
-          objectJson["duration"] = object.duration;
+          objectJson["duration"] = Number(object.duration);
         }
         if (object.threshold != null) {
-          objectJson["threshold"] = object.threshold;
+          objectJson["threshold"] = Number(object.threshold);
         }
         if (object.once != null) {
           objectJson["once"] = object.once;
@@ -19167,23 +19167,23 @@ export function loadEncoders(): void {
         const stylePtrValue = objectJson["style"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(1, stylePtrValue, _session) as NodeReference : null;
         const opacityValue = objectJson["opacity"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const offsetValue = objectJson["offset"];
         const unpackedOffset = offsetValue != undefined ? _Vector2.unpack(1, offsetValue, _session) as Vector2 : null;
         const scaleValue = objectJson["scale"];
-        const unpackedScale = scaleValue != undefined ? scaleValue : null;
+        const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
         const rotateValue = objectJson["rotate"];
         const unpackedRotate = rotateValue != undefined ? _Axis3.unpack(1, rotateValue, _session) as Axis3 : null;
         const skewValue = objectJson["skew"];
         const unpackedSkew = skewValue != undefined ? _Vector2.unpack(1, skewValue, _session) as Vector2 : null;
         const perspectiveValue = objectJson["perspective"];
-        const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
+        const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
         const delayValue = objectJson["delay"];
         const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
         const durationValue = objectJson["duration"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const thresholdValue = objectJson["threshold"];
-        const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
+        const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
         const onceValue = objectJson["once"];
         const unpackedOnce = onceValue != undefined ? onceValue : null;
         const repeatValue = objectJson["repeat"];
@@ -19380,16 +19380,16 @@ export function loadEncoders(): void {
       packObject(object: Vector2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR2";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
         return objectJson;
       }
 
       unpackObject(objectJson: any, _session: Session | null): Vector2 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2)({
-          x: objectJson["x"],
-          y: objectJson["y"],
+          x: Number(objectJson["x"]),
+          y: Number(objectJson["y"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19402,18 +19402,18 @@ export function loadEncoders(): void {
       packObject(object: Vector3): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR3";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
-        objectJson["z"] = object.z;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
+        objectJson["z"] = Number(object.z);
         return objectJson;
       }
 
       unpackObject(objectJson: any, _session: Session | null): Vector3 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400002] as typeof Vector3)({
-          x: objectJson["x"],
-          y: objectJson["y"],
-          z: objectJson["z"],
+          x: Number(objectJson["x"]),
+          y: Number(objectJson["y"]),
+          z: Number(objectJson["z"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19426,20 +19426,20 @@ export function loadEncoders(): void {
       packObject(object: Vector4): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR4";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
-        objectJson["z"] = object.z;
-        objectJson["w"] = object.w;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
+        objectJson["z"] = Number(object.z);
+        objectJson["w"] = Number(object.w);
         return objectJson;
       }
 
       unpackObject(objectJson: any, _session: Session | null): Vector4 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400004] as typeof Vector4)({
-          x: objectJson["x"],
-          y: objectJson["y"],
-          z: objectJson["z"],
-          w: objectJson["w"],
+          x: Number(objectJson["x"]),
+          y: Number(objectJson["y"]),
+          z: Number(objectJson["z"]),
+          w: Number(objectJson["w"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19452,8 +19452,8 @@ export function loadEncoders(): void {
       packObject(object: Vector2i): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR2I";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
         return objectJson;
       }
 
@@ -19474,9 +19474,9 @@ export function loadEncoders(): void {
       packObject(object: Vector3i): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR3I";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
-        objectJson["z"] = object.z;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
+        objectJson["z"] = Number(object.z);
         return objectJson;
       }
 
@@ -19498,10 +19498,10 @@ export function loadEncoders(): void {
       packObject(object: Vector4i): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "VECTOR4I";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
-        objectJson["z"] = object.z;
-        objectJson["w"] = object.w;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
+        objectJson["z"] = Number(object.z);
+        objectJson["w"] = Number(object.w);
         return objectJson;
       }
 
@@ -19524,20 +19524,20 @@ export function loadEncoders(): void {
       packObject(object: Quaternion): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "QUATERNION";
-        objectJson["x"] = object.x;
-        objectJson["y"] = object.y;
-        objectJson["z"] = object.z;
-        objectJson["w"] = object.w;
+        objectJson["x"] = Number(object.x);
+        objectJson["y"] = Number(object.y);
+        objectJson["z"] = Number(object.z);
+        objectJson["w"] = Number(object.w);
         return objectJson;
       }
 
       unpackObject(objectJson: any, _session: Session | null): Quaternion {
 
         return new (STRUCT_CLASS_BY_TYPE[2400010] as typeof Quaternion)({
-          x: objectJson["x"],
-          y: objectJson["y"],
-          z: objectJson["z"],
-          w: objectJson["w"],
+          x: Number(objectJson["x"]),
+          y: Number(objectJson["y"]),
+          z: Number(objectJson["z"]),
+          w: Number(objectJson["w"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19588,7 +19588,7 @@ export function loadEncoders(): void {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "LENGTH";
         objectJson["unit"] = LengthType[object.unit];
-        objectJson["value"] = object.value;
+        objectJson["value"] = Number(object.value);
         return objectJson;
       }
 
@@ -19596,7 +19596,7 @@ export function loadEncoders(): void {
 
         return new (STRUCT_CLASS_BY_TYPE[1800001] as typeof Length)({
           unit: LengthType[objectJson["unit"]] as any,
-          value: objectJson["value"],
+          value: Number(objectJson["value"]),
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
           _session,
         });
@@ -19653,18 +19653,18 @@ export function loadEncoders(): void {
       packObject(object: Inset2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "INSET2";
-        objectJson["base"] = object.base;
+        objectJson["base"] = Number(object.base);
         if (object.top != null) {
-          objectJson["top"] = object.top;
+          objectJson["top"] = Number(object.top);
         }
         if (object.left != null) {
-          objectJson["left"] = object.left;
+          objectJson["left"] = Number(object.left);
         }
         if (object.right != null) {
-          objectJson["right"] = object.right;
+          objectJson["right"] = Number(object.right);
         }
         if (object.bottom != null) {
-          objectJson["bottom"] = object.bottom;
+          objectJson["bottom"] = Number(object.bottom);
         }
         return objectJson;
       }
@@ -19697,18 +19697,18 @@ export function loadEncoders(): void {
       packObject(object: Corner2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "CORNER2";
-        objectJson["base"] = object.base;
+        objectJson["base"] = Number(object.base);
         if (object.topLeft != null) {
-          objectJson["topLeft"] = object.topLeft;
+          objectJson["topLeft"] = Number(object.topLeft);
         }
         if (object.topRight != null) {
-          objectJson["topRight"] = object.topRight;
+          objectJson["topRight"] = Number(object.topRight);
         }
         if (object.bottomLeft != null) {
-          objectJson["bottomLeft"] = object.bottomLeft;
+          objectJson["bottomLeft"] = Number(object.bottomLeft);
         }
         if (object.bottomRight != null) {
-          objectJson["bottomRight"] = object.bottomRight;
+          objectJson["bottomRight"] = Number(object.bottomRight);
         }
         return objectJson;
       }
@@ -19741,12 +19741,12 @@ export function loadEncoders(): void {
       packObject(object: Axis2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "AXIS2";
-        objectJson["base"] = object.base;
+        objectJson["base"] = Number(object.base);
         if (object.x != null) {
-          objectJson["x"] = object.x;
+          objectJson["x"] = Number(object.x);
         }
         if (object.y != null) {
-          objectJson["y"] = object.y;
+          objectJson["y"] = Number(object.y);
         }
         return objectJson;
       }
@@ -19754,11 +19754,11 @@ export function loadEncoders(): void {
       unpackObject(objectJson: any, _session: Session | null): Axis2 {
 
         const xValue = objectJson["x"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectJson["y"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2)({
-          base: objectJson["base"],
+          base: Number(objectJson["base"]),
           x: unpackedX,
           y: unpackedY,
           _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -19773,15 +19773,15 @@ export function loadEncoders(): void {
       packObject(object: Axis3): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "AXIS3";
-        objectJson["base"] = object.base;
+        objectJson["base"] = Number(object.base);
         if (object.x != null) {
-          objectJson["x"] = object.x;
+          objectJson["x"] = Number(object.x);
         }
         if (object.y != null) {
-          objectJson["y"] = object.y;
+          objectJson["y"] = Number(object.y);
         }
         if (object.z != null) {
-          objectJson["z"] = object.z;
+          objectJson["z"] = Number(object.z);
         }
         return objectJson;
       }
@@ -19789,13 +19789,13 @@ export function loadEncoders(): void {
       unpackObject(objectJson: any, _session: Session | null): Axis3 {
 
         const xValue = objectJson["x"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectJson["y"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectJson["z"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3)({
-          base: objectJson["base"],
+          base: Number(objectJson["base"]),
           x: unpackedX,
           y: unpackedY,
           z: unpackedZ,
@@ -19811,8 +19811,8 @@ export function loadEncoders(): void {
       packObject(object: Grid2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "GRID2";
-        objectJson["columns"] = object.columns;
-        objectJson["rows"] = object.rows;
+        objectJson["columns"] = Number(object.columns);
+        objectJson["rows"] = Number(object.rows);
         if (object.columnWidth != null) {
           objectJson["columnWidth"] = object.columnWidth.pack(1);
         }
@@ -19851,8 +19851,8 @@ export function loadEncoders(): void {
       packObject(object: GridSpan2): any {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "GRID_SPAN2";
-        objectJson["columns"] = object.columns;
-        objectJson["rows"] = object.rows;
+        objectJson["columns"] = Number(object.columns);
+        objectJson["rows"] = Number(object.rows);
         return objectJson;
       }
 
@@ -19874,7 +19874,7 @@ export function loadEncoders(): void {
         const objectJson: { [key: string]: any } = {};
         objectJson["metatype"] = "SCHEDULE";
         objectJson["frequency"] = ScheduleFrequency[object.frequency];
-        objectJson["interval"] = object.interval;
+        objectJson["interval"] = Number(object.interval);
         if (object.start != null) {
           objectJson["start"] = object.start.toString({ timeZoneName: 'never' });
         }
@@ -19882,7 +19882,7 @@ export function loadEncoders(): void {
           objectJson["end"] = object.end.toString({ timeZoneName: 'never' });
         }
         if (object.count != null) {
-          objectJson["count"] = object.count;
+          objectJson["count"] = Number(object.count);
         }
         if (object.weekStart != null) {
           objectJson["weekStart"] = DayOfWeek[object.weekStart];
@@ -19890,7 +19890,7 @@ export function loadEncoders(): void {
         if (object.bySetPos.length > 0) {
           const packedBySetPos: any[] = [];
           for (const item of object.bySetPos) {
-            packedBySetPos.push(item);
+            packedBySetPos.push(Number(item));
           }
           objectJson["bySetPos"] = packedBySetPos;
         }
@@ -19904,28 +19904,28 @@ export function loadEncoders(): void {
         if (object.byMonthDay.length > 0) {
           const packedByMonthDay: any[] = [];
           for (const item of object.byMonthDay) {
-            packedByMonthDay.push(item);
+            packedByMonthDay.push(Number(item));
           }
           objectJson["byMonthDay"] = packedByMonthDay;
         }
         if (object.byYearDay.length > 0) {
           const packedByYearDay: any[] = [];
           for (const item of object.byYearDay) {
-            packedByYearDay.push(item);
+            packedByYearDay.push(Number(item));
           }
           objectJson["byYearDay"] = packedByYearDay;
         }
         if (object.byEaster.length > 0) {
           const packedByEaster: any[] = [];
           for (const item of object.byEaster) {
-            packedByEaster.push(item);
+            packedByEaster.push(Number(item));
           }
           objectJson["byEaster"] = packedByEaster;
         }
         if (object.byWeekNo.length > 0) {
           const packedByWeekNo: any[] = [];
           for (const item of object.byWeekNo) {
-            packedByWeekNo.push(item);
+            packedByWeekNo.push(Number(item));
           }
           objectJson["byWeekNo"] = packedByWeekNo;
         }
@@ -19939,21 +19939,21 @@ export function loadEncoders(): void {
         if (object.byHour.length > 0) {
           const packedByHour: any[] = [];
           for (const item of object.byHour) {
-            packedByHour.push(item);
+            packedByHour.push(Number(item));
           }
           objectJson["byHour"] = packedByHour;
         }
         if (object.byMinute.length > 0) {
           const packedByMinute: any[] = [];
           for (const item of object.byMinute) {
-            packedByMinute.push(item);
+            packedByMinute.push(Number(item));
           }
           objectJson["byMinute"] = packedByMinute;
         }
         if (object.bySecond.length > 0) {
           const packedBySecond: any[] = [];
           for (const item of object.bySecond) {
-            packedBySecond.push(item);
+            packedBySecond.push(Number(item));
           }
           objectJson["bySecond"] = packedBySecond;
         }

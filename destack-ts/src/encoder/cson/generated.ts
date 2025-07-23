@@ -4,7 +4,7 @@ import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack
 import { Temporal } from 'temporal-polyfill';
 import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
-import type { Metric, RunFailedEvent, NotificationRescindedEvent, Query, Stroke, Membership, CustomProperty, FollowRemovedEvent, CustomOption, InviteSentEvent, TagDefinition, SanctionRevokedEvent, RunResumeRequestedEvent, Tag, Reaction, TimerResumedEvent, EntitlementExpiredEvent, SanctionEvent, RunPauseRequestedEvent, GradientStyle, Shadow, Method, Timer, Star, CustomEnum, Effect, Theme, MigrationOperation, SpanEvent, Node, Constraint, Script, NumberInputView, Scene, StrokeCap, Vector4, StructDefinitionReference, File, Snapshot, TextSpan, Font, Migration, ReactionEvent, Datum, Folder, Transition, DragStartEvent, Action, RunPausedEvent, CopyEvent, Color, ActionDefinition, Quaternion, Inset2, Grid2, Space, DragEndEvent, Tagging, Event, DropEvent, PropertyReference, ArrowShape2D, SanctionExpiredEvent, DragLeaveEvent, MigrationOperationDefinition, NumberConstraint, TriggerEvent, OptionDefinition, IndexDefinition, MethodDefinition, LineShape2D, Style, KeyUpEvent, Route, Permission, EntitlementRequestedEvent, NotificationDismissedEvent, MigrationDefinition, PointerLeaveEvent, StructDefinition, ShadowStyle, DragOverEvent, Rectangle2D, Value, Line2D, Service, GaugeMeasurementEvent, LogEvent, MouseEvent, StrokePath, DatumMutable, PathShape2D, ColorStyle, Entity2D, Role, Universe, FocusEvent, ClickEvent, GridSpan2, GaugeMetric, PointerMoveEvent, Handle, Arrow2D, TimerStartedEvent, NotificationEvent, Ellipse2D, Sort, Corner2, StarAddedEvent, Vector3, RoleUnassignedEvent, Aggregation, LabelView, Record, InviteEvent, ClipboardEvent, RoleEvent, Palette, PointerEvent, Condition, Text, Follow, TextView, Length, MembershipLeftEvent, PropertyDefinition, WheelEvent, InviteRejectedEvent, Layer, PointerDownEvent, Team, Invite, Sanction, KeyPressEvent, Function, TimerPausedEvent, Gradient, SceneEvent, CounterMeasurementEvent, Stage, InviteAcceptedEvent, NodeDefinition, Fill, Icon, ReactionRemovedEvent, Axis3, User, Path2D, FocusOutEvent, SanctionRequestedEvent, EntitlementGrantedEvent, Shape2D, SplitView, RunResumedEvent, Machine, Notification, Client, Schedule, MeasurementEvent, NotificationSentEvent, FollowEvent, PasteEvent, CounterMetric, ContentView, KeyEvent, PointerOverEvent, Vector2, Entity3D, FocusInEvent, FrameView, Select, DoubleClickEvent, PointerLongPressEvent, Shape3D, RunCompletedEvent, Vector3i, InputEvent, EntitlementEvent, Variant, RectangleShape2D, Border, TimerCompletedEvent, PermissionDefinition, CollectionConstraint, DragEnterEvent, StarEvent, Resource, GradientStop, KeyDownEvent, EntitlementRevokedEvent, Organization, Expression, RoleAssignedEvent, Database, Vector4i, FontStyle, InputView, RunEvent, SliderInputView, TimerCancelledEvent, ConstantDefinition, StarRemovedEvent, Environment, Vector2i, ConstraintDefinition, MembershipEvent, MembershipJoinedEvent, EnumDefinition, CustomEvent, InviteRescindedEvent, CutEvent, StrokeStyle, View, NodeDefinitionReference, EffectStyle, Axis2, PointerUpEvent, ViewEvent, TripleClickEvent, StringConstraint, NotificationExpiredEvent, RunStartedEvent, SingleClickEvent, PointerEnterEvent, FollowAddedEvent, TransitionStyle, Entitlement, TraitDefinition, Offset2, Struct, LayoutView, PolygonShape2D, SanctionGrantedEvent, BorderStyle, Index, Run, Branch, DragEvent, TimerEvent, FillStyle, NotificationReadEvent, Entity, ObjectDefinitionReference, Join, BuiltinDefinition, CustomStruct, HistogramMeasurementEvent, Trigger, NodeReference, ReactionAddedEvent, StrokePoint, SignalEvent, EditEvent, RunStopRequestedEvent, EllipseShape2D, Polygon2D, Type, HistogramMetric } from '@destack/language';
+import type { SanctionRequestedEvent, MeasurementEvent, RoleUnassignedEvent, ClickEvent, Folder, GaugeMetric, CounterMetric, StructDefinitionReference, Entity3D, StarRemovedEvent, User, Tag, RoleEvent, Sort, Stroke, TimerCompletedEvent, GridSpan2, PointerEvent, TraitDefinition, Handle, Event, CounterMeasurementEvent, Condition, Effect, Struct, DragEvent, Length, Environment, Shape3D, Membership, Schedule, Ellipse2D, ReactionEvent, Entitlement, TagDefinition, StarAddedEvent, ActionDefinition, SceneEvent, MembershipJoinedEvent, EffectStyle, Follow, Sanction, LogEvent, Datum, MigrationDefinition, PointerOverEvent, FollowAddedEvent, ClipboardEvent, InputView, MigrationOperation, Constraint, DropEvent, PointerUpEvent, Organization, Corner2, RunResumeRequestedEvent, KeyPressEvent, Trigger, Axis2, IndexDefinition, InputEvent, Metric, DatumMutable, Grid2, Variant, Node, Timer, ContentView, NodeDefinition, Vector3i, NotificationDismissedEvent, TripleClickEvent, RunPauseRequestedEvent, Service, LayoutView, InviteRejectedEvent, Entity, Expression, ConstraintDefinition, Arrow2D, Layer, PointerLeaveEvent, ColorStyle, NotificationExpiredEvent, StrokeCap, PolygonShape2D, Gradient, RoleAssignedEvent, File, EllipseShape2D, Star, Rectangle2D, Path2D, WheelEvent, MembershipEvent, RectangleShape2D, SliderInputView, Join, Space, CustomOption, Branch, PropertyDefinition, ConstantDefinition, PointerLongPressEvent, RunPausedEvent, RunResumedEvent, PasteEvent, Entity2D, TimerStartedEvent, NotificationEvent, FontStyle, CustomEnum, KeyEvent, Text, NodeReference, Migration, SignalEvent, Index, InviteAcceptedEvent, FollowRemovedEvent, TransitionStyle, DragEnterEvent, Vector4, StringConstraint, GradientStyle, NotificationReadEvent, Polygon2D, SingleClickEvent, EntitlementEvent, HistogramMetric, Quaternion, RunEvent, CutEvent, Database, SanctionRevokedEvent, Theme, Run, KeyUpEvent, Notification, Style, SpanEvent, Icon, CopyEvent, CustomProperty, View, Select, Color, EnumDefinition, Function, FollowEvent, Shape2D, Value, NotificationSentEvent, ReactionRemovedEvent, Font, ArrowShape2D, PathShape2D, CustomStruct, DragOverEvent, Role, FocusEvent, Vector2, Scene, Axis3, EntitlementGrantedEvent, MethodDefinition, MembershipLeftEvent, BorderStyle, Universe, PropertyReference, EditEvent, Script, Stage, Action, Inset2, MouseEvent, Fill, NodeDefinitionReference, SanctionExpiredEvent, RunFailedEvent, StarEvent, CollectionConstraint, Vector4i, StructDefinition, Offset2, Shadow, DragLeaveEvent, ShadowStyle, FillStyle, TextSpan, TimerResumedEvent, Team, PointerEnterEvent, LabelView, SanctionGrantedEvent, OptionDefinition, DragStartEvent, NumberInputView, TimerEvent, MigrationOperationDefinition, PointerMoveEvent, Border, FocusOutEvent, StrokePoint, Vector2i, Route, Transition, Machine, GaugeMeasurementEvent, Vector3, TextView, Palette, TimerCancelledEvent, ReactionAddedEvent, KeyDownEvent, NotificationRescindedEvent, Client, SanctionEvent, Line2D, Method, EntitlementRevokedEvent, InviteEvent, RunCompletedEvent, HistogramMeasurementEvent, Aggregation, InviteRescindedEvent, ObjectDefinitionReference, NumberConstraint, Record, DoubleClickEvent, LineShape2D, FrameView, BuiltinDefinition, TimerPausedEvent, Tagging, CustomEvent, Snapshot, TriggerEvent, PointerDownEvent, PermissionDefinition, EntitlementRequestedEvent, Type, RunStopRequestedEvent, RunStartedEvent, Query, Invite, FocusInEvent, Permission, InviteSentEvent, StrokeStyle, EntitlementExpiredEvent, Resource, SplitView, StrokePath, DragEndEvent, GradientStop, Reaction, ViewEvent } from '@destack/language';
 export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -17,7 +17,7 @@ export function loadEncoders(): void {
       packObject(object: Tag): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 12000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -51,7 +51,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -94,13 +94,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -129,7 +129,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -142,7 +142,7 @@ export function loadEncoders(): void {
       packObject(object: Tagging): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 12100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -176,7 +176,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -214,13 +214,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -249,7 +249,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -262,7 +262,7 @@ export function loadEncoders(): void {
       packObject(object: CustomEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 20000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -296,7 +296,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -359,13 +359,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -374,7 +374,7 @@ export function loadEncoders(): void {
           icon: unpackedIcon,
           baseType: unpackedBaseType,
           selfTraits: unpackedSelfTraits,
-          isAbstract: objectCson["112"],
+          isAbstract: Boolean(objectCson["112"]),
           parent: unpackedParentPtr,
           materialization: Number(objectCson["10"]),
           definition: unpackedDefinitionPtr,
@@ -397,7 +397,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -410,7 +410,7 @@ export function loadEncoders(): void {
       packObject(object: EditEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 90100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -427,7 +427,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -499,11 +499,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -516,7 +516,7 @@ export function loadEncoders(): void {
       packObject(object: Permission): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 50000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -550,7 +550,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -587,13 +587,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -621,7 +621,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -634,7 +634,7 @@ export function loadEncoders(): void {
       packObject(object: Method): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 40000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -668,7 +668,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -739,13 +739,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -778,7 +778,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -791,7 +791,7 @@ export function loadEncoders(): void {
       packObject(object: Action): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 40100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -825,7 +825,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -896,13 +896,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -935,7 +935,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -948,7 +948,7 @@ export function loadEncoders(): void {
       packObject(object: CustomEnum): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 20200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -982,7 +982,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1025,13 +1025,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1060,7 +1060,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1073,7 +1073,7 @@ export function loadEncoders(): void {
       packObject(object: CustomOption): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 20400;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1107,7 +1107,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1150,13 +1150,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1185,7 +1185,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1198,7 +1198,7 @@ export function loadEncoders(): void {
       packObject(object: Index): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 30100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1232,7 +1232,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1284,13 +1284,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1320,7 +1320,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1333,7 +1333,7 @@ export function loadEncoders(): void {
       packObject(object: Constraint): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 30200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1367,7 +1367,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1419,13 +1419,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1455,7 +1455,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1468,7 +1468,7 @@ export function loadEncoders(): void {
       packObject(object: Migration): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 31000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1502,7 +1502,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1540,13 +1540,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1575,7 +1575,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1588,7 +1588,7 @@ export function loadEncoders(): void {
       packObject(object: MigrationOperation): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 31100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1622,7 +1622,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1659,13 +1659,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1693,7 +1693,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1706,7 +1706,7 @@ export function loadEncoders(): void {
       packObject(object: CustomProperty): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 20300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1740,7 +1740,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -1859,15 +1859,15 @@ export function loadEncoders(): void {
         const cascadeValue = objectCson["141"];
         const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
         const isRequiredValue = objectCson["150"];
-        const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+        const unpackedIsRequired = isRequiredValue != undefined ? Boolean(isRequiredValue) : null;
         const isUniqueValue = objectCson["151"];
-        const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
+        const unpackedIsUnique = isUniqueValue != undefined ? Boolean(isUniqueValue) : null;
         const isComputedValue = objectCson["152"];
-        const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
+        const unpackedIsComputed = isComputedValue != undefined ? Boolean(isComputedValue) : null;
         const isReadonlyValue = objectCson["153"];
-        const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
+        const unpackedIsReadonly = isReadonlyValue != undefined ? Boolean(isReadonlyValue) : null;
         const isMainValue = objectCson["154"];
-        const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
+        const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : null;
         const parentPtrValue = objectCson["3"];
         const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack(2, parentPtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -1883,13 +1883,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -1938,7 +1938,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -1951,7 +1951,7 @@ export function loadEncoders(): void {
       packObject(object: Space): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -1985,7 +1985,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -2029,13 +2029,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -2067,7 +2067,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           _session,
         });
       }
@@ -2079,7 +2079,7 @@ export function loadEncoders(): void {
       packObject(object: CustomStruct): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 20100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -2113,7 +2113,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -2162,13 +2162,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -2198,7 +2198,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2211,7 +2211,7 @@ export function loadEncoders(): void {
       packObject(object: Branch): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -2245,7 +2245,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -2283,13 +2283,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -2318,7 +2318,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2331,7 +2331,7 @@ export function loadEncoders(): void {
       packObject(object: Snapshot): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -2365,7 +2365,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -2404,13 +2404,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -2440,7 +2440,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2453,7 +2453,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementRequestedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360502;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2470,7 +2470,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2499,11 +2499,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2516,7 +2516,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementGrantedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360503;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2533,7 +2533,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2562,11 +2562,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2579,7 +2579,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementRevokedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360504;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2596,7 +2596,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2625,11 +2625,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2642,7 +2642,7 @@ export function loadEncoders(): void {
       packObject(object: EntitlementExpiredEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360505;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2659,7 +2659,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2688,11 +2688,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2705,7 +2705,7 @@ export function loadEncoders(): void {
       packObject(object: Entitlement): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360500;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -2739,7 +2739,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -2783,13 +2783,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -2820,7 +2820,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2833,7 +2833,7 @@ export function loadEncoders(): void {
       packObject(object: InviteSentEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360102;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2850,7 +2850,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2885,11 +2885,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2902,7 +2902,7 @@ export function loadEncoders(): void {
       packObject(object: InviteRescindedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360103;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2919,7 +2919,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -2950,11 +2950,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -2967,7 +2967,7 @@ export function loadEncoders(): void {
       packObject(object: InviteAcceptedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360104;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -2984,7 +2984,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3019,11 +3019,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3036,7 +3036,7 @@ export function loadEncoders(): void {
       packObject(object: InviteRejectedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360105;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3053,7 +3053,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3084,11 +3084,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3101,7 +3101,7 @@ export function loadEncoders(): void {
       packObject(object: Invite): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -3135,7 +3135,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -3183,13 +3183,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -3220,7 +3220,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3233,7 +3233,7 @@ export function loadEncoders(): void {
       packObject(object: MembershipJoinedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360002;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3250,7 +3250,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3285,11 +3285,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3302,7 +3302,7 @@ export function loadEncoders(): void {
       packObject(object: MembershipLeftEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360003;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3319,7 +3319,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3350,11 +3350,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3367,7 +3367,7 @@ export function loadEncoders(): void {
       packObject(object: Membership): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -3401,7 +3401,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -3449,13 +3449,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -3486,7 +3486,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3499,7 +3499,7 @@ export function loadEncoders(): void {
       packObject(object: RoleAssignedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360202;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3516,7 +3516,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3545,11 +3545,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3562,7 +3562,7 @@ export function loadEncoders(): void {
       packObject(object: RoleUnassignedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360203;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3579,7 +3579,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3608,11 +3608,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3625,7 +3625,7 @@ export function loadEncoders(): void {
       packObject(object: Role): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -3659,7 +3659,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -3703,13 +3703,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -3739,7 +3739,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3752,7 +3752,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionRequestedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360402;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3769,7 +3769,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3798,11 +3798,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3815,7 +3815,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionGrantedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360403;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3832,7 +3832,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3861,11 +3861,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3878,7 +3878,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionRevokedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360404;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3895,7 +3895,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3924,11 +3924,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -3941,7 +3941,7 @@ export function loadEncoders(): void {
       packObject(object: SanctionExpiredEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360405;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -3958,7 +3958,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -3987,11 +3987,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4004,7 +4004,7 @@ export function loadEncoders(): void {
       packObject(object: Sanction): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 360400;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4038,7 +4038,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4082,13 +4082,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4119,7 +4119,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4132,7 +4132,7 @@ export function loadEncoders(): void {
       packObject(object: ColorStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4166,7 +4166,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4221,13 +4221,13 @@ export function loadEncoders(): void {
         const intentValue = objectCson["202"];
         const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
         const xValue = objectCson["203"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectCson["204"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectCson["205"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         const alphaValue = objectCson["206"];
-        const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
+        const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
         const darkValue = objectCson["207"];
         const unpackedDark = darkValue != undefined ? _Color.unpack(2, darkValue, _session) as Color : null;
         const parentPtrValue = objectCson["3"];
@@ -4245,13 +4245,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4288,7 +4288,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4301,7 +4301,7 @@ export function loadEncoders(): void {
       packObject(object: BorderStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100600;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4335,7 +4335,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4390,13 +4390,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4428,7 +4428,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4441,7 +4441,7 @@ export function loadEncoders(): void {
       packObject(object: GradientStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100800;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4475,7 +4475,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4518,7 +4518,7 @@ export function loadEncoders(): void {
         const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
         const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
         const angleValue = objectCson["102"];
-        const unpackedAngle = angleValue != undefined ? angleValue : null;
+        const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
         const unpackedStops: any[] = [];
         if (objectCson["103"] != undefined) {
           for (const item of objectCson["103"]) {
@@ -4544,13 +4544,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4583,7 +4583,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4596,7 +4596,7 @@ export function loadEncoders(): void {
       packObject(object: FillStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100400;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4630,7 +4630,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4695,13 +4695,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4735,7 +4735,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4748,7 +4748,7 @@ export function loadEncoders(): void {
       packObject(object: FontStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100500;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4782,7 +4782,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4862,13 +4862,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -4905,7 +4905,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -4918,7 +4918,7 @@ export function loadEncoders(): void {
       packObject(object: Palette): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -4952,7 +4952,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -4995,13 +4995,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5030,7 +5030,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5043,7 +5043,7 @@ export function loadEncoders(): void {
       packObject(object: ShadowStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100700;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5077,7 +5077,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5127,7 +5127,7 @@ export function loadEncoders(): void {
         const spreadValue = objectCson["204"];
         const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
         const diffusionValue = objectCson["205"];
-        const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
+        const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
         const parentPtrValue = objectCson["3"];
         const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack(2, parentPtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -5143,13 +5143,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5184,7 +5184,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5197,7 +5197,7 @@ export function loadEncoders(): void {
       packObject(object: StrokeStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2101100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5231,7 +5231,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5285,13 +5285,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5299,9 +5299,9 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2101100] as typeof StrokeStyle)({
           type: Number(objectCson["100"]),
           size: Number(objectCson["200"]),
-          thinning: objectCson["201"],
-          smoothing: objectCson["202"],
-          streamline: objectCson["203"],
+          thinning: Number(objectCson["201"]),
+          smoothing: Number(objectCson["202"]),
+          streamline: Number(objectCson["203"]),
           easing: Number(objectCson["204"]),
           start: unpackedStart,
           end: unpackedEnd,
@@ -5327,7 +5327,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5340,7 +5340,7 @@ export function loadEncoders(): void {
       packObject(object: Theme): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2100000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5374,7 +5374,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5411,13 +5411,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5445,7 +5445,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5458,7 +5458,7 @@ export function loadEncoders(): void {
       packObject(object: TransitionStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2200000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5492,7 +5492,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5544,23 +5544,23 @@ export function loadEncoders(): void {
         const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const delayValue = objectCson["102"];
-        const unpackedDelay = delayValue != undefined ? delayValue : null;
+        const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
         const durationValue = objectCson["103"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const unpackedEase: any[] = [];
         if (objectCson["104"] != undefined) {
           for (const item of objectCson["104"]) {
-            unpackedEase.push(item)
+            unpackedEase.push(Number(item))
           }
         }
         const stiffnessValue = objectCson["105"];
-        const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+        const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
         const dampingValue = objectCson["106"];
-        const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+        const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
         const massValue = objectCson["107"];
-        const unpackedMass = massValue != undefined ? massValue : null;
+        const unpackedMass = massValue != undefined ? Number(massValue) : null;
         const bounceValue = objectCson["108"];
-        const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+        const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
         const springTypeValue = objectCson["109"];
         const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
         const parentPtrValue = objectCson["3"];
@@ -5578,13 +5578,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5621,7 +5621,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5634,7 +5634,7 @@ export function loadEncoders(): void {
       packObject(object: EffectStyle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2200100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5668,7 +5668,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5737,25 +5737,25 @@ export function loadEncoders(): void {
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
         const opacityValue = objectCson["200"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const offsetValue = objectCson["201"];
         const unpackedOffset = offsetValue != undefined ? _Vector2.unpack(2, offsetValue, _session) as Vector2 : null;
         const scaleValue = objectCson["202"];
-        const unpackedScale = scaleValue != undefined ? scaleValue : null;
+        const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
         const rotateValue = objectCson["203"];
         const unpackedRotate = rotateValue != undefined ? _Axis3.unpack(2, rotateValue, _session) as Axis3 : null;
         const skewValue = objectCson["204"];
         const unpackedSkew = skewValue != undefined ? _Vector2.unpack(2, skewValue, _session) as Vector2 : null;
         const perspectiveValue = objectCson["205"];
-        const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
+        const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
         const delayValue = objectCson["206"];
         const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
         const durationValue = objectCson["207"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const thresholdValue = objectCson["208"];
-        const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
+        const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
         const onceValue = objectCson["209"];
-        const unpackedOnce = onceValue != undefined ? onceValue : null;
+        const unpackedOnce = onceValue != undefined ? Boolean(onceValue) : null;
         const repeatValue = objectCson["210"];
         const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
         const splitValue = objectCson["211"];
@@ -5779,13 +5779,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -5828,7 +5828,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -5841,7 +5841,7 @@ export function loadEncoders(): void {
       packObject(object: File): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 480000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -5875,7 +5875,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -5967,7 +5967,7 @@ export function loadEncoders(): void {
         const heightValue = objectCson["125"];
         const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
         const aspectRatioValue = objectCson["126"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const codecValue = objectCson["127"];
         const unpackedCodec = codecValue != undefined ? codecValue : null;
         const durationValue = objectCson["128"];
@@ -6003,13 +6003,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -6056,7 +6056,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6069,7 +6069,7 @@ export function loadEncoders(): void {
       packObject(object: Environment): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1100000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -6103,7 +6103,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -6146,13 +6146,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -6181,7 +6181,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6194,7 +6194,7 @@ export function loadEncoders(): void {
       packObject(object: LogEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110011;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6211,7 +6211,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6259,12 +6259,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
           node: unpackedNodePtr,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6277,7 +6277,7 @@ export function loadEncoders(): void {
       packObject(object: RunStartedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110002;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6294,7 +6294,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6327,11 +6327,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6344,7 +6344,7 @@ export function loadEncoders(): void {
       packObject(object: RunPauseRequestedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110003;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6361,7 +6361,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6394,11 +6394,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6411,7 +6411,7 @@ export function loadEncoders(): void {
       packObject(object: RunPausedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110004;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6428,7 +6428,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6461,11 +6461,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6478,7 +6478,7 @@ export function loadEncoders(): void {
       packObject(object: RunResumeRequestedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110005;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6495,7 +6495,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6528,11 +6528,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6545,7 +6545,7 @@ export function loadEncoders(): void {
       packObject(object: RunResumedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110006;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6562,7 +6562,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6595,11 +6595,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6612,7 +6612,7 @@ export function loadEncoders(): void {
       packObject(object: RunStopRequestedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110007;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6629,7 +6629,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6662,11 +6662,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6679,7 +6679,7 @@ export function loadEncoders(): void {
       packObject(object: RunFailedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110008;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6696,7 +6696,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6729,11 +6729,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6746,7 +6746,7 @@ export function loadEncoders(): void {
       packObject(object: RunCompletedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110009;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6763,7 +6763,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6796,11 +6796,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6813,7 +6813,7 @@ export function loadEncoders(): void {
       packObject(object: SpanEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1110010;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -6830,7 +6830,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -6857,11 +6857,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -6874,7 +6874,7 @@ export function loadEncoders(): void {
       packObject(object: ArrowShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -6908,7 +6908,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -6992,13 +6992,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7038,7 +7038,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7051,7 +7051,7 @@ export function loadEncoders(): void {
       packObject(object: EllipseShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410400;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7085,7 +7085,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -7165,13 +7165,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7207,7 +7207,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7220,7 +7220,7 @@ export function loadEncoders(): void {
       packObject(object: LineShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7254,7 +7254,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -7336,13 +7336,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7380,7 +7380,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7393,7 +7393,7 @@ export function loadEncoders(): void {
       packObject(object: PathShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410600;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7427,7 +7427,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -7520,13 +7520,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7563,7 +7563,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7576,7 +7576,7 @@ export function loadEncoders(): void {
       packObject(object: PolygonShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410500;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7610,7 +7610,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -7703,13 +7703,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7746,7 +7746,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7759,7 +7759,7 @@ export function loadEncoders(): void {
       packObject(object: RectangleShape2D): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2410300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7793,7 +7793,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -7883,13 +7883,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -7927,7 +7927,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -7940,7 +7940,7 @@ export function loadEncoders(): void {
       packObject(object: Database): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1000000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -7974,7 +7974,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -8045,13 +8045,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -8088,7 +8088,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8101,7 +8101,7 @@ export function loadEncoders(): void {
       packObject(object: Machine): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1001000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -8135,7 +8135,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -8219,13 +8219,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -8239,11 +8239,11 @@ export function loadEncoders(): void {
           grpcUrl: unpackedGrpcUrl,
           vncUrl: unpackedVncUrl,
           client: unpackedClientPtr,
-          cpu: objectCson["130"],
-          ram: objectCson["131"],
+          cpu: Number(objectCson["130"]),
+          ram: Number(objectCson["131"]),
           width: Number(objectCson["132"]),
           height: Number(objectCson["133"]),
-          isHeadless: objectCson["134"],
+          isHeadless: Boolean(objectCson["134"]),
           status: unpackedStatus,
           region: unpackedRegion,
           parent: unpackedParentPtr,
@@ -8268,7 +8268,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8281,7 +8281,7 @@ export function loadEncoders(): void {
       packObject(object: CopyEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000501;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8298,7 +8298,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8329,11 +8329,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8346,7 +8346,7 @@ export function loadEncoders(): void {
       packObject(object: CutEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000502;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8363,7 +8363,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8394,11 +8394,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8411,7 +8411,7 @@ export function loadEncoders(): void {
       packObject(object: PasteEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000503;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8428,7 +8428,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8459,11 +8459,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8476,7 +8476,7 @@ export function loadEncoders(): void {
       packObject(object: DragStartEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000401;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8493,7 +8493,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8527,11 +8527,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8544,7 +8544,7 @@ export function loadEncoders(): void {
       packObject(object: DragEndEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000402;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8561,7 +8561,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8595,11 +8595,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8612,7 +8612,7 @@ export function loadEncoders(): void {
       packObject(object: DragOverEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000403;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8629,7 +8629,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8663,11 +8663,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8680,7 +8680,7 @@ export function loadEncoders(): void {
       packObject(object: DragEnterEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000404;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8697,7 +8697,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8731,11 +8731,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8748,7 +8748,7 @@ export function loadEncoders(): void {
       packObject(object: DragLeaveEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000405;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8765,7 +8765,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8799,11 +8799,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8816,7 +8816,7 @@ export function loadEncoders(): void {
       packObject(object: DropEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000406;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8833,7 +8833,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8867,11 +8867,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8884,7 +8884,7 @@ export function loadEncoders(): void {
       packObject(object: FocusInEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000601;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8901,7 +8901,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8932,11 +8932,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -8949,7 +8949,7 @@ export function loadEncoders(): void {
       packObject(object: FocusOutEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000602;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -8966,7 +8966,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -8997,11 +8997,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9014,7 +9014,7 @@ export function loadEncoders(): void {
       packObject(object: KeyDownEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000301;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9031,7 +9031,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9062,12 +9062,12 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000301] as typeof KeyDownEvent)({
           key: objectCson["110"],
           code: objectCson["111"],
-          isRepeat: objectCson["112"],
-          isRedacted: objectCson["113"],
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          isRepeat: Boolean(objectCson["112"]),
+          isRedacted: Boolean(objectCson["113"]),
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9078,11 +9078,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9095,7 +9095,7 @@ export function loadEncoders(): void {
       packObject(object: KeyUpEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000302;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9112,7 +9112,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9143,12 +9143,12 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000302] as typeof KeyUpEvent)({
           key: objectCson["110"],
           code: objectCson["111"],
-          isRepeat: objectCson["112"],
-          isRedacted: objectCson["113"],
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          isRepeat: Boolean(objectCson["112"]),
+          isRedacted: Boolean(objectCson["113"]),
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9159,11 +9159,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9176,7 +9176,7 @@ export function loadEncoders(): void {
       packObject(object: KeyPressEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000303;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9193,7 +9193,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9224,12 +9224,12 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000303] as typeof KeyPressEvent)({
           key: objectCson["110"],
           code: objectCson["111"],
-          isRepeat: objectCson["112"],
-          isRedacted: objectCson["113"],
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          isRepeat: Boolean(objectCson["112"]),
+          isRedacted: Boolean(objectCson["113"]),
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9240,11 +9240,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9257,7 +9257,7 @@ export function loadEncoders(): void {
       packObject(object: PointerDownEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000101;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9274,7 +9274,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9296,7 +9296,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9308,10 +9308,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000101] as typeof PointerDownEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9322,11 +9322,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9339,7 +9339,7 @@ export function loadEncoders(): void {
       packObject(object: PointerUpEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000102;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9356,7 +9356,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9378,7 +9378,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9390,10 +9390,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000102] as typeof PointerUpEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9404,11 +9404,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9421,7 +9421,7 @@ export function loadEncoders(): void {
       packObject(object: PointerMoveEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000103;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9438,7 +9438,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9460,7 +9460,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9472,10 +9472,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000103] as typeof PointerMoveEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9486,11 +9486,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9503,7 +9503,7 @@ export function loadEncoders(): void {
       packObject(object: PointerEnterEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000104;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9520,7 +9520,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9542,7 +9542,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9554,10 +9554,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000104] as typeof PointerEnterEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9568,11 +9568,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9585,7 +9585,7 @@ export function loadEncoders(): void {
       packObject(object: PointerOverEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000105;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9602,7 +9602,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9624,7 +9624,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9636,10 +9636,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000105] as typeof PointerOverEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9650,11 +9650,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9667,7 +9667,7 @@ export function loadEncoders(): void {
       packObject(object: PointerLeaveEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000106;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9684,7 +9684,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9706,7 +9706,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9718,10 +9718,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000106] as typeof PointerLeaveEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9732,11 +9732,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9749,7 +9749,7 @@ export function loadEncoders(): void {
       packObject(object: PointerLongPressEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000107;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9766,7 +9766,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9788,7 +9788,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9800,10 +9800,10 @@ export function loadEncoders(): void {
         return new (NODE_CLASS_BY_TYPE[2000107] as typeof PointerLongPressEvent)({
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9814,11 +9814,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9831,7 +9831,7 @@ export function loadEncoders(): void {
       packObject(object: SingleClickEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000202;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9848,7 +9848,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9871,7 +9871,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9884,10 +9884,10 @@ export function loadEncoders(): void {
           button: Number(objectCson["130"]),
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9898,11 +9898,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9915,7 +9915,7 @@ export function loadEncoders(): void {
       packObject(object: DoubleClickEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000203;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -9932,7 +9932,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -9955,7 +9955,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -9968,10 +9968,10 @@ export function loadEncoders(): void {
           button: Number(objectCson["130"]),
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -9982,11 +9982,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -9999,7 +9999,7 @@ export function loadEncoders(): void {
       packObject(object: TripleClickEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000204;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10016,7 +10016,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10039,7 +10039,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -10052,10 +10052,10 @@ export function loadEncoders(): void {
           button: Number(objectCson["130"]),
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -10066,11 +10066,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10083,7 +10083,7 @@ export function loadEncoders(): void {
       packObject(object: WheelEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 2000210;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10100,7 +10100,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10124,7 +10124,7 @@ export function loadEncoders(): void {
         const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
         const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
         const pressureValue = objectCson["111"];
-        const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+        const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
         const nodePtrValue = objectCson["101"];
         const unpackedNodePtr = nodePtrValue != undefined ? _NodeReference.unpack(2, nodePtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -10138,10 +10138,10 @@ export function loadEncoders(): void {
           button: Number(objectCson["130"]),
           position: _Vector2.unpack(2, objectCson["110"], _session) as Vector2,
           pressure: unpackedPressure,
-          shiftKey: objectCson["120"],
-          altKey: objectCson["121"],
-          ctrlKey: objectCson["122"],
-          metaKey: objectCson["123"],
+          shiftKey: Boolean(objectCson["120"]),
+          altKey: Boolean(objectCson["121"]),
+          ctrlKey: Boolean(objectCson["122"]),
+          metaKey: Boolean(objectCson["123"]),
           node: unpackedNodePtr,
           definition: unpackedDefinitionPtr,
           branch: _NodeReference.unpack(2, objectCson["12"], _session) as NodeReference,
@@ -10152,11 +10152,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10169,7 +10169,7 @@ export function loadEncoders(): void {
       packObject(object: Script): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 700000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -10203,7 +10203,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -10241,13 +10241,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -10276,7 +10276,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10289,7 +10289,7 @@ export function loadEncoders(): void {
       packObject(object: Service): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 10300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -10323,7 +10323,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -10366,13 +10366,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -10401,7 +10401,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10414,7 +10414,7 @@ export function loadEncoders(): void {
       packObject(object: TimerStartedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705102;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10431,7 +10431,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10458,11 +10458,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10475,7 +10475,7 @@ export function loadEncoders(): void {
       packObject(object: TimerPausedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705103;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10492,7 +10492,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10519,11 +10519,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10536,7 +10536,7 @@ export function loadEncoders(): void {
       packObject(object: TimerResumedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705104;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10553,7 +10553,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10580,11 +10580,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10597,7 +10597,7 @@ export function loadEncoders(): void {
       packObject(object: TimerCompletedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705105;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10614,7 +10614,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10641,11 +10641,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10658,7 +10658,7 @@ export function loadEncoders(): void {
       packObject(object: TimerCancelledEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705106;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -10675,7 +10675,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -10702,11 +10702,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10719,7 +10719,7 @@ export function loadEncoders(): void {
       packObject(object: Timer): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -10753,7 +10753,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -10797,13 +10797,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -10833,7 +10833,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -10846,7 +10846,7 @@ export function loadEncoders(): void {
       packObject(object: Trigger): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 705000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -10880,7 +10880,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -10911,7 +10911,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._arguments).length > 0) {
           const packedArguments: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._arguments)) {
-            packedArguments[String(String(key))] = value.pack(2);
+            packedArguments[String(key)] = value.pack(2);
           }
           objectCson["121"] = packedArguments;
         }
@@ -10935,7 +10935,7 @@ export function loadEncoders(): void {
         const unpackedArguments = {} as any;
         if (objectCson["121"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["121"])) {
-            unpackedArguments[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedArguments[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const parentPtrValue = objectCson["3"];
@@ -10953,13 +10953,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -10992,7 +10992,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11005,7 +11005,7 @@ export function loadEncoders(): void {
       packObject(object: GaugeMetric): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -11039,7 +11039,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -11082,13 +11082,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -11117,7 +11117,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11130,7 +11130,7 @@ export function loadEncoders(): void {
       packObject(object: GaugeMeasurementEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200001;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         objectCson["6"] = object.definitionPtr.pack(2);
         objectCson["12"] = object.branchPtr.pack(2);
@@ -11145,7 +11145,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -11173,12 +11173,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
           node: unpackedNodePtr,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11191,7 +11191,7 @@ export function loadEncoders(): void {
       packObject(object: CounterMetric): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -11225,7 +11225,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -11268,13 +11268,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -11303,7 +11303,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11316,7 +11316,7 @@ export function loadEncoders(): void {
       packObject(object: CounterMeasurementEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200101;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         objectCson["6"] = object.definitionPtr.pack(2);
         objectCson["12"] = object.branchPtr.pack(2);
@@ -11331,7 +11331,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -11359,12 +11359,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
           node: unpackedNodePtr,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11377,7 +11377,7 @@ export function loadEncoders(): void {
       packObject(object: HistogramMetric): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -11411,7 +11411,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -11454,13 +11454,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -11489,7 +11489,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11502,7 +11502,7 @@ export function loadEncoders(): void {
       packObject(object: HistogramMeasurementEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1200201;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         objectCson["6"] = object.definitionPtr.pack(2);
         objectCson["12"] = object.branchPtr.pack(2);
@@ -11517,7 +11517,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -11545,12 +11545,12 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
           node: unpackedNodePtr,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11563,7 +11563,7 @@ export function loadEncoders(): void {
       packObject(object: Layer): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1700300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -11597,7 +11597,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -11633,9 +11633,9 @@ export function loadEncoders(): void {
         const iconValue = objectCson["102"];
         const unpackedIcon = iconValue != undefined ? _Icon.unpack(2, iconValue, _session) as Icon : null;
         const isVisibleValue = objectCson["140"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["141"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const parentPtrValue = objectCson["3"];
         const unpackedParentPtr = parentPtrValue != undefined ? _NodeReference.unpack(2, parentPtrValue, _session) as NodeReference : null;
         const definitionPtrValue = objectCson["11"];
@@ -11651,13 +11651,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -11689,7 +11689,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -11702,7 +11702,7 @@ export function loadEncoders(): void {
       packObject(object: FrameView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1800200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -11736,7 +11736,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -11873,9 +11873,9 @@ export function loadEncoders(): void {
         const gridSpanValue = objectCson["157"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(2, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectCson["158"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectCson["159"];
-        const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+        const unpackedIsWrap = isWrapValue != undefined ? Boolean(isWrapValue) : null;
         const widthValue = objectCson["120"];
         const unpackedWidth = widthValue != undefined ? _Length.unpack(2, widthValue, _session) as Length : null;
         const heightValue = objectCson["121"];
@@ -11889,9 +11889,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -11929,13 +11929,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -11992,7 +11992,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -12005,7 +12005,7 @@ export function loadEncoders(): void {
       packObject(object: LabelView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1800300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -12039,7 +12039,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -12176,9 +12176,9 @@ export function loadEncoders(): void {
         const gridSpanValue = objectCson["157"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(2, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectCson["158"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectCson["159"];
-        const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+        const unpackedIsWrap = isWrapValue != undefined ? Boolean(isWrapValue) : null;
         const widthValue = objectCson["120"];
         const unpackedWidth = widthValue != undefined ? _Length.unpack(2, widthValue, _session) as Length : null;
         const heightValue = objectCson["121"];
@@ -12192,9 +12192,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -12232,13 +12232,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -12295,7 +12295,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -12308,7 +12308,7 @@ export function loadEncoders(): void {
       packObject(object: NumberInputView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1810100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -12342,7 +12342,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -12435,7 +12435,7 @@ export function loadEncoders(): void {
         const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
         const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
         const valueValue = objectCson["250"];
-        const unpackedValue = valueValue != undefined ? valueValue : null;
+        const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
         const placeholderValue = objectCson["251"];
         const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
         const widthValue = objectCson["120"];
@@ -12451,9 +12451,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -12491,13 +12491,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -12546,7 +12546,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -12559,7 +12559,7 @@ export function loadEncoders(): void {
       packObject(object: SliderInputView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1810200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -12593,7 +12593,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -12692,13 +12692,13 @@ export function loadEncoders(): void {
         const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
         const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
         const valueValue = objectCson["250"];
-        const unpackedValue = valueValue != undefined ? valueValue : null;
+        const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
         const minValueValue = objectCson["251"];
-        const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
+        const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
         const maxValueValue = objectCson["252"];
-        const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
+        const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
         const stepValue = objectCson["253"];
-        const unpackedStep = stepValue != undefined ? stepValue : null;
+        const unpackedStep = stepValue != undefined ? Number(stepValue) : null;
         const widthValue = objectCson["120"];
         const unpackedWidth = widthValue != undefined ? _Length.unpack(2, widthValue, _session) as Length : null;
         const heightValue = objectCson["121"];
@@ -12712,9 +12712,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -12752,13 +12752,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -12809,7 +12809,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -12822,7 +12822,7 @@ export function loadEncoders(): void {
       packObject(object: SplitView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1800400;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -12856,7 +12856,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -12993,9 +12993,9 @@ export function loadEncoders(): void {
         const gridSpanValue = objectCson["157"];
         const unpackedGridSpan = gridSpanValue != undefined ? _GridSpan2.unpack(2, gridSpanValue, _session) as GridSpan2 : null;
         const aspectRatioValue = objectCson["158"];
-        const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
+        const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
         const isWrapValue = objectCson["159"];
-        const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+        const unpackedIsWrap = isWrapValue != undefined ? Boolean(isWrapValue) : null;
         const widthValue = objectCson["120"];
         const unpackedWidth = widthValue != undefined ? _Length.unpack(2, widthValue, _session) as Length : null;
         const heightValue = objectCson["121"];
@@ -13009,9 +13009,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -13049,13 +13049,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -13112,7 +13112,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13125,7 +13125,7 @@ export function loadEncoders(): void {
       packObject(object: TextView): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1805100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -13159,7 +13159,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -13275,9 +13275,9 @@ export function loadEncoders(): void {
         const maxHeightValue = objectCson["125"];
         const unpackedMaxHeight = maxHeightValue != undefined ? _Length.unpack(2, maxHeightValue, _session) as Length : null;
         const isVisibleValue = objectCson["130"];
-        const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+        const unpackedIsVisible = isVisibleValue != undefined ? Boolean(isVisibleValue) : null;
         const opacityValue = objectCson["131"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const fillValue = objectCson["140"];
         const unpackedFill = fillValue != undefined ? _Fill.unpack(2, fillValue, _session) as Fill : null;
         const shadowValue = objectCson["141"];
@@ -13315,13 +13315,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -13371,7 +13371,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13384,7 +13384,7 @@ export function loadEncoders(): void {
       packObject(object: Scene): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1700200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -13418,7 +13418,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -13466,13 +13466,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -13502,7 +13502,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13515,7 +13515,7 @@ export function loadEncoders(): void {
       packObject(object: Stage): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1700000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -13549,7 +13549,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -13586,13 +13586,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -13620,7 +13620,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13633,7 +13633,7 @@ export function loadEncoders(): void {
       packObject(object: Follow): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -13667,7 +13667,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -13704,13 +13704,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -13738,7 +13738,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13751,7 +13751,7 @@ export function loadEncoders(): void {
       packObject(object: FollowEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400201;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -13768,7 +13768,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -13795,11 +13795,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13812,7 +13812,7 @@ export function loadEncoders(): void {
       packObject(object: FollowAddedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400202;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -13829,7 +13829,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -13856,11 +13856,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13873,7 +13873,7 @@ export function loadEncoders(): void {
       packObject(object: FollowRemovedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400203;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -13890,7 +13890,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -13917,11 +13917,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13934,7 +13934,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationSentEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400502;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -13951,7 +13951,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -13978,11 +13978,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -13995,7 +13995,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationRescindedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400503;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14012,7 +14012,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14039,11 +14039,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14056,7 +14056,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationReadEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400504;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14073,7 +14073,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14100,11 +14100,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14117,7 +14117,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationDismissedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400505;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14134,7 +14134,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14161,11 +14161,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14178,7 +14178,7 @@ export function loadEncoders(): void {
       packObject(object: NotificationExpiredEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400506;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14195,7 +14195,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14222,11 +14222,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14239,7 +14239,7 @@ export function loadEncoders(): void {
       packObject(object: Notification): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400500;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -14273,7 +14273,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -14318,13 +14318,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -14355,7 +14355,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14368,7 +14368,7 @@ export function loadEncoders(): void {
       packObject(object: Reaction): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -14402,7 +14402,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -14440,13 +14440,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -14475,7 +14475,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14488,7 +14488,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400001;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14505,7 +14505,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14534,11 +14534,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14551,7 +14551,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionAddedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400002;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14568,7 +14568,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14597,11 +14597,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14614,7 +14614,7 @@ export function loadEncoders(): void {
       packObject(object: ReactionRemovedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400003;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14631,7 +14631,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14660,11 +14660,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14677,7 +14677,7 @@ export function loadEncoders(): void {
       packObject(object: Star): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -14711,7 +14711,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -14748,13 +14748,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -14782,7 +14782,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14795,7 +14795,7 @@ export function loadEncoders(): void {
       packObject(object: StarEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400101;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14812,7 +14812,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14839,11 +14839,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14856,7 +14856,7 @@ export function loadEncoders(): void {
       packObject(object: StarAddedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400102;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14873,7 +14873,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14900,11 +14900,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14917,7 +14917,7 @@ export function loadEncoders(): void {
       packObject(object: StarRemovedEvent): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1400103;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["5"] = object.spacePtr.pack(2);
         if (object.definitionPtr != null) {
           objectCson["11"] = object.definitionPtr.pack(2);
@@ -14934,7 +14934,7 @@ export function loadEncoders(): void {
         objectCson["21"] = object.createdEpoch;
         objectCson["22"] = object.createdByPtr.pack(2);
         objectCson["23"] = object.clientPtr.pack(2);
-        objectCson["24"] = String(object.clientNonce);
+        objectCson["24"] = object.clientNonce;
         objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: 'never' });
         objectCson["26"] = object.clientEpoch;
         objectCson["30"] = object.status;
@@ -14961,11 +14961,11 @@ export function loadEncoders(): void {
           createdEpoch: Number(objectCson["21"]),
           createdBy: _NodeReference.unpack(2, objectCson["22"], _session) as NodeReference,
           client: _NodeReference.unpack(2, objectCson["23"], _session) as NodeReference,
-          clientNonce: String(objectCson["24"]),
+          clientNonce: objectCson["24"],
           clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO('UTC'),
           clientEpoch: Number(objectCson["26"]),
           status: Number(objectCson["30"]),
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -14978,7 +14978,7 @@ export function loadEncoders(): void {
       packObject(object: Folder): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 240000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15012,7 +15012,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15066,13 +15066,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15104,7 +15104,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15117,7 +15117,7 @@ export function loadEncoders(): void {
       packObject(object: Client): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 121300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15154,7 +15154,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15239,13 +15239,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15284,7 +15284,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15297,7 +15297,7 @@ export function loadEncoders(): void {
       packObject(object: Handle): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 100200;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15331,7 +15331,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15369,13 +15369,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15404,7 +15404,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15417,7 +15417,7 @@ export function loadEncoders(): void {
       packObject(object: Organization): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 122000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15451,7 +15451,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15495,13 +15495,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15532,7 +15532,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15545,7 +15545,7 @@ export function loadEncoders(): void {
       packObject(object: Team): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 122100;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15579,7 +15579,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15617,13 +15617,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15652,7 +15652,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15665,7 +15665,7 @@ export function loadEncoders(): void {
       packObject(object: User): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 121000;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         if (object.parentPtr != null) {
           objectCson["3"] = object.parentPtr.pack(2);
         }
@@ -15699,7 +15699,7 @@ export function loadEncoders(): void {
         if (Object.keys(object._customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object._customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["45"] = packedCustomValues;
         }
@@ -15764,13 +15764,13 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["45"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["45"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         const scriptPtrValue = objectCson["46"];
         const unpackedScriptPtr = scriptPtrValue != undefined ? _NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference : null;
         const isExtensibleValue = objectCson["50"];
-        const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+        const unpackedIsExtensible = isExtensibleValue != undefined ? Boolean(isExtensibleValue) : null;
         const sourcePtrValue = objectCson["80"];
         const unpackedSourcePtr = sourcePtrValue != undefined ? _NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference : null;
         const keyValue = objectCson["85"];
@@ -15780,7 +15780,7 @@ export function loadEncoders(): void {
           slug: objectCson["102"],
           status: Number(objectCson["110"]),
           lastLoggedInAt: unpackedLastLoggedInAt,
-          isStaff: objectCson["112"],
+          isStaff: Boolean(objectCson["112"]),
           handle: unpackedHandlePtr,
           email: unpackedEmail,
           passwordSalt: unpackedPasswordSalt,
@@ -15806,7 +15806,7 @@ export function loadEncoders(): void {
           isExtensible: unpackedIsExtensible,
           source: unpackedSourcePtr,
           key: unpackedKey,
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
           _session,
         });
@@ -15970,13 +15970,13 @@ export function loadEncoders(): void {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 1000;
         objectCson["100"] = object.type;
-        objectCson["101"] = String(object.id);
-        objectCson["102"] = String(object.spaceId);
+        objectCson["101"] = object.id;
+        objectCson["102"] = object.spaceId;
         if (object.definitionId != null) {
-          objectCson["103"] = String(object.definitionId);
+          objectCson["103"] = object.definitionId;
         }
-        objectCson["104"] = String(object.branchId);
-        objectCson["105"] = String(object.snapshotId);
+        objectCson["104"] = object.branchId;
+        objectCson["105"] = object.snapshotId;
         if (object.storeKey != null) {
           objectCson["110"] = object.storeKey;
         }
@@ -15986,16 +15986,16 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): NodeReference {
 
         const definitionIdValue = objectCson["103"];
-        const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
+        const unpackedDefinitionId = definitionIdValue != undefined ? definitionIdValue : null;
         const storeKeyValue = objectCson["110"];
         const unpackedStoreKey = storeKeyValue != undefined ? Number(storeKeyValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference)({
           type: Number(objectCson["100"]),
-          id: String(objectCson["101"]),
-          spaceId: String(objectCson["102"]),
+          id: objectCson["101"],
+          spaceId: objectCson["102"],
           definitionId: unpackedDefinitionId,
-          branchId: String(objectCson["104"]),
-          snapshotId: String(objectCson["105"]),
+          branchId: objectCson["104"],
+          snapshotId: objectCson["105"],
           storeKey: unpackedStoreKey,
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
@@ -16375,10 +16375,10 @@ export function loadEncoders(): void {
         }
         return new (STRUCT_CLASS_BY_TYPE[12] as typeof NodeDefinition)({
           type: Number(objectCson["100"]),
-          isAbstract: objectCson["110"],
-          isExtensible: objectCson["111"],
-          isFinal: objectCson["112"],
-          isFrozen: objectCson["113"],
+          isAbstract: Boolean(objectCson["110"]),
+          isExtensible: Boolean(objectCson["111"]),
+          isFinal: Boolean(objectCson["112"]),
+          isFrozen: Boolean(objectCson["113"]),
           properties: unpackedProperties,
           indexes: unpackedIndexes,
           constraints: unpackedConstraints,
@@ -16550,7 +16550,7 @@ export function loadEncoders(): void {
         return new (STRUCT_CLASS_BY_TYPE[14] as typeof TraitDefinition)({
           type: Number(objectCson["100"]),
           alias: objectCson["110"],
-          isExtensible: objectCson["111"],
+          isExtensible: Boolean(objectCson["111"]),
           permissions: unpackedPermissions,
           selfTraits: unpackedSelfTraits,
           traits: unpackedTraits,
@@ -16751,9 +16751,9 @@ export function loadEncoders(): void {
         }
         return new (STRUCT_CLASS_BY_TYPE[15] as typeof StructDefinition)({
           type: Number(objectCson["100"]),
-          isFrozen: objectCson["110"],
-          isAbstract: objectCson["111"],
-          isExtensible: objectCson["112"],
+          isFrozen: Boolean(objectCson["110"]),
+          isAbstract: Boolean(objectCson["111"]),
+          isExtensible: Boolean(objectCson["112"]),
           properties: unpackedProperties,
           methods: unpackedMethods,
           actions: unpackedActions,
@@ -16984,16 +16984,16 @@ export function loadEncoders(): void {
           numberConstraint: unpackedNumberConstraint,
           edgeType: unpackedEdgeType,
           cascade: unpackedCascade,
-          isRequired: objectCson["150"],
-          isUnique: objectCson["151"],
-          isReadonly: objectCson["153"],
-          isMain: objectCson["154"],
-          isWired: objectCson["160"],
-          isStored: objectCson["161"],
-          isRepr: objectCson["162"],
-          isHash: objectCson["163"],
-          isEq: objectCson["164"],
-          isInternal: objectCson["165"],
+          isRequired: Boolean(objectCson["150"]),
+          isUnique: Boolean(objectCson["151"]),
+          isReadonly: Boolean(objectCson["153"]),
+          isMain: Boolean(objectCson["154"]),
+          isWired: Boolean(objectCson["160"]),
+          isStored: Boolean(objectCson["161"]),
+          isRepr: Boolean(objectCson["162"]),
+          isHash: Boolean(objectCson["163"]),
+          isEq: Boolean(objectCson["164"]),
+          isInternal: Boolean(objectCson["165"]),
           id: Number(objectCson["2"]),
           name: objectCson["101"],
           icon: unpackedIcon,
@@ -17765,11 +17765,11 @@ export function loadEncoders(): void {
         const formatValue = objectCson["40"];
         const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
         const minValueValue = objectCson["41"];
-        const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
+        const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
         const maxValueValue = objectCson["42"];
-        const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
+        const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
         const stepValueValue = objectCson["43"];
-        const unpackedStepValue = stepValueValue != undefined ? stepValueValue : null;
+        const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : null;
         const precisionValue = objectCson["44"];
         const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : null;
         const scaleValue = objectCson["45"];
@@ -17904,9 +17904,9 @@ export function loadEncoders(): void {
         const numberConstraintValue = objectCson["142"];
         const unpackedNumberConstraint = numberConstraintValue != undefined ? _NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint : null;
         const isRequiredValue = objectCson["150"];
-        const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+        const unpackedIsRequired = isRequiredValue != undefined ? Boolean(isRequiredValue) : null;
         const isMainValue = objectCson["154"];
-        const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
+        const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[101] as typeof Type)({
           name: unpackedName,
           cardinality: Number(objectCson["110"]),
@@ -18176,7 +18176,7 @@ export function loadEncoders(): void {
         const unpackedOn = onValue != undefined ? _Condition.unpack(2, onValue, _session) as Condition : null;
         return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
           type: Number(objectCson["100"]),
-          recursive: objectCson["102"],
+          recursive: Boolean(objectCson["102"]),
           depth: unpackedDepth,
           on: unpackedOn,
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
@@ -18191,7 +18191,7 @@ export function loadEncoders(): void {
       packObject(object: Query): any {
         const objectCson: { [key: string]: any } = {};
         objectCson["1"] = 300;
-        objectCson["2"] = String(object.id);
+        objectCson["2"] = object.id;
         objectCson["100"] = object.type;
         objectCson["101"] = object.domain;
         objectCson["105"] = object.name;
@@ -18283,7 +18283,7 @@ export function loadEncoders(): void {
         const offsetValue = objectCson["121"];
         const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[300] as typeof Query)({
-          id: String(objectCson["2"]),
+          id: objectCson["2"],
           type: Number(objectCson["100"]),
           domain: Number(objectCson["101"]),
           name: objectCson["105"],
@@ -18314,7 +18314,7 @@ export function loadEncoders(): void {
         if (Object.keys(object.customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object.customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["26"] = packedCustomValues;
         }
@@ -18327,7 +18327,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["26"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["26"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         return new (STRUCT_CLASS_BY_TYPE[2] as typeof Datum)({
@@ -18349,7 +18349,7 @@ export function loadEncoders(): void {
         if (Object.keys(object.customValues).length > 0) {
           const packedCustomValues: { [key: string]: any } = {} as any;
           for (const [key, value] of Object.entries(object.customValues)) {
-            packedCustomValues[String(String(key))] = value.pack(2);
+            packedCustomValues[String(key)] = value.pack(2);
           }
           objectCson["26"] = packedCustomValues;
         }
@@ -18362,7 +18362,7 @@ export function loadEncoders(): void {
         const unpackedCustomValues = {} as any;
         if (objectCson["26"] != undefined) {
           for (const [key, value] of Object.entries(objectCson["26"])) {
-            unpackedCustomValues[String(key)] = _Value.unpack(2, value as any, _session) as Value;
+            unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
           }
         }
         return new (STRUCT_CLASS_BY_TYPE[3] as typeof DatumMutable)({
@@ -18416,15 +18416,15 @@ export function loadEncoders(): void {
         const urlValue = objectCson["105"];
         const unpackedUrl = urlValue != undefined ? urlValue : null;
         const isBoldValue = objectCson["150"];
-        const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
+        const unpackedIsBold = isBoldValue != undefined ? Boolean(isBoldValue) : null;
         const isItalicValue = objectCson["151"];
-        const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
+        const unpackedIsItalic = isItalicValue != undefined ? Boolean(isItalicValue) : null;
         const isStrikethroughValue = objectCson["152"];
-        const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
+        const unpackedIsStrikethrough = isStrikethroughValue != undefined ? Boolean(isStrikethroughValue) : null;
         const isUnderlineValue = objectCson["153"];
-        const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
+        const unpackedIsUnderline = isUnderlineValue != undefined ? Boolean(isUnderlineValue) : null;
         const isCodeValue = objectCson["154"];
-        const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
+        const unpackedIsCode = isCodeValue != undefined ? Boolean(isCodeValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[400021] as typeof TextSpan)({
           type: Number(objectCson["100"]),
           content: unpackedContent,
@@ -18481,15 +18481,15 @@ export function loadEncoders(): void {
           }
         }
         const isBoldValue = objectCson["150"];
-        const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
+        const unpackedIsBold = isBoldValue != undefined ? Boolean(isBoldValue) : null;
         const isItalicValue = objectCson["151"];
-        const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
+        const unpackedIsItalic = isItalicValue != undefined ? Boolean(isItalicValue) : null;
         const isStrikethroughValue = objectCson["152"];
-        const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
+        const unpackedIsStrikethrough = isStrikethroughValue != undefined ? Boolean(isStrikethroughValue) : null;
         const isUnderlineValue = objectCson["153"];
-        const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
+        const unpackedIsUnderline = isUnderlineValue != undefined ? Boolean(isUnderlineValue) : null;
         const isCodeValue = objectCson["154"];
-        const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
+        const unpackedIsCode = isCodeValue != undefined ? Boolean(isCodeValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[400020] as typeof Text)({
           spans: unpackedSpans,
           isBold: unpackedIsBold,
@@ -18548,13 +18548,13 @@ export function loadEncoders(): void {
         const intentValue = objectCson["104"];
         const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
         const xValue = objectCson["105"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectCson["106"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectCson["107"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         const alphaValue = objectCson["108"];
-        const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
+        const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2100300] as typeof Color)({
           type: Number(objectCson["100"]),
           style: unpackedStylePtr,
@@ -18630,7 +18630,7 @@ export function loadEncoders(): void {
         const unpackedColor = colorValue != undefined ? _Color.unpack(2, colorValue, _session) as Color : null;
         return new (STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop)({
           color: unpackedColor,
-          position: objectCson["102"],
+          position: Number(objectCson["102"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -18670,7 +18670,7 @@ export function loadEncoders(): void {
         const stylePtrValue = objectCson["101"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(2, stylePtrValue, _session) as NodeReference : null;
         const angleValue = objectCson["102"];
-        const unpackedAngle = angleValue != undefined ? angleValue : null;
+        const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
         const unpackedStops: any[] = [];
         if (objectCson["103"] != undefined) {
           for (const item of objectCson["103"]) {
@@ -18869,7 +18869,7 @@ export function loadEncoders(): void {
         const spreadValue = objectCson["106"];
         const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
         const diffusionValue = objectCson["107"];
-        const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
+        const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow)({
           type: Number(objectCson["100"]),
           style: unpackedStylePtr,
@@ -18921,9 +18921,9 @@ export function loadEncoders(): void {
         return new (STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke)({
           type: Number(objectCson["100"]),
           size: Number(objectCson["101"]),
-          thinning: objectCson["102"],
-          smoothing: objectCson["103"],
-          streamline: objectCson["104"],
+          thinning: Number(objectCson["102"]),
+          smoothing: Number(objectCson["103"]),
+          streamline: Number(objectCson["104"]),
           easing: Number(objectCson["105"]),
           color: unpackedColor,
           start: unpackedStart,
@@ -18949,8 +18949,8 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): StrokeCap {
 
         return new (STRUCT_CLASS_BY_TYPE[2101101] as typeof StrokeCap)({
-          cap: objectCson["101"],
-          taper: objectCson["102"],
+          cap: Boolean(objectCson["101"]),
+          taper: Boolean(objectCson["102"]),
           easing: Number(objectCson["103"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
@@ -18979,11 +18979,11 @@ export function loadEncoders(): void {
         return new (STRUCT_CLASS_BY_TYPE[2101103] as typeof StrokePoint)({
           point: _Vector2.unpack(2, objectCson["101"], _session) as Vector2,
           originalPoint: _Vector2.unpack(2, objectCson["102"], _session) as Vector2,
-          pressure: objectCson["103"],
+          pressure: Number(objectCson["103"]),
           direction: _Vector2.unpack(2, objectCson["104"], _session) as Vector2,
-          distance: objectCson["105"],
-          runningLength: objectCson["106"],
-          radius: objectCson["107"],
+          distance: Number(objectCson["105"]),
+          runningLength: Number(objectCson["106"]),
+          radius: Number(objectCson["107"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19068,23 +19068,23 @@ export function loadEncoders(): void {
         const stylePtrValue = objectCson["101"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(2, stylePtrValue, _session) as NodeReference : null;
         const delayValue = objectCson["102"];
-        const unpackedDelay = delayValue != undefined ? delayValue : null;
+        const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
         const durationValue = objectCson["103"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const unpackedEase: any[] = [];
         if (objectCson["104"] != undefined) {
           for (const item of objectCson["104"]) {
-            unpackedEase.push(item)
+            unpackedEase.push(Number(item))
           }
         }
         const stiffnessValue = objectCson["105"];
-        const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+        const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
         const dampingValue = objectCson["106"];
-        const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+        const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
         const massValue = objectCson["107"];
-        const unpackedMass = massValue != undefined ? massValue : null;
+        const unpackedMass = massValue != undefined ? Number(massValue) : null;
         const bounceValue = objectCson["108"];
-        const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+        const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
         const springTypeValue = objectCson["109"];
         const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition)({
@@ -19167,25 +19167,25 @@ export function loadEncoders(): void {
         const stylePtrValue = objectCson["101"];
         const unpackedStylePtr = stylePtrValue != undefined ? _NodeReference.unpack(2, stylePtrValue, _session) as NodeReference : null;
         const opacityValue = objectCson["102"];
-        const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
+        const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
         const offsetValue = objectCson["103"];
         const unpackedOffset = offsetValue != undefined ? _Vector2.unpack(2, offsetValue, _session) as Vector2 : null;
         const scaleValue = objectCson["104"];
-        const unpackedScale = scaleValue != undefined ? scaleValue : null;
+        const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
         const rotateValue = objectCson["105"];
         const unpackedRotate = rotateValue != undefined ? _Axis3.unpack(2, rotateValue, _session) as Axis3 : null;
         const skewValue = objectCson["106"];
         const unpackedSkew = skewValue != undefined ? _Vector2.unpack(2, skewValue, _session) as Vector2 : null;
         const perspectiveValue = objectCson["107"];
-        const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
+        const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
         const delayValue = objectCson["108"];
         const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
         const durationValue = objectCson["109"];
-        const unpackedDuration = durationValue != undefined ? durationValue : null;
+        const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
         const thresholdValue = objectCson["110"];
-        const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
+        const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
         const onceValue = objectCson["111"];
-        const unpackedOnce = onceValue != undefined ? onceValue : null;
+        const unpackedOnce = onceValue != undefined ? Boolean(onceValue) : null;
         const repeatValue = objectCson["112"];
         const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
         const splitValue = objectCson["113"];
@@ -19388,8 +19388,8 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Vector2 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2)({
-          x: objectCson["101"],
-          y: objectCson["102"],
+          x: Number(objectCson["101"]),
+          y: Number(objectCson["102"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19411,9 +19411,9 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Vector3 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400002] as typeof Vector3)({
-          x: objectCson["101"],
-          y: objectCson["102"],
-          z: objectCson["103"],
+          x: Number(objectCson["101"]),
+          y: Number(objectCson["102"]),
+          z: Number(objectCson["103"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19436,10 +19436,10 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Vector4 {
 
         return new (STRUCT_CLASS_BY_TYPE[2400004] as typeof Vector4)({
-          x: objectCson["101"],
-          y: objectCson["102"],
-          z: objectCson["103"],
-          w: objectCson["104"],
+          x: Number(objectCson["101"]),
+          y: Number(objectCson["102"]),
+          z: Number(objectCson["103"]),
+          w: Number(objectCson["104"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19534,10 +19534,10 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Quaternion {
 
         return new (STRUCT_CLASS_BY_TYPE[2400010] as typeof Quaternion)({
-          x: objectCson["101"],
-          y: objectCson["102"],
-          z: objectCson["103"],
-          w: objectCson["104"],
+          x: Number(objectCson["101"]),
+          y: Number(objectCson["102"]),
+          z: Number(objectCson["103"]),
+          w: Number(objectCson["104"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19596,7 +19596,7 @@ export function loadEncoders(): void {
 
         return new (STRUCT_CLASS_BY_TYPE[1800001] as typeof Length)({
           unit: Number(objectCson["101"]),
-          value: objectCson["102"],
+          value: Number(objectCson["102"]),
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
           _session,
         });
@@ -19754,11 +19754,11 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Axis2 {
 
         const xValue = objectCson["102"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectCson["103"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2)({
-          base: objectCson["101"],
+          base: Number(objectCson["101"]),
           x: unpackedX,
           y: unpackedY,
           _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
@@ -19789,13 +19789,13 @@ export function loadEncoders(): void {
       unpackObject(objectCson: any, _session: Session | null): Axis3 {
 
         const xValue = objectCson["102"];
-        const unpackedX = xValue != undefined ? xValue : null;
+        const unpackedX = xValue != undefined ? Number(xValue) : null;
         const yValue = objectCson["103"];
-        const unpackedY = yValue != undefined ? yValue : null;
+        const unpackedY = yValue != undefined ? Number(yValue) : null;
         const zValue = objectCson["104"];
-        const unpackedZ = zValue != undefined ? zValue : null;
+        const unpackedZ = zValue != undefined ? Number(zValue) : null;
         return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3)({
-          base: objectCson["101"],
+          base: Number(objectCson["101"]),
           x: unpackedX,
           y: unpackedY,
           z: unpackedZ,
