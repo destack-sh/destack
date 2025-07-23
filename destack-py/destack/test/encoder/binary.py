@@ -390,3 +390,164 @@ def test_varint_roundtrip():
         assert len(writer.to_bytes()) == expected_bytes, (
             f"Varint {value} should encode to {expected_bytes} bytes"
         )
+
+
+def test_datetime_roundtrip():
+    """Test datetime encoding and decoding."""
+    from datetime import UTC, datetime
+
+    test_cases = [
+        # epoch
+        datetime(1970, 1, 1, tzinfo=UTC),
+        # current-ish time
+        datetime(2024, 1, 15, 14, 30, 45, 123456, tzinfo=UTC),
+        # negative epoch (before 1970)
+        datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC),
+        # far future
+        datetime(2100, 1, 1, tzinfo=UTC),
+        # with microseconds
+        datetime(2000, 6, 15, 12, 0, 0, 999999, tzinfo=UTC),
+    ]
+
+    writer = BinaryWriter()
+    for dt in test_cases:
+        writer.write_datetime(dt)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        result = reader.read_datetime()
+        assert result == expected
+        assert result.tzinfo == UTC
+    assert reader.remaining == 0
+
+
+def test_date_roundtrip():
+    """Test date encoding and decoding."""
+    from datetime import date
+
+    test_cases = [
+        date(1970, 1, 1),  # epoch
+        date(2024, 1, 15),  # current-ish
+        date(1969, 12, 31),  # before epoch
+        date(2100, 12, 31),  # far future
+        date(1900, 1, 1),  # old date
+    ]
+
+    writer = BinaryWriter()
+    for d in test_cases:
+        writer.write_date(d)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        assert reader.read_date() == expected
+    assert reader.remaining == 0
+
+
+def test_time_roundtrip():
+    """Test time encoding and decoding."""
+    from datetime import time
+
+    test_cases = [
+        time(0, 0, 0, 0),  # midnight
+        time(12, 0, 0, 0),  # noon
+        time(23, 59, 59, 999999),  # almost midnight
+        time(14, 30, 45, 123456),  # arbitrary time
+        time(0, 0, 0, 1),  # 1 microsecond after midnight
+    ]
+
+    writer = BinaryWriter()
+    for t in test_cases:
+        writer.write_time(t)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        assert reader.read_time() == expected
+    assert reader.remaining == 0
+
+
+def test_duration_roundtrip():
+    """Test duration encoding and decoding."""
+    from datetime import timedelta
+
+    test_cases = [
+        timedelta(0),  # zero
+        timedelta(days=1),  # 1 day
+        timedelta(hours=1, minutes=30, seconds=45),  # mixed
+        timedelta(microseconds=1),  # tiny
+        timedelta(days=-1),  # negative
+        timedelta(weeks=52),  # 1 year
+        timedelta(days=365, hours=5, minutes=48, seconds=46),  # approx 1 year
+    ]
+
+    writer = BinaryWriter()
+    for td in test_cases:
+        writer.write_duration(td)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        assert reader.read_duration() == expected
+    assert reader.remaining == 0
+
+
+def test_uuid_roundtrip():
+    """Test UUID encoding and decoding."""
+    from destack.utils.uuid import UUID
+
+    test_cases = [
+        UUID("00000000-0000-0000-0000-000000000000"),  # nil UUID
+        UUID("12345678-1234-5678-1234-567812345678"),  # fixed pattern
+        UUID("550e8400-e29b-41d4-a716-446655440000"),  # standard example
+        UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),  # max UUID
+    ]
+
+    writer = BinaryWriter()
+    for uuid in test_cases:
+        writer.write_uuid(uuid)
+
+    # each UUID is exactly 16 bytes
+    assert len(writer.to_bytes()) == 16 * len(test_cases)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        assert reader.read_uuid() == expected
+    assert reader.remaining == 0
+
+
+def test_json_roundtrip():
+    """Test JSON encoding and decoding."""
+    test_cases = [
+        None,
+        True,
+        False,
+        42,
+        math.pi,
+        "hello",
+        [],
+        [1, 2, 3],
+        {"key": "value"},
+        {"nested": {"data": [1, 2, {"more": "stuff"}]}},
+        ["mixed", 123, True, None, {"obj": "ect"}],
+    ]
+
+    writer = BinaryWriter()
+    for value in test_cases:
+        writer.write_json(value)
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_cases:
+        assert reader.read_json() == expected
+    assert reader.remaining == 0
+
+
+def test_datetime_naive_to_utc():
+    """Test that naive datetimes are converted to UTC."""
+    from datetime import UTC, datetime
+
+    naive_dt = datetime(2024, 1, 15, 14, 30, 45)  # noqa: DTZ001
+    writer = BinaryWriter()
+    writer.write_datetime(naive_dt)
+
+    reader = BinaryReader(writer.to_bytes())
+    result = reader.read_datetime()
+    assert result.tzinfo == UTC
+    assert result.replace(tzinfo=None) == naive_dt
