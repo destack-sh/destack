@@ -1,9 +1,7 @@
 from hypothesis import HealthCheck, given, settings
 
-from destack.graph.memory import MemoryGraph
 from destack.language import (
     BuiltinObject,
-    EventCursor,
     Folder,
     Join,
     JoinType,
@@ -22,34 +20,16 @@ from destack.utils.uuid import uuid4
 def _test_roundtrip_object(obj: BuiltinObject, session: Session):
     for _, encoder in ENCODERS.items():
         # pack/unpack
-        packed_obj = encoder.pack_object(kind=obj.__kind__, metatype=obj.metatype, object=obj)
-        packed_obj_bytes = encoder.pack_object_bytes(
-            kind=obj.__kind__, metatype=obj.metatype, object=obj
-        )
-        unpacked_obj = encoder.unpack_object(
-            kind=obj.__kind__,
-            metatype=obj.metatype,
-            value=packed_obj,
-            session=session,
-            graph=MemoryGraph(),
-            connection=None,
-        )
+        packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj)
+        packed_obj_bytes = encoder.pack_object_bytes(obj.__kind__, obj.metatype, obj)
+        unpacked_obj = encoder.unpack_object(obj.__kind__, obj.metatype, packed_obj, session)
         assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
         assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
         # pack/unpack as bytes
-        packed_obj_bytes = encoder.pack_object_bytes(
-            kind=obj.__kind__,
-            metatype=obj.metatype,
-            object=obj,
-        )
+        packed_obj_bytes = encoder.pack_object_bytes(obj.__kind__, obj.metatype, obj)
         unpacked_obj_bytes = encoder.unpack_object_bytes(
-            kind=obj.__kind__,
-            metatype=obj.metatype,
-            value=packed_obj_bytes,
-            session=session,
-            graph=MemoryGraph(),
-            connection=None,
+            obj.__kind__, obj.metatype, packed_obj_bytes, session
         )
         assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
         assert unpacked_obj_bytes.hash() == obj.hash(), (
@@ -70,8 +50,8 @@ def test_roundtrip_query(session: Session, space: Space):
     query = Folder.search(
         sort=[Folder.property("created_at").asc()],
         limit=25,
-        Cursor=EventCursor.get(
-            join=Join.of(JoinType.LEFT, on=EventCursor.property("created_epoch").eq(5)),
+        Subfolder=Folder.get(
+            join=Join.of(JoinType.LEFT, on=Folder.property("created_epoch").eq(5)),
         ),
     )
     _test_roundtrip_object(query, session)

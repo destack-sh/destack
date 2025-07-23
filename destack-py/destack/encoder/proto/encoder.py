@@ -4,8 +4,6 @@ from destack.language.core import (
     BuiltinObject,
     Encoder,
     Encoding,
-    Graph,
-    GraphConnection,
     NodeType,
     ObjectKind,
     Session,
@@ -52,13 +50,10 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: AnyObjectProto,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
-        return encoder.unpack_object(value, session, graph, connection)
+        return encoder.unpack_object(value, session)
 
     @override
     def unpack_object_bytes(
@@ -66,15 +61,12 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: bytes,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = PROTO_OBJECT_ENCODERS[kind, metatype]
         proto_cls = PROTO_CLASSES[kind, metatype]
         value_decoded = proto_cls.FromString(value)
-        return encoder.unpack_object(value_decoded, session, graph, connection)
+        return encoder.unpack_object(value_decoded, session)
 
     @override
     def pack_value(
@@ -97,10 +89,7 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         self,
         type: Type,
         value: Any,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> Any:
         raise NotImplementedError
 
@@ -109,9 +98,6 @@ class ProtoEncoder(Encoder[AnyObjectProto]):
         self,
         type: Type,
         value: bytes,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> Any:
         raise NotImplementedError

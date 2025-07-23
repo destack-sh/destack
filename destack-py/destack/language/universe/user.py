@@ -16,7 +16,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Handle, NodeReference, Space
+    from destack.language import Handle, NodeReference, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,10 +44,8 @@ class User(
     is_staff: bool = builtin_property(112, default=False)
 
     handle: Optional["Handle"] = builtin_property(121)
-    cursor: Optional["Cursor"] = builtin_property(122)
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
-        cursor_ptr: Optional[NodeReference] = None
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client

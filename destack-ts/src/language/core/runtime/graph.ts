@@ -1,92 +1,125 @@
-import type { Entity, NodeClass } from "@destack/language/core/builtin";
+import type { Entity, Event } from "@destack/language/core/builtin";
 import { NodeType } from "@destack/language/core/builtin/common";
-import { TraitClass } from "@destack/language/core/builtin/trait";
-import { NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";
 
-/** A Graph is a collection of Entity. */
+/**
+ * A Graph is a collection of Nodes from one or multiple Spaces (across time).
+ */
 export abstract class Graph {
-  /** Get a string representation of the Graph. */
   repr(): string {
     return `<${this.constructor.name}>`;
   }
 
-  /** Get an Entity by id. */
-  abstract get(id: string): Entity | null;
+  //
+  // Meta
+  //
 
-  /** Get an Entity by id, or throw an error if not found. */
-  getOrError(id: string): Entity {
-    const node = this.get(id);
-    if (!node) {
-      throw new Error(`Node ${id} not found in ${this.constructor.name}`);
+  /** Open the Graph. */
+  abstract open(): Promise<void>;
+
+  /** Close the Graph. */
+  abstract close(): Promise<void>;
+
+  //
+  // Write
+  //
+
+  /** Create a Snapshot. */
+  abstract snapshot(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    epoch: number;
+  }): any;
+
+  /** Insert Entities into the Graph directly. */
+  abstract insert(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    entities: Entity[];
+  }): void;
+
+  /** Append Events to the Graph. EditEvents are reflected immediately. */
+  abstract append(events: Event[]): void;
+
+  /** Restate Events to the Graph. EditEvents are reflected immediately. */
+  abstract restate(events: Event[]): void;
+
+  /** Prune the Graph. */
+  abstract prune(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+  }): Promise<void>;
+
+  /** Ensure Events/Entities are persisted in the Graph. */
+  abstract commit(): Promise<void>;
+
+  //
+  // Read
+  //
+
+  /** Seek Events from the Graph. */
+  abstract seek(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    type?: NodeType | NodeType[] | null;
+    after?: Date | number | null;
+    before?: Date | number | null;
+  }): Event[];
+
+  /** Get an Entity by id. */
+  abstract get(options: {
+    id: string;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    includeDeleted?: boolean;
+  }): Entity | null;
+
+  /** Get an Entity by id, raising an error if not found. */
+  getOrError(options: {
+    id: string;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    includeDeleted?: boolean;
+  }): Entity {
+    const node = this.get(options);
+    if (node === null) {
+      throw new Error(`node ${options.id} not found in ${this.repr()}`);
     }
     return node;
   }
 
-  /** Check if a Node exists in this Graph. */
-  abstract has(id: string): boolean;
+  /** Collect child Entities (one level down). */
+  abstract getChildren(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[];
 
-  /** Clear the Graph. */
-  abstract clear(): void;
+  /** Get the ancestors of this Entity (recursively up). */
+  abstract getAncestors(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[];
 
-  /** Add an Entity to the Graph (must not exist, excluding descendants). */
-  abstract add(node: Entity): void;
-
-  /** Remove an Entity from the Graph (must exist, excluding descendants). */
-  abstract remove(node: Entity): void;
-
-  /**
-   * Collect child Entities (one level down).
-   * If the Entities are IsOrdered, their order is preserved.
-   */
-  abstract getChildren(options: { node: Entity; nodeType?: NodeType }): Entity[];
-
-  /**
-   * Collect descendant Entities (recursively down).
-   * If a type is specified, only Entities of that type are collected.
-   * (Descendants are not collected unless all their ancestors are included).
-   * Entities are BFS but IsOrdered is ignored.
-   */
-  abstract getDescendants(options: { node: Entity; nodeType?: NodeType }): Entity[];
-}
-
-/** Expand a collection of NodeTypes into a flat collection of NodeTypes. */
-export function expandNodeInheritance(nodeTypes: NodeType[]): NodeType[] {
-  const expanded: NodeType[] = [];
-  for (const type of nodeTypes) {
-    const nodeDefinition = NODE_CLASS_BY_TYPE[type].__definition__;
-    for (const inheritedType of nodeDefinition.inheritedBy) {
-      if (!expanded.includes(inheritedType)) {
-        expanded.push(inheritedType);
-      }
-    }
-    if (!nodeDefinition.isAbstract && !expanded.includes(type)) {
-      expanded.push(type);
-    }
-  }
-  return expanded;
-}
-
-/** Resolve the NodeTypes for a NodeType, TraitType, or Node class. */
-export function expandNodeTypes(
-  nodeType?: NodeType | NodeClass | TraitClass,
-  options: { expandInheritance: boolean } = { expandInheritance: true },
-): NodeType[] | null {
-  if (nodeType == null) {
-    return null;
-  }
-  let nodeTypes: NodeType[] = [];
-  if (nodeType instanceof TraitClass) {
-    const traitType = nodeType.metatype;
-    nodeTypes.push(...(NODE_TYPES_BY_TRAIT_TYPE[traitType] ?? []));
-  } else if (typeof nodeType == "number") {
-    nodeTypes.push(nodeType);
-  } else {
-    nodeTypes.push(nodeType.metatype);
-  }
-
-  if (options.expandInheritance) {
-    nodeTypes = expandNodeInheritance(nodeTypes);
-  }
-
-  return nodeTypes;
+  /** Collect descendant Entities (recursively down). */
+  abstract getDescendants(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[];
 }

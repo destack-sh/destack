@@ -14,8 +14,6 @@ import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
-import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -40,10 +38,10 @@ export class Datum extends StructFrozen {
   get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as CustomStruct;
+      return this._session.graph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
@@ -58,7 +56,6 @@ export class Datum extends StructFrozen {
     definition: CustomStruct | NodeReference;
     customValues?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -67,8 +64,6 @@ export class Datum extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -165,10 +160,10 @@ export class DatumMutable extends Struct {
   get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as CustomStruct;
+      return this._session.graph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
@@ -186,14 +181,11 @@ export class DatumMutable extends Struct {
     definition: CustomStruct | NodeReference;
     customValues?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _graph?: Graph | null;
   }) {
     /* super */
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -278,7 +270,7 @@ export class CustomStruct extends Entity {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -290,7 +282,7 @@ export class CustomStruct extends Entity {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -307,7 +299,7 @@ export class CustomStruct extends Entity {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -319,7 +311,7 @@ export class CustomStruct extends Entity {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -331,7 +323,7 @@ export class CustomStruct extends Entity {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -344,7 +336,7 @@ export class CustomStruct extends Entity {
   get precededBy(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as CustomStruct | null;
+      return this._session.graph.get(nodePtr.id) as CustomStruct | null;
     }
     return null;
   }
@@ -356,7 +348,7 @@ export class CustomStruct extends Entity {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -378,11 +370,11 @@ export class CustomStruct extends Entity {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -400,11 +392,11 @@ export class CustomStruct extends Entity {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  readonly updatedByPtr: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -419,7 +411,7 @@ export class CustomStruct extends Entity {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -486,7 +478,7 @@ export class CustomStruct extends Entity {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -521,7 +513,7 @@ export class CustomStruct extends Entity {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -587,10 +579,10 @@ export class CustomStruct extends Entity {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
+    createdBy?: Entity | NodeReference;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference | null;
+    updatedBy?: Entity | NodeReference;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
@@ -603,8 +595,6 @@ export class CustomStruct extends Entity {
     icon?: Icon | null;
     baseType?: StructDefinitionReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -618,10 +608,6 @@ export class CustomStruct extends Entity {
         : null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -857,13 +843,9 @@ export class CustomStruct extends Entity {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -910,7 +892,6 @@ export class CustomStruct extends Entity {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

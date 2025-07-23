@@ -1,7 +1,7 @@
 import {
   EnumType,
+  GraphKey,
   NodeType,
-  StoreKey,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
@@ -14,7 +14,6 @@ import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
@@ -50,10 +49,10 @@ export class NodeDefinitionReference extends StructFrozen {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -64,7 +63,6 @@ export class NodeDefinitionReference extends StructFrozen {
     nodeType: NodeType;
     definition?: Entity | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -73,8 +71,6 @@ export class NodeDefinitionReference extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -280,10 +276,10 @@ export class PropertyReference extends StructFrozen {
   get customProperty(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.customPropertyPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as CustomProperty | null;
+      return this._session.graph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
   }
@@ -297,7 +293,6 @@ export class PropertyReference extends StructFrozen {
     id?: number | null;
     customProperty?: CustomProperty | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -306,8 +301,6 @@ export class PropertyReference extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -554,7 +547,7 @@ registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:1000 ==== */
 /**
- * A reference to a Node (builtin or custom).
+ * A reference to a Node in spacetime.
  */
 export class NodeReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_REFERENCE;
@@ -571,6 +564,11 @@ export class NodeReference extends StructFrozen {
   readonly id: string;
 
   /**
+   * The id of the Space the Node belonged to.
+   */
+  readonly spaceId: string;
+
+  /**
    * The id of the Node definition.
    */
   readonly definitionId: string | null;
@@ -578,33 +576,27 @@ export class NodeReference extends StructFrozen {
   /**
    * The id of the Branch the Node belonged to (when it was referenced).
    */
-  readonly branchId: string | null;
+  readonly branchId: string;
 
   /**
    * The id of the Snapshot the Node belonged to (when it was referenced).
    */
-  readonly snapshotId: string | null;
-
-  /**
-   * The id of the Space the Node belonged to.
-   */
-  readonly spaceId: string | null;
+  readonly snapshotId: string;
 
   /**
    * The type of the Store the Node came from.
    */
-  readonly storeKey: StoreKey | null;
+  readonly storeKey: GraphKey | null;
 
   constructor(options: {
     type: NodeType;
     id: string;
+    spaceId: string;
     definitionId?: string | null;
-    branchId?: string | null;
-    snapshotId?: string | null;
-    spaceId?: string | null;
-    storeKey?: StoreKey | null;
+    branchId: string;
+    snapshotId: string;
+    storeKey?: GraphKey | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -613,8 +605,6 @@ export class NodeReference extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -628,14 +618,23 @@ export class NodeReference extends StructFrozen {
       throw new Error(`NodeReference.id is required`);
     }
     this.id = _id;
+    let _spaceId = options.spaceId;
+    if (_spaceId === null) {
+      throw new Error(`NodeReference.spaceId is required`);
+    }
+    this.spaceId = _spaceId;
     let _definitionId = options.definitionId ?? null;
     this.definitionId = _definitionId;
-    let _branchId = options.branchId ?? null;
+    let _branchId = options.branchId;
+    if (_branchId === null) {
+      throw new Error(`NodeReference.branchId is required`);
+    }
     this.branchId = _branchId;
-    let _snapshotId = options.snapshotId ?? null;
+    let _snapshotId = options.snapshotId;
+    if (_snapshotId === null) {
+      throw new Error(`NodeReference.snapshotId is required`);
+    }
     this.snapshotId = _snapshotId;
-    let _spaceId = options.spaceId ?? null;
-    this.spaceId = _spaceId;
     let _storeKey = options.storeKey ?? null;
     this.storeKey = _storeKey;
 
@@ -660,6 +659,9 @@ export class NodeReference extends StructFrozen {
     if (!(this.id === other.id)) {
       return false;
     }
+    if (!(this.spaceId === other.spaceId)) {
+      return false;
+    }
     if (!(this.definitionId === other.definitionId)) {
       return false;
     }
@@ -667,9 +669,6 @@ export class NodeReference extends StructFrozen {
       return false;
     }
     if (!(this.snapshotId === other.snapshotId)) {
-      return false;
-    }
-    if (!(this.spaceId === other.spaceId)) {
       return false;
     }
     if (!(this.storeKey === other.storeKey)) {
@@ -683,20 +682,14 @@ export class NodeReference extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`spaceId=${this.spaceId}`);
       if (this.definitionId != null) {
         propertyReprs.push(`definitionId=${this.definitionId}`);
       }
-      if (this.branchId != null) {
-        propertyReprs.push(`branchId=${this.branchId}`);
-      }
-      if (this.snapshotId != null) {
-        propertyReprs.push(`snapshotId=${this.snapshotId}`);
-      }
-      if (this.spaceId != null) {
-        propertyReprs.push(`spaceId=${this.spaceId}`);
-      }
+      propertyReprs.push(`branchId=${this.branchId}`);
+      propertyReprs.push(`snapshotId=${this.snapshotId}`);
       if (this.storeKey != null) {
-        propertyReprs.push(`storeKey=${StoreKey[this.storeKey]}`);
+        propertyReprs.push(`storeKey=${GraphKey[this.storeKey]}`);
       }
       // @ts-expect-error(readonly) */
       this._repr = `<NodeReference ${propertyReprs.join(" ")}>`;
@@ -712,18 +705,12 @@ export class NodeReference extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
     if (this.definitionId != null) {
       h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
     }
-    if (this.branchId != null) {
-      h = (h * 31 + hashString(this.branchId.toString())) & 0xffffffff;
-    }
-    if (this.snapshotId != null) {
-      h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
-    }
-    if (this.spaceId != null) {
-      h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchId.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
     if (this.storeKey != null) {
       h = (h * 31 + this.storeKey) & 0xffffffff;
     }
@@ -777,10 +764,10 @@ export class ObjectDefinitionReference extends StructFrozen {
   get customDefinition(): Entity | null {
     const nodePtr: NodeReference | null = this.customDefinitionPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -793,7 +780,6 @@ export class ObjectDefinitionReference extends StructFrozen {
     structType?: StructType | null;
     customDefinition?: Entity | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -802,8 +788,6 @@ export class ObjectDefinitionReference extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -938,10 +922,10 @@ export class StructDefinitionReference extends StructFrozen {
   get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as CustomStruct;
+      return this._session.graph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
@@ -952,7 +936,6 @@ export class StructDefinitionReference extends StructFrozen {
     structType?: StructType | null;
     definition: CustomStruct | NodeReference;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -961,8 +944,6 @@ export class StructDefinitionReference extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

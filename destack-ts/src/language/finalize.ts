@@ -20,7 +20,6 @@ import {
   NODE_CLASS_BY_TYPE,
   NODE_TYPE_BY_CLASS,
   NODE_TYPE_SCALAR_BY_TYPE,
-  NODE_TYPES_BY_PRIMARY_STORE_KEY,
   PARENT_TYPES_BY_NODE_TYPE,
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
@@ -103,14 +102,6 @@ export function finalize(): void {
 
     // properties
     _indexProperties(nodeClass, nodeDefinition);
-
-    // primary store
-    for (const storeKey of nodeDefinition.primaryStoreKeys) {
-      if (!NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey]) {
-        NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey] = [];
-      }
-      NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey].push(nodeDefinition.type);
-    }
   }
 
   // index node parent types

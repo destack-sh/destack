@@ -48,12 +48,12 @@ export abstract class InputEvent extends Event {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -61,31 +61,31 @@ export abstract class InputEvent extends Event {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 

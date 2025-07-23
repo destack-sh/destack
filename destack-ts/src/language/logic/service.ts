@@ -1,7 +1,5 @@
 import type {
   Branch,
-  Graph,
-  GraphConnection,
   Icon,
   IsActor,
   IsOwnable,
@@ -43,7 +41,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -55,7 +53,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -72,7 +70,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -84,7 +82,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -96,7 +94,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -109,7 +107,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get precededBy(): Service | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Service | null;
+      return this._session.graph.get(nodePtr.id) as Service | null;
     }
     return null;
   }
@@ -121,7 +119,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -143,11 +141,11 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -165,11 +163,11 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  readonly updatedByPtr: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -184,7 +182,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -251,7 +249,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -286,7 +284,7 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -336,10 +334,10 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
+    createdBy?: Entity | NodeReference;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference | null;
+    updatedBy?: Entity | NodeReference;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
@@ -351,8 +349,6 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
     key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -366,10 +362,6 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
         : null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -592,13 +584,9 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -645,7 +633,6 @@ export class Service extends Entity implements IsOwnable, IsActor, IsRunnable {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

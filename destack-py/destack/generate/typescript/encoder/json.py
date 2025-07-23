@@ -121,13 +121,7 @@ class {encoder_name} implements _JsonObjectEncoder {{
 {textwrap.indent(pack_json, " " * 4)}
   }}
 
-  unpackObject(options: {{
-    value: any;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }}): {cls.__name__} {{
-    const {{ value: objectJson, _session, _graph, _connection }} = options;
+  unpackObject(objectJson: any, _session: Session | null): {cls.__name__} {{
 {textwrap.indent(unpack_json, " " * 4)}
   }}
 }}
@@ -205,12 +199,7 @@ def _generate_from_json(cls: type["BuiltinObject"]) -> str:
     unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
     for assignment in unpack_assignments:
         unpack_body_parts.append(f"  {assignment},")
-    if cls.__is_node__:
-        unpack_body_parts.append("  _session,")
-        unpack_body_parts.append("  _graph,")
-        unpack_body_parts.append("  _connection,")
-    else:
-        unpack_body_parts.append("  _graph,")
+    unpack_body_parts.append("  _session,")
     unpack_body_parts.append("});")
 
     # initializer
@@ -375,11 +364,13 @@ def _generate_unpack_json_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.unpack({{ encoding: {Encoding.JSON.value}, value: {value_expr}, _session, _graph, _connection }}) as {struct_cls.__name__}"
+        return f"_{struct_cls.__name__}.unpack({Encoding.JSON.value}, {value_expr}, _session) as {struct_cls.__name__}"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_NodeReference.unpack({{ encoding: {Encoding.JSON.value}, value: {value_expr}, _session, _graph, _connection }}) as NodeReference"
+        return (
+            f"_NodeReference.unpack({Encoding.JSON.value}, {value_expr}, _session) as NodeReference"
+        )
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack({{ encoding: {Encoding.JSON.value}, value: {value_expr}, _session, _graph, _connection }}) as Node"
+        return f"Node.unpack({Encoding.JSON.value}, {value_expr}, _session) as Node"
     else:
         return value_expr
 
@@ -425,13 +416,12 @@ def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        # return f"{enum_cls.__name__}.{value.name}"
         return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
     elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        value_bytes = value.pack_bytes(Encoding.PROTO)
+        value_bytes = value.pack_bytes(Encoding.JSON)
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBytesBase64({{ encoding: {Encoding.PROTO.value}, value: {value_bytes_str!r} }})"
+        return f"{value.__class__.__name__}.unpackBytesBase64({Encoding.JSON.value}, {value_bytes_str!r})"
     else:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")

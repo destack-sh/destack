@@ -12,6 +12,7 @@ import React from "react";
 import LayerView from "./Layer";
 
 const graph = new MemoryGraph();
+await graph.open();
 const session = new ReactiveSession({ graph, epoch: 0 });
 ACTIVE_SESSION.set(session);
 
@@ -27,9 +28,7 @@ await session.commit();
 const Destack: React.FC = () => {
   return (
     <SessionProvider session={session}>
-      <div>
-        <LayerView layerPtr={layer.toRef()} />
-      </div>
+      <LayerView layerPtr={layer.toRef()} />
     </SessionProvider>
   );
 };

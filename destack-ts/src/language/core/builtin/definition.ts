@@ -6,8 +6,6 @@ import {
   PrimitiveType,
   PropertyType,
   ScalarType,
-  StoreDomain,
-  StoreKey,
   StructType,
   TraitType,
   TypeCardinality,
@@ -35,7 +33,6 @@ import type {
   Type,
 } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
@@ -263,16 +260,6 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly expectedDescendantTypes: readonly NodeType[];
 
-  /**
-   * NodeDefinition.primaryStoreKeys
-   */
-  readonly primaryStoreKeys: readonly StoreKey[];
-
-  /**
-   * NodeDefinition.storeDomain
-   */
-  readonly storeDomain: StoreDomain | null;
-
   constructor(options: {
     id: number;
     type: NodeType;
@@ -308,10 +295,7 @@ export class NodeDefinition extends BuiltinDefinition {
     expectedChildTypes?: readonly NodeType[];
     expectedAncestorTypes?: readonly NodeType[];
     expectedDescendantTypes?: readonly NodeType[];
-    primaryStoreKeys?: readonly StoreKey[];
-    storeDomain?: StoreDomain | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -320,8 +304,6 @@ export class NodeDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -486,13 +468,6 @@ export class NodeDefinition extends BuiltinDefinition {
       _expectedDescendantTypes = [];
     }
     this.expectedDescendantTypes = _expectedDescendantTypes;
-    let _primaryStoreKeys = options.primaryStoreKeys ?? null;
-    if (_primaryStoreKeys === null) {
-      _primaryStoreKeys = [];
-    }
-    this.primaryStoreKeys = _primaryStoreKeys;
-    let _storeDomain = options.storeDomain ?? null;
-    this.storeDomain = _storeDomain;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -716,17 +691,6 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.primaryStoreKeys.length != other.primaryStoreKeys.length) {
-      return false;
-    }
-    for (let i = 0; i < this.primaryStoreKeys.length; i++) {
-      if (!(this.primaryStoreKeys[i] === other.primaryStoreKeys[i])) {
-        return false;
-      }
-    }
-    if (!(this.storeDomain === other.storeDomain)) {
-      return false;
-    }
     if (!(this.id === other.id)) {
       return false;
     }
@@ -917,14 +881,6 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.primaryStoreKeys && this.primaryStoreKeys.length > 0) {
-      for (const _item of this.primaryStoreKeys) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this.storeDomain != null) {
-      h = (h * 31 + this.storeDomain) & 0xffffffff;
-    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -1075,7 +1031,6 @@ export class TraitDefinition extends BuiltinDefinition {
     enumTypes?: readonly EnumType[];
     selfEnumTypes?: readonly EnumType[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1084,8 +1039,6 @@ export class TraitDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1485,7 +1438,6 @@ export class StructDefinition extends BuiltinDefinition {
     enumTypes?: readonly EnumType[];
     selfEnumTypes?: readonly EnumType[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1494,8 +1446,6 @@ export class StructDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1886,7 +1836,6 @@ export class EnumDefinition extends BuiltinDefinition {
     options?: readonly OptionDefinition[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1895,8 +1844,6 @@ export class EnumDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -2240,7 +2187,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     isEq: boolean;
     isInternal: boolean;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -2249,8 +2195,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -2834,7 +2778,6 @@ export class OptionDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -2843,8 +2786,6 @@ export class OptionDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -3014,7 +2955,6 @@ export class ConstantDefinition extends BuiltinDefinition {
     taggings?: readonly number[];
     value: Value;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -3023,8 +2963,6 @@ export class ConstantDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -3187,7 +3125,6 @@ export class TagDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -3196,8 +3133,6 @@ export class TagDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -3369,7 +3304,6 @@ export class IndexDefinition extends BuiltinDefinition {
     cover?: readonly PropertyReference[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -3378,8 +3312,6 @@ export class IndexDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -3591,7 +3523,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
     properties?: readonly PropertyReference[];
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -3600,8 +3531,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -3783,7 +3712,6 @@ export class PermissionDefinition extends BuiltinDefinition {
     description?: string | null;
     taggings?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -3792,8 +3720,6 @@ export class PermissionDefinition extends BuiltinDefinition {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

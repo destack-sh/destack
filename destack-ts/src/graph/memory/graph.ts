@@ -1,10 +1,11 @@
 import type { Entity } from "@destack/language/core/builtin";
 import { NodeType, TraitType } from "@destack/language/core/builtin/common";
-import { expandNodeTypes, Graph } from "@destack/language/core/runtime/graph";
+import { expandNodeTypes } from "@destack/language/core/builtin/node";
+import { Graph } from "@destack/language/core/runtime/graph";
 import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
 
-/** A Graph that stores Entities in memory. */
+/** A Graph that stores Nodes in memory. */
 export class MemoryGraph extends Graph {
   private nodesById: Map<string, Entity>;
   private nodesByParent: Map<string, Map<NodeType, Entity[]>>;
@@ -15,18 +16,20 @@ export class MemoryGraph extends Graph {
     this.nodesByParent = new Map();
   }
 
+  override open(): void {
+    // nothing to do
+  }
+
+  override close(): void {
+    // nothing to do
+  }
+
   override get(id: string): Entity | null {
     return this.nodesById.get(id) ?? null;
   }
 
   override has(id: string): boolean {
     return this.nodesById.has(id);
-  }
-
-  override clear(): void {
-    // nodes
-    this.nodesById.clear();
-    this.nodesByParent.clear();
   }
 
   override add(node: Entity): void {
@@ -49,6 +52,10 @@ export class MemoryGraph extends Graph {
       }
       parentMap.get(childNodeType)!.push(node);
     }
+  }
+
+  override update(node: Entity): void {
+    // nothing to do
   }
 
   override remove(node: Entity): void {

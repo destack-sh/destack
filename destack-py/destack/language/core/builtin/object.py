@@ -62,7 +62,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Graph, GraphConnection, Node, Session
+    from destack.language import Graph, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -166,7 +166,6 @@ def _generate_init[ObjectT: BuiltinObject](
 
     method_body_lines = []
     body_properties = dict(properties)
-    body_properties.pop("_graph")
     if not is_frozen and is_node:
         method_body_lines.append("__setattr__ = object.__setattr__")
         set_template_str = "__setattr__(self, '{0}', {1})"
@@ -190,7 +189,6 @@ def _generate_init[ObjectT: BuiltinObject](
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         body_properties.pop("_session")
-        body_properties.pop("_connection")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
         method_body_lines.append(f"""\
@@ -200,9 +198,6 @@ if _session is None:
     if _session is None:
         raise RuntimeError("no active session for {cls.__name__}")
 {set_template_str.format("_session", "_session")}
-if _graph is None:
-    _graph = _session.graph
-{set_template_str.format("_graph", "_graph")}
 
 # node identity
 if id is None:
@@ -255,16 +250,6 @@ else:
         method_body_lines.append(f"""\
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
-""")
-
-    else:
-        # struct setup
-        method_body_lines.append(f"""\
-# session
-if _graph is None:
-    if (session := ACTIVE_SESSION.get()) is not None:
-        _graph = session.graph
-{set_template_str.format("_graph", "_graph")}
 """)
 
     # property assignments
@@ -389,15 +374,12 @@ if {arg_name} is None:
         if is_entity:
             method_body_lines.append(f"""\
 # graph
-_graph.add(self)
 {set_template_str.format("_graph", "_graph")}
-{set_template_str.format("_connection", "_connection")}
 """)
         else:  # is event
             method_body_lines.append(f"""\
 # graph
 {set_template_str.format("_graph", "_graph")}
-{set_template_str.format("_connection", "_connection")}
 """)
 
     method_body = "\n".join(method_body_lines) or "pass"
@@ -929,7 +911,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        return self._graph.get(node_ptr.id)
+        return self._session.graph.get(node_ptr.id)
     else:
         return None
 """
@@ -939,9 +921,9 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
 def {prop.name}(self: "BuiltinObject") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        if self._graph is None:
+        if self._session is None:
             return None
-        return self._graph.get(node_ptr.id)
+        return self._session.graph.get(node_ptr.id)
     else:
         return None
 """
@@ -1337,7 +1319,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         """Pack this BuiltinObject into some encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        packed_object = encoder.pack_object(kind=self.__kind__, metatype=self.metatype, object=self)
+        packed_object = encoder.pack_object(self.__kind__, self.metatype, self)
         return packed_object
 
     @builtin_method(31)
@@ -1345,77 +1327,29 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        packed_object_bytes = encoder.pack_object_bytes(
-            kind=self.__kind__,
-            metatype=self.metatype,
-            object=self,
-        )
+        packed_object_bytes = encoder.pack_object_bytes(self.__kind__, self.metatype, self)
         return packed_object_bytes
 
     @builtin_method(32)
     @classmethod
-    def unpack(
-        cls,
-        encoding: Encoding,
-        value: Any,
-        *,
-        _session: "Session | None",
-        _graph: "Graph | None",
-        _connection: "GraphConnection | None",
-    ) -> Self:
+    def unpack(cls, encoding: Encoding, value: Any, session: "Session | None") -> Self:
         """Unpack a BuiltinObject from some encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object(
-            kind=cls.__kind__,
-            metatype=cls.metatype,
-            value=value,
-            session=_session,
-            graph=_graph,
-            connection=_connection,
-        )
+        unpacked_object = encoder.unpack_object(cls.__kind__, cls.metatype, value, session)
         return cast(Self, unpacked_object)
 
     @builtin_method(33)
     @classmethod
-    def unpack_bytes(
-        cls,
-        encoding: Encoding,
-        value: bytes,
-        *,
-        _session: "Session | None",
-        _graph: "Graph | None",
-        _connection: "GraphConnection | None",
-    ) -> Self:
+    def unpack_bytes(cls, encoding: Encoding, value: bytes, session: "Session | None") -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object_bytes(
-            kind=cls.__kind__,
-            metatype=cls.metatype,
-            value=value,
-            session=_session,
-            graph=_graph,
-            connection=_connection,
-        )
+        unpacked_object = encoder.unpack_object_bytes(cls.__kind__, cls.metatype, value, session)
         return cast(Self, unpacked_object)
 
     @builtin_method(34)
     @classmethod
-    def unpack_bytes_base64(
-        cls,
-        encoding: Encoding,
-        value: str,
-        *,
-        _session: "Session | None",
-        _graph: "Graph | None",
-        _connection: "GraphConnection | None",
-    ) -> Self:
+    def unpack_bytes_base64(cls, encoding: Encoding, value: str, session: "Session | None") -> Self:
         value_bytes = base64.b64decode(value)
-        return cls.unpack_bytes(
-            encoding,
-            value_bytes,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
+        return cls.unpack_bytes(encoding, value_bytes, session)

@@ -17,8 +17,6 @@ import type { Space } from "@destack/language/core/common/space";
 import type { Text } from "@destack/language/core/common/text";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
-import type { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -49,7 +47,6 @@ export class ActionDefinition extends MethodDefinition {
     platforms?: readonly PlatformType[];
     languages?: readonly RuntimeLanguage[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -209,10 +206,10 @@ export class Action extends Method implements IsRunnable {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
+    createdBy?: Entity | NodeReference;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference | null;
+    updatedBy?: Entity | NodeReference;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
@@ -228,8 +225,6 @@ export class Action extends Method implements IsRunnable {
     platforms?: readonly PlatformType[];
     languages?: readonly RuntimeLanguage[];
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(options);
@@ -335,13 +330,9 @@ export class Action extends Method implements IsRunnable {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -388,7 +379,6 @@ export class Action extends Method implements IsRunnable {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

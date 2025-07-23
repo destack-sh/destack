@@ -1,10 +1,10 @@
 from destack.language import (
-    Cursor,
-    EventCursor,
     Folder,
+    LineShape2D,
     Node,
     NodeType,
     Session,
+    Shape2D,
     Space,
     Tag,
 )
@@ -14,13 +14,15 @@ def test_node_inheritance(session: Session):
     """Test the Node inheritance hierarchy."""
     assert Node.metatype == NodeType.NODE
     assert Node.__is_abstract__
-    assert Cursor.metatype == NodeType.CURSOR
-    assert Cursor.__is_abstract__
-    assert EventCursor.__base_type__ == Cursor.metatype
-    assert Cursor.__inherits__ == (NodeType.NODE, NodeType.ENTITY)
-    assert EventCursor.__inherits__ == (NodeType.NODE, NodeType.ENTITY, NodeType.CURSOR)
-    assert Cursor.__extended_by__ == (NodeType.EVENT_CURSOR, NodeType.SCREEN_CURSOR)
-    assert Cursor.__inherited_by__ == (NodeType.EVENT_CURSOR, NodeType.SCREEN_CURSOR)
+    assert Shape2D.metatype == NodeType.SHAPE2D
+    assert Shape2D.__is_abstract__
+    assert LineShape2D.__base_type__ == Shape2D.metatype
+    assert LineShape2D.__inherits__ == (
+        NodeType.NODE,
+        NodeType.ENTITY,
+        NodeType.ENTITY2D,
+        NodeType.SHAPE2D,
+    )
     assert len(Node.__inherited_by__) == len(NodeType) - 1
 
 

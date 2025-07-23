@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from ..builtin import BuiltinObject, Encoding, NodeType, ObjectKind, StructType
 
 if TYPE_CHECKING:
-    from destack.language.core import Graph, GraphConnection, Session, Type
+    from destack.language.core import Session, Type
 
 
 class Encoder[T: Any = Any](ABC):
@@ -38,10 +38,7 @@ class Encoder[T: Any = Any](ABC):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: T,
-        *,
         session: "Session | None",
-        graph: "Graph | None",
-        connection: "GraphConnection | None",
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from some encoded format."""
         raise NotImplementedError
@@ -52,10 +49,7 @@ class Encoder[T: Any = Any](ABC):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: bytes,
-        *,
         session: "Session | None",
-        graph: "Graph | None",
-        connection: "GraphConnection | None",
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         raise NotImplementedError
@@ -83,10 +77,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         type: "Type",
         value: T,
-        *,
         session: "Session | None",
-        graph: "Graph | None",
-        connection: "GraphConnection | None",
     ) -> Any:
         """Unpack a value from some encoded format."""
         raise NotImplementedError
@@ -96,10 +87,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         type: "Type",
         value: bytes,
-        *,
         session: "Session | None",
-        graph: "Graph | None",
-        connection: "GraphConnection | None",
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""
         raise NotImplementedError

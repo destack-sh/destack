@@ -13,8 +13,6 @@ from .common import (
     PrimitiveType,
     PropertyType,
     ScalarType,
-    StoreDomain,
-    StoreKey,
     StructType,
     TraitType,
     TypeCardinality,
@@ -230,10 +228,6 @@ class NodeDefinition(BuiltinDefinition):
         description="The descendant types expected for this Node type (any of).",
     )
 
-    # store
-    primary_store_keys: list[StoreKey] = builtin_property(200)
-    store_domain: StoreDomain | None = builtin_property(201)
-
     @classmethod
     def from_declaration(cls, node_cls: type_["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
@@ -279,9 +273,6 @@ class NodeDefinition(BuiltinDefinition):
             expected_child_types=list(node_cls.__expected_child_types__),
             expected_ancestor_types=list(node_cls.__expected_ancestor_types__),
             expected_descendant_types=list(node_cls.__expected_descendant_types__),
-            # store
-            primary_store_keys=list(node_cls.__primary_store_keys__),
-            store_domain=node_cls.__store_domain__,
         )
 
 

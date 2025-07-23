@@ -3,7 +3,6 @@ import { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -62,10 +61,10 @@ export class Icon extends StructFrozen {
   get file(): File | null {
     const nodePtr: NodeReference | null = this.filePtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as File | null;
+      return this._session.graph.get(nodePtr.id) as File | null;
     }
     return null;
   }
@@ -90,7 +89,6 @@ export class Icon extends StructFrozen {
     fileUrl?: string | null;
     color?: Color | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -99,8 +97,6 @@ export class Icon extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

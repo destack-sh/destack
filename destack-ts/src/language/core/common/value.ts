@@ -7,7 +7,6 @@ import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { STRUCT_CLASS_BY_TYPE, registerStructClass } from "@destack/language/registry";
 import { hashString } from "@destack/utils/hash";
@@ -35,7 +34,6 @@ export class Value extends StructFrozen {
     type: Type;
     value?: any | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -44,8 +42,6 @@ export class Value extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

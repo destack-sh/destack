@@ -70,6 +70,8 @@ import type {
   Encoding,
   EnumType,
   EnvironmentType,
+  GraphDomain,
+  GraphKey,
   ModeType,
   NodeType,
   ObjectKind,
@@ -84,9 +86,6 @@ import type {
   RoleType,
   RuntimeLanguage,
   ScalarType,
-  StoreDomain,
-  StoreKey,
-  StoreTier,
   StructType,
   Tenancy,
   ToolType,
@@ -294,12 +293,6 @@ import type {
   PointerOverEvent,
   PointerUpEvent,
 } from "@destack/language/interaction/pointer";
-import type {
-  Cursor,
-  CursorStatus,
-  EventCursor,
-  ScreenCursor,
-} from "@destack/language/logic/cursor";
 import type { Route } from "@destack/language/logic/route";
 import type {
   DayOfWeek,
@@ -551,9 +544,6 @@ export type NodeTypeMapping = {
   [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
   [NodeType.TRIPLE_CLICK_EVENT]: TripleClickEvent;
   [NodeType.WHEEL_EVENT]: WheelEvent;
-  [NodeType.CURSOR]: Cursor;
-  [NodeType.EVENT_CURSOR]: EventCursor;
-  [NodeType.SCREEN_CURSOR]: ScreenCursor;
   [NodeType.ROUTE]: Route;
   [NodeType.SCRIPT]: Script;
   [NodeType.SERVICE]: Service;
@@ -717,9 +707,8 @@ export type EnumTypeMapping = {
   [EnumType.NODE_TYPE]: NodeType;
   [EnumType.UNIVERSE_CATEGORY]: UniverseCategory;
   [EnumType.PROPERTY_TYPE]: PropertyType;
-  [EnumType.STORE_KEY]: StoreKey;
-  [EnumType.STORE_DOMAIN]: StoreDomain;
-  [EnumType.STORE_TIER]: StoreTier;
+  [EnumType.GRAPH_KEY]: GraphKey;
+  [EnumType.GRAPH_DOMAIN]: GraphDomain;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
@@ -815,7 +804,6 @@ export type EnumTypeMapping = {
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
   [EnumType.MODEL_PROVIDER]: ModelProvider;
   [EnumType.MOUSE_BUTTON]: MouseButton;
-  [EnumType.CURSOR_STATUS]: CursorStatus;
   [EnumType.DAY_OF_WEEK]: DayOfWeek;
   [EnumType.MONTH]: Month;
   [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency;

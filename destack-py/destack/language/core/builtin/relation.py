@@ -14,7 +14,7 @@ from destack.language.registry import (
 from destack.proto import NodeReferenceProto, PropertyReferenceProto
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, PrimitiveType, StoreKey
+from .common import EnumType, GraphKey, NodeType, PrimitiveType
 from .enum import Enum, builtin_enum
 from .object import BuiltinObject
 from .property import PropertyDeclaration, builtin_property
@@ -331,7 +331,7 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
 @builtin_struct(StructType.NODE_REFERENCE, frozen=True)
 class NodeReference(StructFrozen[NodeReferenceProto]):
     """
-    A reference to a Node (builtin or custom).
+    A reference to a Node in spacetime.
     """
 
     # identity
@@ -345,34 +345,29 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
         is_repr=True,
         description="The unique id of the Node.",
     )
-    definition_id: Optional[UUID] = builtin_property(
+    space_id: UUID = builtin_property(
         102,
+        is_repr=True,
+        description="The id of the Space the Node belonged to.",
+    )
+    definition_id: Optional[UUID] = builtin_property(
+        103,
         is_repr=True,
         description="The id of the Node definition.",
     )
-    branch_id: Optional[UUID] = builtin_property(
-        103,
+    branch_id: UUID = builtin_property(
+        104,
         is_repr=True,
         description="The id of the Branch the Node belonged to (when it was referenced).",
     )
-    snapshot_id: Optional[UUID] = builtin_property(
-        104,
+    snapshot_id: UUID = builtin_property(
+        105,
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )
     # epoch? (but then we would have to re-create NodeReferences every time the Node is updated)
-
-    # location
-    space_id: Optional[UUID] = builtin_property(
+    store_key: Optional[GraphKey] = builtin_property(
         110,
-        is_repr=True,
-        description="The id of the Space the Node belonged to.",
-    )
-    store_key: Optional[StoreKey] = builtin_property(
-        111,
         is_repr=True,
         description="The type of the Store the Node came from.",
     )
-
-    # external?
-    # external_id?

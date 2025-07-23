@@ -19,90 +19,70 @@ export class CsonEncoder implements Encoder<any> {
     loadEncoders();
   }
 
-  packObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): any {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObject(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): any {
+    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.packObject(options.object);
+    return encoder.packObject(object);
   }
 
-  packObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): Uint8Array {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObjectBytes(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): Uint8Array {
+    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = encoder.packObject(options.object);
+    const objectPacked = encoder.packObject(object);
     return new TextEncoder().encode(JSON.stringify(objectPacked));
   }
 
-  unpackObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: any;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObject(kind: ObjectKind, metatype: NodeType | StructType, value: any, session: Session | null): BuiltinObject {
+    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObject(options);
+    return encoder.unpackObject(value, session);
   }
 
-  unpackObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: Uint8Array;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: Uint8Array,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = JSON.parse(new TextDecoder().decode(options.value));
-    return encoder.unpackObject({
-      ...options,
-      value: objectPacked,
-    });
+    const objectPacked = JSON.parse(new TextDecoder().decode(value));
+    return encoder.unpackObject(objectPacked, session);
   }
 
-  packValue(options: { value: any; type: Type }): any {
-    const cson = packCson(options.value, options.type);
+  packValue(value: any, type: Type): any {
+    const cson = packCson(value, type);
     return cson;
   }
 
-  packValueBytes(options: { value: any; type: Type }): Uint8Array {
-    const cson = packCson(options.value, options.type);
+  packValueBytes(value: any, type: Type): Uint8Array {
+    const cson = packCson(value, type);
     return new TextEncoder().encode(JSON.stringify(cson));
   }
 
-  unpackValue(options: { type: Type; value: any }): any {
-    const cson = unpackCson(options.value, options.type);
+  unpackValue(type: Type, value: any, session: Session | null): any {
+    const cson = unpackCson(value, type);
     return cson;
   }
 
-  unpackValueBytes(options: { type: Type; value: Uint8Array }): any {
-    const cson = unpackCson(options.value, options.type);
+  unpackValueBytes(type: Type, value: Uint8Array, session: Session | null): any {
+    const cson = unpackCson(value, type);
     return cson;
   }
 }
