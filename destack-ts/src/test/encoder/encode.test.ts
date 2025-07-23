@@ -15,6 +15,7 @@ import {
   WORLD_ORACLE,
 } from "@destack/language";
 import { ENCODERS } from "@destack/language/core/builtin/const";
+import { BinaryReader, BinaryWriter } from "@destack/language/core/runtime/binary";
 import { createAndActivateSpace } from "@destack/test/conftest";
 import { uuid4 } from "@destack/utils";
 
@@ -54,11 +55,6 @@ function _testRoundtripObject(obj: BuiltinObject, session: Session): void {
       obj.metatype,
       obj,
     );
-    const packedObjBytes = encoder.packObjectBinary(
-      (obj.constructor as typeof BuiltinObject).__kind__,
-      obj.metatype,
-      obj,
-    );
     const unpackedObj = encoder.unpackObject(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
@@ -69,15 +65,19 @@ function _testRoundtripObject(obj: BuiltinObject, session: Session): void {
     expect(unpackedObj.hash()).toEqual(obj.hash());
 
     // pack/unpack as bytes
-    const packedObjBytes2 = encoder.packObjectBinary(
+    const writer = new BinaryWriter();
+    encoder.packObjectBinary(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
       obj,
+      writer,
     );
+    const packedObjBytes = writer.toBytes();
+    const reader = new BinaryReader(packedObjBytes);
     const unpackedObjBytes = encoder.unpackObjectBinary(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
-      packedObjBytes2,
+      reader,
       session,
     );
     expect(unpackedObjBytes.equals(obj)).toBe(true);
