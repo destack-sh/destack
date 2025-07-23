@@ -503,7 +503,7 @@ class NodeType(Enum):
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
 
     # space
-    # nocheckin: Context (as local instance?)
+    # nocheckin: Context (as local partial instances attached to some Nodes?)
     #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
     #   merge Oracle / actor_ptr / client_ptr /epoch into Context?)
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"

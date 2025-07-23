@@ -422,11 +422,7 @@ export class DragStartEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -863,11 +859,7 @@ export class DragEndEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -1304,11 +1296,7 @@ export class DragOverEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -1745,11 +1733,7 @@ export class DragEnterEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -2186,11 +2170,7 @@ export class DragLeaveEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -2627,11 +2607,7 @@ export class DropEvent extends DragEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }

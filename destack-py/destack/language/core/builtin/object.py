@@ -225,6 +225,7 @@ if id is None:
     _epoch = self._session.epoch
     created_epoch = _epoch
     created_at = _now
+    created_by_ptr = self._session.actor_ptr
     client_ptr = self._session.client_ptr
     client_nonce = self._session.client_nonce
     client_epoch = _epoch

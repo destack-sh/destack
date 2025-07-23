@@ -342,11 +342,7 @@ export class CustomEnum extends Entity {
       /* id */
       options.id ?? null,
       /* parent */
-      options.parent != null
-        ? options.parent.constructor.name === "NodeReference"
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      options.parent != null ? options.parent.toRef() : null,
       /* session */
       options._session ?? null,
       /* _isNew */
@@ -496,19 +492,11 @@ export class CustomEnum extends Entity {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : this._session.actorPtr;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.constructor.name === "NodeReference"
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : this._session.actorPtr;
+        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorPtr;
     }
   }
 
@@ -987,11 +975,7 @@ export class CustomOption extends Entity {
       /* id */
       options.id ?? null,
       /* parent */
-      options.parent != null
-        ? options.parent.constructor.name === "NodeReference"
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      options.parent != null ? options.parent.toRef() : null,
       /* session */
       options._session ?? null,
       /* _isNew */
@@ -1141,19 +1125,11 @@ export class CustomOption extends Entity {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : this._session.actorPtr;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.constructor.name === "NodeReference"
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : this._session.actorPtr;
+        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorPtr;
     }
   }
 

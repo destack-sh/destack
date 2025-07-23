@@ -29,13 +29,13 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.NODE_REFERENCE,
-      nodeType: valueOrType.type,
+      nodeTypes: [valueOrType.type],
     });
   } else if (isNode(valueOrType)) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: options?.nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
-      nodeType: valueOrType.metatype,
+      nodeTypes: [valueOrType.metatype],
     });
   } else if (isStruct(valueOrType)) {
     return new Type({
@@ -70,9 +70,8 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
       scalarType: elementType.scalarType,
       primitiveType: elementType.primitiveType,
       enumType: elementType.enumType,
-      nodeType: elementType.nodeType,
+      nodeTypes: elementType.nodeTypes,
       structType: elementType.structType,
-      nodeConstraint: elementType.nodeConstraint,
     });
   } else if (valueOrType instanceof Map) {
     if (valueOrType.size === 0) {
@@ -97,9 +96,8 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
       scalarType: valueType.scalarType,
       primitiveType: valueType.primitiveType,
       enumType: valueType.enumType,
-      nodeType: valueType.nodeType,
+      nodeTypes: valueType.nodeTypes,
       structType: valueType.structType,
-      nodeConstraint: valueType.nodeConstraint,
       keyType: keyType,
     });
   } else if (typeof valueOrType === "object" && valueOrType.constructor === Object) {
@@ -129,9 +127,8 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
       scalarType: valueType.scalarType,
       primitiveType: valueType.primitiveType,
       enumType: valueType.enumType,
-      nodeType: valueType.nodeType,
+      nodeTypes: valueType.nodeTypes,
       structType: valueType.structType,
-      nodeConstraint: valueType.nodeConstraint,
       keyType: keyType,
     });
   }

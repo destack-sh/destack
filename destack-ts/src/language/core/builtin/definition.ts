@@ -2743,7 +2743,7 @@ export class PropertyDefinition extends BuiltinDefinition {
         scalarType: this.scalarType,
         primitiveType: this.primitiveType,
         enumType: this.enumType,
-        nodeType: this.nodeType,
+        nodeTypes: this.nodeTypes,
         structType: this.structType,
         keyType: this.keyType,
         isRequired: this.isRequired,
@@ -2752,7 +2752,6 @@ export class PropertyDefinition extends BuiltinDefinition {
         collectionConstraint: this.collectionConstraint,
         stringConstraint: this.stringConstraint,
         numberConstraint: this.numberConstraint,
-        nodeConstraint: this.nodeConstraint,
       });
     }
     return this._type;

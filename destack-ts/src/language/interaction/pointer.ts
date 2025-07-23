@@ -499,11 +499,7 @@ export class PointerDownEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -1021,11 +1017,7 @@ export class PointerUpEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -1543,11 +1535,7 @@ export class PointerMoveEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -2065,11 +2053,7 @@ export class PointerEnterEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -2587,11 +2571,7 @@ export class PointerOverEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -3109,11 +3089,7 @@ export class PointerLeaveEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -3631,11 +3607,7 @@ export class PointerLongPressEvent extends PointerEvent {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
