@@ -630,7 +630,7 @@ class PropertyDeclaration(TypeDeclaration):
 
 
 def builtin_property(
-    id: int | None = None,
+    id: int,
     *,
     description: str | None = None,
     default: Any = UNSET,
@@ -649,6 +649,7 @@ def builtin_property(
     is_main: bool = False,
     tags: tuple[str, ...] = (),
 ) -> Any:
+    assert id < 256, f"id must be less than 256: {id}"  # for :Encoding
     return PropertyDeclaration(
         id=id,
         description=description,
@@ -675,7 +676,7 @@ def builtin_property(
 def builtin_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
-        id=3,  # NOTE: never change this id!
+        id=3,  # NOTE: never change this id! :Encoding
         edge_type=EdgeType.PARENT,
         default=None,
         is_wired=True,

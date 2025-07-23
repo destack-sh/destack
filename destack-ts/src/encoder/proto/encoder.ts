@@ -31,7 +31,7 @@ export class ProtoEncoder implements Encoder<any> {
     return encoder.packObject(object);
   }
 
-  packObjectBytes(
+  packObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
@@ -42,7 +42,7 @@ export class ProtoEncoder implements Encoder<any> {
         `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.packObjectBytes(object);
+    return encoder.packObjectBinary(object);
   }
 
   unpackObject(
@@ -60,7 +60,7 @@ export class ProtoEncoder implements Encoder<any> {
     return encoder.unpackObject(value, session);
   }
 
-  unpackObjectBytes(
+  unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
     value: Uint8Array,
@@ -72,7 +72,7 @@ export class ProtoEncoder implements Encoder<any> {
         `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObjectBytes(value, session);
+    return encoder.unpackObjectBinary(value, session);
   }
 
   packValue(value: any, type: Type): any {

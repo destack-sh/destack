@@ -5,7 +5,6 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import { activeSession } from "@destack/language/core/builtin/const";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
@@ -20,7 +19,6 @@ import type { CustomProperty } from "@destack/language/core/common/property";
 import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
-import { GraphConnection } from "@destack/language/core/runtime/connection";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   registerEnumClass,
@@ -1422,6 +1420,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);

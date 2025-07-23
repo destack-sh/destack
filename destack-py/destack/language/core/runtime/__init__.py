@@ -1,3 +1,4 @@
+from .binary import BinaryReader, BinaryWriter
 from .connection import GraphConnection
 from .encoder import Encoder
 from .graph import Graph
@@ -8,6 +9,8 @@ from .session import Session
 __all__ = [
     "WORLD_ORACLE",
     "Aliasing",
+    "BinaryReader",
+    "BinaryWriter",
     "Encoder",
     "Graph",
     "GraphConnection",

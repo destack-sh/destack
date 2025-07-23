@@ -24,8 +24,8 @@ export interface _ProtoObjectEncoder {
   unpackObject(value: any, session: Session | null): BuiltinObject;
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
-  packObjectBytes(object: BuiltinObject): Uint8Array;
+  packObjectBinary(object: BuiltinObject): Uint8Array;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackObjectBytes(value: Uint8Array, session: Session | null): BuiltinObject;
+  unpackObjectBinary(value: Uint8Array, session: Session | null): BuiltinObject;
 }

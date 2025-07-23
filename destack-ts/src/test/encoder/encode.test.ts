@@ -54,7 +54,7 @@ function _testRoundtripObject(obj: BuiltinObject, session: Session): void {
       obj.metatype,
       obj,
     );
-    const packedObjBytes = encoder.packObjectBytes(
+    const packedObjBytes = encoder.packObjectBinary(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
       obj,
@@ -69,12 +69,12 @@ function _testRoundtripObject(obj: BuiltinObject, session: Session): void {
     expect(unpackedObj.hash()).toEqual(obj.hash());
 
     // pack/unpack as bytes
-    const packedObjBytes2 = encoder.packObjectBytes(
+    const packedObjBytes2 = encoder.packObjectBinary(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
       obj,
     );
-    const unpackedObjBytes = encoder.unpackObjectBytes(
+    const unpackedObjBytes = encoder.unpackObjectBinary(
       (obj.constructor as typeof BuiltinObject).__kind__,
       obj.metatype,
       packedObjBytes2,

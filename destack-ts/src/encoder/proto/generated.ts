@@ -6,8 +6,8 @@ import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/encoder/proto/wiring';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
 import type { AnyNodeProto, AnyStructProto } from '@destack/proto';
-import type { TraitDefinition, InviteSentEvent, IndexDefinition, Database, CounterMeasurementEvent, Transition, Trigger, SingleClickEvent, PointerOverEvent, StrokeCap, MigrationOperation, PolygonShape2D, Vector3i, Universe, Vector2i, TransitionStyle, InputView, ColorStyle, Vector3, Machine, ConstraintDefinition, SplitView, Action, Struct, Migration, PathShape2D, Arrow2D, FocusEvent, Query, Space, Line2D, Font, FocusInEvent, DragEnterEvent, FollowAddedEvent, StructDefinition, PermissionDefinition, Offset2, CustomEvent, InviteRejectedEvent, Star, RoleEvent, Tagging, Shape2D, Layer, ViewEvent, Corner2, EntitlementRevokedEvent, Schedule, WheelEvent, TriggerEvent, Membership, Environment, DragEvent, KeyDownEvent, EntitlementGrantedEvent, EllipseShape2D, Stage, Organization, PropertyReference, BuiltinDefinition, CollectionConstraint, EditEvent, Invite, PointerUpEvent, Condition, Folder, Role, Path2D, Snapshot, Length, NotificationEvent, Aggregation, View, CustomStruct, GradientStyle, TimerCompletedEvent, Notification, Client, RunResumeRequestedEvent, CopyEvent, MethodDefinition, InputEvent, RunCompletedEvent, DoubleClickEvent, MigrationDefinition, Color, Sanction, Permission, Follow, OptionDefinition, StrokePoint, InviteEvent, Effect, Palette, Join, SanctionRequestedEvent, Service, MeasurementEvent, GaugeMeasurementEvent, SpanEvent, MembershipJoinedEvent, LabelView, Polygon2D, NodeReference, FocusOutEvent, DragLeaveEvent, GridSpan2, CustomProperty, PointerLongPressEvent, Shadow, RunPausedEvent, LayoutView, Shape3D, Index, Entity, SanctionEvent, ReactionAddedEvent, DropEvent, FontStyle, EntitlementRequestedEvent, RoleUnassignedEvent, PointerEvent, StarEvent, Handle, NotificationExpiredEvent, Team, Scene, Entity2D, Constraint, Expression, StarRemovedEvent, Vector4i, ArrowShape2D, MembershipLeftEvent, SanctionGrantedEvent, Datum, NumberConstraint, InviteRescindedEvent, RectangleShape2D, GaugeMetric, TextSpan, Record, SanctionRevokedEvent, CutEvent, Event, RunFailedEvent, ConstantDefinition, MouseEvent, ClickEvent, Function, Text, Tag, HistogramMeasurementEvent, Icon, KeyUpEvent, TimerEvent, FollowEvent, NotificationSentEvent, RunStopRequestedEvent, Rectangle2D, StarAddedEvent, KeyEvent, User, ActionDefinition, PointerDownEvent, StructDefinitionReference, SignalEvent, EntitlementEvent, PointerMoveEvent, SliderInputView, EffectStyle, FollowRemovedEvent, NodeDefinitionReference, TripleClickEvent, Vector2, RoleAssignedEvent, BorderStyle, Axis3, ShadowStyle, NodeDefinition, DragEndEvent, Quaternion, SanctionExpiredEvent, GradientStop, Metric, ContentView, TimerResumedEvent, NotificationDismissedEvent, TagDefinition, NumberInputView, ReactionEvent, KeyPressEvent, Script, Entity3D, Branch, Fill, Axis2, FillStyle, NotificationRescindedEvent, LogEvent, Node, FrameView, Run, Resource, RunEvent, PasteEvent, CounterMetric, StringConstraint, DragOverEvent, TextView, DatumMutable, DragStartEvent, StrokePath, StrokeStyle, Reaction, PointerLeaveEvent, Select, MembershipEvent, Stroke, Theme, NotificationReadEvent, ReactionRemovedEvent, Method, RunPauseRequestedEvent, RunResumedEvent, PointerEnterEvent, Timer, HistogramMetric, TimerCancelledEvent, Entitlement, Type, Sort, Style, PropertyDefinition, Ellipse2D, SceneEvent, CustomEnum, LineShape2D, Inset2, ClipboardEvent, RunStartedEvent, Grid2, TimerPausedEvent, Gradient, TimerStartedEvent, MigrationOperationDefinition, Route, CustomOption, File, EnumDefinition, EntitlementExpiredEvent, InviteAcceptedEvent, ObjectDefinitionReference, Value, Vector4, Border, Variant } from '@destack/language';
-import { TimerPausedEventProto, EnvironmentProto, ReactionRemovedEventProto, RunPauseRequestedEventProto, ColorProto, EffectProto, ObjectDefinitionReferenceProto, DragEnterEventProto, Vector3iProto, PaletteProto, RunPausedEventProto, Shape3DProto, SanctionProto, InviteSentEventProto, PointerUpEventProto, StrokeProto, ClickEventProto, ViewEventProto, SortProto, PointerLeaveEventProto, MembershipLeftEventProto, TaggingProto, Line2DProto, StructDefinitionProto, TripleClickEventProto, GradientStyleProto, EntitlementEventProto, PolygonShape2DProto, StructDefinitionReferenceProto, TraitDefinitionProto, MigrationDefinitionProto, Axis3Proto, InviteEventProto, StructProto, StrokePathProto, EntitlementGrantedEventProto, StyleProto, Vector4iProto, KeyDownEventProto, GradientProto, MigrationProto, ShadowStyleProto, GaugeMeasurementEventProto, LayoutViewProto, SpaceProto, RoleProto, ClientProto, VariantProto, Vector4Proto, EditEventProto, KeyEventProto, SliderInputViewProto, ConditionProto, JoinProto, RoleUnassignedEventProto, NotificationSentEventProto, HandleProto, TimerCancelledEventProto, StrokeCapProto, CopyEventProto, RunStopRequestedEventProto, IconProto, EffectStyleProto, LogEventProto, MeasurementEventProto, DropEventProto, GaugeMetricProto, ContentViewProto, TextViewProto, FunctionProto, NodeProto, ClipboardEventProto, TagProto, TagDefinitionProto, DragOverEventProto, FollowRemovedEventProto, RunResumeRequestedEventProto, RunResumedEventProto, PasteEventProto, SanctionRevokedEventProto, Grid2Proto, PermissionDefinitionProto, Vector2Proto, ColorStyleProto, FrameViewProto, SanctionGrantedEventProto, NodeReferenceProto, StarEventProto, SanctionRequestedEventProto, MembershipJoinedEventProto, FocusInEventProto, QuaternionProto, CounterMetricProto, InviteProto, Shape2DProto, ValueProto, EnumDefinitionProto, Vector2iProto, EntitlementExpiredEventProto, UserProto, ActionDefinitionProto, BuiltinDefinitionProto, FollowAddedEventProto, ReactionAddedEventProto, Polygon2DProto, DragLeaveEventProto, PropertyDefinitionProto, MembershipProto, ResourceProto, Rectangle2DProto, ConstraintDefinitionProto, OptionDefinitionProto, MachineProto, EntitlementRequestedEventProto, CustomStructProto, StrokeStyleProto, RouteProto, FollowEventProto, Entity2DProto, CustomEventProto, RunFailedEventProto, NotificationDismissedEventProto, RectangleShape2DProto, EntityProto, BranchProto, DoubleClickEventProto, NodeDefinitionProto, LengthProto, ReactionProto, IndexDefinitionProto, QueryProto, UniverseProto, StrokePointProto, FileProto, ViewProto, NotificationProto, Path2DProto, GradientStopProto, LabelViewProto, ArrowShape2DProto, CustomOptionProto, Arrow2DProto, GridSpan2Proto, IndexProto, PointerDownEventProto, LineShape2DProto, MouseEventProto, StageProto, Ellipse2DProto, AggregationProto, PathShape2DProto, StarAddedEventProto, PointerEnterEventProto, TriggerEventProto, PointerEventProto, NotificationRescindedEventProto, RunStartedEventProto, PointerOverEventProto, RunProto, FocusOutEventProto, TimerResumedEventProto, WheelEventProto, FolderProto, HistogramMetricProto, MetricProto, FillProto, ServiceProto, NotificationEventProto, FocusEventProto, SanctionEventProto, NodeDefinitionReferenceProto, ExpressionProto, TextSpanProto, KeyPressEventProto, CounterMeasurementEventProto, LayerProto, StarProto, Offset2Proto, ScriptProto, StarRemovedEventProto, ConstantDefinitionProto, Corner2Proto, Axis2Proto, StringConstraintProto, PointerLongPressEventProto, CustomPropertyProto, RunCompletedEventProto, SingleClickEventProto, InviteRescindedEventProto, RoleAssignedEventProto, MigrationOperationProto, FollowProto, MethodProto, RunEventProto, DragEndEventProto, DragStartEventProto, TransitionProto, CustomEnumProto, TransitionStyleProto, TeamProto, InviteRejectedEventProto, MigrationOperationDefinitionProto, DatumProto, TextProto, NumberConstraintProto, Entity3DProto, InviteAcceptedEventProto, ShadowProto, SpanEventProto, Vector3Proto, SnapshotProto, BorderProto, DatumMutableProto, ActionProto, RoleEventProto, TimerEventProto, InputEventProto, MembershipEventProto, SanctionExpiredEventProto, NotificationReadEventProto, FontProto, InputViewProto, OrganizationProto, TimerCompletedEventProto, DatabaseProto, KeyUpEventProto, SceneProto, BorderStyleProto, HistogramMeasurementEventProto, RecordProto, NotificationExpiredEventProto, TypeProto, FillStyleProto, TimerStartedEventProto, ScheduleProto, ReactionEventProto, Inset2Proto, CutEventProto, PermissionProto, EventProto, EntitlementRevokedEventProto, PropertyReferenceProto, CollectionConstraintProto, SignalEventProto, SceneEventProto, EntitlementProto, SplitViewProto, SelectProto, DragEventProto, PointerMoveEventProto, TimerProto, NumberInputViewProto, MethodDefinitionProto, ThemeProto, TriggerProto, EllipseShape2DProto, FontStyleProto, ConstraintProto } from '@destack/proto';
+import type { File, Migration, Sanction, Node, EffectStyle, DoubleClickEvent, Axis3, SingleClickEvent, KeyPressEvent, RunCompletedEvent, Tagging, Stroke, InviteAcceptedEvent, TimerCompletedEvent, FontStyle, StringConstraint, CutEvent, Variant, CounterMetric, NotificationSentEvent, TagDefinition, ReactionEvent, FocusEvent, RunPausedEvent, OptionDefinition, MembershipJoinedEvent, RectangleShape2D, Organization, MigrationOperation, HistogramMetric, Ellipse2D, NodeDefinitionReference, Length, StarRemovedEvent, ReactionAddedEvent, DatumMutable, Snapshot, RoleUnassignedEvent, KeyUpEvent, CustomOption, RoleAssignedEvent, KeyDownEvent, Star, Vector2, NumberInputView, Style, Font, InviteSentEvent, Layer, KeyEvent, SanctionRevokedEvent, Environment, Membership, Arrow2D, User, MembershipEvent, ContentView, TraitDefinition, RunStartedEvent, LineShape2D, Stage, NotificationReadEvent, Client, FollowRemovedEvent, DragEvent, Route, TimerPausedEvent, TextView, Fill, ShadowStyle, StrokeStyle, PathShape2D, PointerOverEvent, ClickEvent, ViewEvent, MigrationDefinition, DragStartEvent, InputView, Vector4, EntitlementExpiredEvent, WheelEvent, StructDefinitionReference, ReactionRemovedEvent, SanctionGrantedEvent, Space, CopyEvent, RunStopRequestedEvent, TimerEvent, EntitlementRequestedEvent, SplitView, CounterMeasurementEvent, EntitlementRevokedEvent, CollectionConstraint, Action, GaugeMetric, CustomProperty, ActionDefinition, Type, Event, Service, FrameView, PointerUpEvent, Path2D, RunPauseRequestedEvent, Entity, EntitlementEvent, NodeReference, FocusOutEvent, ObjectDefinitionReference, Gradient, Timer, Team, Vector2i, Rectangle2D, Join, Sort, EnumDefinition, GradientStyle, SceneEvent, Permission, Inset2, CustomStruct, Reaction, Axis2, Condition, InviteRescindedEvent, EditEvent, DragEnterEvent, SliderInputView, PasteEvent, Vector3i, Entitlement, TimerStartedEvent, SanctionExpiredEvent, Color, Invite, Scene, Vector3, Corner2, SanctionEvent, Handle, DragEndEvent, RunResumedEvent, Border, Constraint, StrokeCap, EllipseShape2D, IndexDefinition, Machine, View, StrokePath, TripleClickEvent, DropEvent, NotificationExpiredEvent, StarEvent, Tag, BorderStyle, Value, Notification, Shape3D, ColorStyle, LogEvent, InviteRejectedEvent, MeasurementEvent, StrokePoint, Function, RunEvent, FollowEvent, NotificationEvent, DragLeaveEvent, Follow, DragOverEvent, PermissionDefinition, PropertyDefinition, TimerResumedEvent, BuiltinDefinition, NotificationDismissedEvent, MembershipLeftEvent, PointerEvent, MouseEvent, SanctionRequestedEvent, Effect, Branch, Entity3D, ConstraintDefinition, Struct, PointerMoveEvent, ConstantDefinition, Palette, Text, SpanEvent, Resource, SignalEvent, PointerDownEvent, PolygonShape2D, PointerLeaveEvent, Expression, CustomEvent, Universe, Shadow, Transition, HistogramMeasurementEvent, TransitionStyle, Record, Line2D, Theme, RunFailedEvent, ClipboardEvent, Index, TriggerEvent, NumberConstraint, Schedule, Shape2D, StarAddedEvent, RoleEvent, FillStyle, Polygon2D, MethodDefinition, InputEvent, Database, PointerLongPressEvent, Datum, TextSpan, InviteEvent, Method, Folder, MigrationOperationDefinition, Aggregation, GradientStop, PropertyReference, NodeDefinition, Query, Role, Run, ArrowShape2D, Offset2, Grid2, Metric, CustomEnum, Entity2D, PointerEnterEvent, Vector4i, Quaternion, EntitlementGrantedEvent, FocusInEvent, Script, LabelView, TimerCancelledEvent, Icon, Select, RunResumeRequestedEvent, StructDefinition, LayoutView, FollowAddedEvent, GaugeMeasurementEvent, Trigger, NotificationRescindedEvent, GridSpan2 } from '@destack/language';
+import { Offset2Proto, Entity3DProto, NodeReferenceProto, ExpressionProto, NodeDefinitionProto, GradientProto, CopyEventProto, SanctionRevokedEventProto, IndexProto, RectangleShape2DProto, RunResumedEventProto, PaletteProto, TriggerProto, StarEventProto, EntitlementRevokedEventProto, RunPausedEventProto, MigrationProto, SignalEventProto, Vector4iProto, DragStartEventProto, DoubleClickEventProto, AggregationProto, UserProto, RoleEventProto, EntitlementGrantedEventProto, Shape3DProto, GradientStopProto, Line2DProto, TextSpanProto, NotificationExpiredEventProto, Shape2DProto, SpaceProto, MembershipLeftEventProto, ColorStyleProto, TimerCancelledEventProto, NotificationReadEventProto, ActionDefinitionProto, RoleProto, RoleUnassignedEventProto, IconProto, SelectProto, ConditionProto, TextProto, PropertyDefinitionProto, Grid2Proto, Corner2Proto, Axis2Proto, CollectionConstraintProto, WheelEventProto, TimerEventProto, EffectStyleProto, FocusEventProto, RecordProto, ReactionEventProto, RunStopRequestedEventProto, ContentViewProto, EventProto, EntitlementExpiredEventProto, Axis3Proto, SanctionGrantedEventProto, SceneProto, DatumProto, OrganizationProto, SanctionEventProto, MigrationOperationProto, JoinProto, LineShape2DProto, StrokePathProto, MachineProto, EditEventProto, PathShape2DProto, ClickEventProto, TriggerEventProto, SliderInputViewProto, IndexDefinitionProto, Rectangle2DProto, TimerResumedEventProto, KeyPressEventProto, MembershipProto, DragEnterEventProto, ScheduleProto, ShadowStyleProto, TimerCompletedEventProto, CustomStructProto, MethodDefinitionProto, StageProto, DragOverEventProto, MetricProto, RunCompletedEventProto, NodeProto, RunProto, BuiltinDefinitionProto, Entity2DProto, ClipboardEventProto, HistogramMetricProto, SortProto, StarAddedEventProto, TypeProto, GridSpan2Proto, NodeDefinitionReferenceProto, PointerUpEventProto, StrokeStyleProto, CutEventProto, TransitionStyleProto, PointerOverEventProto, Vector2Proto, SingleClickEventProto, MembershipEventProto, ValueProto, PointerDownEventProto, BorderStyleProto, PointerLeaveEventProto, OptionDefinitionProto, ReactionProto, StrokeCapProto, Vector3iProto, KeyEventProto, EntitlementRequestedEventProto, InviteAcceptedEventProto, HistogramMeasurementEventProto, NumberInputViewProto, PermissionDefinitionProto, InviteRescindedEventProto, ConstraintDefinitionProto, EnvironmentProto, EnumDefinitionProto, TagProto, RoleAssignedEventProto, RunPauseRequestedEventProto, ShadowProto, ResourceProto, RunStartedEventProto, DatabaseProto, LogEventProto, GaugeMetricProto, InviteSentEventProto, MeasurementEventProto, MigrationOperationDefinitionProto, GaugeMeasurementEventProto, NotificationRescindedEventProto, RouteProto, ColorProto, MigrationDefinitionProto, ConstantDefinitionProto, KeyUpEventProto, SanctionRequestedEventProto, ClientProto, RunFailedEventProto, NotificationSentEventProto, CustomPropertyProto, HandleProto, StructDefinitionProto, Vector4Proto, ScriptProto, MouseEventProto, ViewProto, RunResumeRequestedEventProto, TaggingProto, TransitionProto, DatumMutableProto, PropertyReferenceProto, SanctionExpiredEventProto, PermissionProto, NotificationDismissedEventProto, FolderProto, Polygon2DProto, FollowEventProto, FocusInEventProto, ArrowShape2DProto, NotificationEventProto, BorderProto, StarProto, CustomEventProto, EllipseShape2DProto, SanctionProto, MembershipJoinedEventProto, DragEventProto, PointerMoveEventProto, TextViewProto, Path2DProto, FollowProto, FillStyleProto, PolygonShape2DProto, LabelViewProto, GradientStyleProto, ThemeProto, CounterMetricProto, Ellipse2DProto, FontProto, QuaternionProto, EntityProto, Vector2iProto, PointerEnterEventProto, BranchProto, FrameViewProto, ReactionAddedEventProto, InviteRejectedEventProto, SceneEventProto, TeamProto, StructDefinitionReferenceProto, FontStyleProto, FocusOutEventProto, Arrow2DProto, EntitlementEventProto, DropEventProto, FollowAddedEventProto, FileProto, VariantProto, FillProto, Vector3Proto, StringConstraintProto, PointerEventProto, SnapshotProto, ServiceProto, RunEventProto, InputEventProto, PasteEventProto, CounterMeasurementEventProto, SplitViewProto, ReactionRemovedEventProto, NumberConstraintProto, EffectProto, EntitlementProto, UniverseProto, DragLeaveEventProto, ViewEventProto, InviteEventProto, FollowRemovedEventProto, StrokePointProto, Inset2Proto, LengthProto, DragEndEventProto, MethodProto, NotificationProto, StarRemovedEventProto, StyleProto, ObjectDefinitionReferenceProto, TraitDefinitionProto, StructProto, KeyDownEventProto, QueryProto, StrokeProto, TimerPausedEventProto, CustomEnumProto, TimerProto, InputViewProto, SpanEventProto, TagDefinitionProto, FunctionProto, TimerStartedEventProto, PointerLongPressEventProto, ActionProto, InviteProto, ConstraintProto, CustomOptionProto, LayoutViewProto, LayerProto, TripleClickEventProto } from '@destack/proto';
 export const PROTO_ENCODERS: { [key: string]: _ProtoObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -114,12 +114,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Tag): Uint8Array {
+      packObjectBinary(object: Tag): Uint8Array {
         const proto = this.packObject(object);
         return TagProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Tag {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Tag {
         const proto = TagProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -222,12 +222,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Tagging): Uint8Array {
+      packObjectBinary(object: Tagging): Uint8Array {
         const proto = this.packObject(object);
         return TaggingProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Tagging {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Tagging {
         const proto = TaggingProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -354,12 +354,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CustomEvent): Uint8Array {
+      packObjectBinary(object: CustomEvent): Uint8Array {
         const proto = this.packObject(object);
         return CustomEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CustomEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CustomEvent {
         const proto = CustomEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -449,12 +449,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EditEvent): Uint8Array {
+      packObjectBinary(object: EditEvent): Uint8Array {
         const proto = this.packObject(object);
         return EditEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EditEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EditEvent {
         const proto = EditEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -555,12 +555,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Permission): Uint8Array {
+      packObjectBinary(object: Permission): Uint8Array {
         const proto = this.packObject(object);
         return PermissionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Permission {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Permission {
         const proto = PermissionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -698,12 +698,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Method): Uint8Array {
+      packObjectBinary(object: Method): Uint8Array {
         const proto = this.packObject(object);
         return MethodProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Method {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Method {
         const proto = MethodProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -841,12 +841,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Action): Uint8Array {
+      packObjectBinary(object: Action): Uint8Array {
         const proto = this.packObject(object);
         return ActionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Action {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Action {
         const proto = ActionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -952,12 +952,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CustomEnum): Uint8Array {
+      packObjectBinary(object: CustomEnum): Uint8Array {
         const proto = this.packObject(object);
         return CustomEnumProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CustomEnum {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CustomEnum {
         const proto = CustomEnumProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1063,12 +1063,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CustomOption): Uint8Array {
+      packObjectBinary(object: CustomOption): Uint8Array {
         const proto = this.packObject(object);
         return CustomOptionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CustomOption {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CustomOption {
         const proto = CustomOptionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1186,12 +1186,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Index): Uint8Array {
+      packObjectBinary(object: Index): Uint8Array {
         const proto = this.packObject(object);
         return IndexProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Index {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Index {
         const proto = IndexProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1309,12 +1309,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Constraint): Uint8Array {
+      packObjectBinary(object: Constraint): Uint8Array {
         const proto = this.packObject(object);
         return ConstraintProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Constraint {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Constraint {
         const proto = ConstraintProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1417,12 +1417,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Migration): Uint8Array {
+      packObjectBinary(object: Migration): Uint8Array {
         const proto = this.packObject(object);
         return MigrationProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Migration {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Migration {
         const proto = MigrationProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1523,12 +1523,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MigrationOperation): Uint8Array {
+      packObjectBinary(object: MigrationOperation): Uint8Array {
         const proto = this.packObject(object);
         return MigrationOperationProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MigrationOperation {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MigrationOperation {
         const proto = MigrationOperationProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1722,12 +1722,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CustomProperty): Uint8Array {
+      packObjectBinary(object: CustomProperty): Uint8Array {
         const proto = this.packObject(object);
         return CustomPropertyProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CustomProperty {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CustomProperty {
         const proto = CustomPropertyProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1836,12 +1836,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Space): Uint8Array {
+      packObjectBinary(object: Space): Uint8Array {
         const proto = this.packObject(object);
         return SpaceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Space {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Space {
         const proto = SpaceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -1952,12 +1952,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CustomStruct): Uint8Array {
+      packObjectBinary(object: CustomStruct): Uint8Array {
         const proto = this.packObject(object);
         return CustomStructProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CustomStruct {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CustomStruct {
         const proto = CustomStructProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2060,12 +2060,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Branch): Uint8Array {
+      packObjectBinary(object: Branch): Uint8Array {
         const proto = this.packObject(object);
         return BranchProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Branch {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Branch {
         const proto = BranchProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2170,12 +2170,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Snapshot): Uint8Array {
+      packObjectBinary(object: Snapshot): Uint8Array {
         const proto = this.packObject(object);
         return SnapshotProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Snapshot {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Snapshot {
         const proto = SnapshotProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2236,12 +2236,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EntitlementRequestedEvent): Uint8Array {
+      packObjectBinary(object: EntitlementRequestedEvent): Uint8Array {
         const proto = this.packObject(object);
         return EntitlementRequestedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EntitlementRequestedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EntitlementRequestedEvent {
         const proto = EntitlementRequestedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2302,12 +2302,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EntitlementGrantedEvent): Uint8Array {
+      packObjectBinary(object: EntitlementGrantedEvent): Uint8Array {
         const proto = this.packObject(object);
         return EntitlementGrantedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EntitlementGrantedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EntitlementGrantedEvent {
         const proto = EntitlementGrantedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2368,12 +2368,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EntitlementRevokedEvent): Uint8Array {
+      packObjectBinary(object: EntitlementRevokedEvent): Uint8Array {
         const proto = this.packObject(object);
         return EntitlementRevokedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EntitlementRevokedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EntitlementRevokedEvent {
         const proto = EntitlementRevokedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2434,12 +2434,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EntitlementExpiredEvent): Uint8Array {
+      packObjectBinary(object: EntitlementExpiredEvent): Uint8Array {
         const proto = this.packObject(object);
         return EntitlementExpiredEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EntitlementExpiredEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EntitlementExpiredEvent {
         const proto = EntitlementExpiredEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2548,12 +2548,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Entitlement): Uint8Array {
+      packObjectBinary(object: Entitlement): Uint8Array {
         const proto = this.packObject(object);
         return EntitlementProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Entitlement {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Entitlement {
         const proto = EntitlementProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2620,12 +2620,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: InviteSentEvent): Uint8Array {
+      packObjectBinary(object: InviteSentEvent): Uint8Array {
         const proto = this.packObject(object);
         return InviteSentEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): InviteSentEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): InviteSentEvent {
         const proto = InviteSentEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2688,12 +2688,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: InviteRescindedEvent): Uint8Array {
+      packObjectBinary(object: InviteRescindedEvent): Uint8Array {
         const proto = this.packObject(object);
         return InviteRescindedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): InviteRescindedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): InviteRescindedEvent {
         const proto = InviteRescindedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2760,12 +2760,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: InviteAcceptedEvent): Uint8Array {
+      packObjectBinary(object: InviteAcceptedEvent): Uint8Array {
         const proto = this.packObject(object);
         return InviteAcceptedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): InviteAcceptedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): InviteAcceptedEvent {
         const proto = InviteAcceptedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2828,12 +2828,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: InviteRejectedEvent): Uint8Array {
+      packObjectBinary(object: InviteRejectedEvent): Uint8Array {
         const proto = this.packObject(object);
         return InviteRejectedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): InviteRejectedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): InviteRejectedEvent {
         const proto = InviteRejectedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -2944,12 +2944,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Invite): Uint8Array {
+      packObjectBinary(object: Invite): Uint8Array {
         const proto = this.packObject(object);
         return InviteProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Invite {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Invite {
         const proto = InviteProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3016,12 +3016,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MembershipJoinedEvent): Uint8Array {
+      packObjectBinary(object: MembershipJoinedEvent): Uint8Array {
         const proto = this.packObject(object);
         return MembershipJoinedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MembershipJoinedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MembershipJoinedEvent {
         const proto = MembershipJoinedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3084,12 +3084,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MembershipLeftEvent): Uint8Array {
+      packObjectBinary(object: MembershipLeftEvent): Uint8Array {
         const proto = this.packObject(object);
         return MembershipLeftEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MembershipLeftEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MembershipLeftEvent {
         const proto = MembershipLeftEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3200,12 +3200,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Membership): Uint8Array {
+      packObjectBinary(object: Membership): Uint8Array {
         const proto = this.packObject(object);
         return MembershipProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Membership {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Membership {
         const proto = MembershipProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3266,12 +3266,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RoleAssignedEvent): Uint8Array {
+      packObjectBinary(object: RoleAssignedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RoleAssignedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RoleAssignedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RoleAssignedEvent {
         const proto = RoleAssignedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3332,12 +3332,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RoleUnassignedEvent): Uint8Array {
+      packObjectBinary(object: RoleUnassignedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RoleUnassignedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RoleUnassignedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RoleUnassignedEvent {
         const proto = RoleUnassignedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3445,12 +3445,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Role): Uint8Array {
+      packObjectBinary(object: Role): Uint8Array {
         const proto = this.packObject(object);
         return RoleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Role {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Role {
         const proto = RoleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3511,12 +3511,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SanctionRequestedEvent): Uint8Array {
+      packObjectBinary(object: SanctionRequestedEvent): Uint8Array {
         const proto = this.packObject(object);
         return SanctionRequestedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SanctionRequestedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SanctionRequestedEvent {
         const proto = SanctionRequestedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3577,12 +3577,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SanctionGrantedEvent): Uint8Array {
+      packObjectBinary(object: SanctionGrantedEvent): Uint8Array {
         const proto = this.packObject(object);
         return SanctionGrantedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SanctionGrantedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SanctionGrantedEvent {
         const proto = SanctionGrantedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3643,12 +3643,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SanctionRevokedEvent): Uint8Array {
+      packObjectBinary(object: SanctionRevokedEvent): Uint8Array {
         const proto = this.packObject(object);
         return SanctionRevokedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SanctionRevokedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SanctionRevokedEvent {
         const proto = SanctionRevokedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3709,12 +3709,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SanctionExpiredEvent): Uint8Array {
+      packObjectBinary(object: SanctionExpiredEvent): Uint8Array {
         const proto = this.packObject(object);
         return SanctionExpiredEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SanctionExpiredEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SanctionExpiredEvent {
         const proto = SanctionExpiredEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3823,12 +3823,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Sanction): Uint8Array {
+      packObjectBinary(object: Sanction): Uint8Array {
         const proto = this.packObject(object);
         return SanctionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Sanction {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Sanction {
         const proto = SanctionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -3964,12 +3964,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ColorStyle): Uint8Array {
+      packObjectBinary(object: ColorStyle): Uint8Array {
         const proto = this.packObject(object);
         return ColorStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ColorStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ColorStyle {
         const proto = ColorStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4086,12 +4086,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: BorderStyle): Uint8Array {
+      packObjectBinary(object: BorderStyle): Uint8Array {
         const proto = this.packObject(object);
         return BorderStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): BorderStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): BorderStyle {
         const proto = BorderStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4223,12 +4223,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: GradientStyle): Uint8Array {
+      packObjectBinary(object: GradientStyle): Uint8Array {
         const proto = this.packObject(object);
         return GradientStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): GradientStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): GradientStyle {
         const proto = GradientStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4353,12 +4353,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FillStyle): Uint8Array {
+      packObjectBinary(object: FillStyle): Uint8Array {
         const proto = this.packObject(object);
         return FillStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FillStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FillStyle {
         const proto = FillStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4495,12 +4495,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FontStyle): Uint8Array {
+      packObjectBinary(object: FontStyle): Uint8Array {
         const proto = this.packObject(object);
         return FontStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FontStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FontStyle {
         const proto = FontStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4606,12 +4606,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Palette): Uint8Array {
+      packObjectBinary(object: Palette): Uint8Array {
         const proto = this.packObject(object);
         return PaletteProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Palette {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Palette {
         const proto = PaletteProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4738,12 +4738,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ShadowStyle): Uint8Array {
+      packObjectBinary(object: ShadowStyle): Uint8Array {
         const proto = this.packObject(object);
         return ShadowStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ShadowStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ShadowStyle {
         const proto = ShadowStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4865,12 +4865,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StrokeStyle): Uint8Array {
+      packObjectBinary(object: StrokeStyle): Uint8Array {
         const proto = this.packObject(object);
         return StrokeStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StrokeStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StrokeStyle {
         const proto = StrokeStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -4971,12 +4971,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Theme): Uint8Array {
+      packObjectBinary(object: Theme): Uint8Array {
         const proto = this.packObject(object);
         return ThemeProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Theme {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Theme {
         const proto = ThemeProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5121,12 +5121,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TransitionStyle): Uint8Array {
+      packObjectBinary(object: TransitionStyle): Uint8Array {
         const proto = this.packObject(object);
         return TransitionStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TransitionStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TransitionStyle {
         const proto = TransitionStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5288,12 +5288,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EffectStyle): Uint8Array {
+      packObjectBinary(object: EffectStyle): Uint8Array {
         const proto = this.packObject(object);
         return EffectStyleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EffectStyle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EffectStyle {
         const proto = EffectStyleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5468,12 +5468,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: File): Uint8Array {
+      packObjectBinary(object: File): Uint8Array {
         const proto = this.packObject(object);
         return FileProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): File {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): File {
         const proto = FileProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5579,12 +5579,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Environment): Uint8Array {
+      packObjectBinary(object: Environment): Uint8Array {
         const proto = this.packObject(object);
         return EnvironmentProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Environment {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Environment {
         const proto = EnvironmentProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5662,12 +5662,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: LogEvent): Uint8Array {
+      packObjectBinary(object: LogEvent): Uint8Array {
         const proto = this.packObject(object);
         return LogEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): LogEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): LogEvent {
         const proto = LogEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5730,12 +5730,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunStartedEvent): Uint8Array {
+      packObjectBinary(object: RunStartedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunStartedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunStartedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunStartedEvent {
         const proto = RunStartedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5798,12 +5798,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunPauseRequestedEvent): Uint8Array {
+      packObjectBinary(object: RunPauseRequestedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunPauseRequestedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunPauseRequestedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunPauseRequestedEvent {
         const proto = RunPauseRequestedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5866,12 +5866,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunPausedEvent): Uint8Array {
+      packObjectBinary(object: RunPausedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunPausedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunPausedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunPausedEvent {
         const proto = RunPausedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -5934,12 +5934,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunResumeRequestedEvent): Uint8Array {
+      packObjectBinary(object: RunResumeRequestedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunResumeRequestedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunResumeRequestedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunResumeRequestedEvent {
         const proto = RunResumeRequestedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6002,12 +6002,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunResumedEvent): Uint8Array {
+      packObjectBinary(object: RunResumedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunResumedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunResumedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunResumedEvent {
         const proto = RunResumedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6070,12 +6070,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunStopRequestedEvent): Uint8Array {
+      packObjectBinary(object: RunStopRequestedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunStopRequestedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunStopRequestedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunStopRequestedEvent {
         const proto = RunStopRequestedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6138,12 +6138,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunFailedEvent): Uint8Array {
+      packObjectBinary(object: RunFailedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunFailedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunFailedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunFailedEvent {
         const proto = RunFailedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6206,12 +6206,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RunCompletedEvent): Uint8Array {
+      packObjectBinary(object: RunCompletedEvent): Uint8Array {
         const proto = this.packObject(object);
         return RunCompletedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RunCompletedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RunCompletedEvent {
         const proto = RunCompletedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6270,12 +6270,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SpanEvent): Uint8Array {
+      packObjectBinary(object: SpanEvent): Uint8Array {
         const proto = this.packObject(object);
         return SpanEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SpanEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SpanEvent {
         const proto = SpanEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6419,12 +6419,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ArrowShape2D): Uint8Array {
+      packObjectBinary(object: ArrowShape2D): Uint8Array {
         const proto = this.packObject(object);
         return ArrowShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ArrowShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ArrowShape2D {
         const proto = ArrowShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6560,12 +6560,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EllipseShape2D): Uint8Array {
+      packObjectBinary(object: EllipseShape2D): Uint8Array {
         const proto = this.packObject(object);
         return EllipseShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EllipseShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EllipseShape2D {
         const proto = EllipseShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6705,12 +6705,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: LineShape2D): Uint8Array {
+      packObjectBinary(object: LineShape2D): Uint8Array {
         const proto = this.packObject(object);
         return LineShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): LineShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): LineShape2D {
         const proto = LineShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -6860,12 +6860,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PathShape2D): Uint8Array {
+      packObjectBinary(object: PathShape2D): Uint8Array {
         const proto = this.packObject(object);
         return PathShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PathShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PathShape2D {
         const proto = PathShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7015,12 +7015,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PolygonShape2D): Uint8Array {
+      packObjectBinary(object: PolygonShape2D): Uint8Array {
         const proto = this.packObject(object);
         return PolygonShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PolygonShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PolygonShape2D {
         const proto = PolygonShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7164,12 +7164,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: RectangleShape2D): Uint8Array {
+      packObjectBinary(object: RectangleShape2D): Uint8Array {
         const proto = this.packObject(object);
         return RectangleShape2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): RectangleShape2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): RectangleShape2D {
         const proto = RectangleShape2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7301,12 +7301,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Database): Uint8Array {
+      packObjectBinary(object: Database): Uint8Array {
         const proto = this.packObject(object);
         return DatabaseProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Database {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Database {
         const proto = DatabaseProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7453,12 +7453,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Machine): Uint8Array {
+      packObjectBinary(object: Machine): Uint8Array {
         const proto = this.packObject(object);
         return MachineProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Machine {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Machine {
         const proto = MachineProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7519,12 +7519,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CopyEvent): Uint8Array {
+      packObjectBinary(object: CopyEvent): Uint8Array {
         const proto = this.packObject(object);
         return CopyEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CopyEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CopyEvent {
         const proto = CopyEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7585,12 +7585,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CutEvent): Uint8Array {
+      packObjectBinary(object: CutEvent): Uint8Array {
         const proto = this.packObject(object);
         return CutEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CutEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CutEvent {
         const proto = CutEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7651,12 +7651,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PasteEvent): Uint8Array {
+      packObjectBinary(object: PasteEvent): Uint8Array {
         const proto = this.packObject(object);
         return PasteEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PasteEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PasteEvent {
         const proto = PasteEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7720,12 +7720,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DragStartEvent): Uint8Array {
+      packObjectBinary(object: DragStartEvent): Uint8Array {
         const proto = this.packObject(object);
         return DragStartEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DragStartEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DragStartEvent {
         const proto = DragStartEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7789,12 +7789,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DragEndEvent): Uint8Array {
+      packObjectBinary(object: DragEndEvent): Uint8Array {
         const proto = this.packObject(object);
         return DragEndEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DragEndEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DragEndEvent {
         const proto = DragEndEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7858,12 +7858,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DragOverEvent): Uint8Array {
+      packObjectBinary(object: DragOverEvent): Uint8Array {
         const proto = this.packObject(object);
         return DragOverEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DragOverEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DragOverEvent {
         const proto = DragOverEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7927,12 +7927,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DragEnterEvent): Uint8Array {
+      packObjectBinary(object: DragEnterEvent): Uint8Array {
         const proto = this.packObject(object);
         return DragEnterEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DragEnterEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DragEnterEvent {
         const proto = DragEnterEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -7996,12 +7996,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DragLeaveEvent): Uint8Array {
+      packObjectBinary(object: DragLeaveEvent): Uint8Array {
         const proto = this.packObject(object);
         return DragLeaveEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DragLeaveEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DragLeaveEvent {
         const proto = DragLeaveEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8065,12 +8065,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DropEvent): Uint8Array {
+      packObjectBinary(object: DropEvent): Uint8Array {
         const proto = this.packObject(object);
         return DropEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DropEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DropEvent {
         const proto = DropEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8131,12 +8131,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FocusInEvent): Uint8Array {
+      packObjectBinary(object: FocusInEvent): Uint8Array {
         const proto = this.packObject(object);
         return FocusInEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FocusInEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FocusInEvent {
         const proto = FocusInEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8197,12 +8197,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FocusOutEvent): Uint8Array {
+      packObjectBinary(object: FocusOutEvent): Uint8Array {
         const proto = this.packObject(object);
         return FocusOutEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FocusOutEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FocusOutEvent {
         const proto = FocusOutEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8279,12 +8279,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: KeyDownEvent): Uint8Array {
+      packObjectBinary(object: KeyDownEvent): Uint8Array {
         const proto = this.packObject(object);
         return KeyDownEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): KeyDownEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): KeyDownEvent {
         const proto = KeyDownEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8361,12 +8361,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: KeyUpEvent): Uint8Array {
+      packObjectBinary(object: KeyUpEvent): Uint8Array {
         const proto = this.packObject(object);
         return KeyUpEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): KeyUpEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): KeyUpEvent {
         const proto = KeyUpEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8443,12 +8443,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: KeyPressEvent): Uint8Array {
+      packObjectBinary(object: KeyPressEvent): Uint8Array {
         const proto = this.packObject(object);
         return KeyPressEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): KeyPressEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): KeyPressEvent {
         const proto = KeyPressEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8524,12 +8524,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerDownEvent): Uint8Array {
+      packObjectBinary(object: PointerDownEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerDownEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerDownEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerDownEvent {
         const proto = PointerDownEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8605,12 +8605,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerUpEvent): Uint8Array {
+      packObjectBinary(object: PointerUpEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerUpEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerUpEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerUpEvent {
         const proto = PointerUpEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8686,12 +8686,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerMoveEvent): Uint8Array {
+      packObjectBinary(object: PointerMoveEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerMoveEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerMoveEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerMoveEvent {
         const proto = PointerMoveEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8767,12 +8767,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerEnterEvent): Uint8Array {
+      packObjectBinary(object: PointerEnterEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerEnterEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerEnterEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerEnterEvent {
         const proto = PointerEnterEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8848,12 +8848,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerOverEvent): Uint8Array {
+      packObjectBinary(object: PointerOverEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerOverEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerOverEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerOverEvent {
         const proto = PointerOverEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -8929,12 +8929,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerLeaveEvent): Uint8Array {
+      packObjectBinary(object: PointerLeaveEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerLeaveEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerLeaveEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerLeaveEvent {
         const proto = PointerLeaveEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9010,12 +9010,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PointerLongPressEvent): Uint8Array {
+      packObjectBinary(object: PointerLongPressEvent): Uint8Array {
         const proto = this.packObject(object);
         return PointerLongPressEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PointerLongPressEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PointerLongPressEvent {
         const proto = PointerLongPressEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9093,12 +9093,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SingleClickEvent): Uint8Array {
+      packObjectBinary(object: SingleClickEvent): Uint8Array {
         const proto = this.packObject(object);
         return SingleClickEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SingleClickEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SingleClickEvent {
         const proto = SingleClickEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9176,12 +9176,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DoubleClickEvent): Uint8Array {
+      packObjectBinary(object: DoubleClickEvent): Uint8Array {
         const proto = this.packObject(object);
         return DoubleClickEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DoubleClickEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DoubleClickEvent {
         const proto = DoubleClickEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9259,12 +9259,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TripleClickEvent): Uint8Array {
+      packObjectBinary(object: TripleClickEvent): Uint8Array {
         const proto = this.packObject(object);
         return TripleClickEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TripleClickEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TripleClickEvent {
         const proto = TripleClickEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9344,12 +9344,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: WheelEvent): Uint8Array {
+      packObjectBinary(object: WheelEvent): Uint8Array {
         const proto = this.packObject(object);
         return WheelEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): WheelEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): WheelEvent {
         const proto = WheelEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9452,12 +9452,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Script): Uint8Array {
+      packObjectBinary(object: Script): Uint8Array {
         const proto = this.packObject(object);
         return ScriptProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Script {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Script {
         const proto = ScriptProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9563,12 +9563,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Service): Uint8Array {
+      packObjectBinary(object: Service): Uint8Array {
         const proto = this.packObject(object);
         return ServiceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Service {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Service {
         const proto = ServiceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9627,12 +9627,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TimerStartedEvent): Uint8Array {
+      packObjectBinary(object: TimerStartedEvent): Uint8Array {
         const proto = this.packObject(object);
         return TimerStartedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TimerStartedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TimerStartedEvent {
         const proto = TimerStartedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9691,12 +9691,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TimerPausedEvent): Uint8Array {
+      packObjectBinary(object: TimerPausedEvent): Uint8Array {
         const proto = this.packObject(object);
         return TimerPausedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TimerPausedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TimerPausedEvent {
         const proto = TimerPausedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9755,12 +9755,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TimerResumedEvent): Uint8Array {
+      packObjectBinary(object: TimerResumedEvent): Uint8Array {
         const proto = this.packObject(object);
         return TimerResumedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TimerResumedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TimerResumedEvent {
         const proto = TimerResumedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9819,12 +9819,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TimerCompletedEvent): Uint8Array {
+      packObjectBinary(object: TimerCompletedEvent): Uint8Array {
         const proto = this.packObject(object);
         return TimerCompletedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TimerCompletedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TimerCompletedEvent {
         const proto = TimerCompletedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9883,12 +9883,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TimerCancelledEvent): Uint8Array {
+      packObjectBinary(object: TimerCancelledEvent): Uint8Array {
         const proto = this.packObject(object);
         return TimerCancelledEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TimerCancelledEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TimerCancelledEvent {
         const proto = TimerCancelledEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -9996,12 +9996,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Timer): Uint8Array {
+      packObjectBinary(object: Timer): Uint8Array {
         const proto = this.packObject(object);
         return TimerProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Timer {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Timer {
         const proto = TimerProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10134,12 +10134,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Trigger): Uint8Array {
+      packObjectBinary(object: Trigger): Uint8Array {
         const proto = this.packObject(object);
         return TriggerProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Trigger {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Trigger {
         const proto = TriggerProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10245,12 +10245,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: GaugeMetric): Uint8Array {
+      packObjectBinary(object: GaugeMetric): Uint8Array {
         const proto = this.packObject(object);
         return GaugeMetricProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): GaugeMetric {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): GaugeMetric {
         const proto = GaugeMetricProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10309,12 +10309,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: GaugeMeasurementEvent): Uint8Array {
+      packObjectBinary(object: GaugeMeasurementEvent): Uint8Array {
         const proto = this.packObject(object);
         return GaugeMeasurementEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): GaugeMeasurementEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): GaugeMeasurementEvent {
         const proto = GaugeMeasurementEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10420,12 +10420,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CounterMetric): Uint8Array {
+      packObjectBinary(object: CounterMetric): Uint8Array {
         const proto = this.packObject(object);
         return CounterMetricProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CounterMetric {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CounterMetric {
         const proto = CounterMetricProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10484,12 +10484,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CounterMeasurementEvent): Uint8Array {
+      packObjectBinary(object: CounterMeasurementEvent): Uint8Array {
         const proto = this.packObject(object);
         return CounterMeasurementEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CounterMeasurementEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CounterMeasurementEvent {
         const proto = CounterMeasurementEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10595,12 +10595,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: HistogramMetric): Uint8Array {
+      packObjectBinary(object: HistogramMetric): Uint8Array {
         const proto = this.packObject(object);
         return HistogramMetricProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): HistogramMetric {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): HistogramMetric {
         const proto = HistogramMetricProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10659,12 +10659,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: HistogramMeasurementEvent): Uint8Array {
+      packObjectBinary(object: HistogramMeasurementEvent): Uint8Array {
         const proto = this.packObject(object);
         return HistogramMeasurementEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): HistogramMeasurementEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): HistogramMeasurementEvent {
         const proto = HistogramMeasurementEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -10780,12 +10780,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Layer): Uint8Array {
+      packObjectBinary(object: Layer): Uint8Array {
         const proto = this.packObject(object);
         return LayerProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Layer {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Layer {
         const proto = LayerProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -11013,12 +11013,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FrameView): Uint8Array {
+      packObjectBinary(object: FrameView): Uint8Array {
         const proto = this.packObject(object);
         return FrameViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FrameView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FrameView {
         const proto = FrameViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -11246,12 +11246,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: LabelView): Uint8Array {
+      packObjectBinary(object: LabelView): Uint8Array {
         const proto = this.packObject(object);
         return LabelViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): LabelView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): LabelView {
         const proto = LabelViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -11443,12 +11443,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NumberInputView): Uint8Array {
+      packObjectBinary(object: NumberInputView): Uint8Array {
         const proto = this.packObject(object);
         return NumberInputViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NumberInputView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NumberInputView {
         const proto = NumberInputViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -11648,12 +11648,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SliderInputView): Uint8Array {
+      packObjectBinary(object: SliderInputView): Uint8Array {
         const proto = this.packObject(object);
         return SliderInputViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SliderInputView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SliderInputView {
         const proto = SliderInputViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -11881,12 +11881,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: SplitView): Uint8Array {
+      packObjectBinary(object: SplitView): Uint8Array {
         const proto = this.packObject(object);
         return SplitViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): SplitView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): SplitView {
         const proto = SplitViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12084,12 +12084,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TextView): Uint8Array {
+      packObjectBinary(object: TextView): Uint8Array {
         const proto = this.packObject(object);
         return TextViewProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TextView {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TextView {
         const proto = TextViewProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12199,12 +12199,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Scene): Uint8Array {
+      packObjectBinary(object: Scene): Uint8Array {
         const proto = this.packObject(object);
         return SceneProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Scene {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Scene {
         const proto = SceneProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12305,12 +12305,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Stage): Uint8Array {
+      packObjectBinary(object: Stage): Uint8Array {
         const proto = this.packObject(object);
         return StageProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Stage {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Stage {
         const proto = StageProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12411,12 +12411,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Follow): Uint8Array {
+      packObjectBinary(object: Follow): Uint8Array {
         const proto = this.packObject(object);
         return FollowProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Follow {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Follow {
         const proto = FollowProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12475,12 +12475,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FollowEvent): Uint8Array {
+      packObjectBinary(object: FollowEvent): Uint8Array {
         const proto = this.packObject(object);
         return FollowEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FollowEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FollowEvent {
         const proto = FollowEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12539,12 +12539,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FollowAddedEvent): Uint8Array {
+      packObjectBinary(object: FollowAddedEvent): Uint8Array {
         const proto = this.packObject(object);
         return FollowAddedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FollowAddedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FollowAddedEvent {
         const proto = FollowAddedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12603,12 +12603,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: FollowRemovedEvent): Uint8Array {
+      packObjectBinary(object: FollowRemovedEvent): Uint8Array {
         const proto = this.packObject(object);
         return FollowRemovedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): FollowRemovedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): FollowRemovedEvent {
         const proto = FollowRemovedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12667,12 +12667,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NotificationSentEvent): Uint8Array {
+      packObjectBinary(object: NotificationSentEvent): Uint8Array {
         const proto = this.packObject(object);
         return NotificationSentEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NotificationSentEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NotificationSentEvent {
         const proto = NotificationSentEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12731,12 +12731,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NotificationRescindedEvent): Uint8Array {
+      packObjectBinary(object: NotificationRescindedEvent): Uint8Array {
         const proto = this.packObject(object);
         return NotificationRescindedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NotificationRescindedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NotificationRescindedEvent {
         const proto = NotificationRescindedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12795,12 +12795,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NotificationReadEvent): Uint8Array {
+      packObjectBinary(object: NotificationReadEvent): Uint8Array {
         const proto = this.packObject(object);
         return NotificationReadEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NotificationReadEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NotificationReadEvent {
         const proto = NotificationReadEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12859,12 +12859,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NotificationDismissedEvent): Uint8Array {
+      packObjectBinary(object: NotificationDismissedEvent): Uint8Array {
         const proto = this.packObject(object);
         return NotificationDismissedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NotificationDismissedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NotificationDismissedEvent {
         const proto = NotificationDismissedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -12923,12 +12923,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NotificationExpiredEvent): Uint8Array {
+      packObjectBinary(object: NotificationExpiredEvent): Uint8Array {
         const proto = this.packObject(object);
         return NotificationExpiredEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NotificationExpiredEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NotificationExpiredEvent {
         const proto = NotificationExpiredEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13038,12 +13038,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Notification): Uint8Array {
+      packObjectBinary(object: Notification): Uint8Array {
         const proto = this.packObject(object);
         return NotificationProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Notification {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Notification {
         const proto = NotificationProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13146,12 +13146,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Reaction): Uint8Array {
+      packObjectBinary(object: Reaction): Uint8Array {
         const proto = this.packObject(object);
         return ReactionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Reaction {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Reaction {
         const proto = ReactionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13212,12 +13212,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ReactionEvent): Uint8Array {
+      packObjectBinary(object: ReactionEvent): Uint8Array {
         const proto = this.packObject(object);
         return ReactionEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ReactionEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ReactionEvent {
         const proto = ReactionEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13278,12 +13278,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ReactionAddedEvent): Uint8Array {
+      packObjectBinary(object: ReactionAddedEvent): Uint8Array {
         const proto = this.packObject(object);
         return ReactionAddedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ReactionAddedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ReactionAddedEvent {
         const proto = ReactionAddedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13344,12 +13344,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ReactionRemovedEvent): Uint8Array {
+      packObjectBinary(object: ReactionRemovedEvent): Uint8Array {
         const proto = this.packObject(object);
         return ReactionRemovedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ReactionRemovedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ReactionRemovedEvent {
         const proto = ReactionRemovedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13450,12 +13450,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Star): Uint8Array {
+      packObjectBinary(object: Star): Uint8Array {
         const proto = this.packObject(object);
         return StarProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Star {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Star {
         const proto = StarProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13514,12 +13514,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StarEvent): Uint8Array {
+      packObjectBinary(object: StarEvent): Uint8Array {
         const proto = this.packObject(object);
         return StarEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StarEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StarEvent {
         const proto = StarEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13578,12 +13578,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StarAddedEvent): Uint8Array {
+      packObjectBinary(object: StarAddedEvent): Uint8Array {
         const proto = this.packObject(object);
         return StarAddedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StarAddedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StarAddedEvent {
         const proto = StarAddedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13642,12 +13642,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StarRemovedEvent): Uint8Array {
+      packObjectBinary(object: StarRemovedEvent): Uint8Array {
         const proto = this.packObject(object);
         return StarRemovedEventProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StarRemovedEvent {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StarRemovedEvent {
         const proto = StarRemovedEventProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13763,12 +13763,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Folder): Uint8Array {
+      packObjectBinary(object: Folder): Uint8Array {
         const proto = this.packObject(object);
         return FolderProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Folder {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Folder {
         const proto = FolderProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -13911,12 +13911,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Client): Uint8Array {
+      packObjectBinary(object: Client): Uint8Array {
         const proto = this.packObject(object);
         return ClientProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Client {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Client {
         const proto = ClientProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14019,12 +14019,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Handle): Uint8Array {
+      packObjectBinary(object: Handle): Uint8Array {
         const proto = this.packObject(object);
         return HandleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Handle {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Handle {
         const proto = HandleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14133,12 +14133,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Organization): Uint8Array {
+      packObjectBinary(object: Organization): Uint8Array {
         const proto = this.packObject(object);
         return OrganizationProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Organization {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Organization {
         const proto = OrganizationProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14241,12 +14241,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Team): Uint8Array {
+      packObjectBinary(object: Team): Uint8Array {
         const proto = this.packObject(object);
         return TeamProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Team {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Team {
         const proto = TeamProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14373,12 +14373,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: User): Uint8Array {
+      packObjectBinary(object: User): Uint8Array {
         const proto = this.packObject(object);
         return UserProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): User {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): User {
         const proto = UserProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14408,12 +14408,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NodeDefinitionReference): Uint8Array {
+      packObjectBinary(object: NodeDefinitionReference): Uint8Array {
         const proto = this.packObject(object);
         return NodeDefinitionReferenceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NodeDefinitionReference {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NodeDefinitionReference {
         const proto = NodeDefinitionReferenceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14453,12 +14453,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ObjectDefinitionReference): Uint8Array {
+      packObjectBinary(object: ObjectDefinitionReference): Uint8Array {
         const proto = this.packObject(object);
         return ObjectDefinitionReferenceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ObjectDefinitionReference {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ObjectDefinitionReference {
         const proto = ObjectDefinitionReferenceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14488,12 +14488,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StructDefinitionReference): Uint8Array {
+      packObjectBinary(object: StructDefinitionReference): Uint8Array {
         const proto = this.packObject(object);
         return StructDefinitionReferenceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StructDefinitionReference {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StructDefinitionReference {
         const proto = StructDefinitionReferenceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14537,12 +14537,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PropertyReference): Uint8Array {
+      packObjectBinary(object: PropertyReference): Uint8Array {
         const proto = this.packObject(object);
         return PropertyReferenceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PropertyReference {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PropertyReference {
         const proto = PropertyReferenceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14582,12 +14582,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NodeReference): Uint8Array {
+      packObjectBinary(object: NodeReference): Uint8Array {
         const proto = this.packObject(object);
         return NodeReferenceProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NodeReference {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NodeReference {
         const proto = NodeReferenceProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -14996,12 +14996,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NodeDefinition): Uint8Array {
+      packObjectBinary(object: NodeDefinition): Uint8Array {
         const proto = this.packObject(object);
         return NodeDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NodeDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NodeDefinition {
         const proto = NodeDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15154,12 +15154,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TraitDefinition): Uint8Array {
+      packObjectBinary(object: TraitDefinition): Uint8Array {
         const proto = this.packObject(object);
         return TraitDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TraitDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TraitDefinition {
         const proto = TraitDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15364,12 +15364,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StructDefinition): Uint8Array {
+      packObjectBinary(object: StructDefinition): Uint8Array {
         const proto = this.packObject(object);
         return StructDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StructDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StructDefinition {
         const proto = StructDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15434,12 +15434,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: EnumDefinition): Uint8Array {
+      packObjectBinary(object: EnumDefinition): Uint8Array {
         const proto = this.packObject(object);
         return EnumDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): EnumDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): EnumDefinition {
         const proto = EnumDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15581,12 +15581,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PropertyDefinition): Uint8Array {
+      packObjectBinary(object: PropertyDefinition): Uint8Array {
         const proto = this.packObject(object);
         return PropertyDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PropertyDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PropertyDefinition {
         const proto = PropertyDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15636,12 +15636,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: OptionDefinition): Uint8Array {
+      packObjectBinary(object: OptionDefinition): Uint8Array {
         const proto = this.packObject(object);
         return OptionDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): OptionDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): OptionDefinition {
         const proto = OptionDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15692,12 +15692,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ConstantDefinition): Uint8Array {
+      packObjectBinary(object: ConstantDefinition): Uint8Array {
         const proto = this.packObject(object);
         return ConstantDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ConstantDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ConstantDefinition {
         const proto = ConstantDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15745,12 +15745,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TagDefinition): Uint8Array {
+      packObjectBinary(object: TagDefinition): Uint8Array {
         const proto = this.packObject(object);
         return TagDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TagDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TagDefinition {
         const proto = TagDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15829,12 +15829,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: IndexDefinition): Uint8Array {
+      packObjectBinary(object: IndexDefinition): Uint8Array {
         const proto = this.packObject(object);
         return IndexDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): IndexDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): IndexDefinition {
         const proto = IndexDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15899,12 +15899,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ConstraintDefinition): Uint8Array {
+      packObjectBinary(object: ConstraintDefinition): Uint8Array {
         const proto = this.packObject(object);
         return ConstraintDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ConstraintDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ConstraintDefinition {
         const proto = ConstraintDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -15952,12 +15952,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: PermissionDefinition): Uint8Array {
+      packObjectBinary(object: PermissionDefinition): Uint8Array {
         const proto = this.packObject(object);
         return PermissionDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): PermissionDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): PermissionDefinition {
         const proto = PermissionDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16052,12 +16052,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MethodDefinition): Uint8Array {
+      packObjectBinary(object: MethodDefinition): Uint8Array {
         const proto = this.packObject(object);
         return MethodDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MethodDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MethodDefinition {
         const proto = MethodDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16152,12 +16152,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: ActionDefinition): Uint8Array {
+      packObjectBinary(object: ActionDefinition): Uint8Array {
         const proto = this.packObject(object);
         return ActionDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): ActionDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): ActionDefinition {
         const proto = ActionDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16206,12 +16206,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Icon): Uint8Array {
+      packObjectBinary(object: Icon): Uint8Array {
         const proto = this.packObject(object);
         return IconProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Icon {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Icon {
         const proto = IconProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16261,12 +16261,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MigrationDefinition): Uint8Array {
+      packObjectBinary(object: MigrationDefinition): Uint8Array {
         const proto = this.packObject(object);
         return MigrationDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MigrationDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MigrationDefinition {
         const proto = MigrationDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16314,12 +16314,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: MigrationOperationDefinition): Uint8Array {
+      packObjectBinary(object: MigrationOperationDefinition): Uint8Array {
         const proto = this.packObject(object);
         return MigrationOperationDefinitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): MigrationOperationDefinition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): MigrationOperationDefinition {
         const proto = MigrationOperationDefinitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16357,12 +16357,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StringConstraint): Uint8Array {
+      packObjectBinary(object: StringConstraint): Uint8Array {
         const proto = this.packObject(object);
         return StringConstraintProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StringConstraint {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StringConstraint {
         const proto = StringConstraintProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16408,12 +16408,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: NumberConstraint): Uint8Array {
+      packObjectBinary(object: NumberConstraint): Uint8Array {
         const proto = this.packObject(object);
         return NumberConstraintProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): NumberConstraint {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): NumberConstraint {
         const proto = NumberConstraintProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16443,12 +16443,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: CollectionConstraint): Uint8Array {
+      packObjectBinary(object: CollectionConstraint): Uint8Array {
         const proto = this.packObject(object);
         return CollectionConstraintProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): CollectionConstraint {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): CollectionConstraint {
         const proto = CollectionConstraintProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16540,12 +16540,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Type): Uint8Array {
+      packObjectBinary(object: Type): Uint8Array {
         const proto = this.packObject(object);
         return TypeProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Type {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Type {
         const proto = TypeProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16573,12 +16573,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Value): Uint8Array {
+      packObjectBinary(object: Value): Uint8Array {
         const proto = this.packObject(object);
         return ValueProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Value {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Value {
         const proto = ValueProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16608,12 +16608,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Function): Uint8Array {
+      packObjectBinary(object: Function): Uint8Array {
         const proto = this.packObject(object);
         return FunctionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Function {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Function {
         const proto = FunctionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16643,12 +16643,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Condition): Uint8Array {
+      packObjectBinary(object: Condition): Uint8Array {
         const proto = this.packObject(object);
         return ConditionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Condition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Condition {
         const proto = ConditionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16676,12 +16676,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Aggregation): Uint8Array {
+      packObjectBinary(object: Aggregation): Uint8Array {
         const proto = this.packObject(object);
         return AggregationProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Aggregation {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Aggregation {
         const proto = AggregationProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16729,12 +16729,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Expression): Uint8Array {
+      packObjectBinary(object: Expression): Uint8Array {
         const proto = this.packObject(object);
         return ExpressionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Expression {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Expression {
         const proto = ExpressionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16764,12 +16764,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Sort): Uint8Array {
+      packObjectBinary(object: Sort): Uint8Array {
         const proto = this.packObject(object);
         return SortProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Sort {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Sort {
         const proto = SortProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16805,12 +16805,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Select): Uint8Array {
+      packObjectBinary(object: Select): Uint8Array {
         const proto = this.packObject(object);
         return SelectProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Select {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Select {
         const proto = SelectProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16844,12 +16844,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Join): Uint8Array {
+      packObjectBinary(object: Join): Uint8Array {
         const proto = this.packObject(object);
         return JoinProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Join {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Join {
         const proto = JoinProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -16958,12 +16958,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Query): Uint8Array {
+      packObjectBinary(object: Query): Uint8Array {
         const proto = this.packObject(object);
         return QueryProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Query {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Query {
         const proto = QueryProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17001,12 +17001,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Datum): Uint8Array {
+      packObjectBinary(object: Datum): Uint8Array {
         const proto = this.packObject(object);
         return DatumProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Datum {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Datum {
         const proto = DatumProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17043,12 +17043,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: DatumMutable): Uint8Array {
+      packObjectBinary(object: DatumMutable): Uint8Array {
         const proto = this.packObject(object);
         return DatumMutableProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): DatumMutable {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): DatumMutable {
         const proto = DatumMutableProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17104,12 +17104,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: TextSpan): Uint8Array {
+      packObjectBinary(object: TextSpan): Uint8Array {
         const proto = this.packObject(object);
         return TextSpanProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): TextSpan {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): TextSpan {
         const proto = TextSpanProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17165,12 +17165,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Text): Uint8Array {
+      packObjectBinary(object: Text): Uint8Array {
         const proto = this.packObject(object);
         return TextProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Text {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Text {
         const proto = TextProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17226,12 +17226,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Color): Uint8Array {
+      packObjectBinary(object: Color): Uint8Array {
         const proto = this.packObject(object);
         return ColorProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Color {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Color {
         const proto = ColorProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17269,12 +17269,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Border): Uint8Array {
+      packObjectBinary(object: Border): Uint8Array {
         const proto = this.packObject(object);
         return BorderProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Border {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Border {
         const proto = BorderProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17302,12 +17302,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: GradientStop): Uint8Array {
+      packObjectBinary(object: GradientStop): Uint8Array {
         const proto = this.packObject(object);
         return GradientStopProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): GradientStop {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): GradientStop {
         const proto = GradientStopProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17359,12 +17359,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Gradient): Uint8Array {
+      packObjectBinary(object: Gradient): Uint8Array {
         const proto = this.packObject(object);
         return GradientProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Gradient {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Gradient {
         const proto = GradientProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17414,12 +17414,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Fill): Uint8Array {
+      packObjectBinary(object: Fill): Uint8Array {
         const proto = this.packObject(object);
         return FillProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Fill {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Fill {
         const proto = FillProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17481,12 +17481,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Font): Uint8Array {
+      packObjectBinary(object: Font): Uint8Array {
         const proto = this.packObject(object);
         return FontProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Font {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Font {
         const proto = FontProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17538,12 +17538,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Shadow): Uint8Array {
+      packObjectBinary(object: Shadow): Uint8Array {
         const proto = this.packObject(object);
         return ShadowProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Shadow {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Shadow {
         const proto = ShadowProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17590,12 +17590,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Stroke): Uint8Array {
+      packObjectBinary(object: Stroke): Uint8Array {
         const proto = this.packObject(object);
         return StrokeProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Stroke {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Stroke {
         const proto = StrokeProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17623,12 +17623,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StrokeCap): Uint8Array {
+      packObjectBinary(object: StrokeCap): Uint8Array {
         const proto = this.packObject(object);
         return StrokeCapProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StrokeCap {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StrokeCap {
         const proto = StrokeCapProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17664,12 +17664,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StrokePoint): Uint8Array {
+      packObjectBinary(object: StrokePoint): Uint8Array {
         const proto = this.packObject(object);
         return StrokePointProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StrokePoint {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StrokePoint {
         const proto = StrokePointProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17705,12 +17705,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: StrokePath): Uint8Array {
+      packObjectBinary(object: StrokePath): Uint8Array {
         const proto = this.packObject(object);
         return StrokePathProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): StrokePath {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): StrokePath {
         const proto = StrokePathProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17780,12 +17780,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Transition): Uint8Array {
+      packObjectBinary(object: Transition): Uint8Array {
         const proto = this.packObject(object);
         return TransitionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Transition {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Transition {
         const proto = TransitionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17872,12 +17872,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Effect): Uint8Array {
+      packObjectBinary(object: Effect): Uint8Array {
         const proto = this.packObject(object);
         return EffectProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Effect {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Effect {
         const proto = EffectProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17907,12 +17907,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Arrow2D): Uint8Array {
+      packObjectBinary(object: Arrow2D): Uint8Array {
         const proto = this.packObject(object);
         return Arrow2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Arrow2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Arrow2D {
         const proto = Arrow2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17938,12 +17938,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Ellipse2D): Uint8Array {
+      packObjectBinary(object: Ellipse2D): Uint8Array {
         const proto = this.packObject(object);
         return Ellipse2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Ellipse2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Ellipse2D {
         const proto = Ellipse2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -17974,12 +17974,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Line2D): Uint8Array {
+      packObjectBinary(object: Line2D): Uint8Array {
         const proto = this.packObject(object);
         return Line2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Line2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Line2D {
         const proto = Line2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18020,12 +18020,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Path2D): Uint8Array {
+      packObjectBinary(object: Path2D): Uint8Array {
         const proto = this.packObject(object);
         return Path2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Path2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Path2D {
         const proto = Path2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18066,12 +18066,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Polygon2D): Uint8Array {
+      packObjectBinary(object: Polygon2D): Uint8Array {
         const proto = this.packObject(object);
         return Polygon2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Polygon2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Polygon2D {
         const proto = Polygon2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18097,12 +18097,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector2): Uint8Array {
+      packObjectBinary(object: Vector2): Uint8Array {
         const proto = this.packObject(object);
         return Vector2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector2 {
         const proto = Vector2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18130,12 +18130,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector3): Uint8Array {
+      packObjectBinary(object: Vector3): Uint8Array {
         const proto = this.packObject(object);
         return Vector3Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector3 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector3 {
         const proto = Vector3Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18165,12 +18165,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector4): Uint8Array {
+      packObjectBinary(object: Vector4): Uint8Array {
         const proto = this.packObject(object);
         return Vector4Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector4 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector4 {
         const proto = Vector4Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18196,12 +18196,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector2i): Uint8Array {
+      packObjectBinary(object: Vector2i): Uint8Array {
         const proto = this.packObject(object);
         return Vector2iProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector2i {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector2i {
         const proto = Vector2iProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18229,12 +18229,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector3i): Uint8Array {
+      packObjectBinary(object: Vector3i): Uint8Array {
         const proto = this.packObject(object);
         return Vector3iProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector3i {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector3i {
         const proto = Vector3iProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18264,12 +18264,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Vector4i): Uint8Array {
+      packObjectBinary(object: Vector4i): Uint8Array {
         const proto = this.packObject(object);
         return Vector4iProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Vector4i {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Vector4i {
         const proto = Vector4iProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18299,12 +18299,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Quaternion): Uint8Array {
+      packObjectBinary(object: Quaternion): Uint8Array {
         const proto = this.packObject(object);
         return QuaternionProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Quaternion {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Quaternion {
         const proto = QuaternionProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18339,12 +18339,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Rectangle2D): Uint8Array {
+      packObjectBinary(object: Rectangle2D): Uint8Array {
         const proto = this.packObject(object);
         return Rectangle2DProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Rectangle2D {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Rectangle2D {
         const proto = Rectangle2DProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18370,12 +18370,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Length): Uint8Array {
+      packObjectBinary(object: Length): Uint8Array {
         const proto = this.packObject(object);
         return LengthProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Length {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Length {
         const proto = LengthProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18415,12 +18415,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Offset2): Uint8Array {
+      packObjectBinary(object: Offset2): Uint8Array {
         const proto = this.packObject(object);
         return Offset2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Offset2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Offset2 {
         const proto = Offset2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18460,12 +18460,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Inset2): Uint8Array {
+      packObjectBinary(object: Inset2): Uint8Array {
         const proto = this.packObject(object);
         return Inset2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Inset2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Inset2 {
         const proto = Inset2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18505,12 +18505,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Corner2): Uint8Array {
+      packObjectBinary(object: Corner2): Uint8Array {
         const proto = this.packObject(object);
         return Corner2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Corner2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Corner2 {
         const proto = Corner2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18542,12 +18542,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Axis2): Uint8Array {
+      packObjectBinary(object: Axis2): Uint8Array {
         const proto = this.packObject(object);
         return Axis2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Axis2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Axis2 {
         const proto = Axis2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18583,12 +18583,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Axis3): Uint8Array {
+      packObjectBinary(object: Axis3): Uint8Array {
         const proto = this.packObject(object);
         return Axis3Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Axis3 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Axis3 {
         const proto = Axis3Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18626,12 +18626,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Grid2): Uint8Array {
+      packObjectBinary(object: Grid2): Uint8Array {
         const proto = this.packObject(object);
         return Grid2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Grid2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Grid2 {
         const proto = Grid2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18657,12 +18657,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: GridSpan2): Uint8Array {
+      packObjectBinary(object: GridSpan2): Uint8Array {
         const proto = this.packObject(object);
         return GridSpan2Proto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): GridSpan2 {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): GridSpan2 {
         const proto = GridSpan2Proto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }
@@ -18843,12 +18843,12 @@ export function loadEncoders(): void {
         });
       }
 
-      packObjectBytes(object: Schedule): Uint8Array {
+      packObjectBinary(object: Schedule): Uint8Array {
         const proto = this.packObject(object);
         return ScheduleProto.toBinary(proto);
       }
 
-      unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): Schedule {
+      unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): Schedule {
         const proto = ScheduleProto.fromBinary(objectBytes);
         return this.unpackObject(proto, _session);
       }

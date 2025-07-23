@@ -8,6 +8,7 @@ import structlog
 from opentelemetry import trace
 
 from destack.language import (
+    BinaryWriter,
     BuiltinObject,
     Encoding,
     Node,
@@ -457,16 +458,20 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        value_bytes = value.pack_bytes(Encoding.CSON)
+        writer = BinaryWriter()
+        value.pack_binary(Encoding.CSON, writer)
+        value_bytes = writer.to_bytes()
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+        return f"{value.__class__.__name__}.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
         assert isinstance(value, NodeReference), (
             f"value is not a NodeReference for {type!r}: {value!r}"
         )
-        value_bytes = value.pack_bytes(Encoding.CSON)
+        writer = BinaryWriter()
+        value.pack_binary(Encoding.CSON, writer)
+        value_bytes = writer.to_bytes()
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"NodeReference.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+        return f"NodeReference.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
     elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
     else:

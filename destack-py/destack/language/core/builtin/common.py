@@ -1193,6 +1193,7 @@ class Encoding(Enum):
     JSON = 1, "JSON", "JSON encoding"
     CSON = 2, "CSON", "Constant folded JSON encoding"
     PROTO = 10, "PROTO", "Protocol Buffers encoding"
+    KOMPAKT = 11, "KOMPAKT", "KOMPAKT encoding"
     # CUSTOM, ...
 
 
@@ -1220,29 +1221,28 @@ class PrimitiveType(Enum):
     INT32 = 12, "Integer", "32-bit signed integer", "fas fa-tally"
     INT64 = 13, "Integer", "64-bit signed integer", "fas fa-tally"
     # INT128
-    UINT8 = 20, "Integer", "8-bit unsigned integer", "fas fa-tally"
-    UINT16 = 21, "Integer", "16-bit unsigned integer", "fas fa-tally"
-    UINT32 = 22, "Integer", "32-bit unsigned integer", "fas fa-tally"
-    UINT64 = 23, "Integer", "64-bit unsigned integer", "fas fa-tally"
+    UINT8 = 15, "Integer", "8-bit unsigned integer", "fas fa-tally"
+    UINT16 = 16, "Integer", "16-bit unsigned integer", "fas fa-tally"
+    UINT32 = 17, "Integer", "32-bit unsigned integer", "fas fa-tally"
+    UINT64 = 18, "Integer", "64-bit unsigned integer", "fas fa-tally"
     # UINT128
-    # DECIMAL, NUMERIC(precision, scale), ...
     # float
-    FLOAT32 = 40, "Float", "Small float", "fas fa-hashtag"
-    FLOAT64 = 41, "Float", "Floating point number", "fas fa-hashtag"
-    # string
-    STRING = 50, "String", "Plain text", "fas fa-font-case"
-    UUID = 51, "UUID", "UUID", "fas fa-fingerprint"
-    # bytes
-    BYTES = 60, "Bytes", "Binary data", "fas fa-file-lines"
-    # VECTOR?
+    FLOAT32 = 20, "Float", "Small float", "fas fa-hashtag"
+    FLOAT64 = 21, "Float", "Floating point number", "fas fa-hashtag"
     # time
-    DATETIME = 70, "Date & Time", "Date & time", "fas fa-calendar-days"
-    DATE = 71, "Date", "Date", "fas fa-calendar-days"
-    TIME = 72, "Time", "Time", "fas fa-clock"
-    DURATION = 73, "Duration", "Duration", "fas fa-stopwatch"
-    # compound
-    JSON = 80, "JSON", "JSON", "fas fa-brackets-curly"
+    DATETIME = 30, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATE = 31, "Date", "Date", "fas fa-calendar-days"
+    TIME = 32, "Time", "Time", "fas fa-clock"
+    DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
+    # string
+    STRING = 40, "String", "Plain text", "fas fa-font-case"
+    UUID = 41, "UUID", "UUID", "fas fa-fingerprint"
+    BYTES = 42, "Bytes", "Binary data", "fas fa-file-lines"
+    JSON = 43, "JSON", "JSON", "fas fa-brackets-curly"
+    # VECTOR?
 
+
+assert max(PrimitiveType) < 256, "PrimitiveType must be less than 256"  # for :Encoding
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.BOOLEAN: bool,

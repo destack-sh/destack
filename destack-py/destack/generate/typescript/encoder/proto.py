@@ -121,12 +121,12 @@ class {encoder_name} implements _ProtoObjectEncoder {{
 {textwrap.indent(unpack_proto, " " * 4)}
   }}
 
-  packObjectBytes(object: {cls.__name__}): Uint8Array {{
+  packObjectBinary(object: {cls.__name__}): Uint8Array {{
     const proto = this.packObject(object);
     return {cls.__name__}Proto.toBinary(proto);
   }}
 
-  unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): {cls.__name__} {{
+  unpackObjectBinary(objectBytes: Uint8Array, _session: Session | null): {cls.__name__} {{
     const proto = {cls.__name__}Proto.fromBinary(objectBytes);
     return this.unpackObject(proto, _session);
   }}
