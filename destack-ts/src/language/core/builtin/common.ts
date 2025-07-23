@@ -876,10 +876,14 @@ registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
 
 export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.BOOLEAN]: Boolean,
+  [PrimitiveType.INT8]: Number,
   [PrimitiveType.INT16]: Number,
   [PrimitiveType.INT32]: Number,
   [PrimitiveType.INT64]: Number,
-  [PrimitiveType.DECIMAL]: Number,
+  [PrimitiveType.UINT8]: Number,
+  [PrimitiveType.UINT16]: Number,
+  [PrimitiveType.UINT32]: Number,
+  [PrimitiveType.UINT64]: Number,
   [PrimitiveType.FLOAT32]: Number,
   [PrimitiveType.FLOAT64]: Number,
   [PrimitiveType.STRING]: String,
@@ -890,8 +894,6 @@ export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.TIME]: Temporal.PlainTime,
   [PrimitiveType.DURATION]: Temporal.Duration,
   [PrimitiveType.JSON]: Object,
-  [PrimitiveType.CSON]: Object,
-  [PrimitiveType.PROTO]: Uint8Array,
 } as const;
 export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Map([
   ["Boolean", PrimitiveType.BOOLEAN],

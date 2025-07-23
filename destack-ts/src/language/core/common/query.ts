@@ -1046,14 +1046,8 @@ export class Join extends StructFrozen {
     if (isStruct(joinType, StructType.JOIN)) {
       return joinType;
     }
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     return new Join({
       type: joinType,
-      customDefinition: options?.definition
-        ? _NodeDefinitionReference.of(options.definition)
-        : null,
       recursive: options?.recursive ?? false,
       depth: options?.depth ?? null,
       on: options?.on ?? null,
@@ -1428,79 +1422,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
-  /** Execute the Query. */
-  async execute(options?: { isLive?: boolean }): Promise<GraphConnection<T>> {
-    const session = activeSession();
-    const store = session.store;
-    if (store == null) {
-      throw new Error(`no store in ${session.repr()}`);
-    }
-    const connection = new GraphConnection<T>({
-      query: this,
-      store,
-      session,
-      isLive: options?.isLive ?? false,
-    });
-    session.connections.push(connection);
-    await connection.execute();
-    return connection;
-  }
-
-  /** Execute the Query and return the root (if any). */
-  async executeOneOrNone(): Promise<T | null> {
-    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
-      throw new Error(`cannot get node of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toOneOrNone();
-  }
-
-  /** Execute the Query and return the root (error if none). */
-  async executeOne(): Promise<T> {
-    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
-      throw new Error(`cannot get node of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toOne();
-  }
-
-  /** Execute the Query and return the list of roots. */
-  async executeList(): Promise<Array<T>> {
-    if (!(this.type === QueryType.NODE || this.type === QueryType.GROUPED_NODE)) {
-      throw new Error(`cannot get nodes of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toList();
-  }
-
-  /** Execute the Query and return whether any results exist. */
-  async executeExists(): Promise<boolean> {
-    if (this.type !== QueryType.SCALAR) {
-      throw new Error(`cannot get exists of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toExists();
-  }
-
-  /** Execute the Query and return the count. */
-  async executeCount(): Promise<number> {
-    if (!(this.type === QueryType.SCALAR || this.type === QueryType.GROUPED_SCALAR)) {
-      throw new Error(`cannot get count of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toCount();
-  }
-
-  /** Execute the Query and return the scalar value. */
-  async executeScalar(): Promise<any> {
-    if (!(this.type === QueryType.SCALAR || this.type === QueryType.GROUPED_SCALAR)) {
-      throw new Error(`cannot get scalar of ${this.repr()}`);
-    }
-    const connection = await this.execute();
-    return connection.toScalar();
-  }
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);

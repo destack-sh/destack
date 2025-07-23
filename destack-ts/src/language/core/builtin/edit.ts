@@ -422,11 +422,7 @@ export class EditEvent extends Event {
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.constructor.name === "NodeReference"
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
