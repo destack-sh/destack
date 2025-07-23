@@ -19,10 +19,13 @@ VITE_COMMIT="VITE_COMMIT" \
   VITE_DESTACK_URL="VITE_DESTACK_URL" \
   VITE_IP_API_KEY="VITE_IP_API_KEY" \
   bun run --cwd destack-ts build
-# posthog sourcemaps
-posthog-cli --host https://eu.posthog.com sourcemap inject --directory destack-ts/dist/assets
-posthog-cli --host https://eu.posthog.com sourcemap upload --directory destack-ts/dist/assets
-rm destack-ts/dist/assets/*.map
+
+bun vite:build --logLevel warn
+cd ..
+
+# copy web files
+rm -rf destack-py/destack/store/static/destack-web
+cp -r destack-ts-web/dist destack-py/destack/store/static/destack-web
 
 # push Docker image with retries
 push_with_retry() {

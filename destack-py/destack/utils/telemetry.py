@@ -19,7 +19,6 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from posthog import Posthog
 
 from destack.utils.uuid import UUID, uuid4
 
@@ -31,15 +30,12 @@ logger = structlog.get_logger(__name__)
 
 IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None
 VERSION = Path("version").read_text().strip()
-POSTHOG_TOKEN = get_from_env("POSTHOG_TOKEN", description="PostHog public API key")
-POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")
 OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
 TELEMETRY = not (IS_DEV or IS_TEST)
 
 _did_setup_telemetry = False
 _processor: BatchSpanProcessor | None = None
 _reader: PeriodicExportingMetricReader | None = None
-_posthog: Posthog | None = None
 
 
 class BaggageBatchSpanProcessor(BatchSpanProcessor):
@@ -67,36 +63,43 @@ def set_baggage(**kwargs):
         context.attach(baggage.set_baggage(key, _render_value(value)))
 
 
-def capture_exception(exception: BaseException):
-    if _posthog is not None:
-        _posthog.capture_exception(exception)
-    logger.debug(
-        "telemetry.capture_exception",
-        exc_info=exception,
-        posthog_token=POSTHOG_TOKEN[:10] + "..." if POSTHOG_TOKEN else None,
-        posthog_host=POSTHOG_HOST,
-    )
+def set_user(user: UUID | None = None, name: str | None = None):
+    """Sets the user for telemetry."""
+    user_id = str(user) if user else None
+    baggage.set_baggage("user.id", user_id)
+    baggage.set_baggage("user.name", name)
 
 
-def setup_telemetry():
-    global _processor, _posthog, _reader, _did_setup_telemetry
+def set_space(space: UUID | None = None, name: str | None = None, client: UUID | None = None):
+    """Sets the space for telemetry."""
+    space_id = str(space) if space else None
+    client_id = str(client) if client else None
+    baggage.set_baggage("space.id", space_id)
+    baggage.set_baggage("space.name", name)
+    baggage.set_baggage("client.id", client_id)
+
+
+def handle_exception(exception: Exception) -> None:
+    """Calls telemetry providers to capture exception (uses span)."""
+    span = trace.get_current_span()
+    span.record_exception(exception)
+    span.set_status(trace.Status(trace.StatusCode.ERROR, str(exception)))
+
+
+def setup_telemetry() -> None:
+    """Sets up telemetry providers."""
+    global _processor, _reader, _did_setup_telemetry
     if _did_setup_telemetry:
         return
+    if not TELEMETRY:
+        logger.debug("telemetry.disabled")
+        _did_setup_telemetry = True
+        return
 
-    # errors
-    if TELEMETRY and not IS_DEBUG:
-        _posthog = Posthog(POSTHOG_TOKEN, host=POSTHOG_HOST, enable_exception_autocapture=True)
-        logger.debug(
-            "telemetry.posthog.setup",
-            posthog_token=POSTHOG_TOKEN[:10] + "..." if POSTHOG_TOKEN else None,
-            posthog_host=POSTHOG_HOST,
-        )
-    else:
-        logger.debug("telemetry.posthog.disabled")
+    logger.debug("telemetry.setup")
 
-    # tracing
-    TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
-    if TRACING and not IS_DEBUG:
+    # otlp
+    if OTLP_ENDPOINT:
         from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 

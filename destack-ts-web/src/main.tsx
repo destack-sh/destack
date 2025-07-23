@@ -3,7 +3,6 @@ import { VERSION } from "@destack/language";
 import { ENV, IS_DEV, TELEMETRY } from "@destack/utils/env";
 import { getLogger } from "@destack/utils/log";
 import { trace } from "@opentelemetry/api";
-import posthog from "posthog-js";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./assets/index.css";
@@ -14,30 +13,6 @@ const logger = getLogger("main");
 const tracer = trace.getTracer("destack-ts-web");
 
 async function init() {
-  // nocheckin: remove posthog?
-  // telemetry
-  if (TELEMETRY) {
-    posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-      api_host: "https://e.destack.dev",
-      ui_host: "https://eu.posthog.com",
-      enable_recording_console_log: true,
-      autocapture: true,
-      session_recording: {
-        maskAllInputs: false,
-        maskInputOptions: {
-          password: true,
-          email: false,
-          text: false,
-          number: false,
-          tel: false,
-        },
-      },
-    });
-    posthog.opt_in_capturing();
-  } else {
-    posthog.opt_out_capturing();
-  }
-
   // dump startup info
   console.group(`%csystem`, "color:yellow");
   console.info(
