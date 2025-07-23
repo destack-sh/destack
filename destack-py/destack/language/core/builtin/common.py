@@ -1192,7 +1192,6 @@ class Encoding(Enum):
 
     JSON = 1, "JSON", "JSON encoding"
     CSON = 2, "CSON", "Constant folded JSON encoding"
-    PROTO = 10, "PROTO", "Protocol Buffers encoding"
     KOMPAKT = 11, "KOMPAKT", "KOMPAKT encoding"
     # CUSTOM, ...
 
@@ -1205,7 +1204,7 @@ class PackedCache(NamedTuple):
 
 type Json = Any
 type Cson = Json
-type Proto = bytes
+type Kompakt = bytes
 
 
 @builtin_enum(EnumType.PRIMITIVE_TYPE)

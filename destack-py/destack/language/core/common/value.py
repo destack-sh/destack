@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from opentelemetry import trace
 
-from destack.proto import ValueProto
-
 from ..builtin import (
     ENCODERS,
     Cson,
@@ -31,7 +29,7 @@ type_ = type
 
 
 @builtin_struct(StructType.VALUE, frozen=True)
-class Value(StructFrozen[ValueProto]):
+class Value(StructFrozen):
     """
     A generic Value of any Type.
     Values are used to represent any generic or user-provided data.

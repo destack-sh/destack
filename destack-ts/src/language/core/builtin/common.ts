@@ -792,20 +792,20 @@ export enum PrimitiveType {
   INT16 = 11,
   INT32 = 12,
   INT64 = 13,
-  UINT8 = 20,
-  UINT16 = 21,
-  UINT32 = 22,
-  UINT64 = 23,
-  FLOAT32 = 40,
-  FLOAT64 = 41,
-  STRING = 50,
-  UUID = 51,
-  BYTES = 60,
-  DATETIME = 70,
-  DATE = 71,
-  TIME = 72,
-  DURATION = 73,
-  JSON = 80,
+  UINT8 = 15,
+  UINT16 = 16,
+  UINT32 = 17,
+  UINT64 = 18,
+  FLOAT32 = 20,
+  FLOAT64 = 21,
+  DATETIME = 30,
+  DATE = 31,
+  TIME = 32,
+  DURATION = 33,
+  STRING = 40,
+  UUID = 41,
+  BYTES = 42,
+  JSON = 43,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -913,7 +913,7 @@ export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Ma
 export enum Encoding {
   JSON = 1,
   CSON = 2,
-  PROTO = 10,
+  KOMPAKT = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

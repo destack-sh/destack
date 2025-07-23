@@ -69,7 +69,6 @@ from .encoder import (
     generate_cson_encoders,
     generate_cson_value,
     generate_json_encoders,
-    generate_proto_encoders,
 )
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
@@ -662,9 +661,7 @@ this._hash = options._hash ?? null;
 // @ts-expect-error(readonly)
 this._repr = options._repr ?? null;
 // @ts-expect-error(readonly)
-this._proto = options._proto ?? null;
-// @ts-expect-error(readonly)
-this._cson = options._cson ?? null;
+this._packedCache = options._packedCache ?? null;
 """
         else:
             identity_str = """\
@@ -1977,19 +1974,9 @@ def _generate_file(
         if value_imports:
             import_parts.append(f"import {{ {', '.join(value_imports)} }} from '{import_path}';")
 
-    # add proto imports for all definitions and dependencies
-    proto_names = {
-        f"{definition.alias}Proto"
-        for definition in chain(file.definitions.values(), file.dependencies.values())
-    }
-    import_parts.append(f"import {{ {', '.join(sorted(proto_names))} }} from '@destack/proto';")
-    import_parts.append(
-        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/encoder/proto/wiring';"
-    )
     import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
     )
-    import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
     import_parts.append(
@@ -2214,9 +2201,6 @@ def generate():
     cson_encoder_path = Path(GENERATION_PATH) / "encoder/cson/generated.ts"
     cson_encoder_str = generate_cson_encoders()
     cson_encoder_path.write_text(cson_encoder_str)
-    proto_encoder_path = Path(GENERATION_PATH) / "encoder/proto/generated.ts"
-    proto_encoder_str = generate_proto_encoders()
-    proto_encoder_path.write_text(proto_encoder_str)
     json_encoder_path = Path(GENERATION_PATH) / "encoder/json/generated.ts"
     json_encoder_str = generate_json_encoders()
     json_encoder_path.write_text(json_encoder_str)

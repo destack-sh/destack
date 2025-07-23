@@ -20,7 +20,6 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from destack.proto import AnyObjectProto
 from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
@@ -1275,7 +1274,7 @@ _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", d
 
 
 @_builtin_object()
-class BuiltinObject[ObjectProtoT: AnyObjectProto]:
+class BuiltinObject:
     """The base for all intrinsic objects like Structs and Nodes."""
 
     metatype: ClassVar[NodeType | StructType] = UNSET

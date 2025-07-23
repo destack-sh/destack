@@ -1,10 +1,10 @@
 import type {
+  BinaryReader,
+  BinaryWriter,
   BuiltinObject,
   NodeType,
   ObjectKind,
   Session,
-  BinaryWriter,
-  BinaryReader,
   StructType,
   Type,
 } from "@destack/language";

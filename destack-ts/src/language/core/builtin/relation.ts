@@ -96,9 +96,7 @@ export class NodeDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -331,9 +329,7 @@ export class PropertyReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -651,9 +647,7 @@ export class NodeReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -826,9 +820,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -986,9 +978,7 @@ export class StructDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {

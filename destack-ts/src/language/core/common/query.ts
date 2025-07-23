@@ -87,9 +87,7 @@ export class Function extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -215,9 +213,7 @@ export class Condition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -364,9 +360,7 @@ export class Aggregation extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -508,9 +502,7 @@ export class Expression extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -713,9 +705,7 @@ export class Sort extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -819,9 +809,7 @@ export class Select extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -962,9 +950,7 @@ export class Join extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1233,9 +1219,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {

@@ -20,7 +20,6 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@grpc/grpc-js": "^1.13.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.203.0",
     "@opentelemetry/instrumentation": "^0.203.0",
@@ -29,8 +28,6 @@
     "@opentelemetry/sdk-node": "^0.56.0",
     "@opentelemetry/sdk-trace-node": "^1.30.1",
     "@opentelemetry/semantic-conventions": "^1.36.0",
-    "@protobuf-ts/runtime": "^2.11.1",
-    "@protobuf-ts/runtime-rpc": "^2.11.1",
     "destack": "link:destack",
     "ink": "^6.0.1",
     "meow": "^13.2.0",

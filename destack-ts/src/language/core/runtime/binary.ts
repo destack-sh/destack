@@ -117,7 +117,7 @@ export class BinaryWriter {
       // can be represented exactly as an integer
       this.view.setUint8(this.pos++, 1);
       // For large numbers beyond 32-bit range, use 64-bit encoding
-      if (value > 0x7FFFFFFF || value < -0x80000000) {
+      if (value > 0x7fffffff || value < -0x80000000) {
         this.writeVarint64(this.zigzagEncode64(BigInt(value)));
       } else {
         this.writeVarint(this.zigzagEncode(value));
@@ -146,11 +146,12 @@ export class BinaryWriter {
 
   // PrimitiveType.TIME
   writeTime(value: Temporal.PlainTime): void {
-    const micros = BigInt(value.hour) * 3_600_000_000n + 
-                   BigInt(value.minute) * 60_000_000n + 
-                   BigInt(value.second) * 1_000_000n + 
-                   BigInt(value.millisecond) * 1_000n +
-                   BigInt(value.microsecond);
+    const micros =
+      BigInt(value.hour) * 3_600_000_000n +
+      BigInt(value.minute) * 60_000_000n +
+      BigInt(value.second) * 1_000_000n +
+      BigInt(value.millisecond) * 1_000n +
+      BigInt(value.microsecond);
     this.writeVarint64(micros);
   }
 
@@ -219,7 +220,7 @@ export class BinaryWriter {
     if (value >= 0n) {
       return value << 1n;
     } else {
-      return ((-value) << 1n) - 1n;
+      return (-value << 1n) - 1n;
     }
   }
 }
@@ -340,7 +341,7 @@ export class BinaryReader {
         shift += 7;
       }
       this.pos = peekPos; // reset position
-      
+
       if (shift > 35) {
         // Large number, use 64-bit decoding
         return Number(this.zigzagDecode64(this.readVarint64()));
