@@ -3,11 +3,10 @@ from typing import TYPE_CHECKING
 
 from destack.utils.uuid import UUID
 
-from ..builtin import Event, Node
 from .session import Session
 
 if TYPE_CHECKING:
-    from destack.language import Graph, NodeReference
+    from destack.language import Event, Graph, Node, NodeReference
 
 
 class GraphConnection[NodeT: "Node" = Node]:

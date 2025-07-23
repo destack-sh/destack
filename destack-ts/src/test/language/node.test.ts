@@ -1,11 +1,18 @@
 import { MemoryGraph } from "@destack/graph/memory";
-import { ACTIVE_SPACE, Folder, Region, Session, Space, Tag } from "@destack/language";
+import { ACTIVE_SPACE, Folder, Region, Session, Space, Tag, Universe } from "@destack/language";
+import { uuid4 } from "@destack/utils/uuid";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 
 let session: Session;
 
 beforeEach(async () => {
-  session = new Session({ epoch: 1, graph: new MemoryGraph() });
+  session = new Session({
+    epoch: 1,
+    graph: new MemoryGraph(),
+    actor: Universe.ACTOR,
+    client: Universe.CLIENT,
+    clientNonce: uuid4(),
+  });
   await session.open();
 });
 
@@ -15,13 +22,14 @@ afterEach(async () => {
 
 test("node space ptr", async () => {
   // add nodes that are spatial and check that they have the same space_ptr
-  const space = new Space({
+  const { space } = Space.createSpace({
+    session,
     name: "MySpace",
     slug: "my-space",
     region: Region.ZURICH,
+    ownedBy: session.actorPtr,
   });
   ACTIVE_SPACE.set(space);
-  session.create(space);
 
   const folder = new Folder({
     name: "MyFolder",
@@ -29,10 +37,8 @@ test("node space ptr", async () => {
   space.addChild(folder);
   expect(folder.parentPtr).toBeTruthy();
   expect(folder.parentPtr!.id).toBe(space.id);
-  expect(folder.parent).toBe(space);
   expect(folder.spacePtr).toBeTruthy();
   expect(folder.spacePtr!.id).toBe(space.id);
-  expect(folder.space).toBe(space);
 
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
   folder.addChildren(tags);

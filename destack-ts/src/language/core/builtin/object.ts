@@ -108,35 +108,35 @@ export abstract class BuiltinObject {
   }
 
   /** Unpack a BuiltinObject from some encoded format. */
-  static unpack(encoding: Encoding, value: any, session: Session | null): BuiltinObject {
+  static unpack(encoding: Encoding, value: any, session?: Session | null): BuiltinObject {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObject(this.__kind__, this.metatype, value, session);
+    return encoder.unpackObject(this.__kind__, this.metatype, value, session ?? null);
   }
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
   static unpackBytes(
     encoding: Encoding,
     value: Uint8Array,
-    session: Session | null,
+    session?: Session | null,
   ): BuiltinObject {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObjectBytes(this.__kind__, this.metatype, value, session);
+    return encoder.unpackObjectBytes(this.__kind__, this.metatype, value, session ?? null);
   }
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
   static unpackBytesBase64(
     encoding: Encoding,
     value: string,
-    session: Session | null,
+    session?: Session | null,
   ): BuiltinObject {
     const valueBytes = Buffer.from(value, "base64");
-    return this.unpackBytes(encoding, valueBytes, session);
+    return this.unpackBytes(encoding, valueBytes, session ?? null);
   }
 }
 
@@ -153,13 +153,13 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
   packBytes(encoding: Encoding, object: ObjectT): Uint8Array;
 
   /** Unpack a BuiltinObject from some encoded format. */
-  unpack(encoding: Encoding, value: any, session: Session | null): BuiltinObject;
+  unpack(encoding: Encoding, value: any, session?: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackBytes(encoding: Encoding, value: Uint8Array, session: Session | null): BuiltinObject;
+  unpackBytes(encoding: Encoding, value: Uint8Array, session?: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
-  unpackBytesBase64(encoding: Encoding, value: string, session: Session | null): BuiltinObject;
+  unpackBytesBase64(encoding: Encoding, value: string, session?: Session | null): BuiltinObject;
 };
 
 /** A cached packed representation of a BuiltinObject. */

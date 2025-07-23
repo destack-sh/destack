@@ -429,7 +429,7 @@ super(options);
         parent_str = (
             """\
 options.parent != null
-        ? options.parent.constructor.name == "NodeReference"
+        ? options.parent.constructor.name === "NodeReference"
             ? (options.parent as NodeReference)
             : (options.parent as Node).toRef()
         : null
@@ -484,7 +484,7 @@ super(
         # convert node to node reference
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             body_parts.append(f"""\
-if (_{ts_name_in} != null && _{ts_name_in}.constructor.name != "NodeReference") {{
+if (_{ts_name_in} != null && _{ts_name_in}.constructor.name !== "NodeReference") {{
     _{ts_name_in} = (_{ts_name_in} as Node).toRef();
 }}""")
 
@@ -525,6 +525,26 @@ if (_{ts_name_in} === null) {{
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
+}}""")
+            elif prop.default_factory == ValueFactory.EPOCH:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this._session.epoch;
+}}""")
+            elif prop.default_factory == ValueFactory.ACTOR:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this._session.actorPtr;
+}}""")
+            elif prop.default_factory == ValueFactory.CLIENT:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this._session.clientPtr;
+}}""")
+            elif prop.default_factory == ValueFactory.CLIENT_NONCE:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this._session.clientNonce;
 }}""")
             elif prop.default_factory == ValueFactory.SELF:
                 body_parts.append(f"""\
@@ -607,10 +627,10 @@ if (options.id == null) {{
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : this._session.actorPtr;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name === "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : this._session.actorPtr;
   this.updatedAt = options.updatedAt;
   this.updatedEpoch = options.updatedEpoch;
-  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.constructor.name == "NodeReference" ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : this._session.actorPtr;
+  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.constructor.name === "NodeReference" ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : this._session.actorPtr;
 }}
 """
         elif issubclass(cls, Event):
@@ -629,7 +649,7 @@ if (options.id == null) {{
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
-  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name == "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy.constructor.name === "NodeReference" ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
   this.clientCreatedAt = options.clientCreatedAt;
   this.clientEpoch = options.clientEpoch;
 }}
@@ -1152,7 +1172,7 @@ return new _NodeReference({{
   type: NodeType.{node_type.name},
   id: this.id,
   spaceId: this.spacePtr.id,
-  definitionId: this.definitionPtr.id,
+  definitionId: this.definitionPtr?.id ?? null,
   branchId: this.branchPtr.id,
   snapshotId: this.snapshotPtr.id,
   _session: this._session,
@@ -1455,6 +1475,7 @@ def _get_type_dependencies(
                 node_cls = NODE_CLASS_BY_TYPE[node_type]
                 dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
         if is_value:
+            dependencies["NodeReference"] = STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE]
             value_dependencies.add("NodeReference")
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
