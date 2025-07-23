@@ -1,4 +1,4 @@
-import { useSession, useSupergraph } from "@destack-web/language";
+import { useSession } from "@destack-web/language";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import {
   Easing,
@@ -25,10 +25,9 @@ const strokeOptions = new Stroke({
 
 export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) => {
   const session = useSession();
-  const supergraph = useSupergraph();
-  const layer = supergraph.getOrError(layerPtr.id) as Layer;
+  const layer = session.graph.get(layerPtr) as Layer | null ;
   const [events, setEvents] = useState<Event[]>([]);
-  const lines = layer.getChildren(PathShape2D);
+  const lines = layer?.getChildren(PathShape2D) ?? [];
 
   const [currentLine, setCurrentLine] = useState<PathShape2D | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -47,6 +46,9 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
 
   // begin drawing on mouse down
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (layer == null) {
+      return;
+    }
     const point = getMousePosition(event);
     setIsDrawing(true);
     setLastMousePosition(point);
