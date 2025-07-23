@@ -24,10 +24,10 @@ import {
 import type { File } from "@destack/language/data";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import type { Gradient } from "@destack/language/style/gradient";

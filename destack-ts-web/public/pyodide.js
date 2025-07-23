@@ -50,7 +50,7 @@ let isInitialized = false;
  */
 function sendStatus(message) {
   /** @type {StatusResponse} */
-  const response = { type: 'status', message };
+  const response = { type: "status", message };
   self.postMessage(response);
 }
 
@@ -62,7 +62,7 @@ function sendStatus(message) {
  */
 function sendResult(result, stdout, duration) {
   /** @type {ResultResponse} */
-  const response = { type: 'result', result, stdout, duration };
+  const response = { type: "result", result, stdout, duration };
   self.postMessage(response);
 }
 
@@ -72,7 +72,7 @@ function sendResult(result, stdout, duration) {
  */
 function sendError(message, duration) {
   /** @type {ErrorResponse} */
-  const response = { type: 'error', message, duration };
+  const response = { type: "error", message, duration };
   self.postMessage(response);
 }
 
@@ -82,11 +82,11 @@ function sendError(message, duration) {
 async function initializePyodide() {
   try {
     sendStatus("INITIALIZING");
-    const { loadPyodide } = await import('/assets/pyodide.mjs');
+    const { loadPyodide } = await import("/assets/pyodide.mjs");
     pyodide = await loadPyodide({
-      indexURL: "/assets/"
+      indexURL: "/assets/",
     });
-    
+
     isInitialized = true;
     sendStatus("READY");
   } catch (error) {
@@ -100,7 +100,7 @@ async function initializePyodide() {
  */
 async function runPython(code) {
   if (!isInitialized || !pyodide) {
-    sendError('Pyodide is not initialized yet', 0);
+    sendError("Pyodide is not initialized yet", 0);
     return;
   }
 
@@ -111,7 +111,7 @@ async function runPython(code) {
     const result = await pyodide.runPythonAsync(code);
     const endTime = performance.now();
     const duration = endTime - startTime;
-    sendResult(result ? String(result) : null, '', duration);
+    sendResult(result ? String(result) : null, "", duration);
   } catch (error) {
     const endTime = performance.now();
     const duration = endTime - startTime;
@@ -125,18 +125,18 @@ async function runPython(code) {
  * Handle messages from main thread
  * @param {MessageEvent} event - Message event
  */
-self.onmessage = async function(event) {
+self.onmessage = async function (event) {
   /** @type {PyodideRequest} */
   const request = event.data;
-  
+
   switch (request.type) {
-    case 'init':
+    case "init":
       await initializePyodide();
       break;
-    case 'run':
+    case "run":
       await runPython(request.data.code);
       break;
     default:
       sendError(`Unknown message type: ${request.type}`);
   }
-}; 
+};

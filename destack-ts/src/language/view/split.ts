@@ -30,7 +30,7 @@ import type {
 } from "@destack/language/geometry";
 import { Align, Anchor, Direction, Distribute, Layout } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
 import { LayoutView } from "@destack/language/view/layout";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";

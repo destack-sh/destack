@@ -1,5 +1,5 @@
-import { PrimitiveType, ScalarType, Type, TypeCardinality, toType } from "@destack/language";
 import { expect, test } from "bun:test";
+import { PrimitiveType, ScalarType, Type, TypeCardinality, toType } from "@destack/language";
 
 test("to type", () => {
   // parse values and types into Types

@@ -21,9 +21,9 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { hashInt, hashString } from "@destack/utils/hash";

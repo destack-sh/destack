@@ -57,7 +57,11 @@ export function getBrowserName(userAgent: string, vendor: string, isOpera: boole
   }
 }
 
-export function getBrowserVersion(userAgent: string, vendor: string, isOpera: boolean): number | null {
+export function getBrowserVersion(
+  userAgent: string,
+  vendor: string,
+  isOpera: boolean,
+): number | null {
   const regexList = {
     "Internet Explorer Mobile": /rv:(\d+(\.\d+)?)/,
     "Microsoft Edge": /Edge?\/(\d+(\.\d+)?)/,
@@ -130,7 +134,7 @@ export function getDeviceType(userAgent: string): string {
   } else {
     // try operating system
     const operatingSystem = getOperatingSystem(window);
-    if (operatingSystem == 'Mac OS X') {
+    if (operatingSystem == "Mac OS X") {
       return "Mac";
     }
   }

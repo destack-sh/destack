@@ -12,7 +12,7 @@ import {
 } from "@destack/language/core";
 import type { Vector2 } from "@destack/language/geometry";
 import { InputEvent } from "@destack/language/interaction/input";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";

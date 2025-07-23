@@ -14,9 +14,9 @@ import {
 import type { Vector2 } from "@destack/language/geometry";
 import { PointerEvent } from "@destack/language/interaction/pointer";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";

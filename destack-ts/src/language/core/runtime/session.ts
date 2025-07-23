@@ -1,16 +1,16 @@
 import {
   Client,
-  NodeReference,
   type Entity,
   type Event,
   type GraphConnection,
+  NodeReference,
   type PropertyDefinition,
 } from "@destack/language";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
 import { Graph } from "@destack/language/core/runtime/graph";
-import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
+import { type Oracle, WORLD_ORACLE } from "@destack/language/core/runtime/oracle";
 import { Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -223,7 +223,7 @@ export class Session {
   }
 
   /** Stage pending Edits and Changes. */
-  async flush(): Promise<void> {
+  async flush() {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
@@ -231,13 +231,13 @@ export class Session {
   }
 
   /** Commit all Events. */
-  async commit(): Promise<Event[]> {
+  async commit() {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
     this._onFlush();
     const events = this.pendingEvents;
     this.pendingEvents = [];
-    throw new Error("not implemented");
+    // nocheckin: Session.flush/commit
   }
 }

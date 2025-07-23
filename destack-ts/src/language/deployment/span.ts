@@ -11,7 +11,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Run } from "@destack/language/deployment/run";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";

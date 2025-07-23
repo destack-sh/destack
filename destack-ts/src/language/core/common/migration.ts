@@ -14,10 +14,10 @@ import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";

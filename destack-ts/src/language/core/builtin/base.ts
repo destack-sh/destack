@@ -14,7 +14,7 @@ import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Anchor, Offset2, Quaternion, Vector2, Vector3 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 

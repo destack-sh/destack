@@ -8,19 +8,19 @@ import {
 import { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node, isNode } from "@destack/language/core/builtin/node";
+import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
-import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
+import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
-  STRUCT_CLASS_BY_TYPE,
-  TRAIT_CLASS_BY_TYPE,
   registerEnumClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
+  TRAIT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import { assertNever } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";

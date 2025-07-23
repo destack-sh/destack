@@ -27,7 +27,11 @@ export class CsonEncoder implements Encoder<any> {
     return encoder.packObject(object);
   }
 
-  packObjectBytes(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): Uint8Array {
+  packObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    object: BuiltinObject,
+  ): Uint8Array {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
@@ -38,7 +42,12 @@ export class CsonEncoder implements Encoder<any> {
     return new TextEncoder().encode(JSON.stringify(objectPacked));
   }
 
-  unpackObject(kind: ObjectKind, metatype: NodeType | StructType, value: any, session: Session | null): BuiltinObject {
+  unpackObject(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: any,
+    session: Session | null,
+  ): BuiltinObject {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(

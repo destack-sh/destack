@@ -23,9 +23,9 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import type { Handle } from "@destack/language/universe/handle";
 import { hashBool, hashString } from "@destack/utils/hash";

@@ -8,14 +8,14 @@ import {
 import { activeSession } from "@destack/language/core/builtin/const";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node, isNode } from "@destack/language/core/builtin/node";
+import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type {
   NodeDefinitionReference,
   NodeReference,
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
-import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
+import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
@@ -23,9 +23,9 @@ import { toValue } from "@destack/language/core/common/value";
 import { GraphConnection } from "@destack/language/core/runtime/connection";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
-  STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerStructClass,
+  STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";

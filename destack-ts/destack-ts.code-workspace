@@ -1,13 +1,13 @@
 {
   "folders": [
     {
-      "path": "../",
-    },
+      "path": "../"
+    }
   ],
   "settings": {
     "editor.rulers": [100, 120],
     "typescript.tsdk": "node_modules/typescript/lib",
-    "css.lint.unknownAtRules": "ignore",
+    "css.lint.unknownAtRules": "ignore"
   },
   "launch": {
     "configurations": [
@@ -23,6 +23,6 @@
         "request": "launch",
         "url": "localhost:5173"
       }
-    ],
-  },
+    ]
+  }
 }

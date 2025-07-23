@@ -1,4 +1,4 @@
-import { Span, SpanStatusCode, trace, Tracer } from "@opentelemetry/api";
+import { Span, SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 
 export function setupTelemetry() {
   // TODO :Telemetry: destack-ts telemetry

@@ -10,7 +10,7 @@ import {
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
-import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
+import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";

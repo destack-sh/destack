@@ -1,12 +1,12 @@
 {
-	"Vue SFC setup Component": {
-		"prefix": "vsfc",
-		"description": "Insert styleless Vue SFC in TS with setup sugar",
-		"body": [
-			"<script lang=\"ts\" setup>\n$2\n</script>",
-			"<template>",
-			"  <div>$1</div>",
-			"</template>",
-		]
-	},
+  "Vue SFC setup Component": {
+    "prefix": "vsfc",
+    "description": "Insert styleless Vue SFC in TS with setup sugar",
+    "body": [
+      "<script lang=\"ts\" setup>\n$2\n</script>",
+      "<template>",
+      "  <div>$1</div>",
+      "</template>"
+    ]
+  }
 }

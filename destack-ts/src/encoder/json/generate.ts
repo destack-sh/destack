@@ -21,4 +21,4 @@ export interface _JsonObjectEncoder {
 
   /** Unpack a BuiltinObject from some encoded format. */
   unpackObject(value: any, session: Session | null): BuiltinObject;
-} 
+}

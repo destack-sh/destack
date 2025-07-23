@@ -1,12 +1,12 @@
 import {
   ENCODERS,
   Encoding,
+  type NodeDefinition,
   NodeType,
   ObjectKind,
-  StructType,
-  type NodeDefinition,
   type PropertyDefinition,
   type StructDefinition,
+  StructType,
 } from "@destack/language/core";
 import type { Session } from "@destack/language/core/runtime";
 

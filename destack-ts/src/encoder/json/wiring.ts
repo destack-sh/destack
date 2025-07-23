@@ -182,4 +182,4 @@ function _unpackScalarJson(
   } else {
     assertNever(type.scalarType);
   }
-} 
+}
