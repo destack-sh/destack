@@ -63,7 +63,7 @@ export class ProtoEncoder implements Encoder<any> {
   unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
-    value: Uint8Array,
+    reader: BinaryReader,
     session: Session | null,
   ): BuiltinObject {
     const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
@@ -72,7 +72,7 @@ export class ProtoEncoder implements Encoder<any> {
         `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObjectBinary(value, session);
+    return encoder.unpackObjectBinary(reader, session);
   }
 
   packValue(value: any, type: Type): any {
@@ -87,7 +87,7 @@ export class ProtoEncoder implements Encoder<any> {
     throw new Error("not implemented");
   }
 
-  unpackValueBytes(type: Type, value: Uint8Array): any {
+  unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
     throw new Error("not implemented");
   }
 }

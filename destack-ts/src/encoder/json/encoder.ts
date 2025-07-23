@@ -8,6 +8,8 @@ import {
   ObjectKind,
   Session,
   StructType,
+  BinaryWriter,
+  BinaryReader,
   Type,
 } from "@destack/language";
 
@@ -31,7 +33,8 @@ export class JsonEncoder implements Encoder<any> {
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
-  ): Uint8Array {
+    writer: BinaryWriter,
+  ): void {
     const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
@@ -39,7 +42,7 @@ export class JsonEncoder implements Encoder<any> {
       );
     }
     const objectPacked = encoder.packObject(object);
-    return new TextEncoder().encode(JSON.stringify(objectPacked));
+    writer.writeJson(objectPacked);
   }
 
   unpackObject(
@@ -60,7 +63,7 @@ export class JsonEncoder implements Encoder<any> {
   unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
-    value: Uint8Array,
+    reader: BinaryReader,
     session: Session | null,
   ): BuiltinObject {
     const encoder = JSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
@@ -69,7 +72,7 @@ export class JsonEncoder implements Encoder<any> {
         `no JsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = JSON.parse(new TextDecoder().decode(value));
+    const objectPacked = reader.readJson();
     return encoder.unpackObject(objectPacked, session);
   }
 
@@ -78,19 +81,19 @@ export class JsonEncoder implements Encoder<any> {
     return json;
   }
 
-  packValueBytes(value: any, type: Type): Uint8Array {
+  packValueBytes(value: any, type: Type, writer: BinaryWriter): void {
     const json = packJson(value, type);
-    return new TextEncoder().encode(JSON.stringify(json));
+    writer.writeJson(json);
   }
 
-  unpackValue(type: Type, value: any): any {
-    const json = unpackJson(value, type);
+  unpackValue(type: Type, value: any, session: Session | null): any {
+    const json = unpackJson(value, type, session);
     return json;
   }
 
-  unpackValueBytes(type: Type, value: Uint8Array): any {
-    const jsonValue = JSON.parse(new TextDecoder().decode(value));
-    const json = unpackJson(jsonValue, type);
+  unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
+    const jsonValue = reader.readJson();
+    const json = unpackJson(jsonValue, type, session);
     return json;
   }
 }
