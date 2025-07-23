@@ -1,4 +1,4 @@
-import { ACTIVE_SESSION, Supergraph } from "@destack/language";
+import { ACTIVE_SESSION } from "@destack/language";
 import { ReactiveSession } from "@destack-web/language/core/runtime/session";
 import { useSignals } from "@preact/signals-react/runtime";
 import React, { createContext, type ReactNode, useContext } from "react";
@@ -40,12 +40,4 @@ export function useSession(): ReactiveSession {
   }
   useSignals();
   return session;
-}
-
-/**
- * Gets the currently active Supergraph.
- */
-export function useSupergraph(): Supergraph {
-  const session = useSession();
-  return session.supergraph;
 }

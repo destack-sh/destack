@@ -15,7 +15,7 @@ import React from "react";
 import LayerView from "./Layer";
 
 const graph = new MemoryGraph();
-await graph.open();
+// await graph.open();
 const session = new ReactiveSession({
   graph,
   epoch: 0,
@@ -38,7 +38,7 @@ ACTIVE_BRANCH.set(rootBranch);
 ACTIVE_SNAPSHOT.set(headSnapshot);
 const layer = new Layer({ name: "My Layer" });
 session.create(layer);
-await session.commit();
+// await session.commit();
 
 const Destack: React.FC = () => {
   return (
