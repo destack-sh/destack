@@ -11,7 +11,6 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     TRAIT_CLASS_BY_TYPE,
 )
-from destack.proto import NodeReferenceProto, PropertyReferenceProto
 from destack.utils.uuid import UUID
 
 from .common import EnumType, GraphKey, NodeType, PrimitiveType
@@ -262,7 +261,7 @@ class PropertyReferenceType(Enum):
 
 
 @builtin_struct(StructType.PROPERTY_REFERENCE, frozen=True)
-class PropertyReference(StructFrozen[PropertyReferenceProto]):
+class PropertyReference(StructFrozen):
     """
     A reference to a builtin object's Property.
     """
@@ -341,7 +340,7 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
 
 
 @builtin_struct(StructType.NODE_REFERENCE, frozen=True)
-class NodeReference(StructFrozen[NodeReferenceProto]):
+class NodeReference(StructFrozen):
     """
     A reference to a Node in spacetime.
     """

@@ -53,9 +53,7 @@ export class Vector2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -325,9 +323,7 @@ export class Vector3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -639,9 +635,7 @@ export class Vector4 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -952,9 +946,7 @@ export class Vector2i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1224,9 +1216,7 @@ export class Vector3i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1528,9 +1518,7 @@ export class Vector4i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {

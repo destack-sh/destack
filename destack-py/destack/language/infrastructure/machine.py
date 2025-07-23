@@ -4,7 +4,6 @@ from destack.language.core import (
     VERSION,
     Enum,
     EnumType,
-    NodeReference,
     NodeType,
     Resource,
     builtin_enum,
@@ -13,7 +12,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Client
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,11 +39,6 @@ class Machine(Resource):
     external_name: Optional[str] = builtin_property(121)
     external_id: Optional[str] = builtin_property(122)
     image_id: Optional[str] = builtin_property(123)
-    grpc_url: Optional[str] = builtin_property(124)
-    vnc_url: Optional[str] = builtin_property(125)
-    client: Optional["Client"] = builtin_property(126)
-    if TYPE_CHECKING:
-        client_ptr: Optional[NodeReference] = None
 
     cpu: float = builtin_property(130, description="vCPU count", default=1.0)
     ram: float = builtin_property(131, description="GB", default=1.0)

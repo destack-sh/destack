@@ -13,7 +13,6 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
-from destack.proto import AnyStructProto
 from destack.utils.func import get_superclasses
 
 from .common import Encoding, EnumType, ObjectKind, PackedCache, StructType
@@ -113,7 +112,7 @@ def builtin_struct(
 
 
 @builtin_struct(StructType.STRUCT, is_abstract=True, is_extensible=True)
-class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC):
+class Struct(BuiltinObject, abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]
@@ -155,7 +154,7 @@ class Struct[StructProtoT: AnyStructProto](BuiltinObject[StructProtoT], abc.ABC)
 
 
 @builtin_struct(None, is_abstract=True, is_extensible=True)
-class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
+class StructMutable(Struct):
     """A mutable Struct."""
 
     pass
@@ -167,7 +166,7 @@ class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     is_abstract=True,
     is_extensible=True,
 )
-class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
+class StructFrozen(Struct):
     """An immutable Struct."""
 
     """Cached hash of the Struct."""

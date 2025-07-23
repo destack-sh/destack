@@ -291,9 +291,6 @@ def parse_type_annotation(
     elif class_name == "Json" or class_name == "Cson":
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = PrimitiveType.JSON
-    elif class_name == "Proto":
-        scalar_type = ScalarType.PRIMITIVE
-        primitive_type = PrimitiveType.BYTES
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
@@ -363,7 +360,7 @@ class PropertyDeclaration(TypeDeclaration):
 
     # flags
     is_unique: bool = False  # unique in DB
-    is_wired: bool = False  # serialized onto wire (in proto)
+    is_wired: bool = False  # serialized onto wire
     is_stored: bool = False  # stored in DB
     is_repr: bool = False  # included in BuiltinObject.__repr__
     is_hash: bool = True  # included in BuiltinObject.__hash__

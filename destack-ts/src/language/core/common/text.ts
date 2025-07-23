@@ -145,9 +145,7 @@ export class TextSpan extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -314,9 +312,7 @@ export class Text extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {

@@ -170,9 +170,7 @@ export class Length extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -294,9 +292,7 @@ export class Offset2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -464,9 +460,7 @@ export class Inset2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -622,9 +616,7 @@ export class Corner2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -764,9 +756,7 @@ export class Axis2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -902,9 +892,7 @@ export class Axis3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1060,9 +1048,7 @@ export class Grid2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1199,9 +1185,7 @@ export class GridSpan2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._cson = options._cson ?? null;
+    this._packedCache = options._packedCache ?? null;
   }
 
   equals(other: any): boolean {

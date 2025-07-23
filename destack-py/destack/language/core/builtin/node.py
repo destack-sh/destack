@@ -16,7 +16,6 @@ from destack.language.registry import (
     NODE_TYPE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
 )
-from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
@@ -197,7 +196,7 @@ def builtin_node(
         TagDeclaration(id=2, name="tracking", description="Node tracking"),
     ),
 )
-class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
+class Node(BuiltinObject):
     """
     A Node with some Properties and a persistent identity (its id).
     Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.

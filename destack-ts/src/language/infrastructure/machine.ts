@@ -28,7 +28,6 @@ import {
   registerNodeClass,
   STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
-import type { Client } from "@destack/language/universe";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
@@ -442,68 +441,6 @@ export class Machine extends Resource {
   _imageId: string | null;
 
   /**
-   * Machine.grpcUrl
-   */
-  /**
-   * Machine.grpcUrl
-   */
-  get grpcUrl(): string | null {
-    return this._grpcUrl;
-  }
-  set grpcUrl(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["grpc_url"];
-    this._session.updateSetProperty(this, prop, value);
-    this._grpcUrl = value;
-  }
-  _grpcUrl: string | null;
-
-  /**
-   * Machine.vncUrl
-   */
-  /**
-   * Machine.vncUrl
-   */
-  get vncUrl(): string | null {
-    return this._vncUrl;
-  }
-  set vncUrl(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["vnc_url"];
-    this._session.updateSetProperty(this, prop, value);
-    this._vncUrl = value;
-  }
-  _vncUrl: string | null;
-
-  /**
-   * Machine.client
-   */
-  get client(): Client | null {
-    const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Client | null;
-    }
-    return null;
-  }
-  set client(node: Client | null) {
-    if (node === null) {
-      this.clientPtr = null;
-    } else {
-      this.clientPtr = node.toRef();
-    }
-  }
-  /**
-   * Machine.client
-   */
-  get clientPtr(): NodeReference | null {
-    return this._clientPtr;
-  }
-  set clientPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["client"];
-    this._session.updateSetProperty(this, prop, value);
-    this._clientPtr = value;
-  }
-  _clientPtr: NodeReference | null;
-
-  /**
    * vCPU count
    */
   /**
@@ -615,9 +552,6 @@ export class Machine extends Resource {
     externalName?: string | null;
     externalId?: string | null;
     imageId?: string | null;
-    grpcUrl?: string | null;
-    vncUrl?: string | null;
-    client?: Client | NodeReference | null;
     cpu?: number;
     ram?: number;
     width?: number;
@@ -779,15 +713,6 @@ export class Machine extends Resource {
     this._externalId = _externalId;
     let _imageId = options.imageId ?? null;
     this._imageId = _imageId;
-    let _grpcUrl = options.grpcUrl ?? null;
-    this._grpcUrl = _grpcUrl;
-    let _vncUrl = options.vncUrl ?? null;
-    this._vncUrl = _vncUrl;
-    let _client = options.client ?? null;
-    if (_client != null && _client.constructor.name !== "NodeReference") {
-      _client = (_client as Node).toRef();
-    }
-    this._clientPtr = _client as NodeReference | null;
     let _cpu = options.cpu ?? null;
     if (_cpu === null) {
       _cpu = 1.0;
@@ -878,15 +803,6 @@ export class Machine extends Resource {
     if (!(this._imageId === other._imageId)) {
       return false;
     }
-    if (!(this._grpcUrl === other._grpcUrl)) {
-      return false;
-    }
-    if (!(this._vncUrl === other._vncUrl)) {
-      return false;
-    }
-    if (!(this._clientPtr?.id === other._clientPtr?.id)) {
-      return false;
-    }
     if (!(this._cpu === other._cpu || Math.abs(this._cpu - other._cpu) < 1e-10)) {
       return false;
     }
@@ -959,15 +875,6 @@ export class Machine extends Resource {
     }
     if (this._imageId != null) {
       h = (h * 31 + hashString(this._imageId)) & 0xffffffff;
-    }
-    if (this._grpcUrl != null) {
-      h = (h * 31 + hashString(this._grpcUrl)) & 0xffffffff;
-    }
-    if (this._vncUrl != null) {
-      h = (h * 31 + hashString(this._vncUrl)) & 0xffffffff;
-    }
-    if (this._clientPtr != null) {
-      h = (h * 31 + hashString(this._clientPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashFloat(this._cpu)) & 0xffffffff;
     h = (h * 31 + hashFloat(this._ram)) & 0xffffffff;

@@ -41,7 +41,6 @@ def bump(revision: int | None = typer.Option(None)):
     files_to_update = (
         "pyproject.toml",
         "destack-py/destack/language/core/builtin/const.py",
-        "destack-py/destack/proto/__init__.py",
         "destack-ts/package.json",
         "destack-ts/src/language/core/builtin/const.ts",
         "destack-ts-web/src/utils/globals.ts",

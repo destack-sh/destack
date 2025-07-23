@@ -5,6 +5,7 @@ import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builti
 import type { Session } from "@destack/language/core/runtime/session";
 import type { StructTypeMapping } from "@destack/language/mapping";
 import { registerStructClass } from "@destack/language/registry";
+import { BinaryWriter } from "@destack/language/core/runtime/binary";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {
@@ -84,7 +85,9 @@ export abstract class StructFrozen extends Struct {
     }
     // pack the object as bytes
     const encoder = ENCODERS[encoding]!;
-    const packedObjectBytes = encoder.packObjectBinary(ObjectKind.STRUCT, this.metatype, this);
+    const writer = new BinaryWriter();
+    encoder.packObjectBinary(ObjectKind.STRUCT, this.metatype, this, writer);
+    const packedObjectBytes = writer.toBytes();
     // cache the result
     const newCache: PackedCache = {
       encoding: encoding,

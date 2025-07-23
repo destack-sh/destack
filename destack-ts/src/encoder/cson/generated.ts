@@ -4,7 +4,7 @@ import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack
 import { Temporal } from 'temporal-polyfill';
 import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';
 import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';
-import type { File, Migration, Sanction, Node, EffectStyle, DoubleClickEvent, Axis3, SingleClickEvent, KeyPressEvent, RunCompletedEvent, Tagging, Stroke, InviteAcceptedEvent, TimerCompletedEvent, FontStyle, StringConstraint, CutEvent, Variant, CounterMetric, NotificationSentEvent, TagDefinition, ReactionEvent, FocusEvent, RunPausedEvent, OptionDefinition, MembershipJoinedEvent, RectangleShape2D, Organization, MigrationOperation, HistogramMetric, Ellipse2D, NodeDefinitionReference, Length, StarRemovedEvent, ReactionAddedEvent, DatumMutable, Snapshot, RoleUnassignedEvent, KeyUpEvent, CustomOption, RoleAssignedEvent, KeyDownEvent, Star, Vector2, NumberInputView, Style, Font, InviteSentEvent, Layer, KeyEvent, SanctionRevokedEvent, Environment, Membership, Arrow2D, User, MembershipEvent, ContentView, TraitDefinition, RunStartedEvent, LineShape2D, Stage, NotificationReadEvent, Client, FollowRemovedEvent, DragEvent, Route, TimerPausedEvent, TextView, Fill, ShadowStyle, StrokeStyle, PathShape2D, PointerOverEvent, ClickEvent, ViewEvent, MigrationDefinition, DragStartEvent, InputView, Vector4, EntitlementExpiredEvent, WheelEvent, StructDefinitionReference, ReactionRemovedEvent, SanctionGrantedEvent, Space, CopyEvent, RunStopRequestedEvent, TimerEvent, EntitlementRequestedEvent, SplitView, CounterMeasurementEvent, EntitlementRevokedEvent, CollectionConstraint, Action, GaugeMetric, CustomProperty, ActionDefinition, Type, Event, Service, FrameView, PointerUpEvent, Path2D, RunPauseRequestedEvent, Entity, EntitlementEvent, NodeReference, FocusOutEvent, ObjectDefinitionReference, Gradient, Timer, Team, Vector2i, Rectangle2D, Join, Sort, EnumDefinition, GradientStyle, SceneEvent, Permission, Inset2, CustomStruct, Reaction, Axis2, Condition, InviteRescindedEvent, EditEvent, DragEnterEvent, SliderInputView, PasteEvent, Vector3i, Entitlement, TimerStartedEvent, SanctionExpiredEvent, Color, Invite, Scene, Vector3, Corner2, SanctionEvent, Handle, DragEndEvent, RunResumedEvent, Border, Constraint, StrokeCap, EllipseShape2D, IndexDefinition, Machine, View, StrokePath, TripleClickEvent, DropEvent, NotificationExpiredEvent, StarEvent, Tag, BorderStyle, Value, Notification, Shape3D, ColorStyle, LogEvent, InviteRejectedEvent, MeasurementEvent, StrokePoint, Function, RunEvent, FollowEvent, NotificationEvent, DragLeaveEvent, Follow, DragOverEvent, PermissionDefinition, PropertyDefinition, TimerResumedEvent, BuiltinDefinition, NotificationDismissedEvent, MembershipLeftEvent, PointerEvent, MouseEvent, SanctionRequestedEvent, Effect, Branch, Entity3D, ConstraintDefinition, Struct, PointerMoveEvent, ConstantDefinition, Palette, Text, SpanEvent, Resource, SignalEvent, PointerDownEvent, PolygonShape2D, PointerLeaveEvent, Expression, CustomEvent, Universe, Shadow, Transition, HistogramMeasurementEvent, TransitionStyle, Record, Line2D, Theme, RunFailedEvent, ClipboardEvent, Index, TriggerEvent, NumberConstraint, Schedule, Shape2D, StarAddedEvent, RoleEvent, FillStyle, Polygon2D, MethodDefinition, InputEvent, Database, PointerLongPressEvent, Datum, TextSpan, InviteEvent, Method, Folder, MigrationOperationDefinition, Aggregation, GradientStop, PropertyReference, NodeDefinition, Query, Role, Run, ArrowShape2D, Offset2, Grid2, Metric, CustomEnum, Entity2D, PointerEnterEvent, Vector4i, Quaternion, EntitlementGrantedEvent, FocusInEvent, Script, LabelView, TimerCancelledEvent, Icon, Select, RunResumeRequestedEvent, StructDefinition, LayoutView, FollowAddedEvent, GaugeMeasurementEvent, Trigger, NotificationRescindedEvent, GridSpan2 } from '@destack/language';
+import type { RunStopRequestedEvent, Migration, LineShape2D, Vector3i, PermissionDefinition, Machine, Variant, MouseEvent, DoubleClickEvent, ReactionEvent, InviteRescindedEvent, Aggregation, HistogramMeasurementEvent, Trigger, Vector3, Join, Quaternion, NotificationExpiredEvent, EllipseShape2D, Membership, CopyEvent, SplitView, Notification, FollowAddedEvent, Select, PointerMoveEvent, CounterMetric, TraitDefinition, StringConstraint, DragLeaveEvent, FollowRemovedEvent, Rectangle2D, TimerCancelledEvent, MigrationDefinition, Service, Client, DragStartEvent, Style, TimerPausedEvent, GaugeMeasurementEvent, RoleEvent, PointerOverEvent, EntitlementRevokedEvent, LabelView, DragEvent, Grid2, TimerResumedEvent, PropertyDefinition, Ellipse2D, MembershipEvent, ReactionAddedEvent, FontStyle, ClipboardEvent, InviteAcceptedEvent, KeyDownEvent, TextView, RunStartedEvent, User, PolygonShape2D, ColorStyle, Entitlement, Border, Resource, Permission, ReactionRemovedEvent, Sort, ViewEvent, BuiltinDefinition, PointerEvent, SceneEvent, Reaction, HistogramMetric, EffectStyle, SanctionRevokedEvent, EntitlementExpiredEvent, Organization, MembershipJoinedEvent, GradientStop, Effect, Arrow2D, Length, GridSpan2, SanctionEvent, KeyUpEvent, Polygon2D, CounterMeasurementEvent, Function, Space, Star, Shadow, File, Axis3, RunFailedEvent, Gradient, Struct, SignalEvent, LogEvent, PointerUpEvent, TransitionStyle, FrameView, NotificationSentEvent, Font, Theme, Axis2, Layer, View, TextSpan, CollectionConstraint, PathShape2D, Team, Condition, NodeDefinitionReference, Record, NotificationReadEvent, StarAddedEvent, Vector2i, InviteRejectedEvent, MigrationOperation, ClickEvent, Vector4i, StrokePath, MembershipLeftEvent, RectangleShape2D, ShadowStyle, RunResumedEvent, TripleClickEvent, FollowEvent, PointerEnterEvent, MigrationOperationDefinition, Transition, SanctionRequestedEvent, Scene, Shape2D, Stroke, CustomStruct, Database, Follow, Tagging, RoleAssignedEvent, DragEnterEvent, FocusEvent, RunResumeRequestedEvent, StructDefinition, MethodDefinition, Offset2, Handle, Fill, Role, SliderInputView, Line2D, Metric, Universe, PointerDownEvent, InputEvent, Script, KeyEvent, Icon, Folder, DragEndEvent, Constraint, Entity3D, Snapshot, PasteEvent, NumberInputView, Vector4, NumberConstraint, ConstraintDefinition, CutEvent, TimerCompletedEvent, OptionDefinition, MeasurementEvent, StrokePoint, Text, SanctionExpiredEvent, DatumMutable, KeyPressEvent, Corner2, NodeDefinition, InviteSentEvent, StructDefinitionReference, NodeReference, Node, Branch, Entity, Datum, InviteEvent, Route, LayoutView, Inset2, FillStyle, ContentView, RunPauseRequestedEvent, Type, Expression, DropEvent, TimerEvent, CustomEvent, EntitlementGrantedEvent, CustomEnum, Query, StarRemovedEvent, SingleClickEvent, ObjectDefinitionReference, Stage, TagDefinition, NotificationDismissedEvent, EntitlementRequestedEvent, Path2D, Action, Method, GradientStyle, PointerLeaveEvent, Entity2D, ActionDefinition, RoleUnassignedEvent, RunCompletedEvent, Schedule, EntitlementEvent, RunEvent, SanctionGrantedEvent, StrokeCap, Environment, Tag, GaugeMetric, Vector2, BorderStyle, PropertyReference, CustomOption, Shape3D, Index, EnumDefinition, StrokeStyle, ArrowShape2D, Value, FocusInEvent, WheelEvent, SpanEvent, ConstantDefinition, Timer, DragOverEvent, InputView, NotificationRescindedEvent, RunPausedEvent, Run, TriggerEvent, StarEvent, Invite, IndexDefinition, Sanction, Color, NotificationEvent, Palette, TimerStartedEvent, CustomProperty, FocusOutEvent, Event, PointerLongPressEvent, EditEvent } from '@destack/language';
 export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
@@ -8168,15 +8168,6 @@ export function loadEncoders(): void {
         if (object._imageId != null) {
           objectCson["123"] = object._imageId;
         }
-        if (object._grpcUrl != null) {
-          objectCson["124"] = object._grpcUrl;
-        }
-        if (object._vncUrl != null) {
-          objectCson["125"] = object._vncUrl;
-        }
-        if (object._clientPtr != null) {
-          objectCson["126"] = object._clientPtr.pack(2);
-        }
         objectCson["130"] = object._cpu;
         objectCson["131"] = object._ram;
         objectCson["132"] = object._width;
@@ -8194,12 +8185,6 @@ export function loadEncoders(): void {
         const unpackedExternalId = externalIdValue != undefined ? externalIdValue : null;
         const imageIdValue = objectCson["123"];
         const unpackedImageId = imageIdValue != undefined ? imageIdValue : null;
-        const grpcUrlValue = objectCson["124"];
-        const unpackedGrpcUrl = grpcUrlValue != undefined ? grpcUrlValue : null;
-        const vncUrlValue = objectCson["125"];
-        const unpackedVncUrl = vncUrlValue != undefined ? vncUrlValue : null;
-        const clientPtrValue = objectCson["126"];
-        const unpackedClientPtr = clientPtrValue != undefined ? _NodeReference.unpack(2, clientPtrValue, _session) as NodeReference : null;
         const statusValue = objectCson["110"];
         const unpackedStatus = statusValue != undefined ? Number(statusValue) : null;
         const regionValue = objectCson["111"];
@@ -8236,9 +8221,6 @@ export function loadEncoders(): void {
           externalName: unpackedExternalName,
           externalId: unpackedExternalId,
           imageId: unpackedImageId,
-          grpcUrl: unpackedGrpcUrl,
-          vncUrl: unpackedVncUrl,
-          client: unpackedClientPtr,
           cpu: Number(objectCson["130"]),
           ram: Number(objectCson["131"]),
           width: Number(objectCson["132"]),
