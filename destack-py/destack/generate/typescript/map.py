@@ -17,6 +17,4 @@ TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
     PrimitiveType.TIME: "Temporal.PlainTime",
     PrimitiveType.DURATION: "Temporal.Duration",
     PrimitiveType.JSON: "any",
-    PrimitiveType.CSON: "any",
-    PrimitiveType.PROTO: "Uint8Array",
 }

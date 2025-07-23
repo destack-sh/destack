@@ -39,8 +39,6 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
     PrimitiveType.DURATION: ProtoFieldType.DURATION,
     PrimitiveType.UUID: ProtoFieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
     PrimitiveType.JSON: ProtoFieldType.VALUE,
-    PrimitiveType.CSON: ProtoFieldType.VALUE,
-    PrimitiveType.PROTO: ProtoFieldType.BYTES,
 }
 
 

@@ -96,7 +96,7 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return value
-        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif type.primitive_type == PrimitiveType.BYTES:
             return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
@@ -123,7 +123,7 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
             PrimitiveType.FLOAT64,
         ):
             return float(value)
-        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif type.primitive_type == PrimitiveType.JSON:
             return value
         else:
             assert_never(type.primitive_type)
@@ -148,7 +148,7 @@ def _unpack_scalar_cson(
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return value
-        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif type.primitive_type == PrimitiveType.BYTES:
             return base64.b64decode(value)
         elif type.primitive_type == PrimitiveType.UUID:
             return UUID(value)
@@ -175,7 +175,7 @@ def _unpack_scalar_cson(
             return int(value)
         elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
             return float(value)
-        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif type.primitive_type == PrimitiveType.JSON:
             return value
         else:
             assert_never(type.primitive_type)

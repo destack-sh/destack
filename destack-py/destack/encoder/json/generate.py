@@ -206,7 +206,7 @@ def _generate_pack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
@@ -233,7 +233,6 @@ def _generate_pack_json_scalar(
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
             PrimitiveType.JSON,
-            PrimitiveType.CSON,
         ):
             return value_expr
         else:
@@ -292,7 +291,7 @@ def _generate_unpack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
@@ -320,7 +319,7 @@ def _generate_unpack_json_scalar(
             PrimitiveType.FLOAT64,
         ):
             return value_expr
-        elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
             assert_never(prop.primitive_type)

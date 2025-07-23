@@ -817,9 +817,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hash_bool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
             return f"hash_string({value_expr})"
-        elif (
-            prop.primitive_type == PrimitiveType.BYTES or prop.primitive_type == PrimitiveType.PROTO
-        ):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"hash_bytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"{value_expr}.int"
@@ -831,7 +829,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hash_string({value_expr}.isoformat())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hash_float({value_expr}.total_seconds())"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"hash_string(json.dumps({value_expr}))"
         else:
             assert_never(prop.primitive_type)

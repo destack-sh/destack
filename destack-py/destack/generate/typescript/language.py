@@ -996,8 +996,6 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
             PrimitiveType.TIME,
             PrimitiveType.DURATION,
             PrimitiveType.JSON,
-            PrimitiveType.CSON,
-            PrimitiveType.PROTO,
         ):
             return "{self_val} === {other_val}", True
         else:
@@ -1112,9 +1110,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hashBool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
             return f"hashString({value_expr})"
-        elif (
-            prop.primitive_type == PrimitiveType.BYTES or prop.primitive_type == PrimitiveType.PROTO
-        ):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"hashBytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"hashString({value_expr}.toString())"
@@ -1124,7 +1120,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hashString({value_expr}.toString())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hashFloat({value_expr}.total('seconds'))"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"hashString(JSON.stringify({value_expr}))"
         else:
             assert_never(prop.primitive_type)

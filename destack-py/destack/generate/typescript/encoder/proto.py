@@ -320,7 +320,7 @@ def _generate_pack_proto_scalar(
             return f"packProtoTimestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"packProtoDuration({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"packProtoJson({value_expr})"
         else:
             return value_expr
@@ -350,7 +350,7 @@ def _generate_unpack_proto_scalar(
             return f"unpackProtoDuration({value_expr}!)"
         elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
             return f"Number({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"unpackProtoJson({value_expr}!)"
         else:
             return value_expr

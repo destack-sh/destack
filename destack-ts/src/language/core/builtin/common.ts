@@ -806,8 +806,6 @@ export enum PrimitiveType {
   TIME = 72,
   DURATION = 73,
   JSON = 80,
-  CSON = 81,
-  PROTO = 82,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

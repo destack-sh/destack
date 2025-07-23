@@ -106,10 +106,7 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
       return value;
     } else if (type.primitiveType == PrimitiveType.UUID) {
       return value;
-    } else if (
-      type.primitiveType == PrimitiveType.BYTES ||
-      type.primitiveType == PrimitiveType.PROTO
-    ) {
+    } else if (type.primitiveType == PrimitiveType.BYTES) {
       return base64Encode(value as Uint8Array);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return (value as Temporal.ZonedDateTime).toString({ timeZoneName: "never" });
@@ -132,10 +129,7 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
       type.primitiveType == PrimitiveType.FLOAT64
     ) {
       return value;
-    } else if (
-      type.primitiveType == PrimitiveType.JSON ||
-      type.primitiveType == PrimitiveType.CSON
-    ) {
+    } else if (type.primitiveType == PrimitiveType.JSON) {
       return value;
     } else {
       assertNever(type.primitiveType);
@@ -173,10 +167,7 @@ function _unpackScalarCson(
       throw new Error(`missing primitive type for ${type.repr()}`);
     } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
       return value;
-    } else if (
-      type.primitiveType == PrimitiveType.BYTES ||
-      type.primitiveType == PrimitiveType.PROTO
-    ) {
+    } else if (type.primitiveType == PrimitiveType.BYTES) {
       return base64Decode(value);
     } else if (type.primitiveType == PrimitiveType.UUID) {
       return value;
@@ -206,10 +197,7 @@ function _unpackScalarCson(
       type.primitiveType == PrimitiveType.UINT64
     ) {
       return Number(value);
-    } else if (
-      type.primitiveType == PrimitiveType.JSON ||
-      type.primitiveType == PrimitiveType.CSON
-    ) {
+    } else if (type.primitiveType == PrimitiveType.JSON) {
       return value;
     } else {
       assertNever(type.primitiveType);
