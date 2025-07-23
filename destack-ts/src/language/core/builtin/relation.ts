@@ -52,7 +52,7 @@ export class NodeDefinitionReference extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -215,6 +215,8 @@ export class NodeDefinitionReference extends StructFrozen {
           type: definitionNodeType,
           id: base.definitionId,
           spaceId: base.spaceId,
+          branchId: base.branchId,
+          snapshotId: base.snapshotId,
         });
         return new NodeDefinitionReference({
           type: NodeDefinitionType.CUSTOM,
@@ -279,7 +281,7 @@ export class PropertyReference extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as CustomProperty | null;
+      return this._session.graph.get(nodePtr) as CustomProperty | null;
     }
     return null;
   }
@@ -416,6 +418,11 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  /** Get this PropertyReference (for convenience). */
+  toRef(): PropertyReference {
+    return this;
+  }
 
   /** Get the Type of this Property. */
   toType(): Type {
@@ -724,7 +731,12 @@ export class NodeReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  /** Get this NodeReference (for convenience). */
+  toRef(): NodeReference {
+    return this;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_REFERENCE, NodeReference);
@@ -767,7 +779,7 @@ export class ObjectDefinitionReference extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -892,7 +904,12 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  /** Get this ObjectDefinitionReference (for convenience). */
+  toRef(): ObjectDefinitionReference {
+    return this;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
@@ -925,7 +942,7 @@ export class StructDefinitionReference extends StructFrozen {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr.id) as CustomStruct;
+      return this._session.graph.get(nodePtr) as CustomStruct;
     }
     return null;
   }
@@ -1025,7 +1042,12 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  /** Get this StructDefinitionReference (for convenience). */
+  toRef(): StructDefinitionReference {
+    return this;
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION_REFERENCE, StructDefinitionReference);

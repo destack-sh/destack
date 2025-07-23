@@ -167,7 +167,7 @@ export class KeyDownEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -179,7 +179,7 @@ export class KeyDownEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -191,7 +191,7 @@ export class KeyDownEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -203,7 +203,7 @@ export class KeyDownEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -215,7 +215,7 @@ export class KeyDownEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -227,7 +227,7 @@ export class KeyDownEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -249,7 +249,7 @@ export class KeyDownEvent extends KeyEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -261,7 +261,7 @@ export class KeyDownEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -293,7 +293,7 @@ export class KeyDownEvent extends KeyEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -709,7 +709,7 @@ export class KeyUpEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -721,7 +721,7 @@ export class KeyUpEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -733,7 +733,7 @@ export class KeyUpEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -745,7 +745,7 @@ export class KeyUpEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -757,7 +757,7 @@ export class KeyUpEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -769,7 +769,7 @@ export class KeyUpEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -791,7 +791,7 @@ export class KeyUpEvent extends KeyEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -803,7 +803,7 @@ export class KeyUpEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -835,7 +835,7 @@ export class KeyUpEvent extends KeyEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1251,7 +1251,7 @@ export class KeyPressEvent extends KeyEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1263,7 +1263,7 @@ export class KeyPressEvent extends KeyEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1275,7 +1275,7 @@ export class KeyPressEvent extends KeyEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1287,7 +1287,7 @@ export class KeyPressEvent extends KeyEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1299,7 +1299,7 @@ export class KeyPressEvent extends KeyEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1311,7 +1311,7 @@ export class KeyPressEvent extends KeyEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1333,7 +1333,7 @@ export class KeyPressEvent extends KeyEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1345,7 +1345,7 @@ export class KeyPressEvent extends KeyEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1377,7 +1377,7 @@ export class KeyPressEvent extends KeyEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }

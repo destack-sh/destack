@@ -162,7 +162,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -174,7 +174,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -186,7 +186,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -198,7 +198,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -210,7 +210,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -222,7 +222,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -244,7 +244,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -256,7 +256,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -288,7 +288,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Sanction | null;
+      return this._session.graph.get(nodePtr) as Sanction | null;
     }
     return null;
   }
@@ -300,7 +300,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -607,7 +607,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -619,7 +619,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -631,7 +631,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -643,7 +643,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -655,7 +655,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -667,7 +667,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -689,7 +689,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -701,7 +701,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -733,7 +733,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Sanction | null;
+      return this._session.graph.get(nodePtr) as Sanction | null;
     }
     return null;
   }
@@ -745,7 +745,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1052,7 +1052,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1064,7 +1064,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1076,7 +1076,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1088,7 +1088,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1100,7 +1100,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1112,7 +1112,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1134,7 +1134,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1146,7 +1146,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1178,7 +1178,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Sanction | null;
+      return this._session.graph.get(nodePtr) as Sanction | null;
     }
     return null;
   }
@@ -1190,7 +1190,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1497,7 +1497,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1509,7 +1509,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1521,7 +1521,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1533,7 +1533,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1545,7 +1545,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1557,7 +1557,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1579,7 +1579,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1591,7 +1591,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1623,7 +1623,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Sanction | null;
+      return this._session.graph.get(nodePtr) as Sanction | null;
     }
     return null;
   }
@@ -1635,7 +1635,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1942,7 +1942,7 @@ export class Sanction extends Entity {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1954,7 +1954,7 @@ export class Sanction extends Entity {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1971,7 +1971,7 @@ export class Sanction extends Entity {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1983,7 +1983,7 @@ export class Sanction extends Entity {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1995,7 +1995,7 @@ export class Sanction extends Entity {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -2008,7 +2008,7 @@ export class Sanction extends Entity {
   get precededBy(): Sanction | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Sanction | null;
+      return this._session.graph.get(nodePtr) as Sanction | null;
     }
     return null;
   }
@@ -2020,7 +2020,7 @@ export class Sanction extends Entity {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2042,7 +2042,7 @@ export class Sanction extends Entity {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2064,7 +2064,7 @@ export class Sanction extends Entity {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2083,7 +2083,7 @@ export class Sanction extends Entity {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2150,7 +2150,7 @@ export class Sanction extends Entity {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr) as Script | null;
     }
     return null;
   }
@@ -2185,7 +2185,7 @@ export class Sanction extends Entity {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr) as Script | null;
     }
     return null;
   }
@@ -2245,7 +2245,7 @@ export class Sanction extends Entity {
   get target(): Entity | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }

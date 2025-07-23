@@ -158,7 +158,7 @@ export class PointerDownEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -170,7 +170,7 @@ export class PointerDownEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -182,7 +182,7 @@ export class PointerDownEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -194,7 +194,7 @@ export class PointerDownEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -206,7 +206,7 @@ export class PointerDownEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -218,7 +218,7 @@ export class PointerDownEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -240,7 +240,7 @@ export class PointerDownEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -252,7 +252,7 @@ export class PointerDownEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -284,7 +284,7 @@ export class PointerDownEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -674,7 +674,7 @@ export class PointerUpEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -686,7 +686,7 @@ export class PointerUpEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -698,7 +698,7 @@ export class PointerUpEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -710,7 +710,7 @@ export class PointerUpEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -722,7 +722,7 @@ export class PointerUpEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -734,7 +734,7 @@ export class PointerUpEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -756,7 +756,7 @@ export class PointerUpEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -768,7 +768,7 @@ export class PointerUpEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -800,7 +800,7 @@ export class PointerUpEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1190,7 +1190,7 @@ export class PointerMoveEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1202,7 +1202,7 @@ export class PointerMoveEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1214,7 +1214,7 @@ export class PointerMoveEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1226,7 +1226,7 @@ export class PointerMoveEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1238,7 +1238,7 @@ export class PointerMoveEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1250,7 +1250,7 @@ export class PointerMoveEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1272,7 +1272,7 @@ export class PointerMoveEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1284,7 +1284,7 @@ export class PointerMoveEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1316,7 +1316,7 @@ export class PointerMoveEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1706,7 +1706,7 @@ export class PointerEnterEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1718,7 +1718,7 @@ export class PointerEnterEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1730,7 +1730,7 @@ export class PointerEnterEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1742,7 +1742,7 @@ export class PointerEnterEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1754,7 +1754,7 @@ export class PointerEnterEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1766,7 +1766,7 @@ export class PointerEnterEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1788,7 +1788,7 @@ export class PointerEnterEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1800,7 +1800,7 @@ export class PointerEnterEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1832,7 +1832,7 @@ export class PointerEnterEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2222,7 +2222,7 @@ export class PointerOverEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -2234,7 +2234,7 @@ export class PointerOverEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2246,7 +2246,7 @@ export class PointerOverEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -2258,7 +2258,7 @@ export class PointerOverEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -2270,7 +2270,7 @@ export class PointerOverEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -2282,7 +2282,7 @@ export class PointerOverEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -2304,7 +2304,7 @@ export class PointerOverEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2316,7 +2316,7 @@ export class PointerOverEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -2348,7 +2348,7 @@ export class PointerOverEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2738,7 +2738,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -2750,7 +2750,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2762,7 +2762,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -2774,7 +2774,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -2786,7 +2786,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -2798,7 +2798,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -2820,7 +2820,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2832,7 +2832,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -2864,7 +2864,7 @@ export class PointerLeaveEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -3254,7 +3254,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -3266,7 +3266,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -3278,7 +3278,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -3290,7 +3290,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -3302,7 +3302,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -3314,7 +3314,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -3336,7 +3336,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -3348,7 +3348,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -3380,7 +3380,7 @@ export class PointerLongPressEvent extends PointerEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }

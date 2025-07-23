@@ -17,9 +17,11 @@ _setup_test_env()
 from destack.graph import MemoryGraph
 from destack.language import (
     Session,
+    Universe,
     create_space,
 )
 from destack.test.conftest import _setup_test_env
+from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -27,7 +29,13 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(graph=MemoryGraph())
+    session = Session(
+        graph=MemoryGraph(),
+        actor=Universe.ACTOR,
+        client=Universe.CLIENT,
+        client_nonce=uuid4(),
+        epoch=0,
+    )
     await session.open()
     yield session
     await session.close()
@@ -36,7 +44,13 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(graph=MemoryGraph(), epoch=0)
+    session = Session(
+        graph=MemoryGraph(),
+        actor=Universe.ACTOR,
+        client=Universe.CLIENT,
+        client_nonce=uuid4(),
+        epoch=0,
+    )
     await session.open()
     yield session
     await session.close()
@@ -44,7 +58,9 @@ async def session():
 
 @pytest.fixture
 def space(session: Session):
-    space, branch, snapshot = create_space(session, name="Test", slug="test")
+    space, branch, snapshot = create_space(
+        session, name="Test", slug="test", owned_by=Universe.ACTOR
+    )
     with space.active(), branch.active(), snapshot.active():
         yield space
 

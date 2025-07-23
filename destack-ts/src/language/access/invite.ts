@@ -151,7 +151,7 @@ export class InviteSentEvent extends InviteEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -163,7 +163,7 @@ export class InviteSentEvent extends InviteEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -175,7 +175,7 @@ export class InviteSentEvent extends InviteEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -187,7 +187,7 @@ export class InviteSentEvent extends InviteEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -199,7 +199,7 @@ export class InviteSentEvent extends InviteEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -211,7 +211,7 @@ export class InviteSentEvent extends InviteEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -233,7 +233,7 @@ export class InviteSentEvent extends InviteEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -245,7 +245,7 @@ export class InviteSentEvent extends InviteEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -277,7 +277,7 @@ export class InviteSentEvent extends InviteEvent {
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Invite | null;
+      return this._session.graph.get(nodePtr) as Invite | null;
     }
     return null;
   }
@@ -289,7 +289,7 @@ export class InviteSentEvent extends InviteEvent {
   get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -301,7 +301,7 @@ export class InviteSentEvent extends InviteEvent {
   get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -313,7 +313,7 @@ export class InviteSentEvent extends InviteEvent {
   get role(): Role | null {
     const nodePtr: NodeReference | null = this.rolePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Role | null;
+      return this._session.graph.get(nodePtr) as Role | null;
     }
     return null;
   }
@@ -661,7 +661,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -673,7 +673,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -685,7 +685,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -697,7 +697,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -709,7 +709,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -721,7 +721,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -743,7 +743,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -755,7 +755,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -787,7 +787,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Invite | null;
+      return this._session.graph.get(nodePtr) as Invite | null;
     }
     return null;
   }
@@ -799,7 +799,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -811,7 +811,7 @@ export class InviteRescindedEvent extends InviteEvent {
   get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1131,7 +1131,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1143,7 +1143,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1155,7 +1155,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1167,7 +1167,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1179,7 +1179,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1191,7 +1191,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1213,7 +1213,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1225,7 +1225,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1257,7 +1257,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Invite | null;
+      return this._session.graph.get(nodePtr) as Invite | null;
     }
     return null;
   }
@@ -1269,7 +1269,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1281,7 +1281,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1293,7 +1293,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   get role(): Role | null {
     const nodePtr: NodeReference | null = this.rolePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Role | null;
+      return this._session.graph.get(nodePtr) as Role | null;
     }
     return null;
   }
@@ -1641,7 +1641,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -1653,7 +1653,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1665,7 +1665,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -1677,7 +1677,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -1689,7 +1689,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1701,7 +1701,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr) as Event | null;
     }
     return null;
   }
@@ -1723,7 +1723,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1735,7 +1735,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr) as Client | null;
     }
     return null;
   }
@@ -1767,7 +1767,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get node(): Invite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Invite | null;
+      return this._session.graph.get(nodePtr) as Invite | null;
     }
     return null;
   }
@@ -1779,7 +1779,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get joinable(): Entity | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -1791,7 +1791,7 @@ export class InviteRejectedEvent extends InviteEvent {
   get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2111,7 +2111,7 @@ export class Invite extends Entity implements IsOwnable {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2123,7 +2123,7 @@ export class Invite extends Entity implements IsOwnable {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr) as Space | null;
     }
     return null;
   }
@@ -2140,7 +2140,7 @@ export class Invite extends Entity implements IsOwnable {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2152,7 +2152,7 @@ export class Invite extends Entity implements IsOwnable {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr) as Branch | null;
     }
     return null;
   }
@@ -2164,7 +2164,7 @@ export class Invite extends Entity implements IsOwnable {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr) as Snapshot | null;
     }
     return null;
   }
@@ -2177,7 +2177,7 @@ export class Invite extends Entity implements IsOwnable {
   get precededBy(): Invite | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Invite | null;
+      return this._session.graph.get(nodePtr) as Invite | null;
     }
     return null;
   }
@@ -2189,7 +2189,7 @@ export class Invite extends Entity implements IsOwnable {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2211,7 +2211,7 @@ export class Invite extends Entity implements IsOwnable {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2233,7 +2233,7 @@ export class Invite extends Entity implements IsOwnable {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2252,7 +2252,7 @@ export class Invite extends Entity implements IsOwnable {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2319,7 +2319,7 @@ export class Invite extends Entity implements IsOwnable {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr) as Script | null;
     }
     return null;
   }
@@ -2354,7 +2354,7 @@ export class Invite extends Entity implements IsOwnable {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr) as Script | null;
     }
     return null;
   }
@@ -2382,7 +2382,7 @@ export class Invite extends Entity implements IsOwnable {
   get member(): Entity | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr) as Entity | null;
     }
     return null;
   }
@@ -2408,7 +2408,7 @@ export class Invite extends Entity implements IsOwnable {
   get role(): Role | null {
     const nodePtr: NodeReference | null = this.rolePtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr.id) as Role | null;
+      return this._session.graph.get(nodePtr) as Role | null;
     }
     return null;
   }

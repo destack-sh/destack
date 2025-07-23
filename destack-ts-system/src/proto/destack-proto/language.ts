@@ -11066,7 +11066,11 @@ export interface NodeDefinitionProto {
      */
     isExtensible: boolean;
     /**
-     * @generated from protobuf field: bool is_frozen = 112
+     * @generated from protobuf field: bool is_final = 112
+     */
+    isFinal: boolean;
+    /**
+     * @generated from protobuf field: bool is_frozen = 113
      */
     isFrozen: boolean;
     /**
@@ -11169,6 +11173,10 @@ export interface NodeDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.NodeTypeProto expected_descendant_types = 173
      */
     expectedDescendantTypes: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: optional symbol.destack.GraphDomainProto domain = 200
+     */
+    domain?: GraphDomainProto;
 }
 /**
  * @generated from protobuf message symbol.destack.NodeDefinitionReferenceProto
@@ -29144,6 +29152,18 @@ export enum ValueFactoryProto {
      * @generated from protobuf enum value: VALUE_FACTORY_EPOCH = 11;
      */
     VALUE_FACTORY_EPOCH = 11,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_ACTOR = 12;
+     */
+    VALUE_FACTORY_ACTOR = 12,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_CLIENT = 13;
+     */
+    VALUE_FACTORY_CLIENT = 13,
+    /**
+     * @generated from protobuf enum value: VALUE_FACTORY_CLIENT_NONCE = 14;
+     */
+    VALUE_FACTORY_CLIENT_NONCE = 14,
     /**
      * @generated from protobuf enum value: VALUE_FACTORY_REGION = 20;
      */
@@ -53698,7 +53718,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 109, name: "taggings", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 110, name: "is_abstract", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 111, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 112, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_final", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 113, name: "is_frozen", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 121, name: "indexes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => IndexDefinitionProto },
             { no: 122, name: "constraints", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ConstraintDefinitionProto },
@@ -53723,7 +53744,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 170, name: "expected_parent_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 171, name: "expected_child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 172, name: "expected_ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 173, name: "expected_descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
+            { no: 173, name: "expected_descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 200, name: "domain", kind: "enum", opt: true, T: () => ["symbol.destack.GraphDomainProto", GraphDomainProto] }
         ]);
     }
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -53735,6 +53757,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.taggings = [];
         message.isAbstract = false;
         message.isExtensible = false;
+        message.isFinal = false;
         message.isFrozen = false;
         message.properties = [];
         message.indexes = [];
@@ -53800,7 +53823,10 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 case /* bool is_extensible */ 111:
                     message.isExtensible = reader.bool();
                     break;
-                case /* bool is_frozen */ 112:
+                case /* bool is_final */ 112:
+                    message.isFinal = reader.bool();
+                    break;
+                case /* bool is_frozen */ 113:
                     message.isFrozen = reader.bool();
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 120:
@@ -53946,6 +53972,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     else
                         message.expectedDescendantTypes.push(reader.int32());
                     break;
+                case /* optional symbol.destack.GraphDomainProto domain */ 200:
+                    message.domain = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -53989,9 +54018,12 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* bool is_extensible = 111; */
         if (message.isExtensible !== false)
             writer.tag(111, WireType.Varint).bool(message.isExtensible);
-        /* bool is_frozen = 112; */
+        /* bool is_final = 112; */
+        if (message.isFinal !== false)
+            writer.tag(112, WireType.Varint).bool(message.isFinal);
+        /* bool is_frozen = 113; */
         if (message.isFrozen !== false)
-            writer.tag(112, WireType.Varint).bool(message.isFrozen);
+            writer.tag(113, WireType.Varint).bool(message.isFrozen);
         /* repeated symbol.destack.PropertyDefinitionProto properties = 120; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(120, WireType.LengthDelimited).fork(), options).join();
@@ -54135,6 +54167,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 writer.int32(message.expectedDescendantTypes[i]);
             writer.join();
         }
+        /* optional symbol.destack.GraphDomainProto domain = 200; */
+        if (message.domain !== undefined)
+            writer.tag(200, WireType.Varint).int32(message.domain);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

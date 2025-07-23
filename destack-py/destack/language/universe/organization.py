@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Entity,
@@ -26,7 +26,8 @@ class OrganizationStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.ORGANIZATION)
+@builtin_node(NodeType.ORGANIZATION, is_final=True)
+@final
 class Organization(
     IsActor,
     IsJoinable,

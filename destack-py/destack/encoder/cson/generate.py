@@ -148,11 +148,7 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
     unpack_method_parts.append("return cls(")
     for assignment in unpack_assignments:
         unpack_method_parts.append(f"    {assignment},")
-    if cls.__is_node__:
-        unpack_method_parts.append("    _session=_session,")
-        unpack_method_parts.append("    _graph=_graph,")
-    else:
-        unpack_method_parts.append("    _graph=_graph,")
+    unpack_method_parts.append("    _session=_session,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -290,13 +286,11 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
+        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return (
-            f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
-        )
+        return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
+        return f"Node.unpack(Encoding.CSON, {value_expr}, _session)"
     else:
         assert_never(prop.scalar_type)
 

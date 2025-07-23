@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     ACTIVE_SPACE,
@@ -12,6 +12,7 @@ from destack.language.core import (
     IsJoinable,
     IsOwnable,
     IsStarable,
+    NodeReference,
     NodeType,
     Region,
     ValueFactory,
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from destack.language import (
         Branch,
         Handle,
-        IsActor,
         NodeReference,
         Session,
         Snapshot,
@@ -39,8 +39,15 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+_UNIVERSE_SPACE_ID = UUID(int=0)
+_UNIVERSE_BRANCH_ID = UUID(int=1)
+_UNIVERSE_SNAPSHOT_ID = UUID(int=2)
+_UNIVERSE_ACTOR_ID = UUID(int=10)
+_UNIVERSE_CLIENT_ID = UUID(int=11)
 
-@builtin_node(NodeType.UNIVERSE, is_abstract=True)
+
+@builtin_node(NodeType.UNIVERSE, is_abstract=True, is_final=True)
+@final
 class Universe(Entity):
     """The Destack computational universe."""
 
@@ -81,8 +88,65 @@ class Universe(Entity):
         description="All Enum definitions.",
     )
 
+    SPACE = builtin_constant(
+        100,
+        description="The system Space.",
+        value=NodeReference(
+            type=NodeType.SPACE,
+            id=_UNIVERSE_SPACE_ID,
+            space_id=_UNIVERSE_SPACE_ID,
+            branch_id=_UNIVERSE_BRANCH_ID,
+            snapshot_id=_UNIVERSE_SNAPSHOT_ID,
+        ),
+    )
+    BRANCH = builtin_constant(
+        101,
+        description="The system Branch.",
+        value=NodeReference(
+            type=NodeType.BRANCH,
+            id=_UNIVERSE_BRANCH_ID,
+            space_id=_UNIVERSE_SPACE_ID,
+            branch_id=_UNIVERSE_BRANCH_ID,
+            snapshot_id=_UNIVERSE_SNAPSHOT_ID,
+        ),
+    )
+    SNAPSHOT = builtin_constant(
+        102,
+        description="The system Snapshot.",
+        value=NodeReference(
+            type=NodeType.SNAPSHOT,
+            id=_UNIVERSE_SNAPSHOT_ID,
+            space_id=_UNIVERSE_SPACE_ID,
+            branch_id=_UNIVERSE_BRANCH_ID,
+            snapshot_id=_UNIVERSE_SNAPSHOT_ID,
+        ),
+    )
+    ACTOR = builtin_constant(
+        110,
+        description="The God Entity, creator of the Universe.",
+        value=NodeReference(
+            type=NodeType.ENTITY,
+            id=_UNIVERSE_ACTOR_ID,
+            space_id=_UNIVERSE_SPACE_ID,
+            branch_id=_UNIVERSE_BRANCH_ID,
+            snapshot_id=_UNIVERSE_SNAPSHOT_ID,
+        ),
+    )
+    CLIENT = builtin_constant(
+        111,
+        description="The system Client.",
+        value=NodeReference(
+            type=NodeType.CLIENT,
+            id=_UNIVERSE_CLIENT_ID,
+            space_id=_UNIVERSE_SPACE_ID,
+            branch_id=_UNIVERSE_BRANCH_ID,
+            snapshot_id=_UNIVERSE_SNAPSHOT_ID,
+        ),
+    )
 
-@builtin_node(NodeType.SPACE)
+
+@builtin_node(NodeType.SPACE, is_final=True)
+@final
 class Space(
     IsFollowable,
     IsJoinable,
@@ -129,78 +193,94 @@ def create_space(
     id: UUID | None = None,
     name: str,
     slug: str,
-    owned_by: "IsActor | NodeReference | None" = None,
+    owned_by: "Entity | NodeReference",
 ) -> tuple[Space, "Branch", "Snapshot"]:
-    """Create a new Space with a root Branch and Snapshot."""
+    """
+    Create a new Space with a root Branch and Snapshot.
+    NOTE: this requires a bit of a dance because of the circular dependencies.
+    """
 
     from destack.language import (
         REGION,
         Branch,
         BranchType,
-        IsActor,
+        Entity,
         NodeReference,
         Snapshot,
         SnapshotType,
     )
 
-    if isinstance(owned_by, IsActor):
+    if isinstance(owned_by, Entity):
         owned_by = owned_by.to_ref()
 
     space_id = id or uuid4()
+    snapshot_id = uuid4()
+    branch_id = uuid4()
     epoch = session.epoch
     now = session.oracle.now()
     space_ptr = NodeReference(
         type=NodeType.SPACE,
         id=space_id,
         space_id=space_id,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
-    snapshot_id = uuid4()
     snapshot_ptr = NodeReference(
         type=NodeType.SNAPSHOT,
         id=snapshot_id,
         space_id=space_id,
+        branch_id=branch_id,
         snapshot_id=snapshot_id,
     )
-    branch_id = uuid4()
     branch_ptr = NodeReference(
         type=NodeType.BRANCH,
         id=branch_id,
         space_id=space_id,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
     snapshot = Snapshot(
         id=snapshot_id,
         name="Root",
         space_ptr=space_ptr,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
         created_epoch=epoch,
         created_at=now,
+        created_by_ptr=owned_by,
         updated_epoch=epoch,
         updated_at=now,
+        updated_by_ptr=owned_by,
         type=SnapshotType.FULL,
-        branch_ptr=branch_ptr,
     )
     branch = Branch(
         id=branch_id,
         name="Main",
         space_ptr=space_ptr,
+        snapshot_ptr=snapshot_ptr,
         created_epoch=epoch,
         created_at=now,
+        created_by_ptr=owned_by,
         updated_epoch=epoch,
         updated_at=now,
+        updated_by_ptr=owned_by,
         type=BranchType.ROOT,
         branch_ptr=branch_ptr,
-        snapshot_ptr=snapshot_ptr,
     )
     space = Space(
         id=space_id,
+        space_ptr=space_ptr,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
         name=name,
         slug=slug,
         region=REGION,
-        branch_ptr=branch_ptr,
-        snapshot_ptr=snapshot_ptr,
         created_epoch=epoch,
         created_at=now,
+        created_by_ptr=owned_by,
         updated_epoch=epoch,
         updated_at=now,
+        updated_by_ptr=owned_by,
         owned_by_ptr=owned_by,
     )
     session.create(space)

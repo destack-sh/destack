@@ -31,7 +31,10 @@ def test_node_space_ptr(session: Session, space: Space):
     with space.active():
         folder = Folder(name="MyFolder")
         space.add_child(folder)
+        assert folder.parent_ptr and folder.parent_ptr.id == space.id
+        assert folder.parent == space
         assert folder.space_ptr and folder.space_ptr.id == space.id
+        assert folder.space == space
         tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
         folder.add_children(*tags)
         for tag in tags:

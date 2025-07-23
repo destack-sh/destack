@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     ClientType,
@@ -16,7 +16,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CLIENT)
+@builtin_node(NodeType.CLIENT, is_final=True)
+@final
 class Client(
     Entity,
 ):

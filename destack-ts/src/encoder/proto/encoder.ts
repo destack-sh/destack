@@ -3,8 +3,6 @@ import { loadEncoders } from "@destack/encoder/proto/generated";
 import {
   BuiltinObject,
   Encoder,
-  Graph,
-  GraphConnection,
   NodeType,
   ObjectKind,
   Session,
@@ -19,81 +17,77 @@ export class ProtoEncoder implements Encoder<any> {
     loadEncoders();
   }
 
-  packObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): AnyStructProto | AnyNodeProto {
-    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObject(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    object: BuiltinObject,
+  ): AnyStructProto | AnyNodeProto {
+    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no ProtoEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.packObject(options.object);
+    return encoder.packObject(object);
   }
 
-  packObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    object: BuiltinObject;
-  }): Uint8Array {
-    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  packObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    object: BuiltinObject,
+  ): Uint8Array {
+    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no ProtoEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.packObjectBytes(options.object);
+    return encoder.packObjectBytes(object);
   }
 
-  unpackObject(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: AnyStructProto | AnyNodeProto;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObject(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: AnyStructProto | AnyNodeProto,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no ProtoEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObject(options);
+    return encoder.unpackObject(value, session);
   }
 
-  unpackObjectBytes(options: {
-    kind: ObjectKind;
-    metatype: NodeType | StructType;
-    value: Uint8Array;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(options.kind, options.metatype)];
+  unpackObjectBytes(
+    kind: ObjectKind,
+    metatype: NodeType | StructType,
+    value: Uint8Array,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = PROTO_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no ProtoEncoder for ${ObjectKind[options.kind] ?? options.kind}:${NodeType[options.metatype] ?? StructType[options.metatype] ?? options.metatype}`,
+        `no ProtoEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    return encoder.unpackObjectBytes(options);
+    return encoder.unpackObjectBytes(value, session);
   }
 
-  packValue(options: { value: any; type: Type }): any {
+  packValue(value: any, type: Type): any {
     throw new Error("not implemented");
   }
 
-  packValueBytes(options: { value: any; type: Type }): Uint8Array {
+  packValueBytes(value: any, type: Type): Uint8Array {
     throw new Error("not implemented");
   }
 
-  unpackValue(options: { type: Type; value: any }): any {
+  unpackValue(type: Type, value: any): any {
     throw new Error("not implemented");
   }
 
-  unpackValueBytes(options: { type: Type; value: Uint8Array }): any {
+  unpackValueBytes(type: Type, value: Uint8Array): any {
     throw new Error("not implemented");
   }
 }

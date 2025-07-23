@@ -68,6 +68,7 @@ def builtin_node(
     *,
     frozen: bool = False,
     is_abstract: bool = False,
+    is_final: bool = False,
     is_extensible: bool = False,
     event_types: tuple[NodeType, ...] = (),
     enum_types: tuple[EnumType, ...] = (),
@@ -107,6 +108,7 @@ def builtin_node(
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
+        cls.__is_final__ = is_final
         cls.__is_extensible__ = is_extensible
 
         # event types
@@ -206,7 +208,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The kind of this Node."""
     __kind__: ClassVar[ObjectKind] = ObjectKind.NODE
     """The domain of this Node (Entity or Event)."""
-    __domain__: ClassVar[GraphDomain]
+    __domain__: ClassVar[GraphDomain | None] = None
     """The definition this Node is an instance of."""
     __definition__: ClassVar["NodeDefinition"]
     """The reference to the definition this Node is an instance of."""
@@ -219,6 +221,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
+    """Whether this class is final (cannot be extended by any Nodes)."""
+    __is_final__: ClassVar[bool] = False
     """Whether this class is extensible (can be extended by custom Nodes)."""
     __is_extensible__: ClassVar[bool] = False
 
@@ -357,6 +361,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a get Query for this Node."""
         from ..common.query import Join, Query, QueryType, to_subqueries
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
+
         query = Query(
             type=QueryType.NODE,
             domain=cls.__domain__,
@@ -386,6 +392,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a search Query for this Node."""
         from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
             domain=cls.__domain__,
@@ -420,6 +427,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             QueryType,
         )
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR,
             domain=cls.__domain__,
@@ -446,6 +454,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a min Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             domain=cls.__domain__,
@@ -475,6 +484,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             domain=cls.__domain__,
@@ -505,6 +515,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             domain=cls.__domain__,
@@ -535,6 +546,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             domain=cls.__domain__,

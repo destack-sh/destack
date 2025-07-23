@@ -140,6 +140,10 @@ class ObjectDefinitionReference(StructFrozen):
     if TYPE_CHECKING:
         custom_definition_ptr: Optional["NodeReference"] = None
 
+    def to_ref(self) -> "ObjectDefinitionReference":
+        """Get this ObjectDefinitionReference (for convenience)."""
+        return self
+
     @property
     def object_cls(self) -> type_[BuiltinObject] | None:
         if self.type == ObjectDefinitionType.BUILTIN_NODE:
@@ -244,6 +248,10 @@ class StructDefinitionReference(StructFrozen):
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
+    def to_ref(self) -> "StructDefinitionReference":
+        """Get this StructDefinitionReference (for convenience)."""
+        return self
+
 
 @builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
 class PropertyReferenceType(Enum):
@@ -279,6 +287,10 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         """Convert to a Type."""
         prop = self.resolve()
         return prop.to_type()
+
+    def to_ref(self) -> "PropertyReference":
+        """Get this PropertyReference (for convenience)."""
+        return self
 
     def resolve_maybe(self) -> "PropertyDefinition | CustomProperty | None":
         """Resolves the property reference to a Property."""
@@ -371,3 +383,7 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
         is_repr=True,
         description="The type of the Store the Node came from.",
     )
+
+    def to_ref(self) -> "NodeReference":
+        """Get this NodeReference (for convenience)."""
+        return self

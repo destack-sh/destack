@@ -166,6 +166,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_readonly=True,
+        default_factory=ValueFactory.NOW,
         description="The time this Entity was created (system time).",
         tags=("tracking",),
     )
@@ -174,6 +175,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        default_factory=ValueFactory.EPOCH,
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
     )
@@ -183,6 +185,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_readonly=True,
+        default_factory=ValueFactory.ACTOR,
         description="The Actor that created this Entity.",
         tags=("tracking",),
     )
@@ -190,6 +193,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         23,
         is_internal=True,
         is_eq=False,
+        default_factory=ValueFactory.NOW,
         description="The time this Entity was last updated (system time).",
         tags=("tracking",),
     )
@@ -198,6 +202,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        default_factory=ValueFactory.EPOCH,
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
     )
@@ -206,6 +211,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         default=None,
         is_internal=True,
         is_eq=False,
+        default_factory=ValueFactory.ACTOR,
         description="The Actor that last updated this Entity.",
         tags=("tracking",),
     )
@@ -220,7 +226,11 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 """,
         tags=("tracking",),
     )
-    owned_by: Optional["Entity"] = builtin_property(30, is_repr=True, tags=("tracking",))
+    owned_by: Optional["Entity"] = builtin_property(
+        30,
+        is_repr=True,
+        tags=("tracking",),
+    )
     # controlled_by, ...
     if TYPE_CHECKING:
         created_by_ptr: NodeReference = UNSET
@@ -389,9 +399,11 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             ),
         )
 
-        # assign order
-        if parent is not None and isinstance(self, IsOrdered):
-            parent._assign_order(self, after=after, before=before)
+        # assign parent & order
+        if parent is not None:
+            self.parent_ptr = parent.to_ref()
+            if isinstance(self, IsOrdered):
+                parent._assign_order(self, after=after, before=before)
 
         # create new nodes
         if self._is_new and parent is not None and not parent._is_new:

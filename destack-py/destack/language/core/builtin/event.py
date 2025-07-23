@@ -104,6 +104,7 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         is_eq=False,
         is_readonly=True,
+        default_factory=ValueFactory.NOW,
         description="The time this Event was created (system).",
         tags=("tracking", "system"),
     )
@@ -114,6 +115,7 @@ class Event[N: Node = Node](Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
+        default_factory=ValueFactory.EPOCH,
         description="The logical time this Event was created (system).",
         tags=("tracking", "system"),
     )
@@ -123,6 +125,7 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         is_eq=False,
         is_readonly=True,
+        default_factory=ValueFactory.ACTOR,
         description="The Actor that created this Event.",
         tags=("tracking",),
     )
@@ -130,6 +133,7 @@ class Event[N: Node = Node](Node):
         23,
         is_internal=True,
         is_readonly=True,
+        default_factory=ValueFactory.CLIENT,
         description="The Client that created this Event (client).",
         tags=("tracking", "client"),
     )
@@ -137,6 +141,7 @@ class Event[N: Node = Node](Node):
         24,
         is_internal=True,
         is_readonly=True,
+        default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Event (client).",
         tags=("tracking", "client"),
     )
@@ -144,6 +149,7 @@ class Event[N: Node = Node](Node):
         25,
         is_internal=True,
         is_readonly=True,
+        default_factory=ValueFactory.NOW,
         description="The time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
@@ -151,6 +157,7 @@ class Event[N: Node = Node](Node):
         26,
         is_internal=True,
         is_readonly=True,
+        default_factory=ValueFactory.EPOCH,
         description="The logical time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )

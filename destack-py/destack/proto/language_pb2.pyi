@@ -1498,6 +1498,9 @@ class ValueFactoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALUE_FACTORY_UUID7: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_NOW: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_EPOCH: _ClassVar[ValueFactoryProto]
+    VALUE_FACTORY_ACTOR: _ClassVar[ValueFactoryProto]
+    VALUE_FACTORY_CLIENT: _ClassVar[ValueFactoryProto]
+    VALUE_FACTORY_CLIENT_NONCE: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_REGION: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_SELF: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_SPACE: _ClassVar[ValueFactoryProto]
@@ -2638,6 +2641,9 @@ VALUE_FACTORY_UUID4: ValueFactoryProto
 VALUE_FACTORY_UUID7: ValueFactoryProto
 VALUE_FACTORY_NOW: ValueFactoryProto
 VALUE_FACTORY_EPOCH: ValueFactoryProto
+VALUE_FACTORY_ACTOR: ValueFactoryProto
+VALUE_FACTORY_CLIENT: ValueFactoryProto
+VALUE_FACTORY_CLIENT_NONCE: ValueFactoryProto
 VALUE_FACTORY_REGION: ValueFactoryProto
 VALUE_FACTORY_SELF: ValueFactoryProto
 VALUE_FACTORY_SPACE: ValueFactoryProto
@@ -8540,7 +8546,7 @@ class NodeProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_abstract", "is_extensible", "is_frozen", "properties", "indexes", "constraints", "permissions", "methods", "actions", "constants", "base_type", "extended_by", "inherits", "inherited_by", "traits", "self_traits", "event_types", "self_event_types", "enum_types", "self_enum_types", "parent_types", "child_types", "ancestor_types", "descendant_types", "expected_parent_types", "expected_child_types", "expected_ancestor_types", "expected_descendant_types")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "taggings", "is_abstract", "is_extensible", "is_final", "is_frozen", "properties", "indexes", "constraints", "permissions", "methods", "actions", "constants", "base_type", "extended_by", "inherits", "inherited_by", "traits", "self_traits", "event_types", "self_event_types", "enum_types", "self_enum_types", "parent_types", "child_types", "ancestor_types", "descendant_types", "expected_parent_types", "expected_child_types", "expected_ancestor_types", "expected_descendant_types", "domain")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -8550,6 +8556,7 @@ class NodeDefinitionProto(_message.Message):
     TAGGINGS_FIELD_NUMBER: _ClassVar[int]
     IS_ABSTRACT_FIELD_NUMBER: _ClassVar[int]
     IS_EXTENSIBLE_FIELD_NUMBER: _ClassVar[int]
+    IS_FINAL_FIELD_NUMBER: _ClassVar[int]
     IS_FROZEN_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     INDEXES_FIELD_NUMBER: _ClassVar[int]
@@ -8576,6 +8583,7 @@ class NodeDefinitionProto(_message.Message):
     EXPECTED_CHILD_TYPES_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: int
     type: NodeTypeProto
@@ -8585,6 +8593,7 @@ class NodeDefinitionProto(_message.Message):
     taggings: _containers.RepeatedScalarFieldContainer[int]
     is_abstract: bool
     is_extensible: bool
+    is_final: bool
     is_frozen: bool
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     indexes: _containers.RepeatedCompositeFieldContainer[IndexDefinitionProto]
@@ -8611,7 +8620,8 @@ class NodeDefinitionProto(_message.Message):
     expected_child_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     expected_ancestor_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     expected_descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., indexes: _Optional[_Iterable[_Union[IndexDefinitionProto, _Mapping]]] = ..., constraints: _Optional[_Iterable[_Union[ConstraintDefinitionProto, _Mapping]]] = ..., permissions: _Optional[_Iterable[_Union[PermissionDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., constants: _Optional[_Iterable[_Union[ConstantDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., self_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., self_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
+    domain: GraphDomainProto
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., taggings: _Optional[_Iterable[int]] = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_final: bool = ..., is_frozen: bool = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., indexes: _Optional[_Iterable[_Union[IndexDefinitionProto, _Mapping]]] = ..., constraints: _Optional[_Iterable[_Union[ConstraintDefinitionProto, _Mapping]]] = ..., permissions: _Optional[_Iterable[_Union[PermissionDefinitionProto, _Mapping]]] = ..., methods: _Optional[_Iterable[_Union[MethodDefinitionProto, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[ActionDefinitionProto, _Mapping]]] = ..., constants: _Optional[_Iterable[_Union[ConstantDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., self_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., self_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., self_enum_types: _Optional[_Iterable[_Union[EnumTypeProto, str]]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., expected_descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., domain: _Optional[_Union[GraphDomainProto, str]] = ...) -> None: ...
 
 class NodeDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "node_type", "definition_ptr")

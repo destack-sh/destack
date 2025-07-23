@@ -1534,6 +1534,9 @@ enum ValueFactoryProto {
   VALUE_FACTORY_UUID7 = 2;
   VALUE_FACTORY_NOW = 10;
   VALUE_FACTORY_EPOCH = 11;
+  VALUE_FACTORY_ACTOR = 12;
+  VALUE_FACTORY_CLIENT = 13;
+  VALUE_FACTORY_CLIENT_NONCE = 14;
   VALUE_FACTORY_REGION = 20;
   VALUE_FACTORY_SELF = 30;
   VALUE_FACTORY_SPACE = 31;
@@ -4549,7 +4552,8 @@ message NodeDefinitionProto {
   repeated int64 taggings = 109 [jstype = JS_NUMBER];
   bool is_abstract = 110;
   bool is_extensible = 111;
-  bool is_frozen = 112;
+  bool is_final = 112;
+  bool is_frozen = 113;
   repeated PropertyDefinitionProto properties = 120;
   repeated IndexDefinitionProto indexes = 121;
   repeated ConstraintDefinitionProto constraints = 122;
@@ -4575,6 +4579,7 @@ message NodeDefinitionProto {
   repeated NodeTypeProto expected_child_types = 171;
   repeated NodeTypeProto expected_ancestor_types = 172;
   repeated NodeTypeProto expected_descendant_types = 173;
+  optional GraphDomainProto domain = 200;
 }
 
 message NodeDefinitionReferenceProto {

@@ -27,8 +27,12 @@ test("node space ptr", async () => {
     name: "MyFolder",
   });
   space.addChild(folder);
+  expect(folder.parentPtr).toBeTruthy();
+  expect(folder.parentPtr!.id).toBe(space.id);
+  expect(folder.parent).toBe(space);
   expect(folder.spacePtr).toBeTruthy();
   expect(folder.spacePtr!.id).toBe(space.id);
+  expect(folder.space).toBe(space);
 
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
   folder.addChildren(tags);

@@ -9,6 +9,7 @@ from .common import (
     EdgeType,
     Enum,
     EnumType,
+    GraphDomain,
     NodeType,
     PrimitiveType,
     PropertyType,
@@ -107,8 +108,13 @@ class NodeDefinition(BuiltinDefinition):
         is_repr=True,
         description="Whether this Node can be extended by custom Nodes.",
     )
-    is_frozen: bool = builtin_property(
+    is_final: bool = builtin_property(
         112,
+        is_repr=True,
+        description="Whether this Node cannot be extended by custom Nodes.",
+    )
+    is_frozen: bool = builtin_property(
+        113,
         is_repr=True,
         description="Whether this Node cannot be modified.",
     )
@@ -228,6 +234,9 @@ class NodeDefinition(BuiltinDefinition):
         description="The descendant types expected for this Node type (any of).",
     )
 
+    # graph
+    domain: GraphDomain | None = builtin_property(200)
+
     @classmethod
     def from_declaration(cls, node_cls: type_["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
@@ -242,6 +251,7 @@ class NodeDefinition(BuiltinDefinition):
             # flags
             is_abstract=node_cls.__is_abstract__,
             is_extensible=node_cls.__is_extensible__,
+            is_final=node_cls.__is_final__,
             is_frozen=node_cls.__is_frozen__,
             # content
             properties=[
@@ -273,6 +283,8 @@ class NodeDefinition(BuiltinDefinition):
             expected_child_types=list(node_cls.__expected_child_types__),
             expected_ancestor_types=list(node_cls.__expected_ancestor_types__),
             expected_descendant_types=list(node_cls.__expected_descendant_types__),
+            # graph
+            domain=node_cls.__domain__,
         )
 
 

@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Optional,
     Union,
+    final,
 )
 
 from ..builtin import (
@@ -35,7 +36,8 @@ class BranchType(Enum):
     FULL = 2
 
 
-@builtin_node(NodeType.BRANCH)
+@builtin_node(NodeType.BRANCH, is_final=True)
+@final
 class Branch(
     IsOwnable,
     Entity,
@@ -92,7 +94,8 @@ class SnapshotStatus(Enum):
     PASSIVE = 50, "Passive", "Inactive and read-only"
 
 
-@builtin_node(NodeType.SNAPSHOT)
+@builtin_node(NodeType.SNAPSHOT, is_final=True)
+@final
 class Snapshot(
     IsOwnable,
     Entity,
