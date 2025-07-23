@@ -1,7 +1,5 @@
 import type {
   Branch,
-  Graph,
-  GraphConnection,
   NodeClass,
   NodeReference,
   Session,
@@ -22,7 +20,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Machine } from "@destack/language/infrastructure";
-import type { Cursor, Script } from "@destack/language/logic";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { User } from "@destack/language/universe/user";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -41,7 +39,7 @@ export class Client extends Entity {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -53,7 +51,7 @@ export class Client extends Entity {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -70,7 +68,7 @@ export class Client extends Entity {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -82,7 +80,7 @@ export class Client extends Entity {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -94,7 +92,7 @@ export class Client extends Entity {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -107,7 +105,7 @@ export class Client extends Entity {
   get precededBy(): Client | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
@@ -119,7 +117,7 @@ export class Client extends Entity {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -141,11 +139,11 @@ export class Client extends Entity {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -163,11 +161,11 @@ export class Client extends Entity {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  readonly updatedByPtr: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -182,7 +180,7 @@ export class Client extends Entity {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -265,7 +263,7 @@ export class Client extends Entity {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -300,7 +298,7 @@ export class Client extends Entity {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -344,7 +342,7 @@ export class Client extends Entity {
   get machine(): Machine | null {
     const nodePtr: NodeReference | null = this.machinePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Machine | null;
+      return this._session.graph.get(nodePtr.id) as Machine | null;
     }
     return null;
   }
@@ -374,7 +372,7 @@ export class Client extends Entity {
   get user(): User | null {
     const nodePtr: NodeReference | null = this.userPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as User | null;
+      return this._session.graph.get(nodePtr.id) as User | null;
     }
     return null;
   }
@@ -445,36 +443,6 @@ export class Client extends Entity {
     this._loggedInAt = value;
   }
   _loggedInAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * Client.cursor
-   */
-  get cursor(): Cursor | null {
-    const nodePtr: NodeReference | null = this.cursorPtr;
-    if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Cursor | null;
-    }
-    return null;
-  }
-  set cursor(node: Cursor | null) {
-    if (node === null) {
-      this.cursorPtr = null;
-    } else {
-      this.cursorPtr = node.toRef();
-    }
-  }
-  /**
-   * Client.cursor
-   */
-  get cursorPtr(): NodeReference | null {
-    return this._cursorPtr;
-  }
-  set cursorPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["cursor"];
-    this._session.updateSetProperty(this, prop, value);
-    this._cursorPtr = value;
-  }
-  _cursorPtr: NodeReference | null;
 
   /**
    * Client.deviceType
@@ -552,10 +520,10 @@ export class Client extends Entity {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
+    createdBy?: Entity | NodeReference;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference | null;
+    updatedBy?: Entity | NodeReference;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
@@ -572,14 +540,11 @@ export class Client extends Entity {
     accessToken?: string | null;
     seenAt?: Temporal.ZonedDateTime | null;
     loggedInAt?: Temporal.ZonedDateTime | null;
-    cursor?: Cursor | NodeReference | null;
     deviceType?: string | null;
     deviceName?: string | null;
     operatingSystem?: string | null;
     browserName?: string | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -593,10 +558,6 @@ export class Client extends Entity {
         : null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -740,11 +701,6 @@ export class Client extends Entity {
     this._seenAt = _seenAt;
     let _loggedInAt = options.loggedInAt ?? null;
     this._loggedInAt = _loggedInAt;
-    let _cursor = options.cursor ?? null;
-    if (_cursor != null && _cursor.constructor.name != "NodeReference") {
-      _cursor = (_cursor as Node).toRef();
-    }
-    this._cursorPtr = _cursor as NodeReference | null;
     let _deviceType = options.deviceType ?? null;
     this._deviceType = _deviceType;
     let _deviceName = options.deviceName ?? null;
@@ -812,9 +768,6 @@ export class Client extends Entity {
       return false;
     }
     if (!(this._loggedInAt === other._loggedInAt)) {
-      return false;
-    }
-    if (!(this._cursorPtr?.id === other._cursorPtr?.id)) {
       return false;
     }
     if (!(this._deviceType === other._deviceType)) {
@@ -889,9 +842,6 @@ export class Client extends Entity {
     if (this._loggedInAt != null) {
       h = (h * 31 + hashString(this._loggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._cursorPtr != null) {
-      h = (h * 31 + hashString(this._cursorPtr.id)) & 0xffffffff;
-    }
     if (this._deviceType != null) {
       h = (h * 31 + hashString(this._deviceType)) & 0xffffffff;
     }
@@ -914,13 +864,9 @@ export class Client extends Entity {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -967,7 +913,6 @@ export class Client extends Entity {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

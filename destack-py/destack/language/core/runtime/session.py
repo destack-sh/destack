@@ -33,7 +33,7 @@ tracer = trace.get_tracer(__name__)
 
 class Session:
     """
-    A managed Session for interacting with Spaces on Destack.
+    A managed Session for interacting with Spaces.
     """
 
     __slots__ = (
@@ -140,28 +140,23 @@ class Session:
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         assert self.closed_at is None, f"{self!r} is closed"
         old_value = getattr(node, prop.name)
-        node_ptr = node.to_ref()
         prop_type = prop.to_type()
 
-        # undo
         undo_operation = EditOperation.SET
         old_value = to_value(old_value, prop_type)
-
-        # do
         operation = EditOperation.SET
         new_value = to_value(new_value, prop_type)
-
         edit = EditEvent(
             type=EditType.UPDATE,
-            node_ptr=node_ptr,
+            space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
+            node=node,
             property_id=prop.id,
             operation=operation,
             value=new_value,
             reverse_operation=undo_operation,
             reverse_value=old_value,
-            space_ptr=node.space_ptr,
-            branch_ptr=node.branch_ptr,
-            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
 
@@ -176,12 +171,12 @@ class Session:
         old_parent = node.parent
         edit = EditEvent(
             type=EditType.MOVE,
-            node=node,
-            value=to_value(parent),
-            reverse_value=to_value(old_parent),
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            node=node,
+            value=to_value(parent),
+            reverse_value=to_value(old_parent),
         )
         self.pending_events.append(edit)
 
@@ -191,11 +186,11 @@ class Session:
         reverse_value = to_value(node, node_as_value=True)
         edit = EditEvent(
             type=EditType.DELETE,
-            node=node,
             reverse_value=reverse_value,
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            node=node,
         )
         self.pending_events.append(edit)
 
@@ -204,21 +199,23 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         edit = EditEvent(
             type=EditType.RESTORE,
-            node=node,
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
+            node=node,
         )
         self.pending_events.append(edit)
 
     def _on_flush(self):
         """Stage pending Edits without committing them."""
-        pass  # nothing to do yet
+        pass  # nothing to do here
 
-    async def flush(self):
+    def flush(self):
         """Stage pending Edits without committing them."""
         assert self.closed_at is None, f"{self!r} is closed"
-        # TODO :Incomplete: optimistic :SessionStaging
+        events = self.pending_events
+        self.pending_events = []
+        self.graph.append(events)
         self._on_flush()
 
     async def commit(self) -> Sequence[Event]:
@@ -226,7 +223,7 @@ class Session:
         Commits all Events. Returns applied Events.
         """
         assert self.closed_at is None, f"{self!r} is closed"
-        self._on_flush()
+        self.flush()
         # events = list(self.pending_events)
         # self.pending_events = []
         # nocheckin: 'process' Events (.status, time/epoch, in Space? what authority?)

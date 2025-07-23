@@ -1,7 +1,5 @@
 import type {
   BuiltinObject,
-  Graph,
-  GraphConnection,
   NodeType,
   ObjectKind,
   Session,
@@ -22,10 +20,5 @@ export interface _JsonObjectEncoder {
   packObject(object: BuiltinObject): any;
 
   /** Unpack a BuiltinObject from some encoded format. */
-  unpackObject(options: {
-    value: any;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject;
+  unpackObject(value: any, session: Session | null): BuiltinObject;
 } 

@@ -11,8 +11,6 @@ from opentelemetry import trace
 from destack import proto
 from destack.language.core import (
     BuiltinObject,
-    Graph,
-    GraphConnection,
     NodeType,
     ObjectKind,
     PackedCache,
@@ -61,8 +59,6 @@ class _ProtoObjectEncoder:
         self,
         proto: Any,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         raise NotImplementedError
 
@@ -86,8 +82,6 @@ class {encoder_name}(ProtoObjectEncoder):
         self, 
         _object_proto: "{cls.__name__}Proto",
         _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
     ) -> "{cls.__name__}":
 {unpack_proto}
 """
@@ -162,12 +156,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     unpack_method_parts.append("return cls(")
     for assignment in unpack_assignments:
         unpack_method_parts.append(f"    {assignment},")
-    if cls.__is_node__:
-        unpack_method_parts.append("    _session=_session,")
-        unpack_method_parts.append("    _graph=_graph,")
-        unpack_method_parts.append("    _connection=_connection,")
-    else:
-        unpack_method_parts.append("    _graph=_graph,")
+    unpack_method_parts.append("    _session=_session,")
     unpack_method_parts.append(")")
 
     return "\n".join(unpack_method_parts)
@@ -342,13 +331,13 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
         enum_type_name = prop.enum_type.camel_name
         return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.unpack(Encoding.PROTO, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"NodeReference.unpack(Encoding.PROTO, {value_expr}, _session)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.unpack(Encoding.PROTO, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"{struct_cls.__name__}.unpack(Encoding.PROTO, {value_expr}, _session)"
     else:
         assert_never(prop.scalar_type)
 

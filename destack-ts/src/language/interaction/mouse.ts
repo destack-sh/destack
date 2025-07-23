@@ -1,12 +1,4 @@
-import type {
-  Branch,
-  Graph,
-  GraphConnection,
-  NodeReference,
-  Session,
-  Snapshot,
-  Space,
-} from "@destack/language/core";
+import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -90,12 +82,12 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -103,31 +95,31 @@ export abstract class MouseEvent extends PointerEvent {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 
@@ -223,12 +215,12 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -236,31 +228,31 @@ export abstract class ClickEvent extends MouseEvent {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 
@@ -325,7 +317,7 @@ export class SingleClickEvent extends ClickEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -337,7 +329,7 @@ export class SingleClickEvent extends ClickEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -349,7 +341,7 @@ export class SingleClickEvent extends ClickEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -361,7 +353,7 @@ export class SingleClickEvent extends ClickEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -373,7 +365,7 @@ export class SingleClickEvent extends ClickEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -385,19 +377,19 @@ export class SingleClickEvent extends ClickEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -407,41 +399,41 @@ export class SingleClickEvent extends ClickEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -451,7 +443,7 @@ export class SingleClickEvent extends ClickEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -502,9 +494,9 @@ export class SingleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
@@ -517,8 +509,6 @@ export class SingleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -528,10 +518,6 @@ export class SingleClickEvent extends ClickEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -601,8 +587,14 @@ export class SingleClickEvent extends ClickEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`SingleClickEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`SingleClickEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -728,7 +720,7 @@ export class SingleClickEvent extends ClickEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -776,15 +768,9 @@ export class SingleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -809,7 +795,6 @@ export class SingleClickEvent extends ClickEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -864,7 +849,7 @@ export class DoubleClickEvent extends ClickEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -876,7 +861,7 @@ export class DoubleClickEvent extends ClickEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -888,7 +873,7 @@ export class DoubleClickEvent extends ClickEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -900,7 +885,7 @@ export class DoubleClickEvent extends ClickEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -912,7 +897,7 @@ export class DoubleClickEvent extends ClickEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -924,19 +909,19 @@ export class DoubleClickEvent extends ClickEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -946,41 +931,41 @@ export class DoubleClickEvent extends ClickEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -990,7 +975,7 @@ export class DoubleClickEvent extends ClickEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1041,9 +1026,9 @@ export class DoubleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
@@ -1056,8 +1041,6 @@ export class DoubleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -1067,10 +1050,6 @@ export class DoubleClickEvent extends ClickEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -1140,8 +1119,14 @@ export class DoubleClickEvent extends ClickEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DoubleClickEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DoubleClickEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -1267,7 +1252,7 @@ export class DoubleClickEvent extends ClickEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1315,15 +1300,9 @@ export class DoubleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -1348,7 +1327,6 @@ export class DoubleClickEvent extends ClickEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -1403,7 +1381,7 @@ export class TripleClickEvent extends ClickEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1415,7 +1393,7 @@ export class TripleClickEvent extends ClickEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1427,7 +1405,7 @@ export class TripleClickEvent extends ClickEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1439,7 +1417,7 @@ export class TripleClickEvent extends ClickEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1451,7 +1429,7 @@ export class TripleClickEvent extends ClickEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1463,19 +1441,19 @@ export class TripleClickEvent extends ClickEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -1485,41 +1463,41 @@ export class TripleClickEvent extends ClickEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -1529,7 +1507,7 @@ export class TripleClickEvent extends ClickEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1580,9 +1558,9 @@ export class TripleClickEvent extends ClickEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
@@ -1595,8 +1573,6 @@ export class TripleClickEvent extends ClickEvent {
     metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -1606,10 +1582,6 @@ export class TripleClickEvent extends ClickEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -1679,8 +1651,14 @@ export class TripleClickEvent extends ClickEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`TripleClickEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`TripleClickEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -1806,7 +1784,7 @@ export class TripleClickEvent extends ClickEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1854,15 +1832,9 @@ export class TripleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -1887,7 +1859,6 @@ export class TripleClickEvent extends ClickEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -1942,7 +1913,7 @@ export class WheelEvent extends MouseEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1954,7 +1925,7 @@ export class WheelEvent extends MouseEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1966,7 +1937,7 @@ export class WheelEvent extends MouseEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1978,7 +1949,7 @@ export class WheelEvent extends MouseEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1990,7 +1961,7 @@ export class WheelEvent extends MouseEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -2002,19 +1973,19 @@ export class WheelEvent extends MouseEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -2024,41 +1995,41 @@ export class WheelEvent extends MouseEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -2068,7 +2039,7 @@ export class WheelEvent extends MouseEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2124,9 +2095,9 @@ export class WheelEvent extends MouseEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
@@ -2140,8 +2111,6 @@ export class WheelEvent extends MouseEvent {
     button: MouseButton;
     delta: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -2151,10 +2120,6 @@ export class WheelEvent extends MouseEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -2224,8 +2189,14 @@ export class WheelEvent extends MouseEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`WheelEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`WheelEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -2359,7 +2330,7 @@ export class WheelEvent extends MouseEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -2408,15 +2379,9 @@ export class WheelEvent extends MouseEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -2441,7 +2406,6 @@ export class WheelEvent extends MouseEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

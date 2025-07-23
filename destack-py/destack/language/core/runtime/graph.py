@@ -1,27 +1,21 @@
 import abc
 from collections.abc import Collection, Sequence
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
-    assert_never,
     final,
 )
 
 import structlog
 from opentelemetry import trace
 
-from destack.language.registry import (
-    NODE_CLASS_BY_TYPE,
-    NODE_TYPE_BY_CLASS,
-    NODE_TYPES_BY_TRAIT_TYPE,
-    TRAIT_TYPE_BY_CLASS,
-)
 from destack.utils.uuid import UUID
 
-from ..builtin import NodeType, TraitType
+from ..builtin import NodeType
 
 if TYPE_CHECKING:
-    from destack.language import Entity, Node
+    from destack.language import Entity, Event, Snapshot
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -30,126 +24,154 @@ type_ = type
 
 class Graph(abc.ABC):
     """
-    A Graph is a collection of Entities.
+    A Graph is a collection of Nodes from one or multiple Spaces (across time).
     """
 
-    @final
     def __repr__(self):
         return f"<{self.__class__.__name__}>"
 
+    #
+    # Meta
+    #
+
     @abc.abstractmethod
-    def get(self, id: UUID) -> Optional["Entity"]:
-        """Gets a Node by id"""
+    async def open(self) -> None:
+        """Open the Graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def close(self) -> None:
+        """Close the Graph."""
+        raise NotImplementedError
+
+    #
+    # Write
+    #
+
+    def snapshot(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        epoch: int,
+    ) -> "Snapshot":
+        """Create a Snapshot."""
+        raise NotImplementedError
+
+    def insert(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        entities: "Sequence[Entity]",
+    ) -> None:
+        """Insert Entities into the Graph directly."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def append(self, events: "Sequence[Event]") -> None:
+        """Append Events to the Graph. EditEvents are reflected immediately."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def restate(self, events: "Sequence[Event]") -> None:
+        """Restate Events to the Graph. EditEvents are reflected immediately."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def prune(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+    ) -> None:
+        """Prune the Graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def commit(self) -> None:
+        """Ensure Events/Entities are persisted in the Graph."""
+        raise NotImplementedError
+
+    #
+    # Read
+    #
+
+    @abc.abstractmethod
+    def seek(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        type: NodeType | Collection[NodeType] | None = None,
+        after: datetime | int | None = None,
+        before: datetime | int | None = None,
+    ) -> "Sequence[Event]":
+        """Seek Events from the Graph."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get(
+        self,
+        id: UUID,
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        include_deleted: bool = False,
+    ) -> Optional["Entity"]:
+        """Gets an Entity by id."""
         raise NotImplementedError
 
     @final
-    def get_or_error(self, id: UUID) -> "Entity":
-        """Gets a Node by id, raising an error if not found"""
-        node = self.get(id)
+    def get_or_error(
+        self,
+        id: UUID,
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        include_deleted: bool = False,
+    ) -> "Entity":
+        """Gets an Entity by id, raising an error if not found."""
+        node = self.get(id, space_id, branch_id, snapshot_id, include_deleted)
         if node is None:
             raise KeyError(f"node {id!r} not found in {self!r}")
         return node
 
     @abc.abstractmethod
-    def has(self, id: UUID) -> bool:
-        """Check if a Node exists in this Graph."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def clear(self):
-        """Clear the Graph."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def add(self, node: "Entity"):
-        """Add a new Node to the graph (must not exist, excluding descendants)."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def remove(self, node: "Entity"):
-        """Remove a Node from the graph (must exist, excluding descendants)."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_children[M: Entity = Entity](
+    def get_children(
         self,
         node: "Entity",
-        type: NodeType | type[M] | None = None,
-    ) -> Sequence[M]:
-        """
-        Collect child Nodes (one level down).
-        If the Nodes are IsOrdered, their order is preserved.
-        """
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        type: NodeType | None = None,
+        include_deleted: bool = False,
+    ) -> Sequence["Entity"]:
+        """Collect child Entities (one level down)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_ancestors[M: Entity = Entity](
-        self, node: "Entity", type: NodeType | type[M] | None = None
-    ) -> Sequence[M]:
-        """Gets the ancestors of this Node (recursively up)."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def get_descendants[M: Entity = Entity](
+    def get_ancestors(
         self,
         node: "Entity",
-        type: NodeType | type[M] | None = None,
-    ) -> Sequence[M]:
-        """
-        Collect descendant Nodes (recursively down).
-        If a type is specified, only Nodes of that type are collected.
-        (Descendants are not collected unless all their ancestors are included).
-        Nodes are BFS but IsOrdered is ignored.
-        """
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        type: NodeType | None = None,
+        include_deleted: bool = False,
+    ) -> Sequence["Entity"]:
+        """Gets the ancestors of this Entity (recursively up)."""
         raise NotImplementedError
 
-
-def expand_node_inheritance(types: Collection[NodeType]) -> tuple[NodeType, ...]:
-    """
-    Expand a collection of NodeTypes into a flat collection of NodeTypes.
-    """
-    node_types: set[NodeType] = set()
-    for typ in types:
-        if isinstance(typ, NodeType):
-            node_cls = NODE_CLASS_BY_TYPE[typ]
-            node_types.update(node_cls.__inherited_by__)
-            if not node_cls.__is_abstract__:
-                node_types.add(typ)
-        elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
-        else:
-            assert_never(typ)
-    return tuple(node_types)
-
-
-def expand_node_types(
-    node_type: "NodeType | Collection[NodeType] | type[Node] | None",
-    expand_inheritance: bool = True,
-) -> Sequence["NodeType"]:
-    """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
-    if node_type is None:
-        return ()
-
-    node_types: Sequence[NodeType] = []
-    if isinstance(node_type, type):
-        if node_t := NODE_TYPE_BY_CLASS.get(node_type):
-            node_types.append(node_t)
-        else:
-            node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]])  # type: ignore
-    elif isinstance(node_type, Collection):
-        node_types = []
-        for t in node_type:
-            if isinstance(t, NodeType):
-                node_types.append(t)
-            else:
-                node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[t])
-    else:
-        if isinstance(node_type, NodeType):
-            node_types.append(node_type)
-        else:
-            node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[node_type])
-
-    if expand_inheritance:
-        node_types = expand_node_inheritance(node_types)
-
-    return node_types
+    @abc.abstractmethod
+    def get_descendants(
+        self,
+        node: "Entity",
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        type: NodeType | None = None,
+        include_deleted: bool = False,
+    ) -> Sequence["Entity"]:
+        """Collect descendant Entities (recursively down)."""
+        raise NotImplementedError

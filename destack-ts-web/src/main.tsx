@@ -1,13 +1,15 @@
-/* eslint-disable no-console */
+// preload first
+import "./preload";
+
+// regular imports
 import { VERSION } from "@destack/language";
-import { ENV, IS_DEV, TELEMETRY } from "@destack/utils/env";
+import { ENV, IS_DEV } from "@destack/utils/env";
 import { getLogger } from "@destack/utils/log";
 import { trace } from "@opentelemetry/api";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./assets/index.css";
 import Destack from "./Destack";
-import "./preload";
 
 const logger = getLogger("main");
 const tracer = trace.getTracer("destack-ts-web");

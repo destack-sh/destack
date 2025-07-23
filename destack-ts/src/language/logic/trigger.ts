@@ -3,8 +3,6 @@ import type {
   Branch,
   Condition,
   EventStatus,
-  Graph,
-  GraphConnection,
   Icon,
   NodeClass,
   NodeDefinitionReference,
@@ -95,12 +93,12 @@ export abstract class TriggerEvent extends Event {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -108,31 +106,31 @@ export abstract class TriggerEvent extends Event {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 
@@ -162,7 +160,7 @@ export class Trigger extends Entity {
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -174,7 +172,7 @@ export class Trigger extends Entity {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -191,7 +189,7 @@ export class Trigger extends Entity {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -203,7 +201,7 @@ export class Trigger extends Entity {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -215,7 +213,7 @@ export class Trigger extends Entity {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -228,7 +226,7 @@ export class Trigger extends Entity {
   get precededBy(): Trigger | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Trigger | null;
+      return this._session.graph.get(nodePtr.id) as Trigger | null;
     }
     return null;
   }
@@ -240,7 +238,7 @@ export class Trigger extends Entity {
   get instance(): Entity | null {
     const nodePtr: NodeReference | null = this.instancePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -262,11 +260,11 @@ export class Trigger extends Entity {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -284,11 +282,11 @@ export class Trigger extends Entity {
   get updatedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  readonly updatedByPtr: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -303,7 +301,7 @@ export class Trigger extends Entity {
   get ownedBy(): Entity | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -370,7 +368,7 @@ export class Trigger extends Entity {
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -405,7 +403,7 @@ export class Trigger extends Entity {
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Script | null;
+      return this._session.graph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -481,7 +479,7 @@ export class Trigger extends Entity {
   get target(): Action | Service | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Action | Service | null;
+      return this._session.graph.get(nodePtr.id) as Action | Service | null;
     }
     return null;
   }
@@ -533,10 +531,10 @@ export class Trigger extends Entity {
     instance?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
+    createdBy?: Entity | NodeReference;
     updatedAt?: Temporal.ZonedDateTime;
     updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference | null;
+    updatedBy?: Entity | NodeReference;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
@@ -552,8 +550,6 @@ export class Trigger extends Entity {
     target?: Action | Service | NodeReference | null;
     arguments?: { readonly [key: string]: Value };
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -567,10 +563,6 @@ export class Trigger extends Entity {
         : null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -848,13 +840,9 @@ export class Trigger extends Entity {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -901,7 +889,6 @@ export class Trigger extends Entity {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

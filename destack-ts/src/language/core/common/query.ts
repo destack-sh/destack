@@ -1,7 +1,7 @@
 import {
   EnumType,
+  GraphDomain,
   NodeType,
-  StoreDomain,
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
@@ -21,7 +21,6 @@ import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
 import { GraphConnection } from "@destack/language/core/runtime/connection";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -60,7 +59,6 @@ export class Function extends StructFrozen {
     left: Expression;
     right?: Expression | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -69,8 +67,6 @@ export class Function extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -191,7 +187,6 @@ export class Condition extends StructFrozen {
     left: Expression;
     right?: Expression | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -200,8 +195,6 @@ export class Condition extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -348,7 +341,6 @@ export class Aggregation extends StructFrozen {
     type: AggregationType;
     expression?: Expression | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -357,8 +349,6 @@ export class Aggregation extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -487,7 +477,6 @@ export class Expression extends StructFrozen {
     function?: Function | null;
     aggregation?: Aggregation | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -496,8 +485,6 @@ export class Expression extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -698,7 +685,6 @@ export class Sort extends StructFrozen {
     by: Expression;
     mode?: SortMode | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -707,8 +693,6 @@ export class Sort extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -814,7 +798,6 @@ export class Select extends StructFrozen {
   constructor(options: {
     attributes?: readonly PropertyReference[];
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -823,8 +806,6 @@ export class Select extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -948,7 +929,6 @@ export class Join extends StructFrozen {
     depth?: number | null;
     on?: Condition | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -957,8 +937,6 @@ export class Join extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1109,7 +1087,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /**
    * The domain of the Query (Entity or Event).
    */
-  readonly domain: StoreDomain;
+  readonly domain: GraphDomain;
 
   /**
    * Name for this subquery. Should be unique within the parent Query.
@@ -1174,7 +1152,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   constructor(options: {
     id?: string;
     type: QueryType;
-    domain: StoreDomain;
+    domain: GraphDomain;
     name: string;
     definition: NodeDefinitionReference;
     subqueries?: readonly Query[];
@@ -1188,7 +1166,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     limit?: number | null;
     offset?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1197,8 +1174,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1357,7 +1332,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${QueryType[this.type]}`);
-      propertyReprs.push(`domain=${StoreDomain[this.domain]}`);
+      propertyReprs.push(`domain=${GraphDomain[this.domain]}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       propertyReprs.push(`definition=${this.definition.repr()}`);
       if (this.subqueries.length > 0) {

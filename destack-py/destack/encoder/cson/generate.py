@@ -10,8 +10,6 @@ from opentelemetry import trace
 from destack.language.core import (
     BuiltinObject,
     Cson,
-    Graph,
-    GraphConnection,
     NodeType,
     ObjectKind,
     PackedCache,
@@ -54,8 +52,6 @@ class _CsonObjectEncoder:
         self,
         cson: Cson,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         raise NotImplementedError
 
@@ -79,8 +75,6 @@ class {encoder_name}(CsonObjectEncoder):
         self, 
         _object_cson: Cson,
         _session: "Session | None" = None,
-        _graph: "Graph | None" = None,
-        _connection: "GraphConnection | None" = None,
     ) -> "{cls.__name__}":
 {unpack_cson}
 """
@@ -157,7 +151,6 @@ def _generate_unpack_cson(cls: type["BuiltinObject"]) -> str:
     if cls.__is_node__:
         unpack_method_parts.append("    _session=_session,")
         unpack_method_parts.append("    _graph=_graph,")
-        unpack_method_parts.append("    _connection=_connection,")
     else:
         unpack_method_parts.append("    _graph=_graph,")
     unpack_method_parts.append(")")
@@ -297,11 +290,13 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return (
+            f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
+        )
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph, _connection=_connection)"
+        return f"Node.unpack(Encoding.CSON, {value_expr}, _session=_session, _graph=_graph)"
     else:
         assert_never(prop.scalar_type)
 

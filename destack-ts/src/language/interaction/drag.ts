@@ -1,12 +1,4 @@
-import type {
-  Branch,
-  Graph,
-  GraphConnection,
-  NodeReference,
-  Session,
-  Snapshot,
-  Space,
-} from "@destack/language/core";
+import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -69,12 +61,12 @@ export abstract class DragEvent extends InputEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -82,31 +74,31 @@ export abstract class DragEvent extends InputEvent {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 
@@ -141,7 +133,7 @@ export class DragStartEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -153,7 +145,7 @@ export class DragStartEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -165,7 +157,7 @@ export class DragStartEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -177,7 +169,7 @@ export class DragStartEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -189,7 +181,7 @@ export class DragStartEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -201,19 +193,19 @@ export class DragStartEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -223,41 +215,41 @@ export class DragStartEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -267,7 +259,7 @@ export class DragStartEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -288,17 +280,15 @@ export class DragStartEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -308,10 +298,6 @@ export class DragStartEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -381,8 +367,14 @@ export class DragStartEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DragStartEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DragStartEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -459,7 +451,7 @@ export class DragStartEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -499,15 +491,9 @@ export class DragStartEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -532,7 +518,6 @@ export class DragStartEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -583,7 +568,7 @@ export class DragEndEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -595,7 +580,7 @@ export class DragEndEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -607,7 +592,7 @@ export class DragEndEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -619,7 +604,7 @@ export class DragEndEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -631,7 +616,7 @@ export class DragEndEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -643,19 +628,19 @@ export class DragEndEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -665,41 +650,41 @@ export class DragEndEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -709,7 +694,7 @@ export class DragEndEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -730,17 +715,15 @@ export class DragEndEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -750,10 +733,6 @@ export class DragEndEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -823,8 +802,14 @@ export class DragEndEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DragEndEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DragEndEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -901,7 +886,7 @@ export class DragEndEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -941,15 +926,9 @@ export class DragEndEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -974,7 +953,6 @@ export class DragEndEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -1025,7 +1003,7 @@ export class DragOverEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1037,7 +1015,7 @@ export class DragOverEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1049,7 +1027,7 @@ export class DragOverEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1061,7 +1039,7 @@ export class DragOverEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1073,7 +1051,7 @@ export class DragOverEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1085,19 +1063,19 @@ export class DragOverEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -1107,41 +1085,41 @@ export class DragOverEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -1151,7 +1129,7 @@ export class DragOverEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1172,17 +1150,15 @@ export class DragOverEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -1192,10 +1168,6 @@ export class DragOverEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -1265,8 +1237,14 @@ export class DragOverEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DragOverEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DragOverEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -1343,7 +1321,7 @@ export class DragOverEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1383,15 +1361,9 @@ export class DragOverEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -1416,7 +1388,6 @@ export class DragOverEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -1467,7 +1438,7 @@ export class DragEnterEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1479,7 +1450,7 @@ export class DragEnterEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1491,7 +1462,7 @@ export class DragEnterEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1503,7 +1474,7 @@ export class DragEnterEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1515,7 +1486,7 @@ export class DragEnterEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1527,19 +1498,19 @@ export class DragEnterEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -1549,41 +1520,41 @@ export class DragEnterEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -1593,7 +1564,7 @@ export class DragEnterEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1614,17 +1585,15 @@ export class DragEnterEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -1634,10 +1603,6 @@ export class DragEnterEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -1707,8 +1672,14 @@ export class DragEnterEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DragEnterEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DragEnterEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -1785,7 +1756,7 @@ export class DragEnterEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1825,15 +1796,9 @@ export class DragEnterEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -1858,7 +1823,6 @@ export class DragEnterEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -1909,7 +1873,7 @@ export class DragLeaveEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -1921,7 +1885,7 @@ export class DragLeaveEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1933,7 +1897,7 @@ export class DragLeaveEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1945,7 +1909,7 @@ export class DragLeaveEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1957,7 +1921,7 @@ export class DragLeaveEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1969,19 +1933,19 @@ export class DragLeaveEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -1991,41 +1955,41 @@ export class DragLeaveEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -2035,7 +1999,7 @@ export class DragLeaveEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2056,17 +2020,15 @@ export class DragLeaveEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -2076,10 +2038,6 @@ export class DragLeaveEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -2149,8 +2107,14 @@ export class DragLeaveEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DragLeaveEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DragLeaveEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -2227,7 +2191,7 @@ export class DragLeaveEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -2267,15 +2231,9 @@ export class DragLeaveEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -2300,7 +2258,6 @@ export class DragLeaveEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -2351,7 +2308,7 @@ export class DropEvent extends DragEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -2363,7 +2320,7 @@ export class DropEvent extends DragEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2375,7 +2332,7 @@ export class DropEvent extends DragEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -2387,7 +2344,7 @@ export class DropEvent extends DragEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -2399,7 +2356,7 @@ export class DropEvent extends DragEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -2411,19 +2368,19 @@ export class DropEvent extends DragEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -2433,41 +2390,41 @@ export class DropEvent extends DragEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -2477,7 +2434,7 @@ export class DropEvent extends DragEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2498,17 +2455,15 @@ export class DropEvent extends DragEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -2518,10 +2473,6 @@ export class DropEvent extends DragEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -2591,8 +2542,14 @@ export class DropEvent extends DragEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`DropEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`DropEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -2669,7 +2626,7 @@ export class DropEvent extends DragEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -2709,15 +2666,9 @@ export class DropEvent extends DragEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -2742,7 +2693,6 @@ export class DropEvent extends DragEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

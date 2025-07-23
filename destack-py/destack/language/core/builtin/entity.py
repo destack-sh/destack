@@ -13,7 +13,7 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import INTEGER_ZERO, get_order_key
 from destack.utils.uuid import UUID
 
-from .common import EnumType, StoreDomain, TraitType, ValueFactory
+from .common import EnumType, GraphDomain, TraitType, ValueFactory
 from .const import UNSET
 from .enum import Enum, builtin_enum
 from .meta import PermissionDeclaration, TagDeclaration, builtin_method
@@ -22,7 +22,6 @@ from .property import (
     PropertyDeclaration,
     builtin_property,
     builtin_property_parent,
-    builtin_property_runtime,
 )
 from .trait import (
     IsOrdered,
@@ -31,7 +30,6 @@ from .trait import (
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
-        Graph,
         NodeReference,
         Script,
         Snapshot,
@@ -88,7 +86,7 @@ class Entity(Node):
      (id, definition_id) @ (branch_id, snapshot_id)
     """
 
-    __store_domain__ = StoreDomain.ENTITY
+    __domain__ = GraphDomain.ENTITY
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     parent: Optional["Entity"] = builtin_property_parent(
@@ -179,7 +177,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_by: Optional["Entity"] = builtin_property(
+    created_by: "Entity" = builtin_property(
         22,
         default=None,
         is_internal=True,
@@ -203,7 +201,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_by: Optional["Entity"] = builtin_property(
+    updated_by: "Entity" = builtin_property(
         25,
         default=None,
         is_internal=True,
@@ -225,8 +223,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     owned_by: Optional["Entity"] = builtin_property(30, is_repr=True, tags=("tracking",))
     # controlled_by, ...
     if TYPE_CHECKING:
-        created_by_ptr: Optional[NodeReference] = None
-        updated_by_ptr: Optional[NodeReference] = None
+        created_by_ptr: NodeReference = UNSET
+        updated_by_ptr: NodeReference = UNSET
         owned_by_ptr: Optional[NodeReference] = None
 
     # 40-60: Entity basics
@@ -282,9 +280,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     )
     # aliases: list[str]?
 
-    """The Graph this Entity is part of."""
-    _graph: "Graph" = builtin_property_runtime(default=None)
-
     def _do_set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         prop = self.__tracked_properties__.get(key)
@@ -332,7 +327,14 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         )
         if _existing_nodes is None:
             _existing_nodes = cast(
-                Sequence[Entity], self._graph.get_children(self, type=order_base)
+                Sequence[Entity],
+                self._session.graph.get_children(
+                    self,
+                    type=order_base,
+                    space_id=self.space_ptr.id,
+                    branch_id=self.branch_ptr.id,
+                    snapshot_id=self.snapshot_ptr.id,
+                ),
             )
         if _existing_nodes:
             if after is None:
@@ -377,7 +379,15 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 
         # prepare graph & nodes
         session = self._session
-        nodes: tuple[Entity, ...] = (self, *self._graph.get_descendants(self))
+        nodes: tuple[Entity, ...] = (
+            self,
+            *self._session.graph.get_descendants(
+                self,
+                space_id=self.space_ptr.id,
+                branch_id=self.branch_ptr.id,
+                snapshot_id=self.snapshot_ptr.id,
+            ),
+        )
 
         # assign order
         if parent is not None and isinstance(self, IsOrdered):
@@ -387,7 +397,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         if self._is_new and parent is not None and not parent._is_new:
             for node in nodes:
                 assert isinstance(node, Entity), f"{node!r} of {parent!r} is not an Entity"
-                node._ref = None  # invalidate cached ref
                 session.create(node)
 
     @builtin_method(15)
@@ -466,7 +475,17 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the children of this Entity."""
-        return self._graph.get_children(self, type=type)
+        if isinstance(type, type_):
+            type = type.metatype
+        children = self._session.graph.get_children(
+            self,
+            type=type,
+            space_id=self.space_ptr.id,
+            branch_id=self.branch_ptr.id,
+            snapshot_id=self.snapshot_ptr.id,
+            include_deleted=include_deleted,
+        )
+        return cast(Sequence[N], children)
 
     @builtin_method(21)
     def get_child[N: Entity = Entity](
@@ -478,7 +497,14 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets a specific child of this Node by name."""
         if isinstance(type, type_):
             type = type.metatype
-        for child in self._graph.get_children(self, type=type):
+        for child in self._session.graph.get_children(
+            self,
+            type=type,
+            space_id=self.space_ptr.id,
+            branch_id=self.branch_ptr.id,
+            snapshot_id=self.snapshot_ptr.id,
+            include_deleted=include_deleted,
+        ):
             if getattr(child, "name", None) == name:
                 return cast(N, child)
         return None
@@ -503,7 +529,17 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the ancestors of this Node."""
-        return self._graph.get_ancestors(self, type=type)
+        if isinstance(type, type_):
+            type = type.metatype
+        ancestors = self._session.graph.get_ancestors(
+            self,
+            type=type,
+            space_id=self.space_ptr.id,
+            branch_id=self.branch_ptr.id,
+            snapshot_id=self.snapshot_ptr.id,
+            include_deleted=include_deleted,
+        )
+        return cast(Sequence[N], ancestors)
 
     @builtin_method(24)
     def get_descendants[N: Entity = Entity](
@@ -512,7 +548,17 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
-        return self._graph.get_descendants(self, type=type)
+        if isinstance(type, type_):
+            type = type.metatype
+        descendants = self._session.graph.get_descendants(
+            self,
+            type=type,
+            space_id=self.space_ptr.id,
+            branch_id=self.branch_ptr.id,
+            snapshot_id=self.snapshot_ptr.id,
+            include_deleted=include_deleted,
+        )
+        return cast(Sequence[N], descendants)
 
     @builtin_method(30)
     def add_tag(self, tag: "Tag") -> "Tagging":

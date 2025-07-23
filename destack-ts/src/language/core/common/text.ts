@@ -3,7 +3,6 @@ import { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -51,10 +50,10 @@ export class TextSpan extends StructFrozen {
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      if (this._graph === null) {
+      if (this._session === null) {
         return null;
       }
-      return this._graph.get(nodePtr.id) as Node | null;
+      return this._session.graph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
@@ -101,7 +100,6 @@ export class TextSpan extends StructFrozen {
     isUnderline?: boolean | null;
     isCode?: boolean | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -110,8 +108,6 @@ export class TextSpan extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -285,7 +281,6 @@ export class Text extends StructFrozen {
     isUnderline?: boolean | null;
     isCode?: boolean | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -294,8 +289,6 @@ export class Text extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.utils.uuid import UUID
 
-from .common import EnumType, StoreDomain
+from .common import EnumType, GraphDomain
 from .const import ACTIVE_EVENT, UNSET
 from .entity import Entity
 from .enum import Enum, builtin_enum
+from .meta import TagDeclaration
 from .node import Node, NodeType, builtin_node
 from .property import ValueFactory, builtin_property
 
@@ -46,6 +47,10 @@ class EventStatus(Enum):
     NodeType.EVENT,
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
+    tags=(
+        TagDeclaration(id=20, name="system", description="System authority"),
+        TagDeclaration(id=21, name="client", description="Client authority"),
+    ),
 )
 class Event[N: Node = Node](Node):
     """
@@ -53,14 +58,15 @@ class Event[N: Node = Node](Node):
     Events are proposed by Clients as pending Events, then approved or rejected by the system.
     """
 
-    __store_domain__ = StoreDomain.EVENT
+    __domain__ = GraphDomain.EVENT
 
-    # 10-20: event identity
+    # 10-20: Event identity
     definition: Union["Entity", None] = builtin_property(
         11,
         is_internal=True,
         is_readonly=True,
         description="The definition this Event is an instance of.",
+        tags=("identity",),
     )
     branch: "Branch" = builtin_property(
         12,
@@ -68,6 +74,7 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Event originated from.",
+        tags=("identity",),
     )
     snapshot: "Snapshot" = builtin_property(
         13,
@@ -75,26 +82,30 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Event originated from.",
+        tags=("identity",),
     )
     preceded_by: Optional["Event"] = builtin_property(
         14,
         is_readonly=True,
         is_internal=True,
         description="The previous Event that this Event follows.",
+        tags=("identity",),
     )
     caused_by: Optional["Event"] = builtin_property(
         15,
         is_readonly=True,
         is_internal=True,
         description="The Event that caused this Event (if any).",
+        tags=("identity",),
     )
-    # 20-40: node tracking
+    # 20-40: Event tracking
     created_at: datetime = builtin_property(
         20,
         is_internal=True,
         is_eq=False,
         is_readonly=True,
-        description="The time this Event was created (system time).",
+        description="The time this Event was created (system).",
+        tags=("tracking", "system"),
     )
     created_epoch: int = builtin_property(
         21,
@@ -103,53 +114,59 @@ class Event[N: Node = Node](Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
-        description="The logical time this Event was created (system time).",
+        description="The logical time this Event was created (system).",
+        tags=("tracking", "system"),
     )
-    created_by: Optional["Entity"] = builtin_property(
+    created_by: "Entity" = builtin_property(
         22,
         default=None,
         is_internal=True,
         is_eq=False,
         is_readonly=True,
         description="The Actor that created this Event.",
+        tags=("tracking",),
     )
-    client: Optional["Client"] = builtin_property(
+    client: "Client" = builtin_property(
         23,
         is_internal=True,
         is_readonly=True,
-        description="The Client that created this Event.",
+        description="The Client that created this Event (client).",
+        tags=("tracking", "client"),
     )
-    client_nonce: Optional[UUID] = builtin_property(
+    client_nonce: UUID = builtin_property(
         24,
         is_internal=True,
         is_readonly=True,
-        description="The nonce of the Client that created this Event.",
+        description="The nonce of the Client that created this Event (client).",
+        tags=("tracking", "client"),
     )
     client_created_at: datetime = builtin_property(
         25,
         is_internal=True,
         is_readonly=True,
-        description="The time in the Client when it created this Event.",
+        description="The time in the Client when it created this Event (client).",
+        tags=("tracking", "client"),
     )
     client_epoch: int = builtin_property(
         26,
         is_internal=True,
         is_readonly=True,
-        description="The logical time in the Client when it created this Event.",
+        description="The logical time in the Client when it created this Event (client).",
+        tags=("tracking", "client"),
     )
     status: "EventStatus" = builtin_property(
-        40,
+        30,
         is_repr=True,
         default=EventStatus.PENDING,
-        description="The status of the Event.",
+        description="The status of the Event (system).",
+        tags=("tracking", "system"),
     )
-    # caused_by/cascaded_from? (other Events that caused this event, like InputEvent or for cascading edits)
     if TYPE_CHECKING:
         branch_ptr: NodeReference = UNSET
         snapshot_ptr: NodeReference = UNSET
         preceded_by_ptr: Optional[NodeReference] = None
-        created_by_ptr: Optional[NodeReference] = None
-        client_ptr: Optional[NodeReference] = None
+        created_by_ptr: NodeReference = UNSET
+        client_ptr: NodeReference = UNSET
 
     # 100+: content
     if TYPE_CHECKING:

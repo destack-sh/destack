@@ -56,7 +56,14 @@ class Aliasing:
 
         # try to resolve node references
         if isinstance(obj, NodeReference):
-            if (resolved := self._graph.get(obj.id)) is not None:
+            if (
+                resolved := self._graph.get(
+                    id=obj.id,
+                    space_id=obj.space_id,
+                    branch_id=obj.branch_id,
+                    snapshot_id=obj.snapshot_id,
+                )
+            ) is not None:
                 obj = resolved
 
         # make new unique alias if needed
@@ -119,7 +126,14 @@ class Aliasing:
                 pass
         # try to auto-resolve node references
         if isinstance(node, NodeReference):
-            if (resolved := self._graph.get(node.id)) is not None:
+            if (
+                resolved := self._graph.get(
+                    id=node.id,
+                    space_id=node.space_id,
+                    branch_id=node.branch_id,
+                    snapshot_id=node.snapshot_id,
+                )
+            ) is not None:
                 node = resolved
         return node
 

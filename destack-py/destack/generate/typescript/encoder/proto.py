@@ -117,13 +117,7 @@ class {encoder_name} implements _ProtoObjectEncoder {{
 {textwrap.indent(pack_proto, " " * 4)}
   }}
 
-  unpackObject(options: {{
-    value: {cls.__name__}Proto;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }}): {cls.__name__} {{
-    const {{ value: objectProto, _session, _graph, _connection }} = options;
+  unpackObject(objectProto: {cls.__name__}Proto, _session: Session | null): {cls.__name__} {{
 {textwrap.indent(unpack_proto, " " * 4)}
   }}
 
@@ -132,19 +126,9 @@ class {encoder_name} implements _ProtoObjectEncoder {{
     return {cls.__name__}Proto.toBinary(proto);
   }}
 
-  unpackObjectBytes(options: {{
-    value: Uint8Array;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }}): {cls.__name__} {{
-    const proto = {cls.__name__}Proto.fromBinary(options.value);
-    return this.unpackObject({{
-      value: proto,
-      _session: options._session,
-      _graph: options._graph,
-      _connection: options._connection,
-    }});
+  unpackObjectBytes(objectBytes: Uint8Array, _session: Session | null): {cls.__name__} {{
+    const proto = {cls.__name__}Proto.fromBinary(objectBytes);
+    return this.unpackObject(proto, _session);
   }}
 }}
 """,
@@ -219,12 +203,7 @@ def _generate_unpack_proto(cls: type["BuiltinObject"]) -> str:
     unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
     for assignment in unpack_assignments:
         unpack_body_parts.append(f"  {assignment},")
-    if cls.__is_node__:
-        unpack_body_parts.append("  _session,")
-        unpack_body_parts.append("  _graph,")
-        unpack_body_parts.append("  _connection,")
-    else:
-        unpack_body_parts.append("  _graph,")
+    unpack_body_parts.append("  _session,")
     unpack_body_parts.append("});")
 
     # initializer
@@ -379,12 +358,12 @@ def _generate_unpack_proto_scalar(
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         return f"Number({value_expr}) as any"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_NodeReference.unpack({{ encoding: {Encoding.PROTO.value}, value: {value_expr}, _session, _graph, _connection }}) as NodeReference"
+        return f"_NodeReference.unpack({Encoding.PROTO.value}, {value_expr}, _session) as NodeReference"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise RuntimeError(f"node value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.unpack({{ encoding: {Encoding.PROTO.value}, value: {value_expr}, _session, _graph, _connection }}) as {struct_cls.__name__}"
+        return f"_{struct_cls.__name__}.unpack({Encoding.PROTO.value}, {value_expr}, _session) as {struct_cls.__name__}"
     else:
         return value_expr

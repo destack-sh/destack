@@ -168,35 +168,17 @@ function _unpackScalarCson(
     return value;
   } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.unpack({
-      value,
-      encoding: Encoding.CSON,
-      _session: options?._session,
-      _graph: options?._graph,
-      _connection: options?._connection,
-    });
+    return _NodeReference.unpack(Encoding.CSON, value, options?._session ?? null);
   } else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.unpack({
-      value,
-      encoding: Encoding.CSON,
-      _session: options?._session,
-      _graph: options?._graph,
-      _connection: options?._connection,
-    });
+    return nodeClass.unpack(Encoding.CSON, value, options?._session ?? null);
   } else if (type.scalarType == ScalarType.STRUCT) {
     if (type.structType === null) {
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.unpack({
-      value,
-      encoding: Encoding.CSON,
-      _session: options?._session,
-      _graph: options?._graph,
-      _connection: options?._connection,
-    });
+    return structClass.unpack(Encoding.CSON, value, options?._session ?? null);
   } else {
     assertNever(type.scalarType);
   }

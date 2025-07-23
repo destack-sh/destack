@@ -251,7 +251,7 @@ def _generate_property(
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr != null) {{
-        return this._graph.get(nodePtr.id) as {wrapped_node_type_str} | null;
+        return this._session.graph.get(nodePtr.id) as {wrapped_node_type_str} | null;
     }}
     return null;
 }}"""
@@ -280,10 +280,10 @@ set {wrapped_ts_name}(node: {wrapped_node_type_str}) {{
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
     if (nodePtr != null) {{
-        if (this._graph === null) {{
+        if (this._session === null) {{
             return null;
         }}
-        return this._graph.get(nodePtr.id) as {wrapped_node_type_str};
+        return this._session.graph.get(nodePtr.id) as {wrapped_node_type_str};
     }}
     return null;
 }}"""
@@ -409,10 +409,8 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             header_parts.append(f"{ts_name_in}: {type_str}")
         else:
             header_parts.append(f"{ts_name_in}?: {type_str}")
-    header_parts.extend(("_session?: Session | null", "_graph?: Graph | null"))
-    if issubclass(cls, Node):
-        header_parts.extend(("_connection?: GraphConnection | null",))
-    elif issubclass(cls, StructFrozen):
+    header_parts.append("_session?: Session | null")
+    if issubclass(cls, StructFrozen):
         header_parts.extend(
             (
                 "_hash?: number | null",
@@ -449,10 +447,6 @@ super(
     {parent_str},
     /* session */
     options._session ?? null,
-    /* graph */
-    options._graph ?? null,
-    /* connection */
-    options._connection ?? null,
     /* _isNew */
     options.id == null,
 );
@@ -462,8 +456,6 @@ super(
 super(
     /* session */
     options._session ?? null,
-    /* graph */
-    options._graph ?? null,
 );
 """
 
@@ -1124,7 +1116,6 @@ return new _NodeReference({{
   id: this.id,
   spaceId: this.id,
   _session: this._session,
-  _graph: this._graph,
 }});
 """
     elif node_type == NodeType.BRANCH:
@@ -1136,7 +1127,6 @@ return new _NodeReference({{
   spaceId: this.spacePtr?.id ?? null,
   branchId: this.id,
   _session: this._session,
-  _graph: this._graph,
 }});
 """
     elif node_type == NodeType.SNAPSHOT:
@@ -1149,7 +1139,6 @@ return new _NodeReference({{
   branchId: this.branchPtr?.id ?? null,
   snapshotId: this.id,
   _session: this._session,
-  _graph: this._graph,
 }});
 """
     else:
@@ -1163,7 +1152,6 @@ return new _NodeReference({{
   branchId: this.branchPtr?.id ?? null,
   snapshotId: this.snapshotPtr?.id ?? null,
   _session: this._session,
-  _graph: this._graph,
 }});
 """
     return f"""\

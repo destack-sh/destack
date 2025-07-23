@@ -10,16 +10,15 @@ export enum EnumType {
   NODE_TYPE = 2,
   STRUCT_TYPE = 3,
   TRAIT_TYPE = 4,
-  OBJECT_KIND = 8,
+  OBJECT_KIND = 7,
   UNIVERSE_CATEGORY = 9,
   NODE_DEFINITION_TYPE = 10,
   OBJECT_DEFINITION_TYPE = 11,
   STRUCT_DEFINITION_TYPE = 12,
   PROPERTY_REFERENCE_TYPE = 13,
   MATERIALIZATION = 14,
-  STORE_KEY = 20,
-  STORE_DOMAIN = 22,
-  STORE_TIER = 23,
+  GRAPH_KEY = 20,
+  GRAPH_DOMAIN = 21,
   PLATFORM_TYPE = 30,
   RUNTIME_LANGUAGE = 31,
   OPERATING_SYSTEM = 40,
@@ -71,7 +70,6 @@ export enum EnumType {
   DAY_OF_WEEK = 705101,
   MONTH = 705102,
   SCHEDULE_FREQUENCY = 705103,
-  CURSOR_STATUS = 712001,
   MODEL_DEVELOPER = 920000,
   MODEL_PROVIDER = 920001,
   CLOUD = 1000000,
@@ -323,9 +321,6 @@ export enum NodeType {
   TIMER_COMPLETED_EVENT = 705105,
   TIMER_CANCELLED_EVENT = 705106,
   ROUTE = 710000,
-  CURSOR = 712000,
-  EVENT_CURSOR = 712100,
-  SCREEN_CURSOR = 712200,
   DATABASE = 1000000,
   MACHINE = 1001000,
   ENVIRONMENT = 1100000,
@@ -442,21 +437,6 @@ export enum NodeType {
 registerEnumClass(EnumType.NODE_TYPE, NodeType);
 /* ==== DESTACK_GENERATED_END:ENUM:2 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:22 ==== */
-/**
- * StoreDomain
- */
-export enum StoreDomain {
-  ENTITY = 100,
-  EVENT = 500,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STORE_DOMAIN, StoreDomain);
-/* ==== DESTACK_GENERATED_END:ENUM:22 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
 /**
  * RuntimeLanguage
@@ -548,9 +528,9 @@ registerEnumClass(EnumType.UNIVERSE_CATEGORY, UniverseCategory);
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
 /**
- * StoreKey
+ * GraphKey
  */
-export enum StoreKey {
+export enum GraphKey {
   ENTITY_PRIMARY = 1110,
   EVENT_PRIMARY = 2110,
 
@@ -558,22 +538,8 @@ export enum StoreKey {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.STORE_KEY, StoreKey);
+registerEnumClass(EnumType.GRAPH_KEY, GraphKey);
 /* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:23 ==== */
-/**
- * StoreTier
- */
-export enum StoreTier {
-  PRIMARY = 10,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STORE_TIER, StoreTier);
-/* ==== DESTACK_GENERATED_END:ENUM:23 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:1100000 ==== */
 /**
@@ -994,7 +960,7 @@ export enum ClientType {
 registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
 /* ==== DESTACK_GENERATED_END:ENUM:121300 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:8 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:7 ==== */
 /**
  * ObjectKind
  */
@@ -1004,8 +970,23 @@ export enum ObjectKind {
   ENUM = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+  /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OBJECT_KIND, ObjectKind);
-/* ==== DESTACK_GENERATED_END:ENUM:8 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:7 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:21 ==== */
+/**
+ * GraphDomain
+ */
+export enum GraphDomain {
+  ENTITY = 1,
+  EVENT = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.GRAPH_DOMAIN, GraphDomain);
+/* ==== DESTACK_GENERATED_END:ENUM:21 ==== */

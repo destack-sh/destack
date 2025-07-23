@@ -21,16 +21,15 @@ class EnumType(Enum):
     NODE_TYPE = 2
     STRUCT_TYPE = 3
     TRAIT_TYPE = 4
-    OBJECT_KIND = 8
+    OBJECT_KIND = 7
     UNIVERSE_CATEGORY = 9
     NODE_DEFINITION_TYPE = 10
     OBJECT_DEFINITION_TYPE = 11
     STRUCT_DEFINITION_TYPE = 12
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
-    STORE_KEY = 20
-    STORE_DOMAIN = 22
-    STORE_TIER = 23
+    GRAPH_KEY = 20
+    GRAPH_DOMAIN = 21
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
@@ -118,7 +117,6 @@ class EnumType(Enum):
     DAY_OF_WEEK = 705_101
     MONTH = 705_102
     SCHEDULE_FREQUENCY = 705_103
-    CURSOR_STATUS = 712_001
 
     # quality [800_000-900_000]
     # ...
@@ -643,9 +641,6 @@ class NodeType(Enum):
     TIMER_COMPLETED_EVENT = 705_105, "Timer Completed Event", None, "fas fa-clock"
     TIMER_CANCELLED_EVENT = 705_106, "Timer Cancelled Event", None, "fas fa-clock"
     ROUTE = 710_000, "Route", None, "fas fa-route"
-    CURSOR = 712_000, "Cursor", None, "fas fa-cursor"
-    EVENT_CURSOR = 712_100, "Event Cursor", None, "fas fa-cursor"
-    SCREEN_CURSOR = 712_200, "Screen Cursor", None, "fas fa-cursor"
     # BREAKPOINT, ...
     # ROOM, TOPIC, CHANNEL, ...
     # QUEUE, TASK, ...
@@ -931,9 +926,9 @@ class PropertyType(Enum):
     OUTPUT = 11, "Output", None, None
 
 
-@builtin_enum(EnumType.STORE_KEY)
-class StoreKey(Enum):
-    """The role of a Store (scope + domain + tier)."""
+@builtin_enum(EnumType.GRAPH_KEY)
+class GraphKey(Enum):
+    """The role of a Graph (scope + domain + tier)."""
 
     ENTITY_PRIMARY = 1110
     # ENTITY_SEARCH, ENTITY_BACKUP, ...
@@ -941,22 +936,10 @@ class StoreKey(Enum):
     # EVENT_SEARCH, EVENT_AGGREGATE, ...
 
 
-@builtin_enum(EnumType.STORE_DOMAIN)
-class StoreDomain(Enum):
-    """The domain of a Store."""
-
-    ENTITY = 100
-    EVENT = 500
-
-
-@builtin_enum(EnumType.STORE_TIER)
-class StoreTier(Enum):
-    """The tier of a Store."""
-
-    PRIMARY = 10
-    # PRIMARY_FAST, PRIMARY_RELATIONAL, ...
-    # SEARCH = 20
-    # AGGREGATE = 30
+@builtin_enum(EnumType.GRAPH_DOMAIN)
+class GraphDomain(Enum):
+    ENTITY = 1
+    EVENT = 2
 
 
 @builtin_enum(EnumType.RUNTIME_LANGUAGE)

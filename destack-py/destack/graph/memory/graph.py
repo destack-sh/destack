@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional, override
 
 from destack.language import EMPTY_LIST, Entity, Graph, Node, NodeType, TraitType, expand_node_types
@@ -7,69 +8,118 @@ from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
-    from destack.language import NodeType, TraitType
+    from destack.language import Event, NodeType, Snapshot, TraitType
 
 type_ = type
 
 
 class MemoryGraph(Graph):
+    """A Graph that stores Nodes in memory."""
+
     __slots__ = ("nodes_by_id", "nodes_by_parent")
 
     def __init__(self):
         self.nodes_by_id: dict[UUID, Entity] = {}
         self.nodes_by_parent: dict[UUID, dict[NodeType, list[Entity]]] = {}
 
+    #
+    # Meta
+    #
+
     @override
-    def get(self, id: UUID) -> Optional["Entity"]:
+    async def open(self) -> None:
+        pass
+
+    @override
+    async def close(self) -> None:
+        pass
+
+    #
+    # Write
+    #
+
+    def snapshot(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        epoch: int,
+    ) -> "Snapshot":
+        """Create a Snapshot."""
+        raise NotImplementedError
+
+    def insert(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        entities: "Sequence[Entity]",
+    ) -> None:
+        """Insert Entities into the Graph directly."""
+        raise NotImplementedError
+
+    @override
+    def append(self, events: "Sequence[Event]") -> None:
+        """Append Events to the Graph. EditEvents are reflected immediately."""
+        raise NotImplementedError
+
+    @override
+    def restate(self, events: "Sequence[Event]") -> None:
+        """Restate Events to the Graph. EditEvents are reflected immediately."""
+        raise NotImplementedError
+
+    @override
+    async def prune(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+    ) -> None:
+        """Prune the Graph."""
+        raise NotImplementedError
+
+    @override
+    async def commit(self) -> None:
+        """Ensure Events/Entities are persisted in the Graph."""
+        raise NotImplementedError
+
+    #
+    # Read
+    #
+
+    @override
+    def seek(
+        self,
+        space_id: UUID,
+        branch_id: UUID | None,
+        snapshot_id: UUID | None,
+        type: NodeType | Collection[NodeType] | None = None,
+        after: datetime | int | None = None,
+        before: datetime | int | None = None,
+    ) -> "Sequence[Event]":
+        """Seek Events from the Graph."""
+        raise NotImplementedError
+
+    @override
+    def get(
+        self,
+        id: UUID,
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        include_deleted: bool = False,
+    ) -> Optional["Entity"]:
         return self.nodes_by_id.get(id)
-
-    @override
-    def has(self, id: UUID) -> bool:
-        return id in self.nodes_by_id
-
-    @override
-    def clear(self):
-        # nodes
-        self.nodes_by_id.clear()
-        self.nodes_by_parent.clear()
-
-    @override
-    def add(self, node: "Entity"):
-        if (existing := self.nodes_by_id.get(node.id)) is not None:
-            raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
-        # node
-        self.nodes_by_id[node.id] = node
-        # parent
-        if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent:
-                self.nodes_by_parent[parent_ptr.id] = {}
-            child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
-                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent[parent_ptr.id][child_node_type].append(node)
-
-    @override
-    def remove(self, node: "Entity"):
-        # parent
-        if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent:
-                self.nodes_by_parent[parent_ptr.id] = {}
-            child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
-                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent[parent_ptr.id][child_node_type].remove(node)
-            if not self.nodes_by_parent[parent_ptr.id][child_node_type]:
-                self.nodes_by_parent[parent_ptr.id].pop(child_node_type)
-                if not self.nodes_by_parent[parent_ptr.id]:
-                    self.nodes_by_parent.pop(parent_ptr.id)
-        # node
-        self.nodes_by_id.pop(node.id)
 
     @override
     def get_children[M: "Entity" = "Entity"](
         self,
         node: "Node",
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
         type: NodeType | type[M] | None = None,
+        include_deleted: bool = False,
     ) -> Sequence[M]:
         # bail if no children
         if not self.nodes_by_parent:
@@ -115,7 +165,13 @@ class MemoryGraph(Graph):
 
     @override
     def get_ancestors[M: "Entity" = "Entity"](
-        self, node: "Entity", type: NodeType | type[M] | None = None
+        self,
+        node: "Entity",
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
+        type: NodeType | type[M] | None = None,
+        include_deleted: bool = False,
     ) -> Sequence[M]:
         ancestors: list[Entity] = []
         current = node.parent_ptr
@@ -123,7 +179,7 @@ class MemoryGraph(Graph):
 
         # traverse up the parent chain
         while current is not None:
-            parent_node = self.get(current.id)
+            parent_node = self.get(current.id, space_id, branch_id, snapshot_id)
             if parent_node is None:
                 break
             if node_types is None or parent_node.metatype in node_types:
@@ -136,11 +192,14 @@ class MemoryGraph(Graph):
     def get_descendants[M: "Entity" = "Entity"](
         self,
         node: "Entity",
+        space_id: UUID,
+        branch_id: UUID,
+        snapshot_id: UUID,
         type: NodeType | type[M] | None = None,
+        include_deleted: bool = False,
     ) -> Sequence[M]:
         if not self.nodes_by_parent:
             return ()
-
         queue: list[Entity] = [node]
         descendants: list[Entity] = []
         node_types = expand_node_types(type, expand_inheritance=True)

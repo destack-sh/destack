@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, assert_never
 from .core.builtin.common import (
     EnumType,
     NodeType,
-    StoreKey,
     StructType,
     TraitType,
 )
@@ -30,7 +29,6 @@ ENUM_TYPE_BY_CLASS = _ENUM_TYPE_BY_CLASS  # re-exported to avoid circular import
 
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
-NODE_TYPES_BY_PRIMARY_STORE_KEY: dict[StoreKey, tuple[NodeType, ...]] = {}
 NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 
 TRAIT_CLASS_BY_TYPE: dict[TraitType, type["Trait"]] = {}
@@ -101,16 +99,6 @@ def get_node_or_trait_cls(
         return TRAIT_CLASS_BY_TYPE[node_type]
     else:
         assert_never(node_type)
-
-
-def get_node_types_for_stores(store_keys: tuple[StoreKey, ...]) -> tuple[NodeType, ...]:
-    return tuple(
-        {
-            node_type
-            for store_key in store_keys
-            for node_type in NODE_TYPES_BY_PRIMARY_STORE_KEY[store_key]
-        }
-    )
 
 
 def get_subdefinitions_for_node_type(node_type: NodeType) -> tuple["NodeDefinitionReference", ...]:

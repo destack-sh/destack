@@ -47,13 +47,7 @@ class Value(StructFrozen[ValueProto]):
         if self._unpacked_value is None:
             session = active_session()
             encoder = ENCODERS[Encoding.CSON]
-            value_unpacked = encoder.unpack_value(
-                type=self.type,
-                value=self.value,
-                session=session,
-                graph=session.graph,
-                connection=None,
-            )
+            value_unpacked = encoder.unpack_value(self.type, self.value, session)
             object.__setattr__(self, "_unpacked_value", value_unpacked)
         return self._unpacked_value
 

@@ -1,4 +1,4 @@
-import type { Graph, PackedCache, Session } from "@destack/language/core";
+import type { PackedCache, Session } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -25,7 +25,6 @@ export class Vector2 extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -34,8 +33,6 @@ export class Vector2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -295,7 +292,6 @@ export class Vector3 extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -304,8 +300,6 @@ export class Vector3 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -607,7 +601,6 @@ export class Vector4 extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -616,8 +609,6 @@ export class Vector4 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -933,7 +924,6 @@ export class Vector2i extends StructFrozen {
     x: number;
     y: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -942,8 +932,6 @@ export class Vector2i extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1203,7 +1191,6 @@ export class Vector3i extends StructFrozen {
     y: number;
     z: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1212,8 +1199,6 @@ export class Vector3i extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1505,7 +1490,6 @@ export class Vector4i extends StructFrozen {
     z: number;
     w: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1514,8 +1498,6 @@ export class Vector4i extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

@@ -1,4 +1,4 @@
-import type { Graph, Session } from "@destack/language/core";
+import type { Session } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashInt, hashString } from "@destack/utils/hash";
@@ -174,14 +174,11 @@ export class Schedule extends Struct {
     byMinute?: readonly number[];
     bySecond?: readonly number[];
     _session?: Session | null;
-    _graph?: Graph | null;
   }) {
     /* super */
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

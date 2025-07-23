@@ -1,4 +1,4 @@
-import type { Graph, PackedCache, Session } from "@destack/language/core";
+import type { PackedCache, Session } from "@destack/language/core";
 import { StructType } from "@destack/language/core";
 import { Vector4 } from "@destack/language/geometry/vector";
 import { registerStructClass } from "@destack/language/registry";
@@ -18,7 +18,6 @@ export class Quaternion extends Vector4 {
     z: number;
     w: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;

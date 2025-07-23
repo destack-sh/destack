@@ -1,9 +1,11 @@
+from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Optional,
     Self,
+    assert_never,
     cast,
     dataclass_transform,
 )
@@ -12,12 +14,13 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_BY_CLASS,
+    NODE_TYPES_BY_TRAIT_TYPE,
 )
 from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, ObjectKind, StoreDomain, StoreKey, TraitType
+from .common import EnumType, GraphDomain, NodeType, ObjectKind, TraitType
 from .const import UNSET
 from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
@@ -37,8 +40,6 @@ if TYPE_CHECKING:
         ConstraintDeclaration,
         ConstraintDefinition,
         ExpressionIn,
-        Graph,
-        GraphConnection,
         IndexDeclaration,
         IndexDefinition,
         JoinIn,
@@ -204,6 +205,8 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     metatype: ClassVar[NodeType]
     """The kind of this Node."""
     __kind__: ClassVar[ObjectKind] = ObjectKind.NODE
+    """The domain of this Node (Entity or Event)."""
+    __domain__: ClassVar[GraphDomain]
     """The definition this Node is an instance of."""
     __definition__: ClassVar["NodeDefinition"]
     """The reference to the definition this Node is an instance of."""
@@ -285,12 +288,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The expected descendant types of this Node (any of)."""
     __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    # store
-    """The main Stores this Node is primarily stored in."""
-    __primary_store_keys__: ClassVar[tuple[StoreKey, ...]] = ()
-    """The domain of this Node (Entity or Event)."""
-    __store_domain__: ClassVar[StoreDomain | None] = None
-
     # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(
@@ -317,10 +314,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     """The Session this Node is in."""
     _session: "Session" = builtin_property_runtime()
-    """The Graph this Node is part of."""
-    _graph: "Graph" = builtin_property_runtime()
-    """The GraphConnection this Node is from."""
-    _connection: "GraphConnection" = builtin_property_runtime()
     """The cached reference to this Node instance."""
     _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
     """Whether this Node is new."""
@@ -364,10 +357,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a get Query for this Node."""
         from ..common.query import Join, Query, QueryType, to_subqueries
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.NODE,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -394,10 +386,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a search Query for this Node."""
         from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -429,10 +420,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             QueryType,
         )
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -456,10 +446,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a min Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -486,10 +475,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -517,10 +505,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -548,10 +535,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__store_domain__,
+            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -562,3 +548,40 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             sort=sort or [],
         )
         return query  # type: ignore
+
+
+def expand_node_inheritance(types: Collection[NodeType]) -> Sequence[NodeType]:
+    """
+    Expand a collection of NodeTypes into a flat collection of NodeTypes.
+    """
+    node_types: set[NodeType] = set()
+    for typ in types:
+        if isinstance(typ, NodeType):
+            node_cls = NODE_CLASS_BY_TYPE[typ]
+            node_types.update(node_cls.__inherited_by__)
+            if not node_cls.__is_abstract__:
+                node_types.add(typ)
+        elif isinstance(typ, TraitType):
+            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
+        else:
+            assert_never(typ)
+    return tuple(node_types)
+
+
+def expand_node_types(
+    node_type: "NodeType | Collection[NodeType] | type[Node] | None",
+    expand_inheritance: bool = True,
+) -> Sequence["NodeType"]:
+    """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
+    if node_type is None:
+        return ()
+    node_types: Sequence[NodeType] = []
+    if isinstance(node_type, type):
+        node_types.append(node_type.metatype)
+    elif isinstance(node_type, Collection):
+        node_types.extend(node_type)
+    else:
+        node_types.append(node_type)
+    if expand_inheritance:
+        node_types = expand_node_inheritance(node_types)
+    return node_types

@@ -24,6 +24,8 @@ from .common import (
     Encoding,
     EnumType,
     EnvironmentType,
+    GraphDomain,
+    GraphKey,
     Json,
     ModeType,
     NodeType,
@@ -41,9 +43,6 @@ from .common import (
     RoleType,
     RuntimeLanguage,
     ScalarType,
-    StoreDomain,
-    StoreKey,
-    StoreTier,
     StructType,
     Tenancy,
     TraitType,
@@ -124,7 +123,7 @@ from .meta import (
     builtin_constant,
     builtin_method,
 )
-from .node import Node, builtin_node
+from .node import Node, builtin_node, expand_node_inheritance, expand_node_types
 from .object import BuiltinObject, _is_finalized
 from .property import (
     PropertyDeclaration,
@@ -221,6 +220,8 @@ __all__ = [
     "EnvironmentType",
     "Event",
     "EventStatus",
+    "GraphDomain",
+    "GraphKey",
     "IndexDeclaration",
     "IndexDefinition",
     "IndexType",
@@ -274,9 +275,6 @@ __all__ = [
     "RoleType",
     "RuntimeLanguage",
     "ScalarType",
-    "StoreDomain",
-    "StoreKey",
-    "StoreTier",
     "Struct",
     "StructDefinition",
     "StructDefinitionReference",
@@ -312,6 +310,8 @@ __all__ = [
     "builtin_property_runtime",
     "builtin_struct",
     "builtin_trait",
+    "expand_node_inheritance",
+    "expand_node_types",
     "get_active_branch",
     "get_active_branch_ptr",
     "get_active_event",

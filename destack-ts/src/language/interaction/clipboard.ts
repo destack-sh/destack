@@ -1,12 +1,4 @@
-import type {
-  Branch,
-  Graph,
-  GraphConnection,
-  NodeReference,
-  Session,
-  Snapshot,
-  Space,
-} from "@destack/language/core";
+import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -68,12 +60,12 @@ export abstract class ClipboardEvent extends InputEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   declare readonly createdEpoch: number;
 
@@ -81,31 +73,31 @@ export abstract class ClipboardEvent extends InputEvent {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference | null;
+  declare readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string | null;
+  declare readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   declare readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   declare readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   declare readonly status: EventStatus;
 
@@ -135,7 +127,7 @@ export class CopyEvent extends ClipboardEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -147,7 +139,7 @@ export class CopyEvent extends ClipboardEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -159,7 +151,7 @@ export class CopyEvent extends ClipboardEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -171,7 +163,7 @@ export class CopyEvent extends ClipboardEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -183,7 +175,7 @@ export class CopyEvent extends ClipboardEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -195,19 +187,19 @@ export class CopyEvent extends ClipboardEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -217,41 +209,41 @@ export class CopyEvent extends ClipboardEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -261,7 +253,7 @@ export class CopyEvent extends ClipboardEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -277,16 +269,14 @@ export class CopyEvent extends ClipboardEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -296,10 +286,6 @@ export class CopyEvent extends ClipboardEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -369,8 +355,14 @@ export class CopyEvent extends ClipboardEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`CopyEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`CopyEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -439,7 +431,7 @@ export class CopyEvent extends ClipboardEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -478,15 +470,9 @@ export class CopyEvent extends ClipboardEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -511,7 +497,6 @@ export class CopyEvent extends ClipboardEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -561,7 +546,7 @@ export class CutEvent extends ClipboardEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -573,7 +558,7 @@ export class CutEvent extends ClipboardEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -585,7 +570,7 @@ export class CutEvent extends ClipboardEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -597,7 +582,7 @@ export class CutEvent extends ClipboardEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -609,7 +594,7 @@ export class CutEvent extends ClipboardEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -621,19 +606,19 @@ export class CutEvent extends ClipboardEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -643,41 +628,41 @@ export class CutEvent extends ClipboardEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -687,7 +672,7 @@ export class CutEvent extends ClipboardEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -703,16 +688,14 @@ export class CutEvent extends ClipboardEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -722,10 +705,6 @@ export class CutEvent extends ClipboardEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -795,8 +774,14 @@ export class CutEvent extends ClipboardEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`CutEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`CutEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -865,7 +850,7 @@ export class CutEvent extends ClipboardEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -904,15 +889,9 @@ export class CutEvent extends ClipboardEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -937,7 +916,6 @@ export class CutEvent extends ClipboardEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 
@@ -987,7 +965,7 @@ export class PasteEvent extends ClipboardEvent {
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Space | null;
+      return this._session.graph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -999,7 +977,7 @@ export class PasteEvent extends ClipboardEvent {
   get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1011,7 +989,7 @@ export class PasteEvent extends ClipboardEvent {
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Branch | null;
+      return this._session.graph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -1023,7 +1001,7 @@ export class PasteEvent extends ClipboardEvent {
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Snapshot | null;
+      return this._session.graph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
@@ -1035,7 +1013,7 @@ export class PasteEvent extends ClipboardEvent {
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
@@ -1047,19 +1025,19 @@ export class PasteEvent extends ClipboardEvent {
   get causedBy(): Event | null {
     const nodePtr: NodeReference | null = this.causedByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Event | null;
+      return this._session.graph.get(nodePtr.id) as Event | null;
     }
     return null;
   }
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (system time).
+   * The time this Event was created (system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (system time).
+   * The logical time this Event was created (system).
    */
   readonly createdEpoch: number;
 
@@ -1069,41 +1047,41 @@ export class PasteEvent extends ClipboardEvent {
   get createdBy(): Entity | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
+  readonly createdByPtr: NodeReference;
 
   /**
-   * The Client that created this Event.
+   * The Client that created this Event (client).
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Client | null;
+      return this._session.graph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference | null;
+  readonly clientPtr: NodeReference;
 
   /**
-   * The nonce of the Client that created this Event.
+   * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string | null;
+  readonly clientNonce: string;
 
   /**
-   * The time in the Client when it created this Event.
+   * The time in the Client when it created this Event (client).
    */
   readonly clientCreatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time in the Client when it created this Event.
+   * The logical time in the Client when it created this Event (client).
    */
   readonly clientEpoch: number;
 
   /**
-   * The status of the Event.
+   * The status of the Event (system).
    */
   readonly status: EventStatus;
 
@@ -1113,7 +1091,7 @@ export class PasteEvent extends ClipboardEvent {
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr != null) {
-      return this._graph.get(nodePtr.id) as Entity | null;
+      return this._session.graph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1129,16 +1107,14 @@ export class PasteEvent extends ClipboardEvent {
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
-    createdBy?: Entity | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
+    createdBy?: Entity | NodeReference;
+    client?: Client | NodeReference;
+    clientNonce?: string;
     clientCreatedAt?: Temporal.ZonedDateTime;
     clientEpoch?: number;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
   }) {
     /* super */
     super(
@@ -1148,10 +1124,6 @@ export class PasteEvent extends ClipboardEvent {
       null,
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
-      /* connection */
-      options._connection ?? null,
       /* _isNew */
       options.id == null,
     );
@@ -1221,8 +1193,14 @@ export class PasteEvent extends ClipboardEvent {
     if (_client != null && _client.constructor.name != "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    this.clientPtr = _client as NodeReference | null;
+    if (_client === null) {
+      throw new Error(`PasteEvent.client is required`);
+    }
+    this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      throw new Error(`PasteEvent.clientNonce is required`);
+    }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
     if (_status === null) {
@@ -1291,7 +1269,7 @@ export class PasteEvent extends ClipboardEvent {
     if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+    if (!(this.clientPtr.id === other.clientPtr.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1330,15 +1308,9 @@ export class PasteEvent extends ClipboardEvent {
       h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr != null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce != null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
@@ -1363,7 +1335,6 @@ export class PasteEvent extends ClipboardEvent {
       branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
-      _graph: this._graph,
     });
   }
 

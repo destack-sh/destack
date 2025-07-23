@@ -16,7 +16,7 @@ export class ReactiveSession extends Session {
     epoch?: number;
   }) {
     super({
-      ...options,
+      ...options
     });
     this._dirtyEntities = new Map();
   }
@@ -55,7 +55,7 @@ export class ReactiveSession extends Session {
     batch(() => {
       for (const node of this._dirtyEntities.values()) {
         if ("touch" in node._graph) {
-          (node._graph as ReactiveGraph<Entity>).touch(node.id);
+          (node._graph as ReactiveGraph).touch(node.id);
         }
       }
     });

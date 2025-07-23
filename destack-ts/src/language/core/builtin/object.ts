@@ -8,7 +8,7 @@ import {
   type PropertyDefinition,
   type StructDefinition,
 } from "@destack/language/core";
-import type { Graph, GraphConnection, Session } from "@destack/language/core/runtime";
+import type { Session } from "@destack/language/core/runtime";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
@@ -26,12 +26,9 @@ export abstract class BuiltinObject {
 
   /* The Session this BuiltinObject is in. */
   _session: Session | null;
-  /* The Graph this BuiltinObject is in. */
-  _graph: Graph | null;
 
-  constructor(_session: Session | null, _graph: Graph | null) {
+  constructor(_session: Session | null) {
     this._session = _session;
-    this._graph = _graph;
   }
 
   get metatype(): NodeType | StructType {
@@ -72,11 +69,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObject({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
-      object: this,
-    });
+    return encoder.packObject(this.__kind__, this.metatype, this);
   }
 
   /** Pack a BuiltinObject into some encoded format. */
@@ -85,11 +78,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObject({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
-      object,
-    });
+    return encoder.packObject(this.__kind__, this.metatype, object);
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
@@ -98,11 +87,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObjectBytes({
-      kind: (this.constructor as typeof BuiltinObject).__kind__,
-      metatype: (this.constructor as typeof BuiltinObject).metatype,
-      object: this,
-    });
+    return encoder.packObjectBytes(this.__kind__, this.metatype, this);
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
@@ -111,73 +96,39 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObjectBytes({
-      kind: this.__kind__,
-      metatype: this.metatype,
-      object,
-    });
+    return encoder.packObjectBytes(this.__kind__, this.metatype, object);
   }
 
   /** Unpack a BuiltinObject from some encoded format. */
-  static unpack(options: {
-    encoding: Encoding;
-    value: any;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = ENCODERS[options.encoding];
+  static unpack(encoding: Encoding, value: any, session: Session | null): BuiltinObject {
+    const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no Encoder defined for ${Encoding[options.encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObject({
-      kind: this.__kind__,
-      metatype: this.metatype,
-      value: options.value,
-      _session: options._session ?? null,
-      _graph: options._graph ?? null,
-      _connection: options._connection ?? null,
-    });
+    return encoder.unpackObject(this.__kind__, this.metatype, value, session);
   }
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  static unpackBytes(options: {
-    encoding: Encoding;
-    value: Uint8Array;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject {
-    const encoder = ENCODERS[options.encoding];
+  static unpackBytes(
+    encoding: Encoding,
+    value: Uint8Array,
+    session: Session | null,
+  ): BuiltinObject {
+    const encoder = ENCODERS[encoding];
     if (encoder == null) {
-      throw new Error(`no Encoder defined for ${Encoding[options.encoding]!}`);
+      throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObjectBytes({
-      kind: this.__kind__,
-      metatype: this.metatype,
-      value: options.value,
-      _session: options._session ?? null,
-      _graph: options._graph ?? null,
-      _connection: options._connection ?? null,
-    });
+    return encoder.unpackObjectBytes(this.__kind__, this.metatype, value, session);
   }
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
-  static unpackBytesBase64(options: {
-    encoding: Encoding;
-    value: string;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject {
-    const valueBytes = Buffer.from(options.value, "base64");
-    return this.unpackBytes({
-      encoding: options.encoding,
-      value: valueBytes,
-      _session: options._session,
-      _graph: options._graph,
-      _connection: options._connection,
-    });
+  static unpackBytesBase64(
+    encoding: Encoding,
+    value: string,
+    session: Session | null,
+  ): BuiltinObject {
+    const valueBytes = Buffer.from(value, "base64");
+    return this.unpackBytes(encoding, valueBytes, session);
   }
 }
 
@@ -194,31 +145,13 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
   packBytes(encoding: Encoding, object: ObjectT): Uint8Array;
 
   /** Unpack a BuiltinObject from some encoded format. */
-  unpack(options: {
-    encoding: Encoding;
-    value: any;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject;
+  unpack(encoding: Encoding, value: any, session: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackBytes(options: {
-    encoding: Encoding;
-    value: Uint8Array;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject;
+  unpackBytes(encoding: Encoding, value: Uint8Array, session: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
-  unpackBytesBase64(options: {
-    encoding: Encoding;
-    value: string;
-    _session?: Session | null;
-    _graph?: Graph | null;
-    _connection?: GraphConnection | null;
-  }): BuiltinObject;
+  unpackBytesBase64(encoding: Encoding, value: string, session: Session | null): BuiltinObject;
 };
 
 /** A cached packed representation of a BuiltinObject. */

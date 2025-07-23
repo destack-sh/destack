@@ -12,7 +12,6 @@ import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { Value } from "@destack/language/core/common/value";
-import type { Graph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
@@ -174,7 +173,6 @@ export class StringConstraint extends StructFrozen {
     startsWith?: string | null;
     endsWith?: string | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -183,8 +181,6 @@ export class StringConstraint extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -311,7 +307,6 @@ export class NumberConstraint extends StructFrozen {
     precision?: number | null;
     scale?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -320,8 +315,6 @@ export class NumberConstraint extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -452,7 +445,6 @@ export class CollectionConstraint extends StructFrozen {
     minLength?: number | null;
     maxLength?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -461,8 +453,6 @@ export class CollectionConstraint extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -627,7 +617,6 @@ export class Type extends StructFrozen {
     isRequired?: boolean | null;
     isMain?: boolean | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -636,8 +625,6 @@ export class Type extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

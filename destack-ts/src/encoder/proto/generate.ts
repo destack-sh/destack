@@ -1,7 +1,5 @@
 import type {
   BuiltinObject,
-  Graph,
-  GraphConnection,
   NodeType,
   ObjectKind,
   Session,
@@ -23,21 +21,11 @@ export interface _ProtoObjectEncoder {
   packObject(object: BuiltinObject): AnyStructProto | AnyNodeProto;
 
   /** Unpack a BuiltinObject from some encoded format. */
-  unpackObject(options: {
-    value: any;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject;
+  unpackObject(value: any, session: Session | null): BuiltinObject;
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
   packObjectBytes(object: BuiltinObject): Uint8Array;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackObjectBytes(options: {
-    value: Uint8Array;
-    _session: Session | null;
-    _graph: Graph | null;
-    _connection: GraphConnection | null;
-  }): BuiltinObject;
+  unpackObjectBytes(value: Uint8Array, session: Session | null): BuiltinObject;
 }

@@ -1,4 +1,4 @@
-import type { Graph, PackedCache, Session } from "@destack/language/core";
+import type { PackedCache, Session } from "@destack/language/core";
 import { EnumType, StructFrozen, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -142,7 +142,6 @@ export class Length extends StructFrozen {
     unit: LengthType;
     value: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -151,8 +150,6 @@ export class Length extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -266,7 +263,6 @@ export class Offset2 extends StructFrozen {
     width?: Length | null;
     height?: Length | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -275,8 +271,6 @@ export class Offset2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -436,7 +430,6 @@ export class Inset2 extends StructFrozen {
     right?: number | null;
     bottom?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -445,8 +438,6 @@ export class Inset2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -597,7 +588,6 @@ export class Corner2 extends StructFrozen {
     bottomLeft?: number | null;
     bottomRight?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -606,8 +596,6 @@ export class Corner2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -746,7 +734,6 @@ export class Axis2 extends StructFrozen {
     x?: number | null;
     y?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -755,8 +742,6 @@ export class Axis2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -885,7 +870,6 @@ export class Axis3 extends StructFrozen {
     y?: number | null;
     z?: number | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -894,8 +878,6 @@ export class Axis3 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1044,7 +1026,6 @@ export class Grid2 extends StructFrozen {
     columnMinWidth?: Length | null;
     rowHeight?: Length | null;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1053,8 +1034,6 @@ export class Grid2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */
@@ -1192,7 +1171,6 @@ export class GridSpan2 extends StructFrozen {
     columns: number;
     rows: number;
     _session?: Session | null;
-    _graph?: Graph | null;
     _hash?: number | null;
     _repr?: string | null;
     _packedCache?: PackedCache[] | null;
@@ -1201,8 +1179,6 @@ export class GridSpan2 extends StructFrozen {
     super(
       /* session */
       options._session ?? null,
-      /* graph */
-      options._graph ?? null,
     );
 
     /* properties */

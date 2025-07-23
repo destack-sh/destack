@@ -11,9 +11,9 @@ import type {
   Sort,
 } from "@destack/language";
 import {
+  GraphDomain,
   NodeType,
   ObjectKind,
-  StoreDomain,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
@@ -21,9 +21,13 @@ import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { isStruct } from "@destack/language/core/builtin/struct";
 import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
-import { Graph, GraphConnection, Session } from "@destack/language/core/runtime";
+import { Session } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
-import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
+import {
+  NODE_CLASS_BY_TYPE,
+  registerNodeClass,
+  STRUCT_CLASS_BY_TYPE,
+} from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";
 import { uuid4, uuid7 } from "@destack/utils/uuid";
 
@@ -40,10 +44,6 @@ export abstract class Node extends BuiltinObject {
 
   /* The Session this Node is in. */
   _session: Session;
-  /* The Graph this Node is in. */
-  _graph: Graph;
-  /* The GraphConnection this Node is from (if any). */
-  _connection: GraphConnection | null;
   /* The hash of this Node. */
   _hash: string | null;
   /* The cached reference to this Node. */
@@ -55,18 +55,13 @@ export abstract class Node extends BuiltinObject {
     id: string | null,
     parentPtr: NodeReference | null,
     _session: Session | null,
-    _graph: Graph | null,
-    _connection: GraphConnection | null,
     _isNew: boolean,
   ) {
-    super(_session, _graph);
-    const isEvent = this.__definition__.storeDomain == StoreDomain.EVENT;
+    super(_session);
+    const isEvent = this.__definition__.domain == GraphDomain.EVENT;
     this.id = id ?? (isEvent ? uuid7() : uuid4());
     this.parentPtr = parentPtr; // is assigned again in subclasses but needed for adding to Graph
     this._session = _session ?? activeSession();
-    this._graph = _graph ?? this._session.graph;
-    this._graph.add(this);
-    this._connection = _connection;
     this._hash = this.id;
     this._ref = null;
     this._isNew = _isNew;
@@ -140,7 +135,7 @@ export abstract class Node extends BuiltinObject {
       join?: Join;
     }>,
   ): Query<T> {
-    if (this.__definition__.storeDomain == null) {
+    if (this.__definition__.domain == null) {
       throw new Error(`${this.__definition__.name} has no store domain`);
     }
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
@@ -440,4 +435,41 @@ export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Q
     queries.push(subquery);
   }
   return queries;
+}
+
+/** Expand a collection of NodeTypes into a flat collection of NodeTypes. */
+export function expandNodeInheritance(nodeTypes: NodeType[]): NodeType[] {
+  const expanded: NodeType[] = [];
+  for (const type of nodeTypes) {
+    const nodeDefinition = NODE_CLASS_BY_TYPE[type].__definition__;
+    for (const inheritedType of nodeDefinition.inheritedBy) {
+      if (!expanded.includes(inheritedType)) {
+        expanded.push(inheritedType);
+      }
+    }
+    if (!nodeDefinition.isAbstract && !expanded.includes(type)) {
+      expanded.push(type);
+    }
+  }
+  return expanded;
+}
+
+/** Resolve the NodeTypes for a NodeType, TraitType, or Node class. */
+export function expandNodeTypes(
+  nodeType?: NodeType | NodeClass,
+  options: { expandInheritance: boolean } = { expandInheritance: true },
+): NodeType[] | null {
+  if (nodeType == null) {
+    return null;
+  }
+  let nodeTypes: NodeType[] = [];
+  if (typeof nodeType == "number") {
+    nodeTypes.push(nodeType);
+  } else {
+    nodeTypes.push(nodeType.metatype);
+  }
+  if (options.expandInheritance) {
+    nodeTypes = expandNodeInheritance(nodeTypes);
+  }
+  return nodeTypes;
 }

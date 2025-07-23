@@ -4,7 +4,6 @@ import type {
   NodeClass,
   NodeDefinitionReference,
   NodeType,
-  StoreKey,
   StructClass,
   StructType,
   TraitClass,
@@ -44,25 +43,9 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
 
 // extra computed stuff
 
-export const NODE_TYPES_BY_PRIMARY_STORE_KEY: Record<StoreKey, NodeType[]> = {} as any;
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
-
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
-
 export const NODE_TYPE_SCALAR_BY_TYPE: Record<NodeType, Type> = {} as any;
-
-/** Get the known NodeTypes for a set of StoreKeys. */
-export function getNodeTypesForStores(storeKeys: StoreKey[]): NodeType[] {
-  const nodeTypes: NodeType[] = [];
-  for (const type of storeKeys) {
-    for (const nodeType of NODE_TYPES_BY_PRIMARY_STORE_KEY[type]) {
-      if (!nodeTypes.includes(nodeType)) {
-        nodeTypes.push(nodeType);
-      }
-    }
-  }
-  return nodeTypes;
-}
 
 /** Get the known (inherited, concrete) subdefinitions for a NodeType (including self). */
 export function getSubdefinitionsForNodeType(nodeType: NodeType): NodeDefinitionReference[] {

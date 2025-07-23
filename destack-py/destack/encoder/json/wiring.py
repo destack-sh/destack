@@ -24,7 +24,7 @@ from ...language.core.builtin import (
 from ...language.core.common.type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
-    from destack.language import Graph, GraphConnection, Session
+    from destack.language import Session
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -64,33 +64,17 @@ def pack_json(value: Any, type: Type) -> Json:
 def unpack_json(
     value: Json,
     type: Type,
-    _session: "Session | None",
-    _graph: "Graph | None",
-    _connection: "GraphConnection | None",
+    session: "Session | None",
 ) -> Any:
     """Unpack a JSON object to a generic typed value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_json(
-            value,
-            type,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
+        return _unpack_scalar_json(value, type, session)
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
             return []
         unpacked_list = []
         for item in value:
-            unpacked_list.append(
-                _unpack_scalar_json(
-                    item,
-                    type,
-                    _session=_session,
-                    _graph=_graph,
-                    _connection=_connection,
-                )
-            )
+            unpacked_list.append(_unpack_scalar_json(item, type, session))
         return unpacked_list
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
@@ -99,23 +83,9 @@ def unpack_json(
         assert isinstance(value, dict), f"expected dict for map type, got {type_(value)}"
         for key, val in value.items():
             unpacked_key = (
-                _unpack_scalar_json(
-                    key,
-                    type.key_type,
-                    _session=_session,
-                    _graph=_graph,
-                    _connection=_connection,
-                )
-                if type.key_type
-                else key
+                _unpack_scalar_json(key, type.key_type, session) if type.key_type else key
             )
-            unpacked_val = _unpack_scalar_json(
-                val,
-                type,
-                _session=_session,
-                _graph=_graph,
-                _connection=_connection,
-            )
+            unpacked_val = _unpack_scalar_json(val, type, session)
             unpacked_map[unpacked_key] = unpacked_val
         return unpacked_map
     else:
@@ -151,13 +121,7 @@ def _pack_scalar_json(value: Any, type: Type) -> Any:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_json(
-    value: Any,
-    type: Type,
-    _session: "Session | None",
-    _graph: "Graph | None",
-    _connection: "GraphConnection | None",
-) -> Any:
+def _unpack_scalar_json(value: Any, type: Type, session: "Session | None") -> Any:
     """Unpack a scalar value from JSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -180,33 +144,15 @@ def _unpack_scalar_json(
         # enum name is in CONSTANT_UPPER_CASE
         return enum_cls[value]
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.unpack(
-            Encoding.JSON,
-            value,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
+        return NodeReference.unpack(Encoding.JSON, value, session)
     elif type.scalar_type == ScalarType.NODE_VALUE:
         # metatype is stored as the enum name
         node_type = NodeType[value["metatype"]]
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        return node_cls.unpack(
-            Encoding.JSON,
-            value,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
+        return node_cls.unpack(Encoding.JSON, value, session)
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.unpack(
-            Encoding.JSON,
-            value,
-            _session=_session,
-            _graph=_graph,
-            _connection=_connection,
-        )
+        return struct_cls.unpack(Encoding.JSON, value, session)
     else:
         assert_never(type.scalar_type)

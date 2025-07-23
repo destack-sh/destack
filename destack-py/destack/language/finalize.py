@@ -8,7 +8,6 @@ from .core.builtin.common import (
     ENUM_TYPES,
     EnumType,
     NodeType,
-    StoreKey,
     StructType,
     TraitType,
 )
@@ -21,7 +20,6 @@ from .registry import (
     NODE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_SCALAR_BY_NODE_TYPE,
-    NODE_TYPES_BY_PRIMARY_STORE_KEY,
     NODE_TYPES_BY_TRAIT_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
@@ -44,26 +42,6 @@ def finalize():
 
     if _is_finalized():
         return
-
-    # index node types by store key
-    node_types_by_store_key: dict[StoreKey, list[NodeType]] = defaultdict(list)
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        if node_cls.__is_abstract__:
-            continue
-        primary_store_keys: list[StoreKey] = []
-        if NodeType.ENTITY in node_cls.__inherits__:
-            primary_store_keys.append(StoreKey.ENTITY_PRIMARY)
-        elif NodeType.EVENT in node_cls.__inherits__:
-            primary_store_keys.append(StoreKey.EVENT_PRIMARY)
-        else:
-            raise ValueError(f"unexpected node type: {node_cls}")
-        node_cls.__primary_store_keys__ = tuple(primary_store_keys)
-        for store_key in primary_store_keys:
-            node_types_by_store_key[store_key].append(node_cls.metatype)
-    for store_key in StoreKey:
-        NODE_TYPES_BY_PRIMARY_STORE_KEY[store_key] = tuple(
-            node_types_by_store_key.get(store_key, ())
-        )
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)

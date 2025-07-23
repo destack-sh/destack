@@ -6,8 +6,6 @@ from destack.language.core import (
     Cson,
     Encoder,
     Encoding,
-    Graph,
-    GraphConnection,
     NodeType,
     ObjectKind,
     Session,
@@ -66,25 +64,19 @@ class CsonEncoder(Encoder[Cson]):
         self,
         type: Type,
         value: Cson,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> Any:
-        return unpack_cson(value, type, session, graph, connection)
+        return unpack_cson(value, type, session)
 
     @override
     def unpack_value_bytes(
         self,
         type: Type,
         value: bytes,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> Any:
         value_decoded = json.loads(value.decode("utf-8"))
-        return unpack_cson(value_decoded, type, session, graph, connection)
+        return unpack_cson(value_decoded, type, session)
 
     @override
     def unpack_object(
@@ -92,13 +84,10 @@ class CsonEncoder(Encoder[Cson]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: Cson,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = CSON_OBJECT_ENCODERS[kind, metatype]
-        return encoder.unpack_object(value, session, graph, connection)
+        return encoder.unpack_object(value, session)
 
     @override
     def unpack_object_bytes(
@@ -106,11 +95,8 @@ class CsonEncoder(Encoder[Cson]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         value: bytes,
-        *,
         session: Session | None,
-        graph: Graph | None,
-        connection: GraphConnection | None,
     ) -> BuiltinObject:
         encoder = CSON_OBJECT_ENCODERS[kind, metatype]
         value_decoded = json.loads(value.decode("utf-8"))
-        return encoder.unpack_object(value_decoded, session, graph, connection)
+        return encoder.unpack_object(value_decoded, session)

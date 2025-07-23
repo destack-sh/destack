@@ -1,10 +1,6 @@
 from .connection import GraphConnection
 from .encoder import Encoder
-from .graph import (
-    Graph,
-    expand_node_inheritance,
-    expand_node_types,
-)
+from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle, WorldOracle
 from .render import Aliasing, get_active_aliasing
 from .session import Session
@@ -18,7 +14,5 @@ __all__ = [
     "Oracle",
     "Session",
     "WorldOracle",
-    "expand_node_inheritance",
-    "expand_node_types",
     "get_active_aliasing",
 ]

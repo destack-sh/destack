@@ -83,7 +83,7 @@ export abstract class ContentView extends View {
    * The Actor that created this Entity.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference | null;
+  declare readonly createdByPtr: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -99,7 +99,7 @@ export abstract class ContentView extends View {
    * The Actor that last updated this Entity.
    */
   abstract get updatedBy(): Entity | null;
-  declare readonly updatedByPtr: NodeReference | null;
+  declare readonly updatedByPtr: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
