@@ -444,10 +444,16 @@ export class KeyDownEvent extends KeyEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`KeyDownEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`KeyDownEvent.clientNonce is required`);
     }
@@ -512,7 +518,7 @@ export class KeyDownEvent extends KeyEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -652,10 +658,10 @@ export class KeyDownEvent extends KeyEvent {
     return new _NodeReference({
       type: NodeType.KEY_DOWN_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -986,10 +992,16 @@ export class KeyUpEvent extends KeyEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`KeyUpEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`KeyUpEvent.clientNonce is required`);
     }
@@ -1054,7 +1066,7 @@ export class KeyUpEvent extends KeyEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1194,10 +1206,10 @@ export class KeyUpEvent extends KeyEvent {
     return new _NodeReference({
       type: NodeType.KEY_UP_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1528,10 +1540,16 @@ export class KeyPressEvent extends KeyEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`KeyPressEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`KeyPressEvent.clientNonce is required`);
     }
@@ -1596,7 +1614,7 @@ export class KeyPressEvent extends KeyEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1736,10 +1754,10 @@ export class KeyPressEvent extends KeyEvent {
     return new _NodeReference({
       type: NodeType.KEY_PRESS_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

@@ -386,10 +386,16 @@ export class TimerStartedEvent extends TimerEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`TimerStartedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`TimerStartedEvent.clientNonce is required`);
     }
@@ -417,7 +423,7 @@ export class TimerStartedEvent extends TimerEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -523,10 +529,10 @@ export class TimerStartedEvent extends TimerEvent {
     return new _NodeReference({
       type: NodeType.TIMER_STARTED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -806,10 +812,16 @@ export class TimerPausedEvent extends TimerEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`TimerPausedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`TimerPausedEvent.clientNonce is required`);
     }
@@ -837,7 +849,7 @@ export class TimerPausedEvent extends TimerEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -943,10 +955,10 @@ export class TimerPausedEvent extends TimerEvent {
     return new _NodeReference({
       type: NodeType.TIMER_PAUSED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1226,10 +1238,16 @@ export class TimerResumedEvent extends TimerEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`TimerResumedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`TimerResumedEvent.clientNonce is required`);
     }
@@ -1257,7 +1275,7 @@ export class TimerResumedEvent extends TimerEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1363,10 +1381,10 @@ export class TimerResumedEvent extends TimerEvent {
     return new _NodeReference({
       type: NodeType.TIMER_RESUMED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1889,10 +1907,10 @@ export class Timer extends Entity {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -1909,7 +1927,7 @@ export class Timer extends Entity {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -1917,7 +1935,7 @@ export class Timer extends Entity {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -2030,10 +2048,10 @@ export class Timer extends Entity {
     return new _NodeReference({
       type: NodeType.TIMER,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2316,10 +2334,16 @@ export class TimerCompletedEvent extends TimerEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`TimerCompletedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`TimerCompletedEvent.clientNonce is required`);
     }
@@ -2347,7 +2371,7 @@ export class TimerCompletedEvent extends TimerEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -2453,10 +2477,10 @@ export class TimerCompletedEvent extends TimerEvent {
     return new _NodeReference({
       type: NodeType.TIMER_COMPLETED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2736,10 +2760,16 @@ export class TimerCancelledEvent extends TimerEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`TimerCancelledEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`TimerCancelledEvent.clientNonce is required`);
     }
@@ -2767,7 +2797,7 @@ export class TimerCancelledEvent extends TimerEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -2873,10 +2903,10 @@ export class TimerCancelledEvent extends TimerEvent {
     return new _NodeReference({
       type: NodeType.TIMER_CANCELLED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

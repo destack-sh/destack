@@ -390,10 +390,16 @@ export class NotificationSentEvent extends NotificationEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`NotificationSentEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`NotificationSentEvent.clientNonce is required`);
     }
@@ -421,7 +427,7 @@ export class NotificationSentEvent extends NotificationEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -527,10 +533,10 @@ export class NotificationSentEvent extends NotificationEvent {
     return new _NodeReference({
       type: NodeType.NOTIFICATION_SENT_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -810,10 +816,16 @@ export class NotificationRescindedEvent extends NotificationEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`NotificationRescindedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`NotificationRescindedEvent.clientNonce is required`);
     }
@@ -841,7 +853,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -947,10 +959,10 @@ export class NotificationRescindedEvent extends NotificationEvent {
     return new _NodeReference({
       type: NodeType.NOTIFICATION_RESCINDED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1230,10 +1242,16 @@ export class NotificationReadEvent extends NotificationEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`NotificationReadEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`NotificationReadEvent.clientNonce is required`);
     }
@@ -1261,7 +1279,7 @@ export class NotificationReadEvent extends NotificationEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1367,10 +1385,10 @@ export class NotificationReadEvent extends NotificationEvent {
     return new _NodeReference({
       type: NodeType.NOTIFICATION_READ_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1650,10 +1668,16 @@ export class NotificationDismissedEvent extends NotificationEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`NotificationDismissedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`NotificationDismissedEvent.clientNonce is required`);
     }
@@ -1681,7 +1705,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1787,10 +1811,10 @@ export class NotificationDismissedEvent extends NotificationEvent {
     return new _NodeReference({
       type: NodeType.NOTIFICATION_DISMISSED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2070,10 +2094,16 @@ export class NotificationExpiredEvent extends NotificationEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`NotificationExpiredEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`NotificationExpiredEvent.clientNonce is required`);
     }
@@ -2101,7 +2131,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -2207,10 +2237,10 @@ export class NotificationExpiredEvent extends NotificationEvent {
     return new _NodeReference({
       type: NodeType.NOTIFICATION_EXPIRED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2755,10 +2785,10 @@ export class Notification extends Entity implements IsOwnable {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -2777,7 +2807,7 @@ export class Notification extends Entity implements IsOwnable {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -2785,7 +2815,7 @@ export class Notification extends Entity implements IsOwnable {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -2902,10 +2932,10 @@ export class Notification extends Entity implements IsOwnable {
     return new _NodeReference({
       type: NodeType.NOTIFICATION,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

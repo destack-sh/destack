@@ -188,14 +188,26 @@ export abstract class Entity extends Node {
   getChildren(): Node[];
   getChildren<N extends Node>(nodeType?: NodeClass<N>): N[];
   getChildren(nodeType?: NodeClass): Node[] {
-    return this._graph.getChildren({ node: this, nodeType: nodeType?.metatype });
+    return this._session.graph.getChildren({
+      node: this,
+      spaceId: this.spacePtr.id,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
+      type: nodeType?.metatype,
+    });
   }
 
   /** Get a specific child of this Node by name. */
   getChild<N extends Node>(nodeType: NodeClass<N>, name: string): N | null;
   getChild(nodeType: NodeClass, name: string): Node | null;
   getChild(nodeType: NodeClass, name: string): Node | null {
-    const children = this._graph.getChildren({ node: this, nodeType: nodeType.metatype });
+    const children = this._session.graph.getChildren({
+      node: this,
+      spaceId: this.spacePtr.id,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
+      type: nodeType.metatype,
+    });
     for (const child of children) {
       if ((child as any).name === name) {
         return child;
@@ -219,7 +231,13 @@ export abstract class Entity extends Node {
   getDescendants(): Node[];
   getDescendants<N extends Node>(nodeType?: NodeClass<N>): N[];
   getDescendants(nodeType?: NodeClass): Node[] {
-    return this._graph.getDescendants({ node: this, nodeType: nodeType?.metatype });
+    return this._session.graph.getDescendants({
+      node: this,
+      spaceId: this.spacePtr.id,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
+      type: nodeType?.metatype,
+    });
   }
 
   /** Detach this Entity from its parent. Error if it has no parent. */
@@ -241,7 +259,15 @@ export abstract class Entity extends Node {
 
     // prepare graph & nodes
     const session = this._session;
-    const nodes: Entity[] = [this, ...(this._graph.getDescendants({ node: this }) as Entity[])];
+    const nodes: Entity[] = [
+      this,
+      ...(session.graph.getDescendants({
+        node: this,
+        spaceId: this.spacePtr.id,
+        branchId: this.branchPtr.id,
+        snapshotId: this.snapshotPtr.id,
+      }) as Entity[]),
+    ];
 
     // assign order
     if (parent !== null && hasTrait(this, TraitType.ORDERED)) {
@@ -343,9 +369,12 @@ export abstract class Entity extends Node {
       const nodeClass = orderTrait
         ? NODE_CLASS_BY_TYPE[orderTrait]
         : (child.constructor as NodeClass);
-      existingNodes = this._graph.getChildren({
+      existingNodes = this._session.graph.getChildren({
         node: this,
-        nodeType: nodeClass.metatype,
+        spaceId: this.spacePtr.id,
+        branchId: this.branchPtr.id,
+        snapshotId: this.snapshotPtr.id,
+        type: nodeClass.metatype,
       }) as Entity[];
     }
 

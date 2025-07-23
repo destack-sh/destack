@@ -1,16 +1,17 @@
 import { MemoryGraph } from "@destack/graph/memory";
 import {
   BuiltinObject,
-  Encoding,
-  EventCursor,
   Folder,
   Join,
   JoinType,
   NodeReference,
   NodeType,
+  Region,
   Session,
+  Universe,
   User,
   UserStatus,
+  WORLD_ORACLE,
 } from "@destack/language";
 import { ENCODERS } from "@destack/language/core/builtin/const";
 import { createAndActivateSpace } from "@destack/test/conftest";
@@ -20,9 +21,24 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 let session: Session;
 
 beforeEach(async () => {
-  session = new Session({ epoch: 1, graph: new MemoryGraph() });
+  const graph = new MemoryGraph();
+  await graph.open();
+  session = new Session({
+    graph,
+    epoch: 1,
+    actor: Universe.ACTOR,
+    client: Universe.CLIENT,
+    clientNonce: uuid4(),
+    oracle: WORLD_ORACLE,
+  });
   await session.open();
-  const { space } = createAndActivateSpace({ session });
+  const { space } = createAndActivateSpace({
+    session,
+    region: Region.ZURICH,
+    ownedBy: session.actorPtr,
+    name: "My Space",
+    slug: "my-space",
+  });
 });
 
 afterEach(async () => {
@@ -33,41 +49,37 @@ afterEach(async () => {
 function _testRoundtripObject(obj: BuiltinObject, session: Session): void {
   for (const [_, encoder] of Object.entries(ENCODERS)) {
     // pack/unpack as object
-    const packedObj = encoder.packObject({
-      kind: (obj.constructor as typeof BuiltinObject).__kind__,
-      metatype: obj.metatype,
-      object: obj,
-    });
-    const packedObjBytes = encoder.packObjectBytes({
-      kind: (obj.constructor as typeof BuiltinObject).__kind__,
-      metatype: obj.metatype,
-      object: obj,
-    });
-    const unpackedObj = encoder.unpackObject({
-      kind: (obj.constructor as typeof BuiltinObject).__kind__,
-      metatype: obj.metatype,
-      value: packedObj,
-      _session: session,
-      _graph: new MemoryGraph(),
-      _connection: null,
-    });
+    const packedObj = encoder.packObject(
+      (obj.constructor as typeof BuiltinObject).__kind__,
+      obj.metatype,
+      obj,
+    );
+    const packedObjBytes = encoder.packObjectBytes(
+      (obj.constructor as typeof BuiltinObject).__kind__,
+      obj.metatype,
+      obj,
+    );
+    const unpackedObj = encoder.unpackObject(
+      (obj.constructor as typeof BuiltinObject).__kind__,
+      obj.metatype,
+      packedObj,
+      session,
+    );
     expect(unpackedObj.equals(obj)).toBe(true);
     expect(unpackedObj.hash()).toEqual(obj.hash());
 
     // pack/unpack as bytes
-    const packedObjBytes2 = encoder.packObjectBytes({
-      kind: (obj.constructor as typeof BuiltinObject).__kind__,
-      metatype: obj.metatype,
-      object: obj,
-    });
-    const unpackedObjBytes = encoder.unpackObjectBytes({
-      kind: (obj.constructor as typeof BuiltinObject).__kind__,
-      metatype: obj.metatype,
-      value: packedObjBytes2,
-      _session: session,
-      _graph: new MemoryGraph(),
-      _connection: null,
-    });
+    const packedObjBytes2 = encoder.packObjectBytes(
+      (obj.constructor as typeof BuiltinObject).__kind__,
+      obj.metatype,
+      obj,
+    );
+    const unpackedObjBytes = encoder.unpackObjectBytes(
+      (obj.constructor as typeof BuiltinObject).__kind__,
+      obj.metatype,
+      packedObjBytes2,
+      session,
+    );
     expect(unpackedObjBytes.equals(obj)).toBe(true);
     expect(unpackedObjBytes.hash()).toEqual(obj.hash());
   }
@@ -79,6 +91,8 @@ test("roundtrip node reference", () => {
     type: NodeType.FOLDER,
     id: uuid4(),
     spaceId: uuid4(),
+    branchId: uuid4(),
+    snapshotId: uuid4(),
     definitionId: uuid4(),
   });
   _testRoundtripObject(nodeRef, session);
@@ -89,8 +103,8 @@ test("roundtrip query", () => {
   const query = Folder.search({
     sort: [Folder.property("created_at").asc()],
     limit: 25,
-    cursor: EventCursor.get({
-      join: Join.of(JoinType.LEFT, { on: EventCursor.property("created_epoch").eq(5) }),
+    subfolders: Folder.get({
+      join: Join.of(JoinType.LEFT, { on: Folder.property("created_epoch").eq(5) }),
     }),
   });
   _testRoundtripObject(query, session);
@@ -102,7 +116,13 @@ test("roundtrip user", () => {
     status: UserStatus.ACTIVE,
     name: "Florian",
     slug: "florian",
-    space: new NodeReference({ id: uuid4(), type: NodeType.SPACE }),
+    space: new NodeReference({
+      id: uuid4(),
+      type: NodeType.SPACE,
+      spaceId: uuid4(),
+      branchId: uuid4(),
+      snapshotId: uuid4(),
+    }),
   });
   _testRoundtripObject(user, session);
 });

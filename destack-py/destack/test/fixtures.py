@@ -15,11 +15,7 @@ _setup_test_env()
 
 
 from destack.graph import MemoryGraph
-from destack.language import (
-    Session,
-    Universe,
-    create_space,
-)
+from destack.language import REGION, Session, Space, Universe
 from destack.test.conftest import _setup_test_env
 from destack.utils.uuid import uuid4
 
@@ -58,11 +54,15 @@ async def session():
 
 @pytest.fixture
 def space(session: Session):
-    space, branch, snapshot = create_space(
-        session, name="Test", slug="test", owned_by=Universe.ACTOR
+    result = Space.create_space(
+        session, name="Test", slug="test", owned_by=Universe.ACTOR, region=REGION
     )
-    with space.active(), branch.active(), snapshot.active():
-        yield space
+    with (
+        result.space.active(),
+        result.root_branch.active(),
+        result.head_snapshot.active(),
+    ):
+        yield result.space
 
 
 @contextmanager

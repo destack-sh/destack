@@ -1,25 +1,11 @@
 import { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
 import { batch } from "@preact/signals-react";
-import { EditEvent, Entity, Event, Graph, NodeReference, Oracle, Session } from "destack";
+import { EditEvent, Entity, Event, Session } from "destack";
 
 /** A reactive variant of Session. */
 export class ReactiveSession extends Session {
   /** Unflushed Entities. */
-  readonly _dirtyEntities: Map<string, Entity>;
-
-  constructor(options?: {
-    oracle?: Oracle;
-    clientPtr?: NodeReference | null;
-    clientNonce?: string | null;
-    actorPtr?: NodeReference | null;
-    graph?: Graph | null;
-    epoch?: number;
-  }) {
-    super({
-      ...options
-    });
-    this._dirtyEntities = new Map();
-  }
+  readonly _dirtyEntities: Map<string, Entity> = new Map();
 
   override create(node: Entity): void {
     super.create(node);
@@ -54,8 +40,8 @@ export class ReactiveSession extends Session {
   override _onFlush(): void {
     batch(() => {
       for (const node of this._dirtyEntities.values()) {
-        if ("touch" in node._graph) {
-          (node._graph as ReactiveGraph).touch(node.id);
+        if ("touch" in node._session.graph) {
+          (node._session.graph as ReactiveGraph).touch(node.id);
         }
       }
     });

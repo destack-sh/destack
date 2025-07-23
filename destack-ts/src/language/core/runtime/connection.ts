@@ -1,21 +1,26 @@
-import type { Event, Graph, Node, NodeReference, Session } from "@destack/language";
+import type { Event, Graph, NodeReference, Session } from "@destack/language";
 
 /**
- * A connection between two Graphs.
+ * A connection between a local and a remote Graph.
  */
-export class GraphConnection<NodeT extends Node = Node> {
-  readonly spacePtr: NodeReference;
+export class GraphConnection {
+  /** The Session this GraphConnection is in. */
   readonly session: Session;
+
+  /** The local Graph. */
   readonly graph: Graph;
 
-  constructor(options: { spacePtr: NodeReference; graph: Graph; session: Session }) {
-    this.spacePtr = options.spacePtr;
+  /** The remote Space. */
+  readonly remoteSpacePtr: NodeReference;
+
+  constructor(options: { remoteSpacePtr: NodeReference; graph: Graph; session: Session }) {
+    this.remoteSpacePtr = options.remoteSpacePtr;
     this.session = options.session;
     this.graph = options.graph;
   }
 
   repr(): string {
-    return `<GraphConnection space=${this.spacePtr.repr()}>`;
+    return `<GraphConnection remote=${this.remoteSpacePtr.id}>`;
   }
 
   async open(): Promise<void> {

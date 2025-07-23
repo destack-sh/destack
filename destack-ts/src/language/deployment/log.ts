@@ -299,10 +299,16 @@ export class LogEvent extends Event {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`LogEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`LogEvent.clientNonce is required`);
     }
@@ -342,7 +348,7 @@ export class LogEvent extends Event {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -467,10 +473,10 @@ export class LogEvent extends Event {
     return new _NodeReference({
       type: NodeType.LOG_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

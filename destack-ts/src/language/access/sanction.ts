@@ -404,10 +404,16 @@ export class SanctionRequestedEvent extends SanctionEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`SanctionRequestedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`SanctionRequestedEvent.clientNonce is required`);
     }
@@ -443,7 +449,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -553,10 +559,10 @@ export class SanctionRequestedEvent extends SanctionEvent {
     return new _NodeReference({
       type: NodeType.SANCTION_REQUESTED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -849,10 +855,16 @@ export class SanctionGrantedEvent extends SanctionEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`SanctionGrantedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`SanctionGrantedEvent.clientNonce is required`);
     }
@@ -888,7 +900,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -998,10 +1010,10 @@ export class SanctionGrantedEvent extends SanctionEvent {
     return new _NodeReference({
       type: NodeType.SANCTION_GRANTED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1294,10 +1306,16 @@ export class SanctionRevokedEvent extends SanctionEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`SanctionRevokedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`SanctionRevokedEvent.clientNonce is required`);
     }
@@ -1333,7 +1351,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1443,10 +1461,10 @@ export class SanctionRevokedEvent extends SanctionEvent {
     return new _NodeReference({
       type: NodeType.SANCTION_REVOKED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1739,10 +1757,16 @@ export class SanctionExpiredEvent extends SanctionEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`SanctionExpiredEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`SanctionExpiredEvent.clientNonce is required`);
     }
@@ -1778,7 +1802,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1888,10 +1912,10 @@ export class SanctionExpiredEvent extends SanctionEvent {
     return new _NodeReference({
       type: NodeType.SANCTION_EXPIRED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2449,10 +2473,10 @@ export class Sanction extends Entity {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -2471,7 +2495,7 @@ export class Sanction extends Entity {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -2479,7 +2503,7 @@ export class Sanction extends Entity {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -2593,10 +2617,10 @@ export class Sanction extends Entity {
     return new _NodeReference({
       type: NodeType.SANCTION,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

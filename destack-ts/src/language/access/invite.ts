@@ -425,10 +425,16 @@ export class InviteSentEvent extends InviteEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`InviteSentEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`InviteSentEvent.clientNonce is required`);
     }
@@ -485,7 +491,7 @@ export class InviteSentEvent extends InviteEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -607,10 +613,10 @@ export class InviteSentEvent extends InviteEvent {
     return new _NodeReference({
       type: NodeType.INVITE_SENT_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -916,10 +922,16 @@ export class InviteRescindedEvent extends InviteEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`InviteRescindedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`InviteRescindedEvent.clientNonce is required`);
     }
@@ -963,7 +975,7 @@ export class InviteRescindedEvent extends InviteEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1077,10 +1089,10 @@ export class InviteRescindedEvent extends InviteEvent {
     return new _NodeReference({
       type: NodeType.INVITE_RESCINDED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1405,10 +1417,16 @@ export class InviteAcceptedEvent extends InviteEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`InviteAcceptedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`InviteAcceptedEvent.clientNonce is required`);
     }
@@ -1465,7 +1483,7 @@ export class InviteAcceptedEvent extends InviteEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -1587,10 +1605,10 @@ export class InviteAcceptedEvent extends InviteEvent {
     return new _NodeReference({
       type: NodeType.INVITE_ACCEPTED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1896,10 +1914,16 @@ export class InviteRejectedEvent extends InviteEvent {
       _client = (_client as Node).toRef();
     }
     if (_client === null) {
+      _client = this._session.clientPtr;
+    }
+    if (_client === null) {
       throw new Error(`InviteRejectedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
+    if (_clientNonce === null) {
+      _clientNonce = this._session.clientNonce;
+    }
     if (_clientNonce === null) {
       throw new Error(`InviteRejectedEvent.clientNonce is required`);
     }
@@ -1943,7 +1967,7 @@ export class InviteRejectedEvent extends InviteEvent {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -2057,10 +2081,10 @@ export class InviteRejectedEvent extends InviteEvent {
     return new _NodeReference({
       type: NodeType.INVITE_REJECTED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -2632,10 +2656,10 @@ export class Invite extends Entity implements IsOwnable {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -2652,7 +2676,7 @@ export class Invite extends Entity implements IsOwnable {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -2660,7 +2684,7 @@ export class Invite extends Entity implements IsOwnable {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -2776,10 +2800,10 @@ export class Invite extends Entity implements IsOwnable {
     return new _NodeReference({
       type: NodeType.INVITE,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

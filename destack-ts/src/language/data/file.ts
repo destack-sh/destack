@@ -977,10 +977,10 @@ export class File extends Resource {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -997,7 +997,7 @@ export class File extends Resource {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -1005,7 +1005,7 @@ export class File extends Resource {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -1224,10 +1224,10 @@ export class File extends Resource {
     return new _NodeReference({
       type: NodeType.FILE,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }

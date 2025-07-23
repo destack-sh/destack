@@ -15,7 +15,6 @@ from ..builtin import (
     EnumType,
     IsOwnable,
     NodeType,
-    ValueFactory,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -49,21 +48,6 @@ class Branch(
 
     parent: Optional["Space"] = builtin_property_parent()
     type: BranchType = builtin_property(100)
-
-    branch: "Branch" = builtin_property(
-        12,
-        is_readonly=True,
-        is_internal=True,
-        default_factory=ValueFactory.SELF,
-        description="The Branch itself. Cannot be any other Branch than this Branch",
-    )
-    snapshot: "Snapshot" = builtin_property(
-        13,
-        is_readonly=True,
-        is_internal=True,
-        default_factory=ValueFactory.SELF,
-        description="The latest Snapshot this Branch is based on (the head of the Branch).",
-    )
 
     @contextmanager
     def active(self) -> Generator[None, None, None]:
@@ -109,14 +93,6 @@ class Snapshot(
     """
 
     parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
-
-    snapshot: "Snapshot" = builtin_property(
-        13,
-        is_readonly=True,
-        is_internal=True,
-        default_factory=ValueFactory.SELF,
-        description="The Snapshot itself. Cannot be any other Snapshot than this Snapshot",
-    )
 
     type: SnapshotType = builtin_property(100)
     status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)

@@ -2,26 +2,24 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Branch,
-  createSpace,
+  Entity,
+  NodeReference,
+  Region,
   Session,
-  Snapshot,
   Space,
 } from "@destack/language";
 
 export function createAndActivateSpace(options: {
   session: Session;
+  region: Region;
+  ownedBy: Entity | NodeReference;
+  name: string;
+  slug: string;
   id?: string;
-  name?: string;
-  slug?: string;
-}): {
-  space: Space;
-  branch: Branch;
-  snapshot: Snapshot;
-} {
-  const { space, branch, snapshot } = createSpace(options);
-  ACTIVE_SPACE.set(space);
-  ACTIVE_BRANCH.set(branch);
-  ACTIVE_SNAPSHOT.set(snapshot);
-  return { space, branch, snapshot };
+}) {
+  const result = Space.createSpace(options);
+  ACTIVE_SPACE.set(result.space);
+  ACTIVE_BRANCH.set(result.rootBranch);
+  ACTIVE_SNAPSHOT.set(result.headSnapshot);
+  return result;
 }

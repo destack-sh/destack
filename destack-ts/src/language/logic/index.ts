@@ -1,4 +1,3 @@
-export * from "@destack/language/logic/cursor";
 export * from "@destack/language/logic/route";
 export * from "@destack/language/logic/schedule";
 export * from "@destack/language/logic/script";

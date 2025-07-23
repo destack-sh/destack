@@ -10,6 +10,7 @@ from destack.language import (
     BuiltinObject,
     Encoding,
     Node,
+    NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -391,7 +392,7 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
             PrimitiveType.FLOAT64,
         ):
             return str(value)
-        elif type.primitive_type == PrimitiveType.STRING:
+        elif type.primitive_type in (PrimitiveType.STRING, PrimitiveType.UUID):
             return f'"{value}"'
         elif type.primitive_type == PrimitiveType.DATETIME:
             return f"Temporal.Instant.from(\"{value}\").toZonedDateTimeISO('UTC')"
@@ -407,11 +408,18 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
-    elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
+    elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
         value_bytes = value.pack_bytes(Encoding.CSON)
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
         return f"{value.__class__.__name__}.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        assert isinstance(value, NodeReference), (
+            f"value is not a NodeReference for {type!r}: {value!r}"
+        )
+        value_bytes = value.pack_bytes(Encoding.CSON)
+        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
+        return f"NodeReference.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
     else:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")

@@ -1,9 +1,6 @@
-import type { Entity } from "@destack/language/core/builtin";
-import { NodeType, TraitType } from "@destack/language/core/builtin/common";
-import { expandNodeTypes } from "@destack/language/core/builtin/node";
+import type { Entity, Event } from "@destack/language/core/builtin";
+import { NodeType } from "@destack/language/core/builtin/common";
 import { Graph } from "@destack/language/core/runtime/graph";
-import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
-import { INTEGER_ZERO } from "@destack/utils/fractional";
 
 /** A Graph that stores Nodes in memory. */
 export class MemoryGraph extends Graph {
@@ -16,203 +13,115 @@ export class MemoryGraph extends Graph {
     this.nodesByParent = new Map();
   }
 
-  override open(): void {
+  //
+  // Meta
+  //
+
+  override async open(): Promise<void> {
     // nothing to do
   }
 
-  override close(): void {
+  override async close(): Promise<void> {
     // nothing to do
   }
 
-  override get(id: string): Entity | null {
-    return this.nodesById.get(id) ?? null;
+  //
+  // Write
+  //
+
+  override snapshot(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    epoch: number;
+  }): any {
+    throw new Error("not implemented");
   }
 
-  override has(id: string): boolean {
-    return this.nodesById.has(id);
+  override insert(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    entities: Entity[];
+  }): void {
+    throw new Error("not implemented");
   }
 
-  override add(node: Entity): void {
-    const existing = this.nodesById.get(node.id);
-    if (existing !== undefined) {
-      throw new Error(`node ${node.repr()} already in ${this.repr()}: ${existing.repr()}`);
-    }
-    // node
-    this.nodesById.set(node.id, node);
-    // parent
-    const parentPtr = (node as any).parentPtr;
-    if (parentPtr !== null && parentPtr !== undefined) {
-      if (!this.nodesByParent.has(parentPtr.id)) {
-        this.nodesByParent.set(parentPtr.id, new Map());
-      }
-      const childNodeType = node.metatype;
-      const parentMap = this.nodesByParent.get(parentPtr.id)!;
-      if (!parentMap.has(childNodeType)) {
-        parentMap.set(childNodeType, []);
-      }
-      parentMap.get(childNodeType)!.push(node);
-    }
+  override append(events: Event[]): void {
+    throw new Error("not implemented");
   }
 
-  override update(node: Entity): void {
-    // nothing to do
+  override restate(events: Event[]): void {
+    throw new Error("not implemented");
   }
 
-  override remove(node: Entity): void {
-    // parent
-    const parentPtr = (node as any).parentPtr;
-    if (parentPtr !== null && parentPtr !== undefined) {
-      const parentMap = this.nodesByParent.get(parentPtr.id);
-      if (parentMap) {
-        const childNodeType = node.metatype;
-        const children = parentMap.get(childNodeType);
-        if (children) {
-          const index = children.indexOf(node);
-          if (index !== -1) {
-            children.splice(index, 1);
-          }
-          if (children.length === 0) {
-            parentMap.delete(childNodeType);
-            if (parentMap.size === 0) {
-              this.nodesByParent.delete(parentPtr.id);
-            }
-          }
-        }
-      }
-    }
-    // node
-    this.nodesById.delete(node.id);
+  override async prune(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+  }): Promise<void> {
+    throw new Error("not implemented");
   }
 
-  override getChildren(options: { node: Entity; nodeType?: NodeType }): Entity[] {
-    // bail if no children
-    if (this.nodesByParent.size === 0) {
-      return [];
-    }
-    const childrenByType = this.nodesByParent.get(options.node.id);
-    if (!childrenByType) {
-      return [];
-    }
-
-    if (options.nodeType === undefined) {
-      // collect children across all types
-      const children: Entity[] = [];
-      let isOrdered = false;
-      for (const childrenOfType of childrenByType.values()) {
-        if (childrenOfType.length > 0) {
-          const nodeClass = NODE_CLASS_BY_TYPE[childrenOfType[0].metatype];
-          if (nodeClass.__definition__.traits.includes(TraitType.ORDERED)) {
-            isOrdered = true;
-          }
-          children.push(...childrenOfType);
-        }
-      }
-      if (isOrdered) {
-        children.sort((a, b) => {
-          const aOrderKey = (a as any).orderKey ?? INTEGER_ZERO;
-          const bOrderKey = (b as any).orderKey ?? INTEGER_ZERO;
-          return aOrderKey.localeCompare(bOrderKey);
-        });
-      }
-      return children;
-    } else {
-      // turn into type
-      const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
-      if (!nodeTypes || nodeTypes.length === 0) {
-        return [];
-      }
-      const nodeClass = NODE_CLASS_BY_TYPE[nodeTypes[0]];
-
-      // collect
-      if (nodeTypes.length === 1) {
-        // collect for single node type
-        const children = childrenByType.get(nodeTypes[0]) ?? [];
-        if (children.length > 0 && nodeClass.__definition__.traits.includes(TraitType.ORDERED)) {
-          const sortedChildren = [...children];
-          sortedChildren.sort((a, b) => {
-            const aOrderKey = (a as any).orderKey ?? INTEGER_ZERO;
-            const bOrderKey = (b as any).orderKey ?? INTEGER_ZERO;
-            return aOrderKey.localeCompare(bOrderKey);
-          });
-          return sortedChildren;
-        }
-        return children;
-      } else {
-        // collect for trait (multiple node types)
-        const children: Entity[] = [];
-        for (const nodeType of nodeTypes) {
-          children.push(...(childrenByType.get(nodeType) ?? []));
-        }
-        if (children.length > 0 && nodeClass.__definition__.traits.includes(TraitType.ORDERED)) {
-          children.sort((a, b) => {
-            const aOrderKey = (a as any).orderKey ?? INTEGER_ZERO;
-            const bOrderKey = (b as any).orderKey ?? INTEGER_ZERO;
-            return aOrderKey.localeCompare(bOrderKey);
-          });
-        }
-        return children;
-      }
-    }
+  override async commit(): Promise<void> {
+    throw new Error("not implemented");
   }
 
-  override getDescendants(options: { node: Entity; nodeType?: NodeType }): Entity[] {
-    if (this.nodesByParent.size === 0) {
-      return [];
-    }
+  //
+  // Read
+  //
 
-    const queue: Entity[] = [options.node];
-    const descendants: Entity[] = [];
-    const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
-
-    // BFS
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const childrenByType = this.nodesByParent.get(current.id);
-      if (!childrenByType) {
-        continue;
-      }
-
-      // add all children to queue
-      for (const childrenOfType of childrenByType.values()) {
-        queue.push(...childrenOfType);
-      }
-
-      // collect descendants based on type filter
-      if (!nodeTypes) {
-        for (const childrenOfType of childrenByType.values()) {
-          descendants.push(...childrenOfType);
-        }
-      } else {
-        for (const nodeType of nodeTypes) {
-          descendants.push(...(childrenByType.get(nodeType) ?? []));
-        }
-      }
-    }
-
-    return descendants;
+  override seek(options: {
+    spaceId: string;
+    branchId: string | null;
+    snapshotId: string | null;
+    type?: NodeType | NodeType[] | null;
+    after?: Date | number | null;
+    before?: Date | number | null;
+  }): Event[] {
+    throw new Error("not implemented");
   }
 
-  /**
-   * Get ancestors of a node (going up the parent chain).
-   * If a type is specified, only ancestors of that type are collected.
-   */
-  getAncestors(node: Entity, nodeType?: NodeType): Entity[] {
-    const ancestors: Entity[] = [];
-    let currentPtr = (node as any).parentPtr;
-    const nodeTypes = expandNodeTypes(nodeType, { expandInheritance: true });
+  override get(options: {
+    id: string;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    includeDeleted?: boolean;
+  }): Entity | null {
+    return this.nodesById.get(options.id) ?? null;
+  }
 
-    // traverse up the parent chain
-    while (currentPtr !== null && currentPtr !== undefined) {
-      const parentNode = this.get(currentPtr.id);
-      if (parentNode === null) {
-        break;
-      }
-      if (nodeTypes === null || nodeTypes.includes(parentNode.metatype)) {
-        ancestors.push(parentNode);
-      }
-      currentPtr = (parentNode as any).parentPtr;
-    }
+  override getChildren(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[] {
+    throw new Error("not implemented");
+  }
 
-    return ancestors;
+  override getAncestors(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[] {
+    throw new Error("not implemented");
+  }
+
+  override getDescendants(options: {
+    node: Entity;
+    spaceId: string;
+    branchId: string;
+    snapshotId: string;
+    type?: NodeType | null;
+    includeDeleted?: boolean;
+  }): Entity[] {
+    throw new Error("not implemented");
   }
 }

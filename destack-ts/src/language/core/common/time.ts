@@ -1,5 +1,5 @@
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
-import { ACTIVE_BRANCH, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -67,7 +67,7 @@ export class Branch extends Entity implements IsOwnable {
   readonly definitionPtr: NodeReference | null;
 
   /**
-   * The Branch itself. Cannot be any other Branch than this Branch
+   * The Branch this Entity is part of.
    */
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
@@ -79,7 +79,7 @@ export class Branch extends Entity implements IsOwnable {
   readonly branchPtr: NodeReference;
 
   /**
-   * The latest Snapshot this Branch is based on (the head of the Branch).
+   * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
@@ -395,7 +395,11 @@ export class Branch extends Entity implements IsOwnable {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
-      _branch = this.toRef();
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Branch`);
+      }
+      _branch = _branch.toRef();
     }
     if (_branch === null) {
       throw new Error(`Branch.branch is required`);
@@ -406,7 +410,11 @@ export class Branch extends Entity implements IsOwnable {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
-      _snapshot = this.toRef();
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Branch`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`Branch.snapshot is required`);
@@ -476,10 +484,10 @@ export class Branch extends Entity implements IsOwnable {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -496,7 +504,7 @@ export class Branch extends Entity implements IsOwnable {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -504,7 +512,7 @@ export class Branch extends Entity implements IsOwnable {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -513,12 +521,6 @@ export class Branch extends Entity implements IsOwnable {
       return false;
     }
     if (!(this._type === other._type)) {
-      return false;
-    }
-    if (!(this.branchPtr.id === other.branchPtr.id)) {
-      return false;
-    }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -566,8 +568,6 @@ export class Branch extends Entity implements IsOwnable {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -616,8 +616,9 @@ export class Branch extends Entity implements IsOwnable {
     return new _NodeReference({
       type: NodeType.BRANCH,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
+      spaceId: this.spacePtr.id,
       branchId: this.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -722,7 +723,7 @@ export class Snapshot extends Entity implements IsOwnable {
   readonly branchPtr: NodeReference;
 
   /**
-   * The Snapshot itself. Cannot be any other Snapshot than this Snapshot
+   * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
@@ -1070,7 +1071,11 @@ export class Snapshot extends Entity implements IsOwnable {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
-      _snapshot = this.toRef();
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Snapshot`);
+      }
+      _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`Snapshot.snapshot is required`);
@@ -1148,10 +1153,10 @@ export class Snapshot extends Entity implements IsOwnable {
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -1170,7 +1175,7 @@ export class Snapshot extends Entity implements IsOwnable {
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -1178,15 +1183,12 @@ export class Snapshot extends Entity implements IsOwnable {
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this._type === other._type)) {
@@ -1239,7 +1241,6 @@ export class Snapshot extends Entity implements IsOwnable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this.definitionPtr != null) {
@@ -1290,8 +1291,8 @@ export class Snapshot extends Entity implements IsOwnable {
     return new _NodeReference({
       type: NodeType.SNAPSHOT,
       id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      branchId: this.branchPtr?.id ?? null,
+      spaceId: this.spacePtr.id,
+      branchId: this.branchPtr.id,
       snapshotId: this.id,
       _session: this._session,
     });

@@ -31,90 +31,6 @@ import { hashBool, hashString } from "@destack/utils/hash";
 import { uuid4 } from "@destack/utils/uuid";
 import { Temporal } from "temporal-polyfill";
 
-/** Create a new Space with a root Branch and Snapshot. */
-export function createSpace(options: {
-  session: Session;
-  id?: string;
-  name?: string;
-  slug?: string;
-}): {
-  space: Space;
-  branch: Branch;
-  snapshot: Snapshot;
-} {
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
-  const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
-  const _Space = NODE_CLASS_BY_TYPE[NodeType.SPACE] as typeof Space;
-
-  const { session, id, name, slug } = options;
-  const epoch = session.epoch;
-  const now = Temporal.Now.zonedDateTimeISO("UTC");
-
-  const spaceId = id ?? uuid4();
-  const spacePtr = new _NodeReference({
-    type: NodeType.SPACE,
-    id: spaceId,
-    spaceId,
-  });
-
-  const branchId = uuid4();
-  const branchPtr = new _NodeReference({
-    type: NodeType.BRANCH,
-    id: branchId,
-    spaceId,
-  });
-
-  const snapshotId = uuid4();
-  const snapshotPtr = new _NodeReference({
-    type: NodeType.SNAPSHOT,
-    id: snapshotId,
-    spaceId,
-    branchId,
-  });
-
-  const branch = new _Branch({
-    id: branchId,
-    name: "Main",
-    space: spacePtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-    type: BranchType.ROOT,
-    branch: branchPtr,
-    snapshot: snapshotPtr,
-  });
-  session.create(branch);
-  const snapshot = new _Snapshot({
-    id: snapshotId,
-    name: "Root",
-    space: spacePtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-    type: SnapshotType.FULL,
-    branch: branchPtr,
-  });
-  session.create(snapshot);
-  const space = new _Space({
-    id: spaceId,
-    name: name ?? "Space",
-    slug: slug ?? "space",
-    region: Region.ZURICH,
-    branch: branchPtr,
-    snapshot: snapshotPtr,
-    createdEpoch: epoch,
-    createdAt: now,
-    updatedEpoch: epoch,
-    updatedAt: now,
-  });
-  session.create(space);
-
-  return { space, branch, snapshot };
-}
-
 /* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
 /**
  * The Destack computational universe.
@@ -158,6 +74,46 @@ export abstract class Universe extends Entity {
    * All Enum definitions.
    */
   static readonly ENUMS: readonly EnumDefinition[] = undefined as any /* (deferred) */;
+
+  /**
+   * The system Space ID.
+   */
+  static readonly SPACE_ID: string = "00000000-0000-0000-0000-000000000000";
+
+  /**
+   * The system Space.
+   */
+  static readonly SPACE: NodeReference = undefined as any /* (deferred) */;
+
+  /**
+   * The 'meta' Snapshot.id, the Snapshot containing time-related Entities (like Snapshots, Branches, etc.)
+   */
+  static readonly META_SNAPSHOT_ID: string = "00000000-0000-0000-0000-000000000014";
+
+  /**
+   * The 'meta' Branch.id, the Branch containing time-related Entities (like Snapshots, Branches, etc.)
+   */
+  static readonly META_BRANCH_ID: string = "00000000-0000-0000-0000-000000000015";
+
+  /**
+   * The 'root' Branch.id, the Branch all other Branches originate from.
+   */
+  static readonly ROOT_BRANCH_ID: string = "00000000-0000-0000-0000-00000000001f";
+
+  /**
+   * The 'head' Snapshot.id, the current active Snapshot.
+   */
+  static readonly HEAD_SNAPSHOT_ID: string = "00000000-0000-0000-0000-00000000001e";
+
+  /**
+   * God himself, the creator of the Universe.
+   */
+  static readonly ACTOR: NodeReference = undefined as any /* (deferred) */;
+
+  /**
+   * God's terminal, for when He needs to do something.
+   */
+  static readonly CLIENT: NodeReference = undefined as any /* (deferred) */;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -838,10 +794,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       const epoch = this._session.epoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = null;
+      this.createdByPtr = this._session.actorPtr;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
+      this.updatedByPtr = this._session.actorPtr;
     } else {
       if (
         options.createdAt == null ||
@@ -858,7 +814,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
           ? options.createdBy.constructor.name == "NodeReference"
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
@@ -866,7 +822,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
           ? options.updatedBy.constructor.name == "NodeReference"
             ? (options.updatedBy as NodeReference)
             : (options.updatedBy as Node).toRef()
-          : null;
+          : this._session.actorPtr;
     }
   }
 
@@ -981,6 +937,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       type: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
+      branchId: this.branchPtr.id,
+      snapshotId: this.snapshotPtr.id,
       _session: this._session,
     });
   }
@@ -1004,7 +962,168 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  /** Create a new Space with a root Branch, meta Snapshot and head Snapshot. */
+  static createSpace(options: {
+    session: Session;
+    id?: string;
+    name: string;
+    slug: string;
+    region: Region;
+    ownedBy: Entity | NodeReference;
+  }): {
+    space: Space;
+    rootBranch: Branch;
+    metaBranch: Branch;
+    metaSnapshot: Snapshot;
+    headSnapshot: Snapshot;
+  } {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
+    const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
+    const _Space = NODE_CLASS_BY_TYPE[NodeType.SPACE] as typeof Space;
+
+    const { session, id, name, slug, region, ownedBy } = options;
+
+    let ownedByPtr: NodeReference;
+    if (ownedBy instanceof Entity) {
+      ownedByPtr = ownedBy.__toRef__();
+    } else {
+      ownedByPtr = ownedBy;
+    }
+
+    const spaceId = id ?? uuid4();
+    const epoch = session.epoch;
+    const now = Temporal.Now.zonedDateTimeISO("UTC");
+
+    const spacePtr = new _NodeReference({
+      type: NodeType.SPACE,
+      id: spaceId,
+      spaceId,
+      branchId: Universe.ROOT_BRANCH_ID,
+      snapshotId: Universe.META_SNAPSHOT_ID,
+    });
+
+    // snapshots/branches live in the meta Branch/Snapshot
+    const metaBranchPtr = new _NodeReference({
+      type: NodeType.BRANCH,
+      id: Universe.META_BRANCH_ID,
+      spaceId,
+      branchId: Universe.META_BRANCH_ID,
+      snapshotId: Universe.META_SNAPSHOT_ID,
+    });
+
+    const metaSnapshotPtr = new _NodeReference({
+      type: NodeType.SNAPSHOT,
+      id: Universe.META_SNAPSHOT_ID,
+      spaceId,
+      branchId: Universe.META_BRANCH_ID,
+      snapshotId: Universe.META_SNAPSHOT_ID,
+    });
+
+    const rootBranchPtr = new _NodeReference({
+      type: NodeType.BRANCH,
+      id: Universe.ROOT_BRANCH_ID,
+      spaceId,
+      branchId: Universe.ROOT_BRANCH_ID,
+      snapshotId: Universe.META_SNAPSHOT_ID,
+    });
+
+    const headSnapshotPtr = new _NodeReference({
+      type: NodeType.SNAPSHOT,
+      id: Universe.HEAD_SNAPSHOT_ID,
+      spaceId,
+      branchId: Universe.META_BRANCH_ID,
+      snapshotId: Universe.META_BRANCH_ID,
+    });
+
+    const metaBranch = new _Branch({
+      id: Universe.META_BRANCH_ID,
+      type: BranchType.ROOT,
+      name: "Meta",
+      space: spacePtr,
+      snapshot: metaSnapshotPtr,
+      branch: metaBranchPtr,
+      createdEpoch: epoch,
+      createdAt: now,
+      createdBy: ownedByPtr,
+      updatedEpoch: epoch,
+      updatedAt: now,
+      updatedBy: ownedByPtr,
+    });
+
+    const metaSnapshot = new _Snapshot({
+      id: Universe.META_SNAPSHOT_ID,
+      name: "Meta",
+      space: spacePtr,
+      branch: metaBranchPtr,
+      snapshot: metaSnapshotPtr,
+      createdEpoch: epoch,
+      createdAt: now,
+      createdBy: ownedByPtr,
+      updatedEpoch: epoch,
+      updatedAt: now,
+      updatedBy: ownedByPtr,
+      type: SnapshotType.FULL,
+    });
+
+    const headSnapshot = new _Snapshot({
+      id: Universe.HEAD_SNAPSHOT_ID,
+      name: "Head",
+      space: spacePtr,
+      branch: metaBranchPtr,
+      snapshot: metaSnapshotPtr,
+      createdEpoch: epoch,
+      createdAt: now,
+      createdBy: ownedByPtr,
+      updatedEpoch: epoch,
+      updatedAt: now,
+      updatedBy: ownedByPtr,
+      type: SnapshotType.FULL,
+    });
+
+    const rootBranch = new _Branch({
+      id: Universe.ROOT_BRANCH_ID,
+      name: "Root",
+      space: spacePtr,
+      snapshot: metaSnapshotPtr,
+      createdEpoch: epoch,
+      createdAt: now,
+      createdBy: ownedByPtr,
+      updatedEpoch: epoch,
+      updatedAt: now,
+      updatedBy: ownedByPtr,
+      type: BranchType.ROOT,
+      branch: metaBranchPtr,
+    });
+
+    // space lives in the root Branch at head Snapshot
+    const space = new _Space({
+      id: spaceId,
+      space: spacePtr,
+      branch: rootBranchPtr,
+      snapshot: headSnapshotPtr,
+      name,
+      slug,
+      region,
+      createdEpoch: epoch,
+      createdAt: now,
+      createdBy: ownedByPtr,
+      updatedEpoch: epoch,
+      updatedAt: now,
+      updatedBy: ownedByPtr,
+      ownedBy: ownedByPtr,
+    });
+
+    session.create(space);
+    session.create(metaBranch);
+    session.create(metaSnapshot);
+    session.create(rootBranch);
+    session.create(headSnapshot);
+
+    return { space, rootBranch, metaBranch, metaSnapshot, headSnapshot };
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPACE, Space);
