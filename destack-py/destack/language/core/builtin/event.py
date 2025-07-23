@@ -121,7 +121,6 @@ class Event[N: Node = Node](Node):
     )
     created_by: "Entity" = builtin_property(
         22,
-        default=None,
         is_internal=True,
         is_eq=False,
         is_readonly=True,

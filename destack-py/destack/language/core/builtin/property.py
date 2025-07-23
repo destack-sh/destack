@@ -288,15 +288,12 @@ def parse_type_annotation(
     if isinstance(py_type, type) and (primitive_t := PRIMITIVE_TYPE_BY_PY_TYPE.get(py_type)):
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = primitive_t
-    elif class_name == "Json":
+    elif class_name == "Json" or class_name == "Cson":
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = PrimitiveType.JSON
-    elif class_name == "Cson":
-        scalar_type = ScalarType.PRIMITIVE
-        primitive_type = PrimitiveType.CSON
     elif class_name == "Proto":
         scalar_type = ScalarType.PRIMITIVE
-        primitive_type = PrimitiveType.PROTO
+        primitive_type = PrimitiveType.BYTES
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True

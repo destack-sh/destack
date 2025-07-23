@@ -169,7 +169,6 @@ _PROTO_PRIMITIVE_MESSAGE_TYPES = (
     PrimitiveType.DATETIME,
     PrimitiveType.DURATION,
     PrimitiveType.JSON,
-    PrimitiveType.CSON,
 )
 
 
@@ -297,7 +296,7 @@ def _generate_pack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value_e
             return f"pack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"pack_proto_duration({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"pack_proto_json({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.BOOLEAN,
@@ -315,7 +314,6 @@ def _generate_pack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value_e
             PrimitiveType.BYTES,
             PrimitiveType.DATE,
             PrimitiveType.TIME,
-            PrimitiveType.PROTO,
         ):
             return value_expr
         else:
@@ -343,7 +341,7 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
             return f"unpack_proto_timestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"unpack_proto_duration({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return f"unpack_proto_json({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.BOOLEAN,
@@ -361,7 +359,6 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
             PrimitiveType.BYTES,
             PrimitiveType.DATE,
             PrimitiveType.TIME,
-            PrimitiveType.PROTO,
         ):
             return value_expr
         else:

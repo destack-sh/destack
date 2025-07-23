@@ -181,7 +181,6 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     )
     created_by: "Entity" = builtin_property(
         22,
-        default=None,
         is_internal=True,
         is_eq=False,
         is_readonly=True,
@@ -208,7 +207,6 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     )
     updated_by: "Entity" = builtin_property(
         25,
-        default=None,
         is_internal=True,
         is_eq=False,
         default_factory=ValueFactory.ACTOR,

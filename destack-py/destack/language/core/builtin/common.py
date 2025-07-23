@@ -1242,8 +1242,6 @@ class PrimitiveType(Enum):
     DURATION = 73, "Duration", "Duration", "fas fa-stopwatch"
     # compound
     JSON = 80, "JSON", "JSON", "fas fa-brackets-curly"
-    CSON = 81, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
-    PROTO = 82, "PROTO", "Protocol Buffers", "fas fa-file-lines"
 
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {

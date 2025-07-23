@@ -310,7 +310,7 @@ def _generate_pack_cson_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"base64Encode({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.INT8,
@@ -333,7 +333,7 @@ def _generate_pack_cson_scalar(
             return f"{value_expr}.toString()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaToISOFormat({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
             assert_never(prop.primitive_type)
@@ -353,7 +353,7 @@ def _generate_unpack_cson_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"Boolean({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"base64Decode({value_expr})"
         elif (
             prop.primitive_type == PrimitiveType.UUID or prop.primitive_type == PrimitiveType.STRING
@@ -380,7 +380,7 @@ def _generate_unpack_cson_scalar(
             PrimitiveType.FLOAT64,
         ):
             return f"Number({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
             assert_never(prop.primitive_type)
@@ -421,7 +421,7 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return "true" if value else "false"
-        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif type.primitive_type == PrimitiveType.BYTES:
             return f"base64Decode({base64.b64encode(value).decode()})"
         elif type.primitive_type in (
             PrimitiveType.INT8,
@@ -446,7 +446,7 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
             return f'Temporal.PlainTime.from("{value}")'
         elif type.primitive_type == PrimitiveType.DURATION:
             return f'Temporal.Duration.from("{value}")'
-        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+        elif type.primitive_type == PrimitiveType.JSON:
             return json.dumps(value)
         else:
             assert_never(type.primitive_type)

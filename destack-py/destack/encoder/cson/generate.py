@@ -199,7 +199,7 @@ def _generate_pack_cson_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        elif prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type in (PrimitiveType.UUID, PrimitiveType.STRING):
             return f"str({value_expr})"
@@ -211,18 +211,22 @@ def _generate_pack_cson_scalar(
             return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
-        elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ) or prop.primitive_type in (PrimitiveType.CSON, PrimitiveType.JSON):
+        elif (
+            prop.primitive_type
+            in (
+                PrimitiveType.INT8,
+                PrimitiveType.INT16,
+                PrimitiveType.INT32,
+                PrimitiveType.INT64,
+                PrimitiveType.UINT8,
+                PrimitiveType.UINT16,
+                PrimitiveType.UINT32,
+                PrimitiveType.UINT64,
+                PrimitiveType.FLOAT32,
+                PrimitiveType.FLOAT64,
+            )
+            or prop.primitive_type == PrimitiveType.JSON
+        ):
             return value_expr
         else:
             assert_never(prop.primitive_type)
@@ -276,12 +280,10 @@ def _generate_unpack_cson_scalar(
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+        if prop.primitive_type == PrimitiveType.BYTES:
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
-        elif prop.primitive_type == PrimitiveType.CSON:
-            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"datetime.fromisoformat({value_expr}).astimezone(UTC)"
         elif prop.primitive_type == PrimitiveType.DATE:
