@@ -5,6 +5,8 @@ import {
   BuiltinObject,
   Encoder,
   NodeType,
+  BinaryWriter,
+  BinaryReader,
   ObjectKind,
   Session,
   StructType,
@@ -31,7 +33,8 @@ export class CsonEncoder implements Encoder<any> {
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
-  ): Uint8Array {
+    writer: BinaryWriter,
+  ): void {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
@@ -39,7 +42,7 @@ export class CsonEncoder implements Encoder<any> {
       );
     }
     const objectPacked = encoder.packObject(object);
-    return new TextEncoder().encode(JSON.stringify(objectPacked));
+    writer.writeJson(objectPacked);
   }
 
   unpackObject(
@@ -60,7 +63,7 @@ export class CsonEncoder implements Encoder<any> {
   unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
-    value: Uint8Array,
+    reader: BinaryReader,
     session: Session | null,
   ): BuiltinObject {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
@@ -69,7 +72,7 @@ export class CsonEncoder implements Encoder<any> {
         `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
-    const objectPacked = JSON.parse(new TextDecoder().decode(value));
+    const objectPacked = reader.readJson();
     return encoder.unpackObject(objectPacked, session);
   }
 
@@ -78,9 +81,9 @@ export class CsonEncoder implements Encoder<any> {
     return cson;
   }
 
-  packValueBytes(value: any, type: Type): Uint8Array {
+  packValueBytes(value: any, type: Type, writer: BinaryWriter): void {
     const cson = packCson(value, type);
-    return new TextEncoder().encode(JSON.stringify(cson));
+    writer.writeJson(cson);
   }
 
   unpackValue(type: Type, value: any, session: Session | null): any {
@@ -88,8 +91,8 @@ export class CsonEncoder implements Encoder<any> {
     return cson;
   }
 
-  unpackValueBytes(type: Type, value: Uint8Array, session: Session | null): any {
-    const cson = unpackCson(value, type);
+  unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
+    const cson = unpackCson(reader.readJson(), type);
     return cson;
   }
 }

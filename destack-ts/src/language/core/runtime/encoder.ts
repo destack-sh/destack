@@ -3,6 +3,8 @@ import type {
   NodeType,
   ObjectKind,
   Session,
+  BinaryWriter,
+  BinaryReader,
   StructType,
   Type,
 } from "@destack/language";
@@ -16,7 +18,8 @@ export interface Encoder<T> {
     kind: ObjectKind,
     metatype: NodeType | StructType,
     object: BuiltinObject,
-  ): Uint8Array;
+    writer: BinaryWriter,
+  ): void;
 
   /** Unpack a BuiltinObject from some encoded format. */
   unpackObject(
@@ -30,7 +33,7 @@ export interface Encoder<T> {
   unpackObjectBinary(
     kind: ObjectKind,
     metatype: NodeType | StructType,
-    value: Uint8Array,
+    reader: BinaryReader,
     session: Session | null,
   ): BuiltinObject;
 
@@ -38,11 +41,11 @@ export interface Encoder<T> {
   packValue(value: any, type: Type): T;
 
   /** Pack a value into the byte representation of its encoded format. */
-  packValueBytes(value: any, type: Type): Uint8Array;
+  packValueBytes(value: any, type: Type, writer: BinaryWriter): void;
 
   /** Unpack a value from some encoded format. */
   unpackValue(type: Type, value: T, session: Session | null): any;
 
   /** Unpack a value from the byte representation of its encoded format. */
-  unpackValueBytes(type: Type, value: Uint8Array, session: Session | null): any;
+  unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any;
 }

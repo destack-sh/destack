@@ -62,21 +62,17 @@ export function packJson(value: any, type: Type | PropertyDefinition | CustomPro
 export function unpackJson(
   value: any,
   type: Type | PropertyDefinition | CustomProperty,
-  options?: {
-    _session?: Session | null;
-    _graph?: any | null;
-    _connection?: any | null;
-  },
+  _session: Session | null,
 ): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
-    return _unpackScalarJson(value, type, options);
+    return _unpackScalarJson(value, type, _session);
   } else if (type.cardinality == TypeCardinality.LIST) {
     if (value === null) {
       return [];
     }
     const unpackedList = [];
     for (const item of value) {
-      unpackedList.push(_unpackScalarJson(item, type, options));
+      unpackedList.push(_unpackScalarJson(item, type, _session));
     }
     return unpackedList;
   } else if (type.cardinality == TypeCardinality.MAP) {
@@ -85,8 +81,8 @@ export function unpackJson(
     }
     const unpackedMap: { [key: string]: any } = {};
     for (const [key, val] of Object.entries(value)) {
-      const unpackedKey = type.keyType ? _unpackScalarJson(key, type.keyType) : key;
-      const unpackedVal = _unpackScalarJson(val, type, options);
+      const unpackedKey = type.keyType ? _unpackScalarJson(key, type.keyType, _session) : key;
+      const unpackedVal = _unpackScalarJson(val, type, _session);
       unpackedMap[unpackedKey] = unpackedVal;
     }
     return unpackedMap;
@@ -156,11 +152,7 @@ function _packScalarJson(value: any, type: Type | PropertyDefinition | CustomPro
 function _unpackScalarJson(
   value: any,
   type: Type | PropertyDefinition | CustomProperty,
-  options?: {
-    _session?: Session | null;
-    _graph?: any | null;
-    _connection?: any | null;
-  },
+  _session: Session | null,
 ): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
@@ -206,17 +198,17 @@ function _unpackScalarJson(
     return value;
   } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.unpack(Encoding.JSON, value, options?._session ?? null);
+    return _NodeReference.unpack(Encoding.JSON, value, _session);
   } else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["type"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.unpack(Encoding.JSON, value, options?._session ?? null);
+    return nodeClass.unpack(Encoding.JSON, value, _session);
   } else if (type.scalarType == ScalarType.STRUCT) {
     if (type.structType === null) {
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.unpack(Encoding.JSON, value, options?._session ?? null);
+    return structClass.unpack(Encoding.JSON, value, _session);
   } else {
     assertNever(type.scalarType);
   }
