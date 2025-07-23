@@ -93,10 +93,15 @@ def unpack_cson(
 def _pack_scalar_cson(value: Any, type: Type) -> Cson:
     """Pack a scalar value to CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
+        assert type.primitive_type is not None, f"no primitive type for {type!r}"
+        if type.primitive_type == PrimitiveType.BOOLEAN:
+            return value
+        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return value
         elif type.primitive_type == PrimitiveType.DATETIME:
             return value.astimezone(UTC).isoformat()
         elif type.primitive_type == PrimitiveType.DATE:
@@ -105,10 +110,23 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
             return value.astimezone(UTC).replace(tzinfo=None).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
-        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return float(value)  # cast ints to CSON floats
+        elif type.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return float(value)
+        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+            return value
         else:
-            return value  # as is
+            assert_never(type.primitive_type)
     elif type.scalar_type == ScalarType.ENUM:
         return value.value
     elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
@@ -127,10 +145,15 @@ def _unpack_scalar_cson(
 ) -> Any:
     """Unpack a scalar value from CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
+        assert type.primitive_type is not None, f"no primitive type for {type!r}"
+        if type.primitive_type == PrimitiveType.BOOLEAN:
+            return value
+        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return base64.b64decode(value)
         elif type.primitive_type == PrimitiveType.UUID:
             return UUID(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return value
         elif type.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(value).astimezone(UTC)
         elif type.primitive_type == PrimitiveType.DATE:
@@ -139,10 +162,23 @@ def _unpack_scalar_cson(
             return time.fromisoformat(value).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_from_isoformat(value)
-        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
-            return int(value)  # cast CSON floats to ints
-        else:
+        elif type.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+        ):
+            return int(value)
+        elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+            return float(value)
+        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
             return value
+        else:
+            assert_never(type.primitive_type)
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]

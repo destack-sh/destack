@@ -27599,73 +27599,69 @@ export enum PrimitiveTypeProto {
      */
     PRIMITIVE_TYPE_INT64 = 13,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT8 = 15;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT8 = 20;
      */
-    PRIMITIVE_TYPE_UINT8 = 15,
+    PRIMITIVE_TYPE_UINT8 = 20,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT16 = 16;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT16 = 21;
      */
-    PRIMITIVE_TYPE_UINT16 = 16,
+    PRIMITIVE_TYPE_UINT16 = 21,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT32 = 17;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT32 = 22;
      */
-    PRIMITIVE_TYPE_UINT32 = 17,
+    PRIMITIVE_TYPE_UINT32 = 22,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT64 = 18;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UINT64 = 23;
      */
-    PRIMITIVE_TYPE_UINT64 = 18,
+    PRIMITIVE_TYPE_UINT64 = 23,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 20;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 40;
      */
-    PRIMITIVE_TYPE_DECIMAL = 20,
+    PRIMITIVE_TYPE_FLOAT32 = 40,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 30;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 41;
      */
-    PRIMITIVE_TYPE_FLOAT32 = 30,
+    PRIMITIVE_TYPE_FLOAT64 = 41,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 31;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 50;
      */
-    PRIMITIVE_TYPE_FLOAT64 = 31,
+    PRIMITIVE_TYPE_STRING = 50,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 40;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 51;
      */
-    PRIMITIVE_TYPE_STRING = 40,
+    PRIMITIVE_TYPE_UUID = 51,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_UUID = 41;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 60;
      */
-    PRIMITIVE_TYPE_UUID = 41,
+    PRIMITIVE_TYPE_BYTES = 60,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 50;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 70;
      */
-    PRIMITIVE_TYPE_BYTES = 50,
+    PRIMITIVE_TYPE_DATETIME = 70,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 60;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 71;
      */
-    PRIMITIVE_TYPE_DATETIME = 60,
+    PRIMITIVE_TYPE_DATE = 71,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 61;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 72;
      */
-    PRIMITIVE_TYPE_DATE = 61,
+    PRIMITIVE_TYPE_TIME = 72,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 62;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 73;
      */
-    PRIMITIVE_TYPE_TIME = 62,
+    PRIMITIVE_TYPE_DURATION = 73,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 63;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 80;
      */
-    PRIMITIVE_TYPE_DURATION = 63,
+    PRIMITIVE_TYPE_JSON = 80,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 70;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_CSON = 81;
      */
-    PRIMITIVE_TYPE_JSON = 70,
+    PRIMITIVE_TYPE_CSON = 81,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_CSON = 80;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_PROTO = 82;
      */
-    PRIMITIVE_TYPE_CSON = 80,
-    /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_PROTO = 81;
-     */
-    PRIMITIVE_TYPE_PROTO = 81
+    PRIMITIVE_TYPE_PROTO = 82
 }
 /**
  * The type of a property reference.

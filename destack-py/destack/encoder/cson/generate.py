@@ -196,12 +196,13 @@ def _generate_pack_cson_scalar(
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64encode({value_expr}).decode()"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"str({value_expr})"
-        elif prop.primitive_type == PrimitiveType.CSON:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
+        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+            return f"base64.b64encode({value_expr}).decode()"
+        elif prop.primitive_type in (PrimitiveType.UUID, PrimitiveType.STRING):
+            return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
@@ -210,8 +211,21 @@ def _generate_pack_cson_scalar(
             return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
-        else:
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ) or prop.primitive_type in (PrimitiveType.CSON, PrimitiveType.JSON):
             return value_expr
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
@@ -261,7 +275,8 @@ def _generate_unpack_cson_scalar(
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
@@ -277,8 +292,21 @@ def _generate_unpack_cson_scalar(
             return f"timedelta_from_isoformat({value_expr})"
         elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
             return f"int({value_expr})"  # cast CSON floats to ints
-        else:
+        elif prop.primitive_type in (
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.INT8,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.STRING,
+            PrimitiveType.JSON,
+        ):
             return value_expr
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_type_name = prop.enum_type.camel_name

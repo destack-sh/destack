@@ -510,7 +510,6 @@ if (_{ts_name_in} === null) {{
 
         # init default factory
         if prop.default_factory is not None:
-            # nocheckin: make ValueFactory/PrimitiveType/... enum checks exhaustive everywhere
             if prop.default_factory == ValueFactory.UUID4:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
@@ -545,6 +544,11 @@ if (_{ts_name_in} === null) {{
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = this._session.clientNonce;
+}}""")
+            elif prop.default_factory == ValueFactory.REGION:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = this._session.region;
 }}""")
             elif prop.default_factory == ValueFactory.SELF:
                 body_parts.append(f"""\
@@ -584,9 +588,7 @@ if (_{ts_name_in} === null) {{
     _{ts_name_in} = "{cls.__name__}";
 }}""")
             else:
-                raise ValueError(
-                    f"unsupported default factory for {prop!r}: {prop.default_factory!r}"
-                )
+                assert_never(prop.default_factory)
 
         # raise on missing value
         if prop.is_required and prop.cardinality == TypeCardinality.SCALAR:
@@ -968,13 +970,38 @@ if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
 def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type and prop.primitive_type in (
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10", False
-        else:
+        elif prop.primitive_type in (
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.STRING,
+            PrimitiveType.UUID,
+            PrimitiveType.BYTES,
+            PrimitiveType.DATETIME,
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.DURATION,
+            PrimitiveType.JSON,
+            PrimitiveType.CSON,
+            PrimitiveType.PROTO,
+        ):
             return "{self_val} === {other_val}", True
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         return "{self_val} === {other_val}", True
     elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
@@ -1081,8 +1108,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             PrimitiveType.UINT64,
         ):
             return f"hashInt({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DECIMAL:
-            raise NotImplementedError(f"cannot hash decimal: {prop!r}")
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hashBool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:

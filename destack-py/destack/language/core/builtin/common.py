@@ -1,5 +1,4 @@
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from destack.utils.uuid import UUID
@@ -1220,31 +1219,31 @@ class PrimitiveType(Enum):
     INT16 = 11, "Integer", "16-bit signed integer", "fas fa-tally"
     INT32 = 12, "Integer", "32-bit signed integer", "fas fa-tally"
     INT64 = 13, "Integer", "64-bit signed integer", "fas fa-tally"
-    UINT8 = 15, "Integer", "8-bit unsigned integer", "fas fa-tally"
-    UINT16 = 16, "Integer", "16-bit unsigned integer", "fas fa-tally"
-    UINT32 = 17, "Integer", "32-bit unsigned integer", "fas fa-tally"
-    UINT64 = 18, "Integer", "64-bit unsigned integer", "fas fa-tally"
-    DECIMAL = 20, "Decimal", "Decimal number", "fas fa-tally"
-    # numeric(precision, scale)
+    # INT128
+    UINT8 = 20, "Integer", "8-bit unsigned integer", "fas fa-tally"
+    UINT16 = 21, "Integer", "16-bit unsigned integer", "fas fa-tally"
+    UINT32 = 22, "Integer", "32-bit unsigned integer", "fas fa-tally"
+    UINT64 = 23, "Integer", "64-bit unsigned integer", "fas fa-tally"
+    # UINT128
+    # DECIMAL, NUMERIC(precision, scale), ...
     # float
-    FLOAT32 = 30, "Float", "Small float", "fas fa-hashtag"
-    FLOAT64 = 31, "Float", "Floating point number", "fas fa-hashtag"
+    FLOAT32 = 40, "Float", "Small float", "fas fa-hashtag"
+    FLOAT64 = 41, "Float", "Floating point number", "fas fa-hashtag"
     # string
-    STRING = 40, "String", "Plain text", "fas fa-font-case"
-    UUID = 41, "UUID", "UUID", "fas fa-fingerprint"
+    STRING = 50, "String", "Plain text", "fas fa-font-case"
+    UUID = 51, "UUID", "UUID", "fas fa-fingerprint"
     # bytes
-    BYTES = 50, "Bytes", "Binary data", "fas fa-file-lines"
+    BYTES = 60, "Bytes", "Binary data", "fas fa-file-lines"
     # VECTOR?
     # time
-    DATETIME = 60, "Date & Time", "Date & time", "fas fa-calendar-days"
-    DATE = 61, "Date", "Date", "fas fa-calendar-days"
-    TIME = 62, "Time", "Time", "fas fa-clock"
-    DURATION = 63, "Duration", "Duration", "fas fa-stopwatch"
+    DATETIME = 70, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATE = 71, "Date", "Date", "fas fa-calendar-days"
+    TIME = 72, "Time", "Time", "fas fa-clock"
+    DURATION = 73, "Duration", "Duration", "fas fa-stopwatch"
     # compound
-    JSON = 70, "JSON", "JSON", "fas fa-brackets-curly"
-    # custom
-    CSON = 80, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
-    PROTO = 81, "PROTO", "Protocol Buffers", "fas fa-file-lines"
+    JSON = 80, "JSON", "JSON", "fas fa-brackets-curly"
+    CSON = 81, "CSON", "Constant folded JSON", "fas fa-brackets-curly"
+    PROTO = 82, "PROTO", "Protocol Buffers", "fas fa-file-lines"
 
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
@@ -1253,7 +1252,6 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.INT16: int,
     PrimitiveType.INT32: int,
     PrimitiveType.INT64: int,
-    PrimitiveType.DECIMAL: Decimal,
     PrimitiveType.FLOAT32: float,
     PrimitiveType.FLOAT64: float,
     PrimitiveType.STRING: str,
@@ -1267,7 +1265,6 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
     int: PrimitiveType.INT64,
-    Decimal: PrimitiveType.DECIMAL,
     float: PrimitiveType.FLOAT64,
     str: PrimitiveType.STRING,
     UUID: PrimitiveType.UUID,

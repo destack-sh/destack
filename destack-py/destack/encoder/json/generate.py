@@ -203,10 +203,15 @@ def _generate_pack_json_scalar(
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return value_expr
+        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
@@ -215,8 +220,24 @@ def _generate_pack_json_scalar(
             return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
-        else:
+        elif prop.primitive_type in (
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.JSON,
+            PrimitiveType.CSON,
+        ):
             return value_expr
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         # use the enum name in CONSTANT_UPPER_CASE for JSON
         return f"{value_expr}.name"
@@ -268,10 +289,15 @@ def _generate_unpack_json_scalar(
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return value_expr
+        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"UUID({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"datetime.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATE:
@@ -280,8 +306,24 @@ def _generate_unpack_json_scalar(
             return f"time.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
-        else:
+        elif prop.primitive_type in (  # noqa: SIM114
+            PrimitiveType.BOOLEAN,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return value_expr
+        elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+            return value_expr
+        else:
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]

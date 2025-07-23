@@ -112,7 +112,7 @@ export class Icon extends StructFrozen {
     let _vscName = options.vscName ?? null;
     this.vscName = _vscName;
     let _file = options.file ?? null;
-    if (_file != null && _file.constructor.name != "NodeReference") {
+    if (_file != null && _file.constructor.name !== "NodeReference") {
       _file = (_file as Node).toRef();
     }
     this.filePtr = _file as NodeReference | null;

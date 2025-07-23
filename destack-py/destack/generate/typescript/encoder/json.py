@@ -1,4 +1,5 @@
 import base64
+import json
 import textwrap
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never
@@ -10,6 +11,7 @@ from destack.language import (
     BuiltinObject,
     Encoding,
     Node,
+    NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -310,20 +312,38 @@ def _generate_pack_json_scalar(
 ) -> str:
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return value_expr
+        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return f"base64Encode({value_expr})"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"String({value_expr})"
+        elif (
+            prop.primitive_type == PrimitiveType.UUID or prop.primitive_type == PrimitiveType.STRING
+        ):
+            return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.toString({{ timeZoneName: 'never' }})"
         elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
             return f"{value_expr}.toString()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaToISOFormat({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return f"Number({value_expr})"
+        elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
             return value_expr
         else:
-            return value_expr
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
@@ -339,10 +359,15 @@ def _generate_unpack_json_scalar(
 ) -> str:
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type == PrimitiveType.BYTES:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return value_expr
+        elif prop.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
             return f"base64Decode({value_expr})"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"String({value_expr})"
+        elif (
+            prop.primitive_type == PrimitiveType.UUID or prop.primitive_type == PrimitiveType.STRING
+        ):
+            return value_expr
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"Temporal.PlainDate.from({value_expr})"
         elif prop.primitive_type == PrimitiveType.TIME:
@@ -351,12 +376,23 @@ def _generate_unpack_json_scalar(
             return f"Temporal.Instant.from({value_expr}).toZonedDateTimeISO('UTC')"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaFromISOFormat({value_expr})"
-        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return f"Number({value_expr})"
         elif prop.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
             return value_expr
         else:
-            return value_expr
+            assert_never(prop.primitive_type)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
@@ -384,24 +420,34 @@ def generate_json_value(type: Type | TypeDeclaration | PropertyDeclaration, valu
             textwrap.indent(_generate_json_scalar(type, element), "  ") for element in value
         ]
         return f"[\n{',\n'.join(elements_str)}\n]"
-    else:
+    elif type.cardinality == TypeCardinality.MAP:
         raise ValueError(f"unsupported value type {type.cardinality!r}: {type!r}")
+    else:
+        assert_never(type.cardinality)
 
 
 def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript scalar value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None, f"no primitive_type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return "true" if value else "false"
+        elif type.primitive_type in (PrimitiveType.BYTES, PrimitiveType.PROTO):
+            return f"base64Decode({base64.b64encode(value).decode()})"
         elif type.primitive_type in (
+            PrimitiveType.INT8,
             PrimitiveType.INT16,
             PrimitiveType.INT32,
             PrimitiveType.INT64,
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return str(value)
-        elif type.primitive_type == PrimitiveType.STRING:
+        elif type.primitive_type in (PrimitiveType.STRING, PrimitiveType.UUID):
             return f'"{value}"'
         elif type.primitive_type == PrimitiveType.DATETIME:
             return f"Temporal.Instant.from(\"{value}\").toZonedDateTimeISO('UTC')"
@@ -411,17 +457,28 @@ def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
             return f'Temporal.PlainTime.from("{value}")'
         elif type.primitive_type == PrimitiveType.DURATION:
             return f'Temporal.Duration.from("{value}")'
+        elif type.primitive_type in (PrimitiveType.JSON, PrimitiveType.CSON):
+            return json.dumps(value)
         else:
-            raise ValueError(f"unsupported primitive type {type.primitive_type!r}: {type!r}")
+            assert_never(type.primitive_type)
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
-    elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
+    elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        value_bytes = value.pack_bytes(Encoding.JSON)
+        value_bytes = value.pack_bytes(Encoding.CSON)
         value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBytesBase64({Encoding.JSON.value}, {value_bytes_str!r})"
-    else:
+        return f"{value.__class__.__name__}.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        assert isinstance(value, NodeReference), (
+            f"value is not a NodeReference for {type!r}: {value!r}"
+        )
+        value_bytes = value.pack_bytes(Encoding.CSON)
+        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
+        return f"NodeReference.unpackBytesBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+    elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
+    else:
+        assert_never(type.scalar_type)
