@@ -1,3 +1,3 @@
-from .language import generate as generate_language
+from .generate import generate
 
-__all__ = ["generate_language"]
+__all__ = ["generate"]

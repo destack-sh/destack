@@ -80,7 +80,7 @@ class EditEvent(Event):
     operation: "EditOperation | None" = builtin_property(
         102, is_repr=True, description="The specific Edit operation."
     )
-    property_id: int = builtin_property(
+    property_id: int | None = builtin_property(
         103,
         is_repr=True,
         description="""\

@@ -101,6 +101,7 @@ class Entity(Node):
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        is_identity=True,
         default=Materialization.ROOT,
         tags=("identity",),
     )
@@ -108,6 +109,7 @@ class Entity(Node):
         11,
         is_internal=True,
         is_readonly=True,
+        is_identity=True,
         description="The definition this Entity is an instance of.",
         tags=("identity",),
     )
@@ -117,6 +119,7 @@ class Entity(Node):
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        is_identity=True,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Entity is part of.",
         tags=("identity",),
@@ -127,6 +130,7 @@ class Entity(Node):
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        is_identity=True,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Entity is part of.",
         tags=("identity",),
@@ -137,6 +141,7 @@ class Entity(Node):
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        is_identity=True,
         description="""\
 The previous Entity this Entity is based on (from the base Branch, if any).
 This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
@@ -149,6 +154,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_hash=False,
+        is_identity=True,
         description="The (root) Entity that is being instantiated.",
         tags=("identity",),
     )

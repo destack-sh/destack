@@ -1,5 +1,7 @@
 def generate():
     """Generate all the derived things."""
-    from .typescript import generate_language as generate_typescript_language
+    from .python import generate as generate_python
+    from .typescript import generate as generate_typescript
 
-    generate_typescript_language()
+    generate_python()
+    generate_typescript()

@@ -210,7 +210,7 @@ export class EditEvent extends Event {
    * The id of the builtin Property being edited.
    * If it's a custom Property, this just refers to Entity.custom_values.
    */
-  readonly propertyId: number;
+  readonly propertyId: number | null;
 
   /**
    * The custom Property being edited (if not a builtin).
@@ -263,7 +263,7 @@ export class EditEvent extends Event {
     type: EditType;
     node: Entity | NodeReference;
     operation?: EditOperation | null;
-    propertyId: number;
+    propertyId?: number | null;
     customProperty?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
@@ -386,10 +386,7 @@ export class EditEvent extends Event {
     this.nodePtr = _node as NodeReference;
     let _operation = options.operation ?? null;
     this.operation = _operation;
-    let _propertyId = options.propertyId;
-    if (_propertyId === null) {
-      throw new Error(`EditEvent.propertyId is required`);
-    }
+    let _propertyId = options.propertyId ?? null;
     this.propertyId = _propertyId;
     let _customProperty = options.customProperty ?? null;
     if (_customProperty != null && _customProperty.constructor.name !== "NodeReference") {
@@ -516,7 +513,9 @@ export class EditEvent extends Event {
     if (this.operation != null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
+    if (this.propertyId != null) {
+      h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
+    }
     if (this.customPropertyPtr != null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
@@ -600,7 +599,9 @@ export class EditEvent extends Event {
     if (this.operation != null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    propertyReprs.push(`propertyId=${this.propertyId}`);
+    if (this.propertyId != null) {
+      propertyReprs.push(`propertyId=${this.propertyId}`);
+    }
     if (this.customProperty != null) {
       propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
     }

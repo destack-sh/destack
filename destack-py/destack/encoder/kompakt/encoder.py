@@ -26,7 +26,10 @@ class KompaktEncoder(Encoder[bytes]):
         metatype: NodeType | StructType,
         object: BuiltinObject,
     ) -> bytes:
-        raise NotImplementedError
+        writer = BinaryWriter()
+        self.pack_object_binary(kind, metatype, object, writer)
+        object_bytes = writer.to_bytes()
+        return object_bytes
 
     @override
     def pack_object_binary(
@@ -46,7 +49,9 @@ class KompaktEncoder(Encoder[bytes]):
         value: bytes,
         session: Session | None,
     ) -> BuiltinObject:
-        raise NotImplementedError
+        reader = BinaryReader(value)
+        object = self.unpack_object_binary(kind, metatype, reader, session)
+        return object
 
     @override
     def unpack_object_binary(

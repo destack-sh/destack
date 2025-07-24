@@ -12,7 +12,6 @@ from destack.language.core import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
-    Session,
     StructType,
     TypeCardinality,
     TypeDeclaration,
@@ -33,6 +32,7 @@ from destack.utils.uuid import UUID
 if TYPE_CHECKING:
     pass
 
+from .core import JsonObjectEncoder
 
 # ruff: noqa: FURB113, SIM114
 # pyright: reportIncompatibleVariableOverride=false
@@ -43,19 +43,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class _JsonObjectEncoder:
-    def pack_object(self, object: BuiltinObject) -> dict[str, Any]:
-        raise NotImplementedError
-
-    def unpack_object(
-        self,
-        json_obj: dict[str, Any],
-        session: Session | None,
-    ) -> BuiltinObject:
-        raise NotImplementedError
-
-
-def _generate_encoder_impl(cls: type["BuiltinObject"]) -> tuple[str, str, dict[str, Any]]:
+def _generate_json_object_encoder(cls: type["BuiltinObject"]) -> tuple[str, str, dict[str, Any]]:
     """Generate the JsonObjectEncoder class for a BuiltinObject."""
 
     pack_json = textwrap.indent(_generate_pack_json(cls), " " * 8)
@@ -81,7 +69,7 @@ class {encoder_name}(JsonObjectEncoder):
         encoder_name,
         impl,
         {
-            "JsonObjectEncoder": _JsonObjectEncoder,
+            "JsonObjectEncoder": JsonObjectEncoder,
             "timedelta_from_isoformat": timedelta_from_isoformat,
             "timedelta_to_isoformat": timedelta_to_isoformat,
             "datetime": datetime,
@@ -356,7 +344,7 @@ def _generate_unpack_json_scalar(
 
 
 # registry of JSON encoders by (ObjectKind, NodeType|StructType)
-JSON_OBJECT_ENCODERS: dict[tuple[ObjectKind, NodeType | StructType], _JsonObjectEncoder] = {}
+JSON_OBJECT_ENCODERS: dict[tuple[ObjectKind, NodeType | StructType], JsonObjectEncoder] = {}
 
 
 def _generate():
@@ -373,7 +361,7 @@ def _generate():
         }
     )
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        encoder_name, impl, extra_glbls = _generate_encoder_impl(node_cls)
+        encoder_name, impl, extra_glbls = _generate_json_object_encoder(node_cls)
         locals_ = {}
         exec_(
             impl,

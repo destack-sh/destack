@@ -12,10 +12,10 @@ export function getObjectKey(kind: ObjectKind, metatype: NodeType | StructType) 
 }
 
 /** All the BuiltinObject encoders for our JSON format. */
-export const JSON_OBJECT_ENCODERS: Record<string, _JsonObjectEncoder> = {};
+export const JSON_OBJECT_ENCODERS: Record<string, JsonObjectEncoder> = {};
 
 /** A JSON encoder for a BuiltinObject. */
-export interface _JsonObjectEncoder {
+export interface JsonObjectEncoder {
   /** Pack a BuiltinObject into some encoded format. */
   packObject(object: BuiltinObject): any;
 
