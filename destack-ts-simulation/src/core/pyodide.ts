@@ -27,7 +27,7 @@ async function getRequirements(): Promise<string[]> {
     .split("\n")
     .filter((line) => line.trim() !== "" && !line.startsWith("#"))
     .map((line) => line.split("==")[0].trim());
-  return requirements;
+  return ["tzdata", ...requirements];
 }
 
 /** Load the Python interpreter. */
