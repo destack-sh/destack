@@ -2,15 +2,15 @@ import { CSON_OBJECT_ENCODERS, getObjectKey } from "@destack/encoder/cson/genera
 import { loadEncoders } from "@destack/encoder/cson/generated";
 import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
 import {
-  BuiltinObject,
-  Encoder,
+  type BinaryReader,
+  type BinaryWriter,
+  type BuiltinObject,
+  type Encoder,
   NodeType,
-  BinaryWriter,
-  BinaryReader,
   ObjectKind,
-  Session,
+  type Session,
   StructType,
-  Type,
+  type Type,
 } from "@destack/language";
 
 /** Encoder for our CSON format. */

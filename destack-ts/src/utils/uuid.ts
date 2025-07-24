@@ -1,4 +1,4 @@
-const _crypto: Crypto = globalThis.crypto ?? require("crypto").webcrypto;
+const _crypto: Crypto = globalThis.crypto ?? require("node:crypto").webcrypto;
 const _byteToHex: string[] = Array.from({ length: 256 }, (_, i) =>
   (i + 0x100).toString(16).slice(1),
 );

@@ -1,4 +1,4 @@
-import { NodeType, Region, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, type Region, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/const";
 import type {
   EnumDefinition,
@@ -6,9 +6,8 @@ import type {
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/builtin/definition";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node } from "@destack/language/core/builtin/node";
+import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsFollowable,

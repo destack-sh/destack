@@ -1,16 +1,14 @@
 import type { Entity, Event } from "@destack/language/core/builtin";
-import { NodeType } from "@destack/language/core/builtin/common";
+import type { NodeType } from "@destack/language/core/builtin/common";
 import { Graph } from "@destack/language/core/runtime/graph";
 
 /** A Graph that stores Nodes in memory. */
 export class MemoryGraph extends Graph {
   private nodesById: Map<string, Entity>;
-  private nodesByParent: Map<string, Map<NodeType, Entity[]>>;
 
   constructor() {
     super();
     this.nodesById = new Map();
-    this.nodesByParent = new Map();
   }
 
   //

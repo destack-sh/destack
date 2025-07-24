@@ -366,7 +366,7 @@ export function parseDurationString(input: string): Temporal.Duration | null {
       continue;
     }
     const value = parseFloat(numStr);
-    if (isNaN(value)) {
+    if (Number.isNaN(value)) {
       continue;
     }
     const unit = DURATION_UNIT_MAP[unitStr as DurationUnit];

@@ -1,4 +1,4 @@
-import { Easing } from "@destack/language/animation";
+import type { Easing } from "@destack/language/animation";
 import type {
   Branch,
   NodeClass,
@@ -13,11 +13,11 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
+  type Entity,
   EnumType,
-  Event,
-  Materialization,
-  Node,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructFrozen,
   StructType,

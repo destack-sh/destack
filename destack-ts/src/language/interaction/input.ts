@@ -1,8 +1,8 @@
 import type { Branch, EventStatus, NodeReference, Snapshot, Space } from "@destack/language/core";
-import { Entity, Event, NodeType } from "@destack/language/core";
+import { type Entity, Event, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000000 ==== */
 /**

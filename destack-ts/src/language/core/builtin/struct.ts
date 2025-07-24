@@ -1,7 +1,7 @@
 import type { Encoding, PackedCache, StructDefinition } from "@destack/language/core";
 import { ObjectKind, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION, ENCODERS } from "@destack/language/core/builtin/const";
-import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import { BuiltinObject, type BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { BinaryWriter } from "@destack/language/core/runtime/binary";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { StructTypeMapping } from "@destack/language/mapping";

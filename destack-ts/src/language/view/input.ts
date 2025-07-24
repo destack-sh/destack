@@ -6,13 +6,13 @@ import type {
   Space,
   Value,
 } from "@destack/language/core";
-import { Entity, NodeType } from "@destack/language/core";
+import { type Entity, NodeType } from "@destack/language/core";
 import type { Anchor, Corner2, Length, Offset2, Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
 import { View } from "@destack/language/view/view";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1810000 ==== */
 /**

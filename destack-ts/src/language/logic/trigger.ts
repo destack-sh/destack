@@ -19,8 +19,8 @@ import {
   Entity,
   EnumType,
   Event,
-  Materialization,
-  Node,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";

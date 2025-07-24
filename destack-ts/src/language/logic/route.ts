@@ -11,7 +11,7 @@ import type {
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic/script";
 import { registerNodeClass } from "@destack/language/registry";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:710000 ==== */
 /**

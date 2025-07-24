@@ -1,5 +1,5 @@
 import type { Branch, Encoding, Session, Snapshot, Space } from "@destack/language";
-import { Encoder } from "@destack/language/core/runtime/encoder";
+import type { Encoder } from "@destack/language/core/runtime/encoder";
 import { uuid4 } from "@destack/utils";
 import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";

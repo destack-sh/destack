@@ -2,10 +2,10 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
-  NodeReference,
-  Region,
-  Session,
+  type Entity,
+  type NodeReference,
+  type Region,
+  type Session,
   Space,
 } from "@destack/language";
 

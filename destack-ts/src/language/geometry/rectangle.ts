@@ -12,16 +12,15 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
-  Event,
-  Materialization,
-  Node,
+  type Entity,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Offset2 } from "@destack/language/geometry/relative";
-import { Anchor } from "@destack/language/geometry/relative";
+import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
 import { Shape2D } from "@destack/language/geometry/shape";
 import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";

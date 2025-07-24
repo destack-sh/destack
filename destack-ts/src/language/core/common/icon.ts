@@ -1,5 +1,5 @@
 import { EnumType, StructType } from "@destack/language/core/builtin/common";
-import { Node } from "@destack/language/core/builtin/node";
+import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";

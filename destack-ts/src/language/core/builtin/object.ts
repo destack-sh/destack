@@ -2,14 +2,14 @@ import {
   ENCODERS,
   Encoding,
   type NodeDefinition,
-  NodeType,
-  ObjectKind,
+  type NodeType,
+  type ObjectKind,
   type PropertyDefinition,
   type StructDefinition,
-  StructType,
+  type StructType,
 } from "@destack/language/core";
 import type { Session } from "@destack/language/core/runtime";
-import { BinaryReader, BinaryWriter } from "@destack/language/core/runtime/binary";
+import { BinaryReader, type BinaryWriter } from "@destack/language/core/runtime/binary";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
@@ -55,11 +55,11 @@ export abstract class BuiltinObject {
 
   /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
-    const prop = this.__propertiesByAlias__[name];
+    const prop = BuiltinObject.__propertiesByAlias__[name];
     if (prop != null) {
       return prop;
     }
-    throw new Error(`property ${name} not found on ${this.constructor.name}`);
+    throw new Error(`property ${name} not found on ${BuiltinObject.constructor.name}`);
   }
 
   // encoding
@@ -83,7 +83,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObject(this.__kind__, this.metatype, object);
+    return encoder.packObject(BuiltinObject.__kind__, BuiltinObject.metatype, object);
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
@@ -106,7 +106,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    encoder.packObjectBinary(this.__kind__, this.metatype, object, writer);
+    encoder.packObjectBinary(BuiltinObject.__kind__, BuiltinObject.metatype, object, writer);
   }
 
   /** Unpack a BuiltinObject from some encoded format. */
@@ -115,7 +115,12 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObject(this.__kind__, this.metatype, value, session ?? null);
+    return encoder.unpackObject(
+      BuiltinObject.__kind__,
+      BuiltinObject.metatype,
+      value,
+      session ?? null,
+    );
   }
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
@@ -128,7 +133,12 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObjectBinary(this.__kind__, this.metatype, reader, session ?? null);
+    return encoder.unpackObjectBinary(
+      BuiltinObject.__kind__,
+      BuiltinObject.metatype,
+      reader,
+      session ?? null,
+    );
   }
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
@@ -138,7 +148,7 @@ export abstract class BuiltinObject {
     session?: Session | null,
   ): BuiltinObject {
     const reader = new BinaryReader(Buffer.from(value, "base64"));
-    return this.unpackBinary(encoding, reader, session ?? null);
+    return BuiltinObject.unpackBinary(encoding, reader, session ?? null);
   }
 }
 

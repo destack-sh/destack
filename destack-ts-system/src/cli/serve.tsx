@@ -1,8 +1,7 @@
+import { getLogger, getTracer } from "@destack/utils";
 import { ServerStatus } from "@desys/cli/Status";
 import * as grpc from "@grpc/grpc-js";
 import { render } from "ink";
-
-import { getLogger, getTracer } from "@destack/utils";
 
 const logger = getLogger("serve");
 const tracer = getTracer("serve");

@@ -11,24 +11,28 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
-  Event,
-  Materialization,
-  Node,
+  type Entity,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
 import type {
+  Align,
+  Anchor,
   Axis2,
   Corner2,
+  Direction,
+  Distribute,
   Grid2,
   GridSpan2,
   Inset2,
+  Layout,
   Length,
   Offset2,
   Vector2,
 } from "@destack/language/geometry";
-import { Align, Anchor, Direction, Distribute, Layout } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";

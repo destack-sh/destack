@@ -406,7 +406,9 @@ test("bytes", () => {
     writer.writeBytes(b);
   }
 
-  expect(writer.toBytes().length).toBe(Array.from(bytesToBytes.values()).reduce((a, b) => a + b, 0)); // 270 bytes
+  expect(writer.toBytes().length).toBe(
+    Array.from(bytesToBytes.values()).reduce((a, b) => a + b, 0),
+  ); // 270 bytes
 
   const reader = new BinaryReader(writer.toBytes());
   for (const [b] of bytesToBytes) {
@@ -588,7 +590,9 @@ test("duration", () => {
     Temporal.Duration.from({ microseconds: 1 }), // 1 microsecond
     Temporal.Duration.from({ microseconds: -24 * 60 * 60 * 1_000_000 }), // negative 1 day
     Temporal.Duration.from({ microseconds: 52 * 7 * 24 * 60 * 60 * 1_000_000 }), // 52 weeks (1 year)
-    Temporal.Duration.from({ microseconds: (365 * 24 * 60 * 60 + 5 * 3600 + 48 * 60 + 46) * 1_000_000 }), // approx 1 year
+    Temporal.Duration.from({
+      microseconds: (365 * 24 * 60 * 60 + 5 * 3600 + 48 * 60 + 46) * 1_000_000,
+    }), // approx 1 year
   ];
 
   const writer = new BinaryWriter();

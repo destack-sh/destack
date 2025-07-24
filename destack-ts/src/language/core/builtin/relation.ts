@@ -5,13 +5,13 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
-import { PropertyDefinition } from "@destack/language/core/builtin/definition";
-import { Entity } from "@destack/language/core/builtin/entity";
+import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
+import type { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
-import { Type } from "@destack/language/core/common";
+import type { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Session } from "@destack/language/core/runtime/session";

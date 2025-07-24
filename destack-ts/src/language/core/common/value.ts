@@ -1,10 +1,10 @@
 import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
 import { ScalarType, StructType, TypeCardinality } from "@destack/language/core/builtin/common";
-import { PropertyDefinition } from "@destack/language/core/builtin/definition";
+import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import { CustomProperty } from "@destack/language/core/common/property";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Type } from "@destack/language/core/common/type";
 import { toType } from "@destack/language/core/common/type";
 import type { Session } from "@destack/language/core/runtime/session";

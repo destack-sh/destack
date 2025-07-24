@@ -23,7 +23,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": false,
+      "recommended": true,
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedLabels": "off",
@@ -36,12 +36,17 @@
       },
       "complexity": {
         "noForEach": "off",
-        "useLiteralKeys": "off"
+        "useLiteralKeys": "off",
+        "noBannedTypes": "off"
       },
       "suspicious": {
         "noExplicitAny": "off",
         "noImplicitAnyLet": "off",
-        "noDoubleEquals": "off"
+        "noDoubleEquals": "off",
+        "noThenProperty": "off",
+        "noShadowRestrictedNames": "off",
+        "noConfusingVoidType": "off",
+        "useGetterReturn": "off"
       }
     }
   },

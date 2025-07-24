@@ -17,13 +17,13 @@ function getIntegerLength(head: string) {
   } else if (head >= "A" && head <= "Z") {
     return "Z".charCodeAt(0) - head.charCodeAt(0) + 2;
   } else {
-    throw new Error("Invalid order key head: " + head);
+    throw new Error(`Invalid order key head: ${head}`);
   }
 }
 
 function validateInteger(int: string) {
   if (int.length !== getIntegerLength(int.charAt(0))) {
-    throw new Error("invalid integer part of order key: " + int);
+    throw new Error(`invalid integer part of order key: ${int}`);
   }
 }
 
@@ -34,7 +34,7 @@ function validateInteger(int: string) {
 // ascending character code order!
 function midpoint(a: string, b: string | null, digits: string = BASE_95_DIGITS): string {
   if (b !== null && a >= b) {
-    throw new Error(a + " >= " + b);
+    throw new Error(`${a} >= ${b}`);
   }
   if (a.slice(-1) === "0" || (b && b.slice(-1) === "0")) {
     throw new Error("trailing zero");
@@ -122,7 +122,7 @@ export function decrementInteger(x: string, digits: string = BASE_95_DIGITS): st
   }
   if (borrow) {
     if (head === "a") {
-      return "Z" + digits.slice(-1);
+      return `Z${digits.slice(-1)}`;
     }
     if (head === "A") {
       return null;
@@ -142,7 +142,7 @@ export function decrementInteger(x: string, digits: string = BASE_95_DIGITS): st
 function getIntegerPart(key: string) {
   const integerPartLength = getIntegerLength(key.charAt(0));
   if (integerPartLength > key.length) {
-    throw new Error("invalid order key: " + key);
+    throw new Error(`invalid order key: ${key}`);
   }
   return key.slice(0, integerPartLength);
 }
@@ -164,7 +164,7 @@ export function isValidOrderKey(key: string) {
 
 export function validateOrderKey(key: string) {
   if (!isValidOrderKey(key)) {
-    throw new Error("invalid order key: " + key);
+    throw new Error(`invalid order key: ${key}`);
   }
 }
 
@@ -178,7 +178,7 @@ export function getOrderKey(
 ): string {
   if (a != null) validateOrderKey(a);
   if (b != null) validateOrderKey(b);
-  if (a != null && b != null && a >= b) throw new Error(a + " >= " + b);
+  if (a != null && b != null && a >= b) throw new Error(`${a} >= ${b}`);
   if (a == null && b == null) return INTEGER_ZERO;
 
   if (a == null) {

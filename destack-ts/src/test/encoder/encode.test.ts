@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { MemoryGraph } from "@destack/graph/memory";
 import {
-  BuiltinObject,
+  type BuiltinObject,
   Folder,
   Join,
   JoinType,

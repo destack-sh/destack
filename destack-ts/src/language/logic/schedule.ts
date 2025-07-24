@@ -2,7 +2,7 @@ import type { Session } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashInt, hashString } from "@destack/utils/hash";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:705101 ==== */
 /**

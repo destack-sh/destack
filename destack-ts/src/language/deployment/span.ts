@@ -3,10 +3,10 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
+  type Entity,
   Event,
   EventStatus,
-  Node,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";

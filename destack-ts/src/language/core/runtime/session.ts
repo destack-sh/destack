@@ -1,18 +1,18 @@
-import {
+import type {
   Client,
-  type Entity,
-  type Event,
-  type GraphConnection,
+  Entity,
+  Event,
+  GraphConnection,
   NodeReference,
-  type PropertyDefinition,
+  PropertyDefinition,
 } from "@destack/language";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
-import { toValue, Value } from "@destack/language/core/common/value";
-import { Graph } from "@destack/language/core/runtime/graph";
+import { toValue, type Value } from "@destack/language/core/common/value";
+import type { Graph } from "@destack/language/core/runtime/graph";
 import { type Oracle, WORLD_ORACLE } from "@destack/language/core/runtime/oracle";
 import { Casing, toCasing } from "@destack/utils";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /**
  * A managed Session for interacting with Destack.
