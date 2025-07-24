@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "noEmit": true,
-    "types": ["node"],
+    "types": ["bun"],
     "paths": {
       "@destack/*": ["../destack-ts/src/*"],
       "@destack-web/*": ["../destack-ts-web/src/*"],

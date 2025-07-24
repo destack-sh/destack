@@ -12,20 +12,20 @@ uv pip compile \
 
 uv pip compile \
     destack-py/destack/requirements/requirements.in \
-    destack-py-system/desys/requirements/requirements.in \
-    --output-file destack-py-system/desys/requirements/requirements.txt
+    destack-py-system/destack_system/requirements/requirements.in \
+    --output-file destack-py-system/destack_system/requirements/requirements.txt
 
 uv pip compile \
     destack-py/destack/requirements/requirements.in \
     destack-py/destack/requirements/dev.in \
-    destack-py-system/desys/requirements/requirements.in \
-    destack-py-system/desys/requirements/dev.in \
-    --output-file destack-py-system/desys/requirements/requirements-dev.txt
+    destack-py-system/destack_system/requirements/requirements.in \
+    destack-py-system/destack_system/requirements/dev.in \
+    --output-file destack-py-system/destack_system/requirements/requirements-dev.txt
 
 # optionally also sync packages with --sync
 if [ "$1" == "--sync" ]; then
     source destack-py/venv/bin/activate && \
         uv pip sync destack-py/destack/requirements/requirements-dev.txt
     source destack-py-system/venv/bin/activate && \
-        uv pip sync destack-py-system/desys/requirements/requirements-dev.txt
+        uv pip sync destack-py-system/destack_system/requirements/requirements-dev.txt
 fi
