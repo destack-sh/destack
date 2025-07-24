@@ -194,13 +194,16 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.UUID
-  writeUuid(value: Uint8Array): void {
-    if (value.length !== 16) {
-      throw new BinaryError("UUID must be exactly 16 bytes");
+  writeUuid(value: string): void {
+    // Convert UUID string to 16 bytes
+    const hex = value.replace(/-/g, "");
+    if (hex.length !== 32) {
+      throw new BinaryError("UUID must be a valid 32-character hex string");
     }
     this.ensureCapacity(16);
-    new Uint8Array(this.buffer, this.pos, 16).set(value);
-    this.pos += 16;
+    for (let i = 0; i < 16; i++) {
+      this.view.setUint8(this.pos++, parseInt(hex.slice(i * 2, i * 2 + 2), 16));
+    }
   }
 
   // PrimitiveType.BYTES
@@ -517,14 +520,22 @@ export class BinaryReader {
   }
 
   // PrimitiveType.UUID
-  readUuid(): Uint8Array {
+  readUuid(): string {
     if (this.pos + 16 > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
-    const uuid = new Uint8Array(16);
-    uuid.set(this.buffer.slice(this.pos, this.pos + 16));
-    this.pos += 16;
-    return uuid;
+    // read 16 bytes and convert to UUID string
+    const bytes = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = this.buffer[this.pos++];
+    }
+    // convert bytes to hex string
+    const hex = Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // format as UUID
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
   }
 
   // PrimitiveType.BYTES
