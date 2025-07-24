@@ -7,8 +7,10 @@ export class BinaryError extends Error {
   }
 }
 
+const _EPOCH_DATE = new Temporal.PlainDate(1970, 1, 1);
+
 /**
- * Write binary data with variable-length encoding for integers.
+ * Write binary data in our custom encoding. Little-endian, varint, zigzag, etc.
  */
 export class BinaryWriter {
   private buffer: ArrayBuffer;
@@ -16,8 +18,8 @@ export class BinaryWriter {
   private pos: number;
   private textEncoder: TextEncoder;
 
-  constructor() {
-    this.buffer = new ArrayBuffer(256); // initial size
+  constructor(initialSize: number = 256) {
+    this.buffer = new ArrayBuffer(initialSize);
     this.view = new DataView(this.buffer);
     this.pos = 0;
     this.textEncoder = new TextEncoder();
@@ -48,10 +50,30 @@ export class BinaryWriter {
     this.view.setUint8(this.pos++, value ? 1 : 0);
   }
 
-  // PrimitiveType.INT8
-  writeInt8(value: number): void {
+  // PrimitiveType.SINT8
+  writeSInt8(value: number): void {
     this.ensureCapacity(1);
     this.view.setInt8(this.pos++, value);
+  }
+
+  // PrimitiveType.SINT16
+  writeSInt16(value: number): void {
+    this.writeVarint(this.zigzagEncode(value));
+  }
+
+  // PrimitiveType.SINT32
+  writeSInt32(value: number): void {
+    this.writeVarint(this.zigzagEncode(value));
+  }
+
+  // PrimitiveType.SINT64
+  writeSInt64(value: bigint): void {
+    this.writeVarint64(this.zigzagEncode64(value));
+  }
+
+  // PrimitiveType.SINT128
+  writeSInt128(value: bigint): void {
+    this.writeVarint128(this.zigzagEncode128(value));
   }
 
   // PrimitiveType.UINT8
@@ -60,19 +82,9 @@ export class BinaryWriter {
     this.view.setUint8(this.pos++, value);
   }
 
-  // PrimitiveType.INT16
-  writeInt16(value: number): void {
-    this.writeVarint(this.zigzagEncode(value));
-  }
-
   // PrimitiveType.UINT16
   writeUint16(value: number): void {
     this.writeVarint(value);
-  }
-
-  // PrimitiveType.INT32
-  writeInt32(value: number): void {
-    this.writeVarint(this.zigzagEncode(value));
   }
 
   // PrimitiveType.UINT32
@@ -80,14 +92,28 @@ export class BinaryWriter {
     this.writeVarint(value);
   }
 
-  // PrimitiveType.INT64
-  writeInt64(value: bigint): void {
-    this.writeVarint64(this.zigzagEncode64(value));
-  }
-
   // PrimitiveType.UINT64
   writeUint64(value: bigint): void {
     this.writeVarint64(value);
+  }
+
+  // PrimitiveType.UINT128
+  writeUint128(value: bigint): void {
+    this.writeVarint128(value);
+  }
+
+  // PrimitiveType.FLOAT16
+  writeFloat16(value: number): void {
+    this.ensureCapacity(3);
+    if (value === 0.0) {
+      this.view.setUint8(this.pos++, 0);
+    } else {
+      this.view.setUint8(this.pos++, 1);
+      // Encode float16
+      const float16Bytes = this.encodeFloat16(value);
+      this.view.setUint8(this.pos++, float16Bytes[0]);
+      this.view.setUint8(this.pos++, float16Bytes[1]);
+    }
   }
 
   // PrimitiveType.FLOAT32
@@ -139,8 +165,7 @@ export class BinaryWriter {
   // PrimitiveType.DATE
   writeDate(value: Temporal.PlainDate): void {
     // convert to days since epoch
-    const epoch = new Temporal.PlainDate(1970, 1, 1);
-    const days = epoch.until(value, { largestUnit: "days" }).days;
+    const days = _EPOCH_DATE.until(value, { largestUnit: "days" }).days;
     this.writeVarint(this.zigzagEncode(days));
   }
 
@@ -211,6 +236,15 @@ export class BinaryWriter {
     this.view.setUint8(this.pos++, Number(value & 0x7fn));
   }
 
+  private writeVarint128(value: bigint): void {
+    this.ensureCapacity(19); // max 19 bytes for 128-bit
+    while (value >= 0x80n) {
+      this.view.setUint8(this.pos++, Number(value & 0x7fn) | 0x80);
+      value = value >> 7n;
+    }
+    this.view.setUint8(this.pos++, Number(value & 0x7fn));
+  }
+
   private zigzagEncode(value: number): number {
     // handle 32-bit signed integer
     return ((value << 1) ^ (value >> 31)) >>> 0;
@@ -223,10 +257,62 @@ export class BinaryWriter {
       return (-value << 1n) - 1n;
     }
   }
+
+  private zigzagEncode128(value: bigint): bigint {
+    if (value >= 0n) {
+      return value << 1n;
+    } else {
+      return (-value << 1n) - 1n;
+    }
+  }
+
+  private encodeFloat16(value: number): Uint8Array {
+    // convert float32 to float16 (IEEE 754 half-precision)
+    const float32 = new Float32Array([value]);
+    const uint32 = new Uint32Array(float32.buffer);
+    const bits = uint32[0];
+
+    // extract float32 components
+    const sign = (bits >> 31) & 0x1;
+    const exponent = (bits >> 23) & 0xff;
+    const mantissa = bits & 0x7fffff;
+
+    let float16bits: number;
+
+    if (exponent === 0xff) {
+      // infinity or NaN
+      if (mantissa === 0) {
+        // infinity
+        float16bits = (sign << 15) | 0x7c00;
+      } else {
+        // NaN
+        float16bits = (sign << 15) | 0x7c00 | (mantissa >> 13);
+      }
+    } else if (exponent === 0) {
+      // zero or subnormal
+      float16bits = (sign << 15);
+    } else {
+      // normal number
+      const newExponent = exponent - 127 + 15;
+      if (newExponent >= 31) {
+        // overflow to infinity
+        float16bits = (sign << 15) | 0x7c00;
+      } else if (newExponent <= 0) {
+        // underflow to zero
+        float16bits = (sign << 15);
+      } else {
+        // normal float16
+        float16bits = (sign << 15) | (newExponent << 10) | (mantissa >> 13);
+      }
+    }
+
+    // convert to little-endian bytes
+    return new Uint8Array([float16bits & 0xff, (float16bits >> 8) & 0xff]);
+  }
 }
 
 /**
- * Read binary data with variable-length encoding for integers.
+ * Read binary data in our custom encoding. Little-endian, varint, zigzag, etc.
  */
 export class BinaryReader {
   private buffer: Uint8Array;
@@ -253,12 +339,32 @@ export class BinaryReader {
     return this.buffer[this.pos++] !== 0;
   }
 
-  // PrimitiveType.INT8
-  readInt8(): number {
+  // PrimitiveType.SINT8
+  readSInt8(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
     return this.view.getInt8(this.pos++);
+  }
+
+  // PrimitiveType.SINT16
+  readSInt16(): number {
+    return this.zigzagDecode(this.readVarint());
+  }
+
+  // PrimitiveType.SINT32
+  readSInt32(): number {
+    return this.zigzagDecode(this.readVarint());
+  }
+
+  // PrimitiveType.SINT64
+  readSInt64(): bigint {
+    return this.zigzagDecode64(this.readVarint64());
+  }
+
+  // PrimitiveType.SINT128
+  readSInt128(): bigint {
+    return this.zigzagDecode128(this.readVarint128());
   }
 
   // PrimitiveType.UINT8
@@ -269,19 +375,9 @@ export class BinaryReader {
     return this.buffer[this.pos++];
   }
 
-  // PrimitiveType.INT16
-  readInt16(): number {
-    return this.zigzagDecode(this.readVarint());
-  }
-
   // PrimitiveType.UINT16
   readUint16(): number {
     return this.readVarint();
-  }
-
-  // PrimitiveType.INT32
-  readInt32(): number {
-    return this.zigzagDecode(this.readVarint());
   }
 
   // PrimitiveType.UINT32
@@ -289,14 +385,35 @@ export class BinaryReader {
     return this.readVarint();
   }
 
-  // PrimitiveType.INT64
-  readInt64(): bigint {
-    return this.zigzagDecode64(this.readVarint64());
-  }
-
   // PrimitiveType.UINT64
   readUint64(): bigint {
     return this.readVarint64();
+  }
+
+  // PrimitiveType.UINT128
+  readUint128(): bigint {
+    return this.readVarint128();
+  }
+
+  // PrimitiveType.FLOAT16
+  readFloat16(): number {
+    if (this.pos >= this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+
+    const flag = this.buffer[this.pos++];
+    if (flag === 0) {
+      return 0.0;
+    } else if (flag === 1) {
+      if (this.pos + 2 > this.buffer.length) {
+        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+      }
+      const float16Bytes = new Uint8Array(this.buffer.slice(this.pos, this.pos + 2));
+      this.pos += 2;
+      return this.decodeFloat16(float16Bytes);
+    } else {
+      throw new BinaryError(`invalid float16 encoding flag at ${this.pos - 1}: ${flag}`);
+    }
   }
 
   // PrimitiveType.FLOAT32
@@ -331,7 +448,7 @@ export class BinaryReader {
       return 0.0;
     } else if (flag === 1) {
       // integer representation
-      // Check first byte to see if it's a large number
+      // check first byte to see if it's a large number
       const peekPos = this.pos;
       let shift = 0;
       let hasMoreBytes = true;
@@ -343,10 +460,10 @@ export class BinaryReader {
       this.pos = peekPos; // reset position
 
       if (shift > 35) {
-        // Large number, use 64-bit decoding
+        // large number, use 64-bit decoding
         return Number(this.zigzagDecode64(this.readVarint64()));
       } else {
-        // Regular 32-bit number
+        // regular 32-bit number
         return this.zigzagDecode(this.readVarint());
       }
     } else if (flag === 2) {
@@ -370,8 +487,7 @@ export class BinaryReader {
   // PrimitiveType.DATE
   readDate(): Temporal.PlainDate {
     const days = this.zigzagDecode(this.readVarint());
-    const epoch = new Temporal.PlainDate(1970, 1, 1);
-    return epoch.add({ days });
+    return _EPOCH_DATE.add({ days });
   }
 
   // PrimitiveType.TIME
@@ -473,6 +589,29 @@ export class BinaryReader {
     }
   }
 
+  private readVarint128(): bigint {
+    let value = 0n;
+    let shift = 0n;
+
+    while (true) {
+      if (this.pos >= this.buffer.length) {
+        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+      }
+
+      const byte = this.buffer[this.pos++];
+      value |= BigInt(byte & 0x7f) << shift;
+
+      if ((byte & 0x80) === 0) {
+        return value;
+      }
+
+      shift += 7n;
+      if (shift >= 140n) {
+        throw new BinaryError(`varint too long at ${this.pos}`);
+      }
+    }
+  }
+
   private zigzagDecode(value: number): number {
     // properly handle 32-bit unsigned to signed conversion
     return ((value >>> 1) ^ -(value & 1)) | 0;
@@ -483,6 +622,50 @@ export class BinaryReader {
       return -((value + 1n) >> 1n);
     } else {
       return value >> 1n;
+    }
+  }
+
+  private zigzagDecode128(value: bigint): bigint {
+    if (value & 1n) {
+      return -((value + 1n) >> 1n);
+    } else {
+      return value >> 1n;
+    }
+  }
+
+  private decodeFloat16(bytes: Uint8Array): number {
+    // convert little-endian bytes to float16 bits
+    const float16bits = bytes[0] | (bytes[1] << 8);
+    // extract components
+    const sign = (float16bits >> 15) & 0x1;
+    const exponent = (float16bits >> 10) & 0x1f;
+    const mantissa = float16bits & 0x3ff;
+
+    if (exponent === 0x1f) {
+      // infinity or NaN
+      if (mantissa === 0) {
+        // infinity
+        return sign ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+      } else {
+        // NaN
+        return Number.NaN;
+      }
+    } else if (exponent === 0) {
+      // zero or subnormal
+      if (mantissa === 0) {
+        // zero
+        return sign ? -0 : 0;
+      } else {
+        // subnormal number
+        const value = Math.pow(2, -14) * (mantissa / 1024);
+        return sign ? -value : value;
+      }
+    } else {
+      // normal number
+      const newExponent = exponent - 15 + 127;
+      const float32bits = (sign << 31) | (newExponent << 23) | (mantissa << 13);
+      const float32 = new Uint32Array([float32bits]);
+      return new Float32Array(float32.buffer)[0];
     }
   }
 }

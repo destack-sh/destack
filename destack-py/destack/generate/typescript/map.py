@@ -4,9 +4,9 @@ from destack.language import PrimitiveType
 
 TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
     PrimitiveType.BOOLEAN: "boolean",
-    PrimitiveType.INT16: "number",
-    PrimitiveType.INT32: "number",
-    PrimitiveType.INT64: "number",
+    PrimitiveType.SINT16: "number",
+    PrimitiveType.SINT32: "number",
+    PrimitiveType.SINT64: "number",
     PrimitiveType.FLOAT32: "number",
     PrimitiveType.FLOAT64: "number",
     PrimitiveType.STRING: "string",

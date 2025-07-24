@@ -29,7 +29,7 @@ from destack.utils.string import Casing, to_casing
 if TYPE_CHECKING:
     pass
 
-# ruff: noqa: FURB113
+# ruff: noqa: FURB113, SIM114
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
@@ -316,31 +316,42 @@ def _generate_pack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64Encode({value_expr})"
-        elif (
-            prop.primitive_type == PrimitiveType.UUID or prop.primitive_type == PrimitiveType.STRING
-        ):
-            return value_expr
-        elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.toString({{ timeZoneName: 'never' }})"
-        elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
-            return f"{value_expr}.toString()"
-        elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"timedeltaToISOFormat({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ):
+            return f"Number({value_expr})"
+        elif prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
             PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return f"Number({value_expr})"
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return f"Number({value_expr})"
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"{value_expr}.toString({{ timeZoneName: 'never' }})"
+        elif prop.primitive_type == PrimitiveType.DATE:
+            return f"{value_expr}.toString()"
+        elif prop.primitive_type == PrimitiveType.TIME:
+            return f"{value_expr}.toString()"
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            return f"timedeltaToISOFormat({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"base64Encode({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
@@ -363,33 +374,42 @@ def _generate_unpack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64Decode({value_expr})"
-        elif (
-            prop.primitive_type == PrimitiveType.UUID or prop.primitive_type == PrimitiveType.STRING
-        ):
-            return value_expr
-        elif prop.primitive_type == PrimitiveType.DATE:
-            return f"Temporal.PlainDate.from({value_expr})"
-        elif prop.primitive_type == PrimitiveType.TIME:
-            return f"Temporal.PlainTime.from({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"Temporal.Instant.from({value_expr}).toZonedDateTimeISO('UTC')"
-        elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"timedeltaFromISOFormat({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ):
+            return f"Number({value_expr})"
+        elif prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
             PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return f"Number({value_expr})"
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return f"Number({value_expr})"
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"Temporal.Instant.from({value_expr}).toZonedDateTimeISO('UTC')"
+        elif prop.primitive_type == PrimitiveType.DATE:
+            return f"Temporal.PlainDate.from({value_expr})"
+        elif prop.primitive_type == PrimitiveType.TIME:
+            return f"Temporal.PlainTime.from({value_expr})"
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            return f"timedeltaFromISOFormat({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"base64Decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
@@ -433,23 +453,28 @@ def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return "true" if value else "false"
-        elif type.primitive_type == PrimitiveType.BYTES:
-            return f"base64Decode({base64.b64encode(value).decode()})"
         elif type.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ):
+            return str(value)
+        elif type.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
             PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return str(value)
+        elif type.primitive_type in (
+            PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return str(value)
-        elif type.primitive_type in (PrimitiveType.STRING, PrimitiveType.UUID):
-            return f'"{value}"'
         elif type.primitive_type == PrimitiveType.DATETIME:
             return f"Temporal.Instant.from(\"{value}\").toZonedDateTimeISO('UTC')"
         elif type.primitive_type == PrimitiveType.DATE:
@@ -458,6 +483,12 @@ def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
             return f'Temporal.PlainTime.from("{value}")'
         elif type.primitive_type == PrimitiveType.DURATION:
             return f'Temporal.Duration.from("{value}")'
+        elif type.primitive_type == PrimitiveType.STRING:
+            return f'"{value}"'
+        elif type.primitive_type == PrimitiveType.UUID:
+            return f'"{value}"'
+        elif type.primitive_type == PrimitiveType.BYTES:
+            return f"base64Decode({base64.b64encode(value).decode()})"
         elif type.primitive_type == PrimitiveType.JSON:
             return json.dumps(value)
         else:

@@ -964,31 +964,41 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type and prop.primitive_type in (
+        if (
+            prop.primitive_type == PrimitiveType.BOOLEAN
+            or prop.primitive_type
+            in (
+                PrimitiveType.SINT8,
+                PrimitiveType.SINT16,
+                PrimitiveType.SINT32,
+                PrimitiveType.SINT64,
+                PrimitiveType.SINT128,
+            )
+            or prop.primitive_type
+            in (
+                PrimitiveType.UINT8,
+                PrimitiveType.UINT16,
+                PrimitiveType.UINT32,
+                PrimitiveType.UINT64,
+                PrimitiveType.UINT128,
+            )
+        ):
+            return "{self_val} === {other_val}", True
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10", False
-        elif prop.primitive_type in (
-            PrimitiveType.BOOLEAN,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-            PrimitiveType.STRING,
-            PrimitiveType.UUID,
-            PrimitiveType.BYTES,
-            PrimitiveType.DATETIME,
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-            PrimitiveType.DURATION,
-            PrimitiveType.JSON,
+        elif (
+            prop.primitive_type == PrimitiveType.DATETIME
+            or prop.primitive_type == PrimitiveType.DATE
+            or prop.primitive_type == PrimitiveType.TIME
+            or prop.primitive_type == PrimitiveType.DURATION
+            or prop.primitive_type == PrimitiveType.STRING
+            or prop.primitive_type == PrimitiveType.UUID
+            or prop.primitive_type == PrimitiveType.BYTES
+            or prop.primitive_type == PrimitiveType.JSON
         ):
             return "{self_val} === {other_val}", True
         else:
@@ -1086,33 +1096,40 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     """Generate a Typescript hash method for a single scalar property."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
-            return f"hashFloat({value_expr})"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return f"hashBool({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ) or prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
             PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
         ):
             return f"hashInt({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BOOLEAN:
-            return f"hashBool({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
-            return f"hashString({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"hashBytes({value_expr})"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"hashString({value_expr}.toString())"
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return f"hashFloat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"hashString({value_expr}.toString({{ timeZoneName: 'never'}}))"
-        elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
+        elif prop.primitive_type == PrimitiveType.DATE or prop.primitive_type == PrimitiveType.TIME:
             return f"hashString({value_expr}.toString())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hashFloat({value_expr}.total('seconds'))"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return f"hashString({value_expr})"
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"hashString({value_expr}.toString())"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"hashBytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return f"hashString(JSON.stringify({value_expr}))"
         else:

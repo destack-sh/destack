@@ -800,27 +800,27 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     """Generate a hash method for a single scalar property."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
-            return f"hash_float({value_expr})"
+        if prop.primitive_type == PrimitiveType.BOOLEAN:
+            return f"hash_bool({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
             PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
         ):
             return f"hash_int({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BOOLEAN:
-            return f"hash_bool({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
-            return f"hash_string({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"hash_bytes({value_expr})"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"{value_expr}.int"
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return f"hash_float({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.DATETIME,
             PrimitiveType.DATE,
@@ -829,6 +829,12 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hash_string({value_expr}.isoformat())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hash_float({value_expr}.total_seconds())"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return f"hash_string({value_expr})"
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"{value_expr}.int"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"hash_bytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return f"hash_string(json.dumps({value_expr}))"
         else:
@@ -1006,7 +1012,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         is_computed=True,  # is set statically by class decorator
         is_wired=True,
         is_stored=False,
-        primitive_type=PrimitiveType.INT32,
+        primitive_type=PrimitiveType.SINT32,
         enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,
         component=cls,
     )

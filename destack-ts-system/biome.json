@@ -24,6 +24,9 @@
 			"recommended": false,
 			"correctness": {
 				"noUnusedImports": "error"
+			},
+			"suspicious": {
+				"noExplicitAny": "off"
 			}
 		}
 	},

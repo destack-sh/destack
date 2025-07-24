@@ -1213,23 +1213,26 @@ class PrimitiveType(Enum):
     A fundamental scalar data type.
     """
 
-    BOOLEAN = 1, "Boolean", "Boolean flag", "fas fa-toggle-large-on"
+    # NULL/NONE?L
+    BOOLEAN = 2, "Boolean", "Boolean flag", "fas fa-toggle-large-on"
     # integer
-    INT8 = 10, "Integer", "8-bit signed integer", "fas fa-tally"
-    INT16 = 11, "Integer", "16-bit signed integer", "fas fa-tally"
-    INT32 = 12, "Integer", "32-bit signed integer", "fas fa-tally"
-    INT64 = 13, "Integer", "64-bit signed integer", "fas fa-tally"
-    # INT128
-    UINT8 = 15, "Integer", "8-bit unsigned integer", "fas fa-tally"
-    UINT16 = 16, "Integer", "16-bit unsigned integer", "fas fa-tally"
-    UINT32 = 17, "Integer", "32-bit unsigned integer", "fas fa-tally"
-    UINT64 = 18, "Integer", "64-bit unsigned integer", "fas fa-tally"
-    # UINT128
+    SINT8 = 10, "SInt8", "8-bit signed integer", "fas fa-tally"
+    SINT16 = 11, "SInt16", "16-bit signed integer", "fas fa-tally"
+    SINT32 = 12, "SInt32", "32-bit signed integer", "fas fa-tally"
+    SINT64 = 13, "SInt64", "64-bit signed integer", "fas fa-tally"
+    SINT128 = 14, "SInt128", "128-bit signed integer", "fas fa-tally"
+    UINT8 = 15, "UInt8", "8-bit unsigned integer", "fas fa-tally"
+    UINT16 = 16, "UInt16", "16-bit unsigned integer", "fas fa-tally"
+    UINT32 = 17, "UInt32", "32-bit unsigned integer", "fas fa-tally"
+    UINT64 = 18, "UInt64", "64-bit unsigned integer", "fas fa-tally"
+    UINT128 = 19, "UInt128", "128-bit unsigned integer", "fas fa-tally"
     # float
-    FLOAT32 = 20, "Float", "Small float", "fas fa-hashtag"
-    FLOAT64 = 21, "Float", "Floating point number", "fas fa-hashtag"
+    FLOAT16 = 21, "Float16", "16-bit half-precision float", "fas fa-hashtag"
+    FLOAT32 = 22, "Float32", "32-bit single-precision float", "fas fa-hashtag"
+    FLOAT64 = 23, "Float64", "64-bit double-precision float", "fas fa-hashtag"
+    # complex, other numeric, ...?
     # time
-    DATETIME = 30, "Date & Time", "Date & time", "fas fa-calendar-days"
+    DATETIME = 30, "Datetime", "Date & time (with timezone)", "fas fa-calendar-days"
     DATE = 31, "Date", "Date", "fas fa-calendar-days"
     TIME = 32, "Time", "Time", "fas fa-clock"
     DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
@@ -1237,31 +1240,15 @@ class PrimitiveType(Enum):
     STRING = 40, "String", "Plain text", "fas fa-font-case"
     UUID = 41, "UUID", "UUID", "fas fa-fingerprint"
     BYTES = 42, "Bytes", "Binary data", "fas fa-file-lines"
-    JSON = 43, "JSON", "JSON", "fas fa-brackets-curly"
     # VECTOR?
+    JSON = 45, "JSON", "JSON", "fas fa-brackets-curly"
 
 
 assert max(PrimitiveType) < 256, "PrimitiveType must be less than 256"  # for :Encoding
 
-PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
-    PrimitiveType.BOOLEAN: bool,
-    PrimitiveType.INT8: int,
-    PrimitiveType.INT16: int,
-    PrimitiveType.INT32: int,
-    PrimitiveType.INT64: int,
-    PrimitiveType.FLOAT32: float,
-    PrimitiveType.FLOAT64: float,
-    PrimitiveType.STRING: str,
-    PrimitiveType.BYTES: bytes,
-    PrimitiveType.UUID: UUID,
-    PrimitiveType.DATETIME: datetime,
-    PrimitiveType.DATE: date,
-    PrimitiveType.TIME: time,
-    PrimitiveType.DURATION: timedelta,
-}
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
-    int: PrimitiveType.INT64,
+    int: PrimitiveType.SINT64,
     float: PrimitiveType.FLOAT64,
     str: PrimitiveType.STRING,
     UUID: PrimitiveType.UUID,

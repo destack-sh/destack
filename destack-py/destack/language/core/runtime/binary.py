@@ -2,16 +2,21 @@ import struct
 from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
+from destack.utils.uuid import UUID
+
 if TYPE_CHECKING:
-    from destack.utils.uuid import UUID
+    pass
 
 
 class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
 
 
+_EPOCH_DATE = date(1970, 1, 1)
+
+
 class BinaryWriter:
-    """Write binary data with variable-length encoding for integers."""
+    """Write binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
 
     def __init__(self) -> None:
         self.buffer = bytearray()
@@ -25,45 +30,64 @@ class BinaryWriter:
         """Write a boolean as 1 byte."""
         self.buffer.append(1 if value else 0)
 
-    # PrimitiveType.INT8
-    def write_int8(self, value: int) -> None:
+    # PrimitiveType.SINT8
+    def write_sint8(self, value: int) -> None:
         """Write a signed 8-bit integer."""
         self.buffer.append(value & 0xFF)
+
+    # PrimitiveType.SINT16
+    def write_sint16(self, value: int) -> None:
+        """Write a signed 16-bit integer with variable-length encoding."""
+        self._write_varint(self._write_zigzag(value))
+
+    # PrimitiveType.SINT32
+    def write_sint32(self, value: int) -> None:
+        """Write a signed 32-bit integer with variable-length encoding."""
+        self._write_varint(self._write_zigzag(value))
+
+    # PrimitiveType.SINT64
+    def write_sint64(self, value: int) -> None:
+        """Write a signed 64-bit integer with variable-length encoding."""
+        self._write_varint(self._write_zigzag(value))
+
+    # PrimitiveType.SINT128
+    def write_sint128(self, value: int) -> None:
+        """Write a signed 128-bit integer with variable-length encoding."""
+        self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.UINT8
     def write_uint8(self, value: int) -> None:
         """Write an unsigned 8-bit integer."""
         self.buffer.append(value & 0xFF)
 
-    # PrimitiveType.INT16
-    def write_int16(self, value: int) -> None:
-        """Write a signed 16-bit integer with variable-length encoding."""
-        self._write_varint(self._write_zigzag(value))
-
     # PrimitiveType.UINT16
     def write_uint16(self, value: int) -> None:
         """Write an unsigned 16-bit integer with variable-length encoding."""
         self._write_varint(value)
-
-    # PrimitiveType.INT32
-    def write_int32(self, value: int) -> None:
-        """Write a signed 32-bit integer with variable-length encoding."""
-        self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.UINT32
     def write_uint32(self, value: int) -> None:
         """Write an unsigned 32-bit integer with variable-length encoding."""
         self._write_varint(value)
 
-    # PrimitiveType.INT64
-    def write_int64(self, value: int) -> None:
-        """Write a signed 64-bit integer with variable-length encoding."""
-        self._write_varint(self._write_zigzag(value))
-
     # PrimitiveType.UINT64
     def write_uint64(self, value: int) -> None:
         """Write an unsigned 64-bit integer with variable-length encoding."""
         self._write_varint(value)
+
+    # PrimitiveType.UINT128
+    def write_uint128(self, value: int) -> None:
+        """Write an unsigned 128-bit integer with variable-length encoding."""
+        self._write_varint(value)
+
+    # PrimitiveType.FLOAT16
+    def write_float16(self, value: float) -> None:
+        """Write a 16-bit float with optimized encoding for zero."""
+        if value == 0.0:
+            self.buffer.append(0)
+        else:
+            self.buffer.append(1)
+            self.buffer.extend(struct.pack("<e", value))
 
     # PrimitiveType.FLOAT32
     def write_float32(self, value: float) -> None:
@@ -103,7 +127,7 @@ class BinaryWriter:
     # PrimitiveType.DATE
     def write_date(self, value: "date") -> None:
         """Write a date as days since epoch."""
-        days = (value - date(1970, 1, 1)).days
+        days = (value - _EPOCH_DATE).days
         self._write_varint(self._write_zigzag(days))
 
     # PrimitiveType.TIME
@@ -163,7 +187,7 @@ class BinaryWriter:
 
 
 class BinaryReader:
-    """Read binary data with variable-length encoding for integers."""
+    """Read binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
 
     def __init__(self, data: bytes) -> None:
         self.buffer = data
@@ -183,8 +207,8 @@ class BinaryReader:
         self.pos += 1
         return value != 0
 
-    # PrimitiveType.INT8
-    def read_int8(self) -> int:
+    # PrimitiveType.SINT8
+    def read_sint8(self) -> int:
         """Read a signed 8-bit integer."""
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -195,6 +219,26 @@ class BinaryReader:
             return value - 0x100
         return value
 
+    # PrimitiveType.SINT16
+    def read_sint16(self) -> int:
+        """Read a signed 16-bit integer with variable-length encoding."""
+        return self._zigzag_decode(self._read_varint())
+
+    # PrimitiveType.SINT32
+    def read_sint32(self) -> int:
+        """Read a signed 32-bit integer with variable-length encoding."""
+        return self._zigzag_decode(self._read_varint())
+
+    # PrimitiveType.SINT64
+    def read_sint64(self) -> int:
+        """Read a signed 64-bit integer with variable-length encoding."""
+        return self._zigzag_decode(self._read_varint())
+
+    # PrimitiveType.SINT128
+    def read_sint128(self) -> int:
+        """Read a signed 128-bit integer with variable-length encoding."""
+        return self._zigzag_decode(self._read_varint())
+
     # PrimitiveType.UINT8
     def read_uint8(self) -> int:
         """Read an unsigned 8-bit integer."""
@@ -204,35 +248,45 @@ class BinaryReader:
         self.pos += 1
         return value
 
-    # PrimitiveType.INT16
-    def read_int16(self) -> int:
-        """Read a signed 16-bit integer with variable-length encoding."""
-        return self._zigzag_decode(self._read_varint())
-
     # PrimitiveType.UINT16
     def read_uint16(self) -> int:
         """Read an unsigned 16-bit integer with variable-length encoding."""
         return self._read_varint()
-
-    # PrimitiveType.INT32
-    def read_int32(self) -> int:
-        """Read a signed 32-bit integer with variable-length encoding."""
-        return self._zigzag_decode(self._read_varint())
 
     # PrimitiveType.UINT32
     def read_uint32(self) -> int:
         """Read an unsigned 32-bit integer with variable-length encoding."""
         return self._read_varint()
 
-    # PrimitiveType.INT64
-    def read_int64(self) -> int:
-        """Read a signed 64-bit integer with variable-length encoding."""
-        return self._zigzag_decode(self._read_varint())
-
     # PrimitiveType.UINT64
     def read_uint64(self) -> int:
         """Read an unsigned 64-bit integer with variable-length encoding."""
         return self._read_varint()
+
+    # PrimitiveType.UINT128
+    def read_uint128(self) -> int:
+        """Read an unsigned 128-bit integer with variable-length encoding."""
+        return self._read_varint()
+
+    # PrimitiveType.FLOAT16
+    def read_float16(self) -> float:
+        """Read a 16-bit float with optimized encoding for zero."""
+        if self.pos >= len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+
+        flag = self.buffer[self.pos]
+        self.pos += 1
+
+        if flag == 0:
+            return 0.0
+        elif flag == 1:
+            if self.pos + 2 > len(self.buffer):
+                raise BinaryError(f"unexpected end of buffer at {self.pos}")
+            value = struct.unpack("<e", self.buffer[self.pos : self.pos + 2])[0]
+            self.pos += 2
+            return value
+        else:
+            raise BinaryError(f"invalid float16 encoding flag at {self.pos}: {flag}")
 
     # PrimitiveType.FLOAT32
     def read_float32(self) -> float:
@@ -287,7 +341,7 @@ class BinaryReader:
     def read_date(self) -> date:
         """Read a date from days since epoch."""
         days = self._zigzag_decode(self._read_varint())
-        return date(1970, 1, 1) + timedelta(days=days)
+        return _EPOCH_DATE + timedelta(days=days)
 
     # PrimitiveType.TIME
     def read_time(self) -> time:
@@ -317,8 +371,6 @@ class BinaryReader:
         """Read a UUID from 16 bytes."""
         if self.pos + 16 > len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
-        from destack.utils.uuid import UUID
-
         uuid_bytes = self.buffer[self.pos : self.pos + 16]
         self.pos += 16
         return UUID(bytes=uuid_bytes)
@@ -358,7 +410,7 @@ class BinaryReader:
                 return value
 
             shift += 7
-            if shift >= 64:
+            if shift >= 140:
                 raise BinaryError(f"varint too long at {self.pos}")
 
     def _zigzag_decode(self, value: int) -> int:

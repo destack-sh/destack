@@ -787,17 +787,20 @@ registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
  * PrimitiveType
  */
 export enum PrimitiveType {
-  BOOLEAN = 1,
-  INT8 = 10,
-  INT16 = 11,
-  INT32 = 12,
-  INT64 = 13,
+  BOOLEAN = 2,
+  SINT8 = 10,
+  SINT16 = 11,
+  SINT32 = 12,
+  SINT64 = 13,
+  SINT128 = 14,
   UINT8 = 15,
   UINT16 = 16,
   UINT32 = 17,
   UINT64 = 18,
-  FLOAT32 = 20,
-  FLOAT64 = 21,
+  UINT128 = 19,
+  FLOAT16 = 21,
+  FLOAT32 = 22,
+  FLOAT64 = 23,
   DATETIME = 30,
   DATE = 31,
   TIME = 32,
@@ -805,7 +808,7 @@ export enum PrimitiveType {
   STRING = 40,
   UUID = 41,
   BYTES = 42,
-  JSON = 43,
+  JSON = 45,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -876,10 +879,10 @@ registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
 
 export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.BOOLEAN]: Boolean,
-  [PrimitiveType.INT8]: Number,
-  [PrimitiveType.INT16]: Number,
-  [PrimitiveType.INT32]: Number,
-  [PrimitiveType.INT64]: Number,
+  [PrimitiveType.SINT8]: Number,
+  [PrimitiveType.SINT16]: Number,
+  [PrimitiveType.SINT32]: Number,
+  [PrimitiveType.SINT64]: Number,
   [PrimitiveType.UINT8]: Number,
   [PrimitiveType.UINT16]: Number,
   [PrimitiveType.UINT32]: Number,

@@ -96,12 +96,31 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return value
-        elif type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(value).decode()
-        elif type.primitive_type == PrimitiveType.UUID:
-            return str(value)
-        elif type.primitive_type == PrimitiveType.STRING:
-            return value
+        elif (
+            type.primitive_type
+            in (
+                PrimitiveType.SINT8,
+                PrimitiveType.SINT16,
+                PrimitiveType.SINT32,
+                PrimitiveType.SINT64,
+                PrimitiveType.SINT128,
+            )
+            or type.primitive_type
+            in (
+                PrimitiveType.UINT8,
+                PrimitiveType.UINT16,
+                PrimitiveType.UINT32,
+                PrimitiveType.UINT64,
+                PrimitiveType.UINT128,
+            )
+            or type.primitive_type
+            in (
+                PrimitiveType.FLOAT16,
+                PrimitiveType.FLOAT32,
+                PrimitiveType.FLOAT64,
+            )
+        ):
+            return float(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
             return value.astimezone(UTC).isoformat()
         elif type.primitive_type == PrimitiveType.DATE:
@@ -110,19 +129,12 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
             return value.astimezone(UTC).replace(tzinfo=None).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
-        elif type.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ):
-            return float(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return value
+        elif type.primitive_type == PrimitiveType.UUID:
+            return str(value)
+        elif type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.JSON:
             return value
         else:
@@ -148,12 +160,26 @@ def _unpack_scalar_cson(
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.BOOLEAN:
             return value
-        elif type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64decode(value)
-        elif type.primitive_type == PrimitiveType.UUID:
-            return UUID(value)
-        elif type.primitive_type == PrimitiveType.STRING:
-            return value
+        elif type.primitive_type in (
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ) or type.primitive_type in (
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return int(value)
+        elif type.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return float(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(value).astimezone(UTC)
         elif type.primitive_type == PrimitiveType.DATE:
@@ -162,19 +188,12 @@ def _unpack_scalar_cson(
             return time.fromisoformat(value).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_from_isoformat(value)
-        elif type.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-        ):
-            return int(value)
-        elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
-            return float(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return value
+        elif type.primitive_type == PrimitiveType.UUID:
+            return UUID(value)
+        elif type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64decode(value)
         elif type.primitive_type == PrimitiveType.JSON:
             return value
         else:

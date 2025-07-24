@@ -5,7 +5,7 @@ import pytest
 from destack.language.core.runtime.binary import BinaryReader, BinaryWriter
 
 
-def test_bool_roundtrip():
+def test_bool():
     """Test boolean encoding and decoding."""
     writer = BinaryWriter()
     writer.write_bool(True)
@@ -20,24 +20,24 @@ def test_bool_roundtrip():
     assert reader.remaining == 0
 
 
-def test_int8_roundtrip():
+def test_sint8():
     """Test signed 8-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 42, -42]
 
     writer = BinaryWriter()
     for value in test_values:
-        writer.write_int8(value)
+        writer.write_sint8(value)
 
     # Expected: 7 bytes (1 byte per int8)
     assert len(writer.to_bytes()) == 7
 
     reader = BinaryReader(writer.to_bytes())
     for expected in test_values:
-        assert reader.read_int8() == expected
+        assert reader.read_sint8() == expected
     assert reader.remaining == 0
 
 
-def test_uint8_roundtrip():
+def test_uint8():
     """Test unsigned 8-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 42]
 
@@ -54,7 +54,7 @@ def test_uint8_roundtrip():
     assert reader.remaining == 0
 
 
-def test_int16_varint():
+def test_sint16():
     """Test signed 16-bit integer variable-length encoding."""
     # Map of value -> expected bytes with explanation
     test_cases = {
@@ -74,17 +74,17 @@ def test_int16_varint():
 
     for value, expected_bytes in test_cases.items():
         writer = BinaryWriter()
-        writer.write_int16(value)
+        writer.write_sint16(value)
         data = writer.to_bytes()
         assert len(data) == expected_bytes, (
             f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
         )
 
         reader = BinaryReader(data)
-        assert reader.read_int16() == value
+        assert reader.read_sint16() == value
 
 
-def test_int32_varint():
+def test_sint32():
     """Test signed 32-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -103,7 +103,7 @@ def test_int32_varint():
 
     writer = BinaryWriter()
     for value in value_to_bytes:
-        writer.write_int32(value)
+        writer.write_sint32(value)
 
     # Calculate total expected bytes
     total_expected = sum(value_to_bytes.values())
@@ -111,11 +111,11 @@ def test_int32_varint():
 
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
-        assert reader.read_int32() == value
+        assert reader.read_sint32() == value
     assert reader.remaining == 0
 
 
-def test_int64_varint():
+def test_sint64():
     """Test signed 64-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -134,7 +134,7 @@ def test_int64_varint():
 
     writer = BinaryWriter()
     for value in value_to_bytes:
-        writer.write_int64(value)
+        writer.write_sint64(value)
 
     # Calculate total expected bytes
     total_expected = sum(value_to_bytes.values())
@@ -142,11 +142,42 @@ def test_int64_varint():
 
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
-        assert reader.read_int64() == value
+        assert reader.read_sint64() == value
     assert reader.remaining == 0
 
 
-def test_uint_varint():
+def test_sint128():
+    """Test signed 128-bit integer variable-length encoding."""
+    # Map of value -> expected bytes
+    value_to_bytes = {
+        0: 1,
+        1: 1,
+        -1: 1,
+        127: 2,
+        -128: 2,
+        2**63 - 1: 10,  # max sint64
+        -(2**63): 10,
+        2**127 - 1: 19,  # max sint128 (varint can go up to 19 bytes)
+        -(2**127): 19,
+        2**100: 15,  # large positive
+        -(2**100): 15,  # large negative
+    }
+
+    writer = BinaryWriter()
+    for value in value_to_bytes:
+        writer.write_sint128(value)
+
+    # Calculate total expected bytes
+    total_expected = sum(value_to_bytes.values())
+    assert len(writer.to_bytes()) == total_expected
+
+    reader = BinaryReader(writer.to_bytes())
+    for value in value_to_bytes:
+        assert reader.read_sint128() == value
+    assert reader.remaining == 0
+
+
+def test_uint():
     """Test unsigned integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -176,7 +207,77 @@ def test_uint_varint():
     assert total_bytes == sum(value_to_bytes.values())
 
 
-def test_float32_encoding():
+def test_uint128():
+    """Test unsigned 128-bit integer variable-length encoding."""
+    # Map of value -> expected bytes
+    value_to_bytes = {
+        0: 1,  # 0 -> 1 byte
+        127: 1,  # fits in 7 bits
+        128: 2,  # needs 2 bytes
+        0xFFFFFFFF: 5,  # max uint32
+        0xFFFFFFFFFFFFFFFF: 10,  # max uint64
+        2**100: 15,  # large value
+        2**127: 19,  # large value
+        2**128 - 1: 19,  # max uint128 (varint can go up to 19 bytes)
+    }
+
+    total_bytes = 0
+    for value, expected_bytes in value_to_bytes.items():
+        writer = BinaryWriter()
+        writer.write_uint128(value)
+        data = writer.to_bytes()
+        assert len(data) == expected_bytes, (
+            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
+        )
+        total_bytes += expected_bytes
+
+        reader = BinaryReader(data)
+        assert reader.read_uint128() == value
+
+    assert total_bytes == sum(value_to_bytes.values())
+
+
+def test_float16():
+    """Test 16-bit float encoding with zero optimization."""
+    # zero should be 1 byte
+    writer = BinaryWriter()
+    writer.write_float16(0.0)
+    assert len(writer.to_bytes()) == 1
+
+    # non-zero should be 3 bytes (1 flag + 2 float)
+    writer = BinaryWriter()
+    writer.write_float16(math.pi)
+    assert len(writer.to_bytes()) == 3
+
+    # test roundtrip with expected sizes
+    value_to_bytes = {
+        0.0: 1,  # zero optimization
+        1.0: 3,  # flag + float16
+        -1.0: 3,
+        math.pi: 3,
+        -math.pi: 3,
+        65504.0: 3,  # max normal float16
+        float("inf"): 3,
+        float("-inf"): 3,
+    }
+
+    writer = BinaryWriter()
+    for value in value_to_bytes:
+        writer.write_float16(value)
+
+    assert len(writer.to_bytes()) == sum(value_to_bytes.values())  # 22 bytes
+
+    reader = BinaryReader(writer.to_bytes())
+    for value in value_to_bytes:
+        result = reader.read_float16()
+        if value != value:  # NaN check
+            assert result != result
+        else:
+            # float16 has lower precision, so we need a larger tolerance
+            assert result == pytest.approx(value, rel=1e-3, abs=1e-3)
+
+
+def test_float32():
     """Test 32-bit float encoding with zero optimization."""
     # zero should be 1 byte
     writer = BinaryWriter()
@@ -214,7 +315,7 @@ def test_float32_encoding():
             assert result == pytest.approx(value)
 
 
-def test_float64_encoding():
+def test_float64():
     """Test 64-bit float encoding with optimizations."""
     # zero should be 1 byte
     writer = BinaryWriter()
@@ -264,7 +365,7 @@ def test_float64_encoding():
         assert result == pytest.approx(value)
 
 
-def test_string_encoding():
+def test_string():
     """Test string encoding with length prefix."""
     # Map of string -> expected bytes
     string_to_bytes = {
@@ -286,7 +387,7 @@ def test_string_encoding():
     assert reader.remaining == 0
 
 
-def test_bytes_encoding():
+def test_bytes():
     """Test bytes encoding with length prefix."""
     # Map of bytes -> expected bytes
     bytes_to_bytes = {
@@ -315,9 +416,12 @@ def test_mixed_types():
     # Write various types with expected sizes
     operations = [
         (lambda: writer.write_bool(True), 1),  # 1 byte
-        (lambda: writer.write_int8(-42), 1),  # 1 byte
+        (lambda: writer.write_sint8(-42), 1),  # 1 byte
         (lambda: writer.write_uint16(65535), 3),  # 3 bytes (varint)
-        (lambda: writer.write_int32(-1234567), 4),  # 4 bytes (varint)
+        (lambda: writer.write_sint32(-1234567), 4),  # 4 bytes (varint)
+        (lambda: writer.write_sint128(-(2**100)), 15),  # 15 bytes (varint)
+        (lambda: writer.write_uint128(2**100), 15),  # 15 bytes (varint)
+        (lambda: writer.write_float16(1.5), 3),  # 3 bytes
         (lambda: writer.write_float32(math.pi), 5),  # 5 bytes
         (lambda: writer.write_float64(math.e), 9),  # 9 bytes
         (lambda: writer.write_string("test string"), 12),  # 12 bytes (1 + 11)
@@ -329,14 +433,17 @@ def test_mixed_types():
 
     # Calculate total expected bytes
     total_expected = sum(size for _, size in operations)
-    assert len(writer.to_bytes()) == total_expected  # 39 bytes
+    assert len(writer.to_bytes()) == total_expected  # 89 bytes
 
     # read them back
     reader = BinaryReader(writer.to_bytes())
     assert reader.read_bool() is True
-    assert reader.read_int8() == -42
+    assert reader.read_sint8() == -42
     assert reader.read_uint16() == 65535
-    assert reader.read_int32() == -1234567
+    assert reader.read_sint32() == -1234567
+    assert reader.read_sint128() == -(2**100)
+    assert reader.read_uint128() == 2**100
+    assert reader.read_float16() == pytest.approx(1.5, rel=1e-3)
     assert reader.read_float32() == pytest.approx(math.pi, rel=1e-6)
     assert reader.read_float64() == pytest.approx(math.e)
     assert reader.read_string() == "test string"
@@ -344,7 +451,7 @@ def test_mixed_types():
     assert reader.remaining == 0
 
 
-def test_int_zigzag_roundtrip():
+def test_int_zigzag():
     """Test zigzag encoding/decoding correctness."""
     test_cases = [
         (0, 0),
@@ -368,7 +475,7 @@ def test_int_zigzag_roundtrip():
         assert reader._zigzag_decode(unsigned) == signed
 
 
-def test_varint_roundtrip():
+def test_varint():
     """Test varint encoding produces expected sizes for various ranges."""
     # Map of value -> expected bytes
     varint_sizes = {
@@ -392,7 +499,7 @@ def test_varint_roundtrip():
         )
 
 
-def test_datetime_roundtrip():
+def test_datetime():
     """Test datetime encoding and decoding."""
     from datetime import UTC, datetime
 
@@ -421,7 +528,7 @@ def test_datetime_roundtrip():
     assert reader.remaining == 0
 
 
-def test_date_roundtrip():
+def test_date():
     """Test date encoding and decoding."""
     from datetime import date
 
@@ -443,7 +550,7 @@ def test_date_roundtrip():
     assert reader.remaining == 0
 
 
-def test_time_roundtrip():
+def test_time():
     """Test time encoding and decoding."""
     from datetime import time
 
@@ -465,7 +572,7 @@ def test_time_roundtrip():
     assert reader.remaining == 0
 
 
-def test_duration_roundtrip():
+def test_duration():
     """Test duration encoding and decoding."""
     from datetime import timedelta
 
@@ -489,7 +596,7 @@ def test_duration_roundtrip():
     assert reader.remaining == 0
 
 
-def test_uuid_roundtrip():
+def test_uuid():
     """Test UUID encoding and decoding."""
     from destack.utils.uuid import UUID
 
@@ -513,7 +620,7 @@ def test_uuid_roundtrip():
     assert reader.remaining == 0
 
 
-def test_json_roundtrip():
+def test_json():
     """Test JSON encoding and decoding."""
     test_cases = [
         None,
@@ -539,7 +646,7 @@ def test_json_roundtrip():
     assert reader.remaining == 0
 
 
-def test_datetime_naive_to_utc():
+def test_datetime_naive():
     """Test that naive datetimes are converted to UTC."""
     from datetime import UTC, datetime
 

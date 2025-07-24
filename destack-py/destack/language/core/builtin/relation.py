@@ -273,7 +273,7 @@ class PropertyReference(StructFrozen):
     id: int | None = builtin_property(
         105,
         is_repr=True,
-        primitive_type=PrimitiveType.INT32,
+        primitive_type=PrimitiveType.SINT32,
         description="id of the builtin Property",
     )
     custom_property: "CustomProperty | None" = builtin_property(

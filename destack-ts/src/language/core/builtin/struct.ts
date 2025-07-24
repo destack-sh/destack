@@ -2,10 +2,10 @@ import type { Encoding, PackedCache, StructDefinition } from "@destack/language/
 import { ObjectKind, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION, ENCODERS } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import { BinaryWriter } from "@destack/language/core/runtime/binary";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { StructTypeMapping } from "@destack/language/mapping";
 import { registerStructClass } from "@destack/language/registry";
-import { BinaryWriter } from "@destack/language/core/runtime/binary";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {

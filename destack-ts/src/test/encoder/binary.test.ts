@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { BinaryReader, BinaryWriter } from "@destack/language/core/runtime/binary";
 import { Temporal } from "temporal-polyfill";
 
-test("bool roundtrip", () => {
+test("bool", () => {
   const writer = new BinaryWriter();
   writer.writeBool(true);
   writer.writeBool(false);
@@ -16,12 +16,12 @@ test("bool roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("int8 roundtrip", () => {
+test("sint8", () => {
   const testValues = [0, 1, -1, 127, -128, 42, -42];
 
   const writer = new BinaryWriter();
   for (const value of testValues) {
-    writer.writeInt8(value);
+    writer.writeSInt8(value);
   }
 
   // Expected: 7 bytes (1 byte per int8)
@@ -29,30 +29,12 @@ test("int8 roundtrip", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const expected of testValues) {
-    expect(reader.readInt8()).toBe(expected);
+    expect(reader.readSInt8()).toBe(expected);
   }
   expect(reader.remaining).toBe(0);
 });
 
-test("uint8 roundtrip", () => {
-  const testValues = [0, 1, 127, 128, 255, 42];
-
-  const writer = new BinaryWriter();
-  for (const value of testValues) {
-    writer.writeUint8(value);
-  }
-
-  // Expected: 6 bytes (1 byte per uint8)
-  expect(writer.toBytes().length).toBe(6);
-
-  const reader = new BinaryReader(writer.toBytes());
-  for (const expected of testValues) {
-    expect(reader.readUint8()).toBe(expected);
-  }
-  expect(reader.remaining).toBe(0);
-});
-
-test("int16 varint", () => {
+test("sint16", () => {
   // Map of value -> expected bytes with explanation
   const testCases: Record<number, number> = {
     0: 1, // zigzag(0) = 0 -> 1 byte
@@ -72,16 +54,16 @@ test("int16 varint", () => {
   for (const [valueStr, expectedBytes] of Object.entries(testCases)) {
     const value = Number(valueStr);
     const writer = new BinaryWriter();
-    writer.writeInt16(value);
+    writer.writeSInt16(value);
     const data = writer.toBytes();
     expect(data.length).toBe(expectedBytes);
 
     const reader = new BinaryReader(data);
-    expect(reader.readInt16()).toBe(value);
+    expect(reader.readSInt16()).toBe(value);
   }
 });
 
-test("int32 varint", () => {
+test("sint32", () => {
   // Map of value -> expected bytes
   const valueToBytes: Record<number, number> = {
     0: 1, // zigzag = 0
@@ -99,7 +81,7 @@ test("int32 varint", () => {
 
   const writer = new BinaryWriter();
   for (const value of Object.keys(valueToBytes).map(Number)) {
-    writer.writeInt32(value);
+    writer.writeSInt32(value);
   }
 
   // Calculate total expected bytes
@@ -108,12 +90,12 @@ test("int32 varint", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes).map(Number)) {
-    expect(reader.readInt32()).toBe(value);
+    expect(reader.readSInt32()).toBe(value);
   }
   expect(reader.remaining).toBe(0);
 });
 
-test("int64 varint", () => {
+test("sint64", () => {
   // Map of value -> expected bytes
   const valueToBytes: Record<string, number> = {
     "0": 1,
@@ -123,15 +105,15 @@ test("int64 varint", () => {
     "-128": 2,
     [String(2 ** 31 - 1)]: 5,
     [String(-(2 ** 31))]: 5,
-    "9223372036854775807": 10, // max varint (2^63 - 1)
-    "-9223372036854775808": 10, // max varint (-2^63)
+    "9223372036854775807": 10, // max (2^63 - 1)
+    "-9223372036854775808": 10, // max (-2^63)
     "123456789012345": 7,
     "-123456789012345": 7,
   };
 
   const writer = new BinaryWriter();
   for (const value of Object.keys(valueToBytes)) {
-    writer.writeInt64(BigInt(value));
+    writer.writeSInt64(BigInt(value));
   }
 
   // Calculate total expected bytes
@@ -140,12 +122,62 @@ test("int64 varint", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes)) {
-    expect(reader.readInt64()).toBe(BigInt(value));
+    expect(reader.readSInt64()).toBe(BigInt(value));
   }
   expect(reader.remaining).toBe(0);
 });
 
-test("uint varint", () => {
+test("sint128", () => {
+  // Map of value -> expected bytes
+  const valueToBytes: Record<string, number> = {
+    "0": 1,
+    "1": 1,
+    "-1": 1,
+    "127": 2,
+    "-128": 2,
+    "9223372036854775807": 10, // max sint64
+    "-9223372036854775808": 10, // min sint64
+    "170141183460469231731687303715884105727": 19, // max sint128 (2^127 - 1)
+    "-170141183460469231731687303715884105728": 19, // min sint128 (-2^127)
+    "1267650600228229401496703205376": 15, // 2^100
+    "-1267650600228229401496703205376": 15, // -2^100
+  };
+
+  const writer = new BinaryWriter();
+  for (const value of Object.keys(valueToBytes)) {
+    writer.writeSInt128(BigInt(value));
+  }
+
+  // Calculate total expected bytes
+  const totalExpected = Object.values(valueToBytes).reduce((a, b) => a + b, 0);
+  expect(writer.toBytes().length).toBe(totalExpected); // 91 bytes
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const value of Object.keys(valueToBytes)) {
+    expect(reader.readSInt128()).toBe(BigInt(value));
+  }
+  expect(reader.remaining).toBe(0);
+});
+
+test("uint8", () => {
+  const testValues = [0, 1, 127, 128, 255, 42];
+
+  const writer = new BinaryWriter();
+  for (const value of testValues) {
+    writer.writeUint8(value);
+  }
+
+  // Expected: 6 bytes (1 byte per uint8)
+  expect(writer.toBytes().length).toBe(6);
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const expected of testValues) {
+    expect(reader.readUint8()).toBe(expected);
+  }
+  expect(reader.remaining).toBe(0);
+});
+
+test("uint", () => {
   // Map of value -> expected bytes
   const valueToBytes: Record<number, number> = {
     0: 1, // 0 -> 1 byte
@@ -153,8 +185,8 @@ test("uint varint", () => {
     128: 2, // needs 2 bytes
     16383: 2, // fits in 14 bits
     16384: 3, // needs 3 bytes
-    0xffff: 3, // max uint16 (65535)
-    0xffffffff: 5, // max uint32 (4294967295)
+    65535: 3, // max uint16 (65535)
+    4294967295: 5, // max uint32 (4294967295)
   };
 
   let totalBytes = 0;
@@ -173,7 +205,80 @@ test("uint varint", () => {
   expect(totalBytes).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0));
 });
 
-test("float32 encoding", () => {
+test("uint128", () => {
+  // Map of value -> expected bytes
+  const valueToBytes: Record<string, number> = {
+    "0": 1, // 0 -> 1 byte
+    "127": 1, // fits in 7 bits
+    "128": 2, // needs 2 bytes
+    "4294967295": 5, // max uint32
+    "18446744073709551615": 10, // max uint64
+    "1267650600228229401496703205376": 15, // 2^100
+    "170141183460469231731687303715884105728": 19, // 2^127
+    "340282366920938463463374607431768211455": 19, // max uint128 (2^128 - 1)
+  };
+
+  const writer = new BinaryWriter();
+  for (const value of Object.keys(valueToBytes)) {
+    writer.writeUint128(BigInt(value));
+  }
+
+  // Calculate total expected bytes
+  const totalExpected = Object.values(valueToBytes).reduce((a, b) => a + b, 0);
+  expect(writer.toBytes().length).toBe(totalExpected); // 71 bytes
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const value of Object.keys(valueToBytes)) {
+    expect(reader.readUint128()).toBe(BigInt(value));
+  }
+  expect(reader.remaining).toBe(0);
+});
+
+test("float16", () => {
+  // zero should be 1 byte
+  let writer = new BinaryWriter();
+  writer.writeFloat16(0.0);
+  expect(writer.toBytes().length).toBe(1);
+
+  // non-zero should be 3 bytes (1 flag + 2 float)
+  writer = new BinaryWriter();
+  writer.writeFloat16(Math.PI);
+  expect(writer.toBytes().length).toBe(3);
+
+  // test roundtrip with expected sizes
+  const valueToBytes: Record<number, number> = {
+    0.0: 1, // zero optimization
+    1.0: 3, // flag + float16
+    [-1.0]: 3,
+    [Math.PI]: 3,
+    [-Math.PI]: 3,
+    65504.0: 3, // max normal float16
+    [Number.POSITIVE_INFINITY]: 3,
+    [Number.NEGATIVE_INFINITY]: 3,
+  };
+
+  writer = new BinaryWriter();
+  for (const value of Object.keys(valueToBytes).map(Number)) {
+    writer.writeFloat16(value);
+  }
+
+  expect(writer.toBytes().length).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0)); // 22 bytes
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const value of Object.keys(valueToBytes).map(Number)) {
+    const result = reader.readFloat16();
+    if (Number.isNaN(value)) {
+      expect(Number.isNaN(result)).toBe(true);
+    } else {
+      // float16 has lower precision, so we need a larger tolerance
+      // Using precision 2 to match Python's rel=1e-3 tolerance
+      expect(result).toBeCloseTo(value, 2);
+    }
+  }
+  expect(reader.remaining).toBe(0);
+});
+
+test("float32", () => {
   // zero should be 1 byte
   let writer = new BinaryWriter();
   writer.writeFloat32(0.0);
@@ -184,7 +289,7 @@ test("float32 encoding", () => {
   writer.writeFloat32(Math.PI);
   expect(writer.toBytes().length).toBe(5);
 
-  // test roundtrip with expected sizes
+  // test with expected sizes
   const valueToBytes: Record<number, number> = {
     0.0: 1, // zero optimization
     1.0: 5, // flag + float32
@@ -213,17 +318,17 @@ test("float32 encoding", () => {
   }
 });
 
-test("float64 encoding", () => {
+test("float64", () => {
   // zero should be 1 byte
   let writer = new BinaryWriter();
   writer.writeFloat64(0.0);
   expect(writer.toBytes().length).toBe(1);
 
-  // small integers should use varint encoding (1 flag + varint bytes)
+  // small integers should use (1 flag + bytes)
   writer = new BinaryWriter();
   writer.writeFloat64(42.0);
   const data = writer.toBytes();
-  expect(data.length).toBe(2); // 1 flag + 1 varint byte for 84 (zigzag of 42)
+  expect(data.length).toBe(2); // 1 flag + 1 byte for 84 (zigzag of 42)
   expect(data[0]).toBe(1); // integer flag
 
   // large float should be 9 bytes (1 flag + 8 float)
@@ -231,17 +336,17 @@ test("float64 encoding", () => {
   writer.writeFloat64(Math.PI);
   expect(writer.toBytes().length).toBe(9);
 
-  // test roundtrip with expected sizes
+  // test with expected sizes
   const valueToBytes: Record<number, number> = {
     0.0: 1, // zero optimization
-    1.0: 2, // flag + varint (zigzag(1) = 2)
-    [-1.0]: 2, // flag + varint (zigzag(-1) = 1)
-    42.0: 2, // flag + varint (zigzag(42) = 84)
-    [-42.0]: 2, // flag + varint (zigzag(-42) = 83)
-    1000.0: 3, // flag + varint (zigzag(1000) = 2000)
-    [-1000.0]: 3, // flag + varint (zigzag(-1000) = 1999)
-    [2 ** 53]: 9, // flag + varint for large number (8 bytes for 64-bit varint + 1 flag)
-    [-(2 ** 53)]: 9, // flag + varint for large number (8 bytes for 64-bit varint + 1 flag)
+    1.0: 2, // flag + (zigzag(1) = 2)
+    [-1.0]: 2, // flag + (zigzag(-1) = 1)
+    42.0: 2, // flag + (zigzag(42) = 84)
+    [-42.0]: 2, // flag + (zigzag(-42) = 83)
+    1000.0: 3, // flag + (zigzag(1000) = 2000)
+    [-1000.0]: 3, // flag + (zigzag(-1000) = 1999)
+    [2 ** 53]: 9, // flag + for large number (8 bytes for 64-bit + 1 flag)
+    [-(2 ** 53)]: 9, // flag + for large number (8 bytes for 64-bit + 1 flag)
     [Math.PI]: 9, // flag + double
     [-Math.PI]: 9, // flag + double
     1e100: 9, // flag + double
@@ -264,7 +369,7 @@ test("float64 encoding", () => {
   }
 });
 
-test("string encoding", () => {
+test("string", () => {
   // Map of string -> expected bytes
   const stringToBytes: Record<string, number> = {
     "": 1, // just length 0
@@ -287,7 +392,7 @@ test("string encoding", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("bytes encoding", () => {
+test("bytes", () => {
   // Map of bytes -> expected bytes
   const bytesToBytes = new Map<Uint8Array, number>([
     [new Uint8Array([]), 1], // just length 0
@@ -317,9 +422,12 @@ test("mixed types", () => {
   // Write various types with expected sizes
   const operations: Array<[() => void, number]> = [
     [() => writer.writeBool(true), 1], // 1 byte
-    [() => writer.writeInt8(-42), 1], // 1 byte
+    [() => writer.writeSInt8(-42), 1], // 1 byte
     [() => writer.writeUint16(65535), 3], // 3 bytes (varint)
-    [() => writer.writeInt32(-1234567), 4], // 4 bytes (varint)
+    [() => writer.writeSInt32(-1234567), 4], // 4 bytes (varint)
+    [() => writer.writeSInt128(BigInt("-1267650600228229401496703205376")), 15], // 15 bytes (varint)
+    [() => writer.writeUint128(BigInt("1267650600228229401496703205376")), 15], // 15 bytes (varint)
+    [() => writer.writeFloat16(1.5), 3], // 3 bytes
     [() => writer.writeFloat32(Math.PI), 5], // 5 bytes
     [() => writer.writeFloat64(Math.E), 9], // 9 bytes
     [() => writer.writeString("test string"), 12], // 12 bytes (1 + 11)
@@ -332,14 +440,17 @@ test("mixed types", () => {
 
   // Calculate total expected bytes
   const totalExpected = operations.reduce((sum, [, size]) => sum + size, 0);
-  expect(writer.toBytes().length).toBe(totalExpected); // 39 bytes
+  expect(writer.toBytes().length).toBe(totalExpected); // 72 bytes
 
   // read them back
   const reader = new BinaryReader(writer.toBytes());
   expect(reader.readBool()).toBe(true);
-  expect(reader.readInt8()).toBe(-42);
+  expect(reader.readSInt8()).toBe(-42);
   expect(reader.readUint16()).toBe(65535);
-  expect(reader.readInt32()).toBe(-1234567);
+  expect(reader.readSInt32()).toBe(-1234567);
+  expect(reader.readSInt128()).toBe(BigInt("-1267650600228229401496703205376"));
+  expect(reader.readUint128()).toBe(BigInt("1267650600228229401496703205376"));
+  expect(reader.readFloat16()).toBeCloseTo(1.5, 2);
   expect(reader.readFloat32()).toBeCloseTo(Math.PI, 6);
   expect(reader.readFloat64()).toBeCloseTo(Math.E);
   expect(reader.readString()).toBe("test string");
@@ -347,7 +458,7 @@ test("mixed types", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("int zigzag roundtrip", () => {
+test("int zigzag", () => {
   const testCases: Array<[number, number]> = [
     [0, 0],
     [-1, 1],
@@ -362,16 +473,16 @@ test("int zigzag roundtrip", () => {
   ];
 
   // Test zigzagEncode by comparing with expected results
-  for (const [signed, unsigned] of testCases) {
+  for (const [signed, _] of testCases) {
     // we can't directly access private methods, so we'll test via writeInt32/readInt32
     const writer = new BinaryWriter();
-    writer.writeInt32(signed);
+    writer.writeSInt32(signed);
     const reader = new BinaryReader(writer.toBytes());
-    expect(reader.readInt32()).toBe(signed);
+    expect(reader.readSInt32()).toBe(signed);
   }
 });
 
-test("varint roundtrip", () => {
+test("varint", () => {
   // Map of value -> expected bytes
   const varintSizes: Record<number, number> = {
     0: 1, // 1 byte: 0-127
@@ -383,7 +494,7 @@ test("varint roundtrip", () => {
     2097152: 4, // 4 bytes: 2097152-268435455
     268435455: 4,
     268435456: 5, // 5 bytes: 268435456-max uint32
-    0xffffffff: 5,
+    4294967295: 5,
   };
 
   for (const [value, expectedBytes] of Object.entries(varintSizes)) {
@@ -393,7 +504,7 @@ test("varint roundtrip", () => {
   }
 });
 
-test("datetime roundtrip", () => {
+test("datetime", () => {
   const testCases = [
     // epoch
     Temporal.Instant.from("1970-01-01T00:00:00.000Z").toZonedDateTimeISO("UTC"),
@@ -421,7 +532,7 @@ test("datetime roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("date roundtrip", () => {
+test("date", () => {
   const testCases = [
     Temporal.PlainDate.from("1970-01-01"), // epoch
     Temporal.PlainDate.from("2024-01-15"), // current-ish
@@ -443,7 +554,7 @@ test("date roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("time roundtrip", () => {
+test("time", () => {
   const testCases = [
     new Temporal.PlainTime(0, 0, 0, 0, 0), // midnight
     new Temporal.PlainTime(12, 0, 0, 0, 0), // noon
@@ -469,7 +580,7 @@ test("time roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("duration roundtrip", () => {
+test("duration", () => {
   const testCases = [
     Temporal.Duration.from({ microseconds: 0 }), // zero
     Temporal.Duration.from({ microseconds: 24 * 60 * 60 * 1_000_000 }), // 1 day
@@ -493,13 +604,13 @@ test("duration roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("uuid roundtrip", () => {
+test("uuid", () => {
   // Helper function to convert UUID string to Uint8Array
   const uuidToBytes = (uuid: string): Uint8Array => {
     const hex = uuid.replace(/-/g, "");
     const bytes = new Uint8Array(16);
     for (let i = 0; i < 16; i++) {
-      bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+      bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
     }
     return bytes;
   };
@@ -510,11 +621,11 @@ test("uuid roundtrip", () => {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
     return [
-      hex.substr(0, 8),
-      hex.substr(8, 4),
-      hex.substr(12, 4),
-      hex.substr(16, 4),
-      hex.substr(20, 12),
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20, 32),
     ].join("-");
   };
 
@@ -541,7 +652,7 @@ test("uuid roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("json roundtrip", () => {
+test("json", () => {
   const testCases = [
     null,
     true,
@@ -568,7 +679,7 @@ test("json roundtrip", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("datetime naive to utc", () => {
+test("datetime naive", () => {
   // In Temporal, all ZonedDateTime are timezone-aware
   const naiveDt = Temporal.Now.zonedDateTimeISO();
   const writer = new BinaryWriter();

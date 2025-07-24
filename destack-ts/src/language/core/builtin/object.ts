@@ -9,6 +9,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Session } from "@destack/language/core/runtime";
+import { BinaryReader, BinaryWriter } from "@destack/language/core/runtime/binary";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
@@ -86,25 +87,26 @@ export abstract class BuiltinObject {
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
-  packBinary(encoding: Encoding): Uint8Array {
+  packBinary(encoding: Encoding, writer: BinaryWriter): void {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObjectBinary(
+    encoder.packObjectBinary(
       (this.constructor as typeof BuiltinObject).__kind__,
       this.metatype,
       this,
+      writer,
     );
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
-  static packBinary(encoding: Encoding, object: BuiltinObject): Uint8Array {
+  static packBinary(encoding: Encoding, object: BuiltinObject, writer: BinaryWriter): void {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObjectBinary(this.__kind__, this.metatype, object);
+    encoder.packObjectBinary(this.__kind__, this.metatype, object, writer);
   }
 
   /** Unpack a BuiltinObject from some encoded format. */
@@ -119,14 +121,14 @@ export abstract class BuiltinObject {
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
   static unpackBinary(
     encoding: Encoding,
-    value: Uint8Array,
+    reader: BinaryReader,
     session?: Session | null,
   ): BuiltinObject {
     const encoder = ENCODERS[encoding];
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObjectBinary(this.__kind__, this.metatype, value, session ?? null);
+    return encoder.unpackObjectBinary(this.__kind__, this.metatype, reader, session ?? null);
   }
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
@@ -135,8 +137,8 @@ export abstract class BuiltinObject {
     value: string,
     session?: Session | null,
   ): BuiltinObject {
-    const valueBytes = Buffer.from(value, "base64");
-    return this.unpackBinary(encoding, valueBytes, session ?? null);
+    const reader = new BinaryReader(Buffer.from(value, "base64"));
+    return this.unpackBinary(encoding, reader, session ?? null);
   }
 }
 
@@ -150,13 +152,13 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
   pack(encoding: Encoding, object: ObjectT): any;
 
   /** Pack this BuiltinObject into the byte representation of its encoded format. */
-  packBinary(encoding: Encoding, object: ObjectT): Uint8Array;
+  packBinary(encoding: Encoding, object: ObjectT, writer: BinaryWriter): void;
 
   /** Unpack a BuiltinObject from some encoded format. */
   unpack(encoding: Encoding, value: any, session?: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
-  unpackBinary(encoding: Encoding, value: Uint8Array, session?: Session | null): BuiltinObject;
+  unpackBinary(encoding: Encoding, reader: BinaryReader, session?: Session | null): BuiltinObject;
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
   unpackBinaryBase64(encoding: Encoding, value: string, session?: Session | null): BuiltinObject;
