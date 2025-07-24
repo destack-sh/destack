@@ -40,8 +40,12 @@ def bump(revision: int | None = typer.Option(None)):
     # check that version is in all files first
     files_to_update = (
         "pyproject.toml",
+        "package.json",
         "destack-py/destack/language/core/builtin/const.py",
         "destack-ts/package.json",
+        "destack-ts-web/package.json",
+        "destack-ts-system/package.json",
+        "destack-ts-simulation/package.json",
         "destack-ts/src/language/core/builtin/const.ts",
         "destack-ts-web/src/utils/globals.ts",
     )
