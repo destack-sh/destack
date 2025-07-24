@@ -2,7 +2,7 @@ import {
   type _CsonObjectEncoder,
   CSON_OBJECT_ENCODERS,
   getObjectKey,
-} from "@destack/encoder/cson/generate";
+} from "@destack/encoder/cson/core";
 import type {
   Action,
   ActionDefinition,

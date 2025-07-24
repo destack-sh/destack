@@ -144,6 +144,7 @@ class Session:
     def update_set_property(self, node: Entity, prop: PropertyDeclaration, new_value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         assert self.closed_at is None, f"{self!r} is closed"
+        assert prop.id is not None, f"no id for {prop!r}"
         old_value = getattr(node, prop.name)
         prop_type = prop.to_type()
 

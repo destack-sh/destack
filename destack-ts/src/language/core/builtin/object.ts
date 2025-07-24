@@ -83,7 +83,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.packObject(BuiltinObject.__kind__, BuiltinObject.metatype, object);
+    return encoder.packObject(this.__kind__, this.metatype, object);
   }
 
   /** Pack a BuiltinObject into the byte representation of its encoded format. */
@@ -106,7 +106,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    encoder.packObjectBinary(BuiltinObject.__kind__, BuiltinObject.metatype, object, writer);
+    encoder.packObjectBinary(this.__kind__, this.metatype, object, writer);
   }
 
   /** Unpack a BuiltinObject from some encoded format. */
@@ -115,12 +115,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObject(
-      BuiltinObject.__kind__,
-      BuiltinObject.metatype,
-      value,
-      session ?? null,
-    );
+    return encoder.unpackObject(this.__kind__, this.metatype, value, session ?? null);
   }
 
   /** Unpack a BuiltinObject from the byte representation of its encoded format. */
@@ -133,12 +128,7 @@ export abstract class BuiltinObject {
     if (encoder == null) {
       throw new Error(`no Encoder defined for ${Encoding[encoding]!}`);
     }
-    return encoder.unpackObjectBinary(
-      BuiltinObject.__kind__,
-      BuiltinObject.metatype,
-      reader,
-      session ?? null,
-    );
+    return encoder.unpackObjectBinary(this.__kind__, this.metatype, reader, session ?? null);
   }
 
   /** Unpack a BuiltinObject from the base64-encoded byte representation of its encoded format. */
@@ -148,7 +138,7 @@ export abstract class BuiltinObject {
     session?: Session | null,
   ): BuiltinObject {
     const reader = new BinaryReader(Buffer.from(value, "base64"));
-    return BuiltinObject.unpackBinary(encoding, reader, session ?? null);
+    return this.unpackBinary(encoding, reader, session ?? null);
   }
 }
 

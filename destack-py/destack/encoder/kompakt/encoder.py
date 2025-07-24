@@ -13,13 +13,9 @@ from destack.language.core import (
     Type,
 )
 
-from ..cson import CsonEncoder
-
-_cson_encoder = CsonEncoder()  # for generic Values
-
 
 class KompaktEncoder(Encoder[bytes]):
-    """Encoder for our kompaktbuf format."""
+    """Encoder for our Kompakt format."""
 
     encoding: ClassVar[Encoding] = Encoding.KOMPAKT
 

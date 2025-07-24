@@ -31,7 +31,8 @@ class CsonEncoder(Encoder[Cson]):
         metatype: NodeType | StructType,
         object: BuiltinObject,
     ) -> Cson:
-        encoder = CSON_OBJECT_ENCODERS[kind, metatype]
+        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.pack_object(object)
 
     @override
@@ -42,9 +43,35 @@ class CsonEncoder(Encoder[Cson]):
         object: BuiltinObject,
         writer: BinaryWriter,
     ) -> None:
-        encoder = CSON_OBJECT_ENCODERS[kind, metatype]
+        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
         object_packed = encoder.pack_object(object)
         writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
+
+    @override
+    def unpack_object(
+        self,
+        kind: ObjectKind,
+        metatype: NodeType | StructType,
+        value: Cson,
+        session: Session | None,
+    ) -> BuiltinObject:
+        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+        return encoder.unpack_object(value, session)
+
+    @override
+    def unpack_object_binary(
+        self,
+        kind: ObjectKind,
+        metatype: NodeType | StructType,
+        reader: BinaryReader,
+        session: Session | None,
+    ) -> BuiltinObject:
+        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
+        return encoder.unpack_object(value_decoded, session)
 
     @override
     def pack_value(
@@ -81,26 +108,3 @@ class CsonEncoder(Encoder[Cson]):
     ) -> Any:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return unpack_cson(value_decoded, type, session)
-
-    @override
-    def unpack_object(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        value: Cson,
-        session: Session | None,
-    ) -> BuiltinObject:
-        encoder = CSON_OBJECT_ENCODERS[kind, metatype]
-        return encoder.unpack_object(value, session)
-
-    @override
-    def unpack_object_binary(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        reader: BinaryReader,
-        session: Session | None,
-    ) -> BuiltinObject:
-        encoder = CSON_OBJECT_ENCODERS[kind, metatype]
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return encoder.unpack_object(value_decoded, session)
