@@ -67,10 +67,10 @@ from .core import (
 )
 from .encoder import (
     generate_cson_encoders,
-    generate_cson_value,
     generate_json_encoders,
 )
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
+from .value import generate_value
 
 # ruff: noqa: FURB113
 
@@ -497,7 +497,7 @@ if (_{ts_name_in} === null) {{
 
         # init default
         if prop.default is not UNSET and prop.default is not None:
-            default_str = generate_cson_value(prop, prop.default)
+            default_str = generate_value(prop, prop.default)
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = {default_str};
@@ -1474,7 +1474,7 @@ def _generate_constant_member(definition: ConstantDefinition) -> str:
     if definition._is_deferred:
         value_str = "undefined as any /* (deferred) */"
     else:
-        value_str = generate_cson_value(definition.value.type, definition.value.get())
+        value_str = generate_value(definition.value.type, definition.value.get())
 
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -2043,7 +2043,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
         for constant in object_cls.__constants__:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
-                value_str = generate_cson_value(constant.value.type, constant.value.get())
+                value_str = generate_value(constant.value.type, constant.value.get())
                 body_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
 // prettier-ignore

@@ -743,9 +743,7 @@ export function loadEncoders(): void {
       if (object.operation != null) {
         objectCson["102"] = object.operation;
       }
-      if (object.propertyId != null) {
-        objectCson["103"] = object.propertyId;
-      }
+      objectCson["103"] = object.propertyId;
       if (object.customPropertyPtr != null) {
         objectCson["104"] = object.customPropertyPtr.pack(2);
       }
@@ -769,8 +767,6 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const operationValue = objectCson["102"];
       const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-      const propertyIdValue = objectCson["103"];
-      const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : null;
       const customPropertyPtrValue = objectCson["104"];
       const unpackedCustomPropertyPtr =
         customPropertyPtrValue != undefined
@@ -809,7 +805,7 @@ export function loadEncoders(): void {
         type: Number(objectCson["100"]),
         node: _NodeReference.unpack(2, objectCson["101"], _session) as NodeReference,
         operation: unpackedOperation,
-        propertyId: unpackedPropertyId,
+        propertyId: Number(objectCson["103"]),
         customProperty: unpackedCustomPropertyPtr,
         key: unpackedKey,
         value: unpackedValue,

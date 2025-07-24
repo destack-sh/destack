@@ -207,9 +207,10 @@ export class EditEvent extends Event {
   readonly operation: EditOperation | null;
 
   /**
-   * The id of the builtin Property being edited (if not a custom Property).
+   * The id of the builtin Property being edited.
+   * If it's a custom Property, this just refers to Entity.custom_values.
    */
-  readonly propertyId: number | null;
+  readonly propertyId: number;
 
   /**
    * The custom Property being edited (if not a builtin).
@@ -262,7 +263,7 @@ export class EditEvent extends Event {
     type: EditType;
     node: Entity | NodeReference;
     operation?: EditOperation | null;
-    propertyId?: number | null;
+    propertyId: number;
     customProperty?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
@@ -385,7 +386,10 @@ export class EditEvent extends Event {
     this.nodePtr = _node as NodeReference;
     let _operation = options.operation ?? null;
     this.operation = _operation;
-    let _propertyId = options.propertyId ?? null;
+    let _propertyId = options.propertyId;
+    if (_propertyId === null) {
+      throw new Error(`EditEvent.propertyId is required`);
+    }
     this.propertyId = _propertyId;
     let _customProperty = options.customProperty ?? null;
     if (_customProperty != null && _customProperty.constructor.name !== "NodeReference") {
@@ -512,9 +516,7 @@ export class EditEvent extends Event {
     if (this.operation != null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    if (this.propertyId != null) {
-      h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
-    }
+    h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
     if (this.customPropertyPtr != null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
@@ -598,9 +600,7 @@ export class EditEvent extends Event {
     if (this.operation != null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    if (this.propertyId != null) {
-      propertyReprs.push(`propertyId=${this.propertyId}`);
-    }
+    propertyReprs.push(`propertyId=${this.propertyId}`);
     if (this.customProperty != null) {
       propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
     }
