@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Callable
@@ -42,6 +43,8 @@ def finalize():
 
     if _is_finalized():
         return
+
+    start = time.time()
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)
@@ -304,3 +307,4 @@ def finalize():
                         )
 
     _set_finalized()
+    print(f"finalize took {time.time() - start:.3f}s")

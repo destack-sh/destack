@@ -228,7 +228,7 @@ LOGGING = {
     "handlers": HANDLERS,
     "loggers": {
         "destack": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
-        "desys": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
+        "destack-system": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
     },
 }
 
@@ -236,7 +236,9 @@ LOGGING = {
 def trim_logger(_, __, event_dict: Any):
     """Removes the logger name from the event dict."""
     if "logger" in event_dict:
-        event_dict["logger"] = event_dict["logger"].removeprefix("destack.").removeprefix("desys.")
+        event_dict["logger"] = (
+            event_dict["logger"].removeprefix("destack.").removeprefix("destack-system.")
+        )
     return event_dict
 
 

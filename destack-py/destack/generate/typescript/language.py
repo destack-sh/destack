@@ -2015,7 +2015,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
     """Generate the global constants with all the deferred constants filled in."""
 
     # constants
-    constants_parts: list[str] = []
+    constants_parts: list[str] = ["// biome-ignore-all lint assist format: generated"]
 
     # collect imports
     import_parts: list[str] = []
@@ -2046,7 +2046,6 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
                 value_str = generate_value(constant.value.type, constant.value.get())
                 body_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
-// prettier-ignore
 const {constant_name} = {value_str};
 // @ts-expect-error (readonly)
 {object_cls.__name__}.{constant.name} = {constant_name};

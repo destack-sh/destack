@@ -40,38 +40,5 @@
       "args": ["generate"],
       "justMyCode": true
     },
-    {
-      "name": "destack.generate.proto",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["generate", "--only", "proto"],
-      "justMyCode": true
-    },
-    {
-      "name": "destack.generate.language",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["generate", "--only", "language"],
-      "justMyCode": true
-    },
-    {
-      "name": "destack.bootstrap",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}y",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["system", "bootstrap", "--region", "eu-zurich", "--upsert"],
-      "env": {
-        "ENVIRONMENT": "dev",
-        "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "destack-system",
-      },
-      "console": "integratedTerminal",
-      "justMyCode": true
-    }, 
   ],
 }
