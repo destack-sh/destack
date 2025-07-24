@@ -1,4 +1,5 @@
 import json
+import math
 import struct
 from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
@@ -14,6 +15,9 @@ class BinaryError(ValueError):
 
 
 _EPOCH_DATE = date(1970, 1, 1)
+_FLOAT_INF = float("inf")
+_FLOAT_NINF = float("-inf")
+_FLOAT_NAN = float("nan")
 
 
 class BinaryWriter:
@@ -117,45 +121,92 @@ class BinaryWriter:
     # PrimitiveType.FLOAT16
     def write_float16(self, value: float) -> None:
         """
-        Write a 16-bit float with flag byte (0 for zero, 1 + little-endian float16 for non-zero).
-        Size: 1 byte (zero) or 3 bytes (non-zero).
+        Write a 16-bit float with flag byte:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint8 for integers (2 bytes)
+          - 6: little-endian float16 for others (3 bytes)
         """
         if value == 0.0:
-            self.buffer.append(0)
+            if math.copysign(1.0, value) == -1.0:
+                self.buffer.append(1)  # negative zero
+            else:
+                self.buffer.append(0)  # positive zero
+        elif value == _FLOAT_INF:
+            self.buffer.append(2)  # positive infinity
+        elif value == _FLOAT_NINF:
+            self.buffer.append(3)  # negative infinity
+        elif value != value:  # NaN check
+            self.buffer.append(4)  # NaN
+        elif value == float(int(value)) and -(2**7) <= value <= 2**7:
+            self.buffer.append(5)
+            self.write_sint8(int(value))
         else:
-            self.buffer.append(1)
+            self.buffer.append(6)
             self.buffer.extend(struct.pack("<e", value))
 
     # PrimitiveType.FLOAT32
     def write_float32(self, value: float) -> None:
         """
-        Write a 32-bit float with flag byte (0 for zero, 1 + little-endian float32 for non-zero).
-        Size: 1 byte (zero) or 5 bytes (non-zero).
+        Write a 32-bit float with flag byte:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint16 for integers (3 bytes)
+          - 6: little-endian float32 for others (5 bytes)
         """
         if value == 0.0:
-            self.buffer.append(0)
+            if math.copysign(1.0, value) == -1.0:
+                self.buffer.append(1)  # negative zero
+            else:
+                self.buffer.append(0)  # positive zero
+        elif value == _FLOAT_INF:
+            self.buffer.append(2)  # positive infinity
+        elif value == _FLOAT_NINF:
+            self.buffer.append(3)  # negative infinity
+        elif value != value:  # NaN check
+            self.buffer.append(4)  # NaN
+        elif value == float(int(value)) and -(2**15) <= value <= 2**15:
+            self.buffer.append(5)
+            self.write_sint16(int(value))
         else:
-            self.buffer.append(1)
+            self.buffer.append(6)
             self.buffer.extend(struct.pack("<f", value))
 
     # PrimitiveType.FLOAT64
     def write_float64(self, value: float) -> None:
         """
-        Write a 64-bit float with flag byte (0 for zero, 1 + zigzag varint for integers, 2 + little-endian float64 for others).
-        Size: 1 byte (zero), 2-11 bytes (integer), or 9 bytes (full float).
+        Write a 64-bit float with flag byte:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint32 for integers (6 bytes)
+          - 6: little-endian float64 for others (9 bytes)
         """
         if value == 0.0:
-            self.buffer.append(0)
-        elif (
-            not (value != value or value == float("inf") or value == float("-inf"))
-            and value == float(int(value))
-            and -(2**53) <= value <= 2**53
-        ):
+            if math.copysign(1.0, value) == -1.0:
+                self.buffer.append(1)  # negative zero
+            else:
+                self.buffer.append(0)  # positive zero
+        elif value == _FLOAT_INF:
+            self.buffer.append(2)  # positive infinity
+        elif value == _FLOAT_NINF:
+            self.buffer.append(3)  # negative infinity
+        elif value != value:  # NaN check
+            self.buffer.append(4)  # NaN
+        elif value == float(int(value)) and -(2**31) <= value <= 2**31:
             # can be represented exactly as an integer
-            self.buffer.append(1)
-            self._write_varint(self._write_zigzag(int(value)))
+            self.buffer.append(5)
+            self.write_sint32(int(value))
         else:
-            self.buffer.append(2)
+            self.buffer.append(6)
             self.buffer.extend(struct.pack("<d", value))
 
     # PrimitiveType.DATETIME
@@ -199,7 +250,7 @@ class BinaryWriter:
         Write a duration as zigzag-encoded varint of microseconds.
         Size: 1-10 bytes.
         """
-        micros = int(value.total_seconds() * 1_000_000)
+        micros = round(value.total_seconds() * 1_000_000)
         self._write_varint(self._write_zigzag(micros))
 
     # PrimitiveType.STRING
@@ -369,8 +420,14 @@ class BinaryReader:
     # PrimitiveType.FLOAT16
     def read_float16(self) -> float:
         """
-        Read a 16-bit float from flag byte + optional little-endian float16.
-        Size: 1 byte (zero) or 3 bytes (non-zero).
+        Read a 16-bit float from flag byte + data:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint8 for integers (2 bytes)
+          - 6: little-endian float16 for others (3 bytes)
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -381,6 +438,16 @@ class BinaryReader:
         if flag == 0:
             return 0.0
         elif flag == 1:
+            return -0.0
+        elif flag == 2:
+            return _FLOAT_INF
+        elif flag == 3:
+            return _FLOAT_NINF
+        elif flag == 4:
+            return _FLOAT_NAN
+        elif flag == 5:
+            return float(self.read_sint8())
+        elif flag == 6:
             if self.pos + 2 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")
             value = struct.unpack("<e", self.buffer[self.pos : self.pos + 2])[0]
@@ -392,8 +459,14 @@ class BinaryReader:
     # PrimitiveType.FLOAT32
     def read_float32(self) -> float:
         """
-        Read a 32-bit float from flag byte + optional little-endian float32.
-        Size: 1 byte (zero) or 5 bytes (non-zero).
+        Read a 32-bit float from flag byte + data:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint16 for integers (3 bytes)
+          - 6: little-endian float32 for others (5 bytes)
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -404,6 +477,16 @@ class BinaryReader:
         if flag == 0:
             return 0.0
         elif flag == 1:
+            return -0.0
+        elif flag == 2:
+            return _FLOAT_INF
+        elif flag == 3:
+            return _FLOAT_NINF
+        elif flag == 4:
+            return _FLOAT_NAN
+        elif flag == 5:
+            return float(self.read_sint16())
+        elif flag == 6:
             if self.pos + 4 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")
             value = struct.unpack("<f", self.buffer[self.pos : self.pos + 4])[0]
@@ -415,8 +498,14 @@ class BinaryReader:
     # PrimitiveType.FLOAT64
     def read_float64(self) -> float:
         """
-        Read a 64-bit float from flag byte + data (0=zero, 1=zigzag varint integer, 2=little-endian float64).
-        Size: 1 byte (zero), 2-11 bytes (integer), or 9 bytes (full float).
+        Read a 64-bit float from flag byte + data:
+          - 0: zero (1 byte)
+          - 1: negative zero (1 byte)
+          - 2: positive infinity (1 byte)
+          - 3: negative infinity (1 byte)
+          - 4: NaN (1 byte)
+          - 5: sint32 for integers (6 bytes)
+          - 6: little-endian float64 for others (9 bytes)
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -427,9 +516,16 @@ class BinaryReader:
         if flag == 0:
             return 0.0
         elif flag == 1:
-            # integer representation
-            return float(self._zigzag_decode(self._read_varint()))
+            return -0.0
         elif flag == 2:
+            return _FLOAT_INF
+        elif flag == 3:
+            return _FLOAT_NINF
+        elif flag == 4:
+            return _FLOAT_NAN
+        elif flag == 5:
+            return float(self.read_sint32())
+        elif flag == 6:
             if self.pos + 8 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")
             value = struct.unpack("<d", self.buffer[self.pos : self.pos + 8])[0]

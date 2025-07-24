@@ -1,5 +1,7 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 
+// nocheckin: generalize pyodide for destack-ts-* (core?/web/system/simulation)
+
 const DESTACK_ROOT_PATH = new URL("../../../", import.meta.url).pathname;
 const DESTACK_ENV_PATHS = [".env.test", ".env.test.local"];
 const DESTACK_PY_PATH = new URL(`${DESTACK_ROOT_PATH}/destack-py/destack`, import.meta.url)
