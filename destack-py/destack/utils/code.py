@@ -1,10 +1,15 @@
 import linecache
+import time
+
+_time_spent_in_exec = 0
 
 
 def exec_(code: str, globals: dict, locals: dict, filename: str) -> None:
     """
     Executes the code, but with a name and in the cache.
     """
+    global _time_spent_in_exec
+    start = time.time()
     code_co = compile(code, filename, "exec")
     assert filename not in linecache.cache, f"filename {filename} already in cache"
     linecache.cache[filename] = (
@@ -14,6 +19,7 @@ def exec_(code: str, globals: dict, locals: dict, filename: str) -> None:
         filename,
     )
     exec(code_co, globals, locals)
+    _time_spent_in_exec += time.time() - start
 
 
 def format_code(code: str, suppress_error: bool = False, line_length: int = 100) -> str:

@@ -3,6 +3,7 @@ import contextvars
 import inspect
 import json
 import textwrap
+import time
 from collections.abc import Mapping
 from enum import Enum
 from sys import intern
@@ -980,6 +981,9 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
     return getter + "\n\n" + setter
 
 
+_time_spent_in_process_object_cls = 0
+
+
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
@@ -995,6 +999,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     inherits: tuple[StructType, ...] | tuple[NodeType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
+    global _time_spent_in_process_object_cls
+    start = time.time()
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
@@ -1240,6 +1246,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
             prop.original_component = _processed_classes.get(
                 prop.original_component, prop.original_component
             )
+
+    _time_spent_in_process_object_cls += time.time() - start
 
     return cls, properties  # type: ignore
 

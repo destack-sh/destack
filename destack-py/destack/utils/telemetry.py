@@ -92,7 +92,7 @@ def setup_telemetry() -> None:
     if _did_setup_telemetry:
         return
     if not TELEMETRY:
-        logger.debug("telemetry.disabled")
+        logger.debug("telemetry.skip")
         _did_setup_telemetry = True
         return
 

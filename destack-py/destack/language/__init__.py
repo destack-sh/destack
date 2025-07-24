@@ -1,3 +1,7 @@
+import time
+
+start = time.time()
+
 from .access import *  # noqa: F403
 from .animation import *  # noqa: F403
 from .core import *  # noqa: F403
@@ -25,3 +29,10 @@ from .universe import *  # noqa: F403
 from .view import *  # noqa: F403
 
 finalize()
+
+from destack.language.core.builtin.object import _time_spent_in_process_object_cls
+from destack.utils.code import _time_spent_in_exec
+
+print(f"time spent in exec: {_time_spent_in_exec:.3f}s")
+print(f"time spent in process_object_cls: {_time_spent_in_process_object_cls:.3f}s")
+print(f"language took {time.time() - start:.3f}s")
