@@ -837,9 +837,7 @@ export function loadEncoders(): void {
       if (object.operation != null) {
         objectJson["operation"] = EditOperation[object.operation];
       }
-      if (object.propertyId != null) {
-        objectJson["propertyId"] = Number(object.propertyId);
-      }
+      objectJson["propertyId"] = Number(object.propertyId);
       if (object.customPropertyPtr != null) {
         objectJson["customProperty"] = object.customPropertyPtr.pack(1);
       }
@@ -864,8 +862,6 @@ export function loadEncoders(): void {
       const operationValue = objectJson["operation"];
       const unpackedOperation =
         operationValue != undefined ? (EditOperation[operationValue] as any) : null;
-      const propertyIdValue = objectJson["propertyId"];
-      const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : null;
       const customPropertyPtrValue = objectJson["customProperty"];
       const unpackedCustomPropertyPtr =
         customPropertyPtrValue != undefined
@@ -904,7 +900,7 @@ export function loadEncoders(): void {
         type: EditType[objectJson["type"]] as any,
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         operation: unpackedOperation,
-        propertyId: unpackedPropertyId,
+        propertyId: Number(objectJson["propertyId"]),
         customProperty: unpackedCustomPropertyPtr,
         key: unpackedKey,
         value: unpackedValue,
