@@ -121,6 +121,7 @@ class TypeDeclaration:
     node_types: Sequence[NodeType] | None = None  # for node scalar nodes
     key_type: "TypeDeclaration | None" = None
     is_required: bool = True
+    is_identity: bool = False
     is_self: bool = False
     is_main: bool = False
 
@@ -641,6 +642,7 @@ def builtin_property(
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
+    is_identity: bool = False,
     is_unique: bool = False,
     is_readonly: bool = False,
     is_main: bool = False,
@@ -663,6 +665,7 @@ def builtin_property(
         is_repr=is_repr,
         is_hash=is_hash,
         is_eq=is_eq,
+        is_identity=is_identity,
         is_unique=is_unique,
         is_readonly=is_readonly,
         is_main=is_main,

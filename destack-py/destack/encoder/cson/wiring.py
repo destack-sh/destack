@@ -2,6 +2,17 @@ import base64
 from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING, Any, assert_never
 
+from destack.language.core import (
+    BuiltinObject,
+    Cson,
+    Encoding,
+    NodeReference,
+    NodeType,
+    PrimitiveType,
+    ScalarType,
+    Type,
+    TypeCardinality,
+)
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -11,16 +22,6 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
-
-from ...language.core.builtin import (
-    BuiltinObject,
-    Cson,
-    Encoding,
-    NodeReference,
-    NodeType,
-    PrimitiveType,
-)
-from ...language.core.common.type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
     from destack.language import Session

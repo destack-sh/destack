@@ -53,7 +53,7 @@ def generate_json_encoders() -> str:
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
     import_parts.append(
-        "import { JSON_OBJECT_ENCODERS, _JsonObjectEncoder, getObjectKey } from '@destack/encoder/json/core';"
+        "import { JSON_OBJECT_ENCODERS, JsonObjectEncoder, getObjectKey } from '@destack/encoder/json/core';"
     )
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
@@ -73,7 +73,7 @@ def generate_json_encoders() -> str:
     file_parts.append("\n".join(import_parts))
 
     # body
-    file_parts.append("export const JSON_ENCODERS: { [key: string]: _JsonObjectEncoder } = {};")
+    file_parts.append("export const JSON_ENCODERS: { [key: string]: JsonObjectEncoder } = {};")
 
     # encoders
     file_parts.append("let loaded = false;")
@@ -118,7 +118,7 @@ def generate_object_json_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     return (
         encoder_name,
         f"""
-class {encoder_name} implements _JsonObjectEncoder {{
+class {encoder_name} implements JsonObjectEncoder {{
   packObject(object: {cls.__name__}): any {{
 {textwrap.indent(pack_json, " " * 4)}
   }}
@@ -282,7 +282,9 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
         else:
             value_expr = _generate_unpack_json_scalar(prop, f"{ts_name}Value")
             lines.append(f"const {ts_name}Value = {data_json};")
-            lines.append(f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : null;")
+            lines.append(
+                f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
+            )
     elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"const {var_name}: any[] = [];")
         lines.append(f"if ({data_json} != undefined) {{")

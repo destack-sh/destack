@@ -65,6 +65,7 @@ class Event[N: Node = Node](Node):
         11,
         is_internal=True,
         is_readonly=True,
+        is_identity=True,
         description="The definition this Event is an instance of.",
         tags=("identity",),
     )
@@ -72,6 +73,7 @@ class Event[N: Node = Node](Node):
         12,
         is_readonly=True,
         is_internal=True,
+        is_identity=True,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Event originated from.",
         tags=("identity",),
@@ -80,6 +82,7 @@ class Event[N: Node = Node](Node):
         13,
         is_readonly=True,
         is_internal=True,
+        is_identity=True,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Event originated from.",
         tags=("identity",),
@@ -88,6 +91,7 @@ class Event[N: Node = Node](Node):
         14,
         is_readonly=True,
         is_internal=True,
+        is_identity=True,
         description="The previous Event that this Event follows.",
         tags=("identity",),
     )
@@ -95,6 +99,7 @@ class Event[N: Node = Node](Node):
         15,
         is_readonly=True,
         is_internal=True,
+        is_identity=True,
         description="The Event that caused this Event (if any).",
         tags=("identity",),
     )

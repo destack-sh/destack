@@ -1,7 +1,7 @@
 import {
-  type _JsonObjectEncoder,
   getObjectKey,
   JSON_OBJECT_ENCODERS,
+  type JsonObjectEncoder,
 } from "@destack/encoder/json/core";
 import type { Session } from "@destack/language";
 import {
@@ -327,7 +327,7 @@ import {
   timedeltaToISOFormat,
 } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
-export const JSON_ENCODERS: { [key: string]: _JsonObjectEncoder } = {};
+export const JSON_ENCODERS: { [key: string]: JsonObjectEncoder } = {};
 let loaded = false;
 export function loadEncoders(): void {
   if (loaded) {
@@ -335,7 +335,7 @@ export function loadEncoders(): void {
   }
   loaded = true;
 
-  class TagJsonEncoder implements _JsonObjectEncoder {
+  class TagJsonEncoder implements JsonObjectEncoder {
     packObject(object: Tag): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TAG";
@@ -401,37 +401,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -442,16 +442,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[12000] as typeof Tag)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -485,7 +485,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 12000)] = new TagJsonEncoder();
 
-  class TaggingJsonEncoder implements _JsonObjectEncoder {
+  class TaggingJsonEncoder implements JsonObjectEncoder {
     packObject(object: Tagging): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TAGGING";
@@ -550,32 +550,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -586,16 +586,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[12100] as typeof Tagging)({
         tag: _NodeReference.unpack(1, objectJson["tag"], _session) as NodeReference,
         parent: unpackedParentPtr,
@@ -629,7 +629,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 12100)] = new TaggingJsonEncoder();
 
-  class CustomEventJsonEncoder implements _JsonObjectEncoder {
+  class CustomEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUSTOM_EVENT";
@@ -707,12 +707,12 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const baseTypeValue = objectJson["baseType"];
       const unpackedBaseType =
         baseTypeValue != undefined
           ? (_NodeDefinitionReference.unpack(1, baseTypeValue, _session) as NodeDefinitionReference)
-          : null;
+          : undefined;
       const unpackedSelfTraits: any[] = [];
       if (objectJson["selfTraits"] != undefined) {
         for (const item of objectJson["selfTraits"]) {
@@ -725,32 +725,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -761,16 +761,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20000] as typeof CustomEvent)({
         icon: unpackedIcon,
         baseType: unpackedBaseType,
@@ -807,7 +807,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 20000)] = new CustomEventJsonEncoder();
 
-  class EditEventJsonEncoder implements _JsonObjectEncoder {
+  class EditEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: EditEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "EDIT_EVENT";
@@ -837,7 +837,9 @@ export function loadEncoders(): void {
       if (object.operation != null) {
         objectJson["operation"] = EditOperation[object.operation];
       }
-      objectJson["propertyId"] = Number(object.propertyId);
+      if (object.propertyId != null) {
+        objectJson["propertyId"] = Number(object.propertyId);
+      }
       if (object.customPropertyPtr != null) {
         objectJson["customProperty"] = object.customPropertyPtr.pack(1);
       }
@@ -861,46 +863,50 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const operationValue = objectJson["operation"];
       const unpackedOperation =
-        operationValue != undefined ? (EditOperation[operationValue] as any) : null;
+        operationValue != undefined ? (EditOperation[operationValue] as any) : undefined;
+      const propertyIdValue = objectJson["propertyId"];
+      const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : undefined;
       const customPropertyPtrValue = objectJson["customProperty"];
       const unpackedCustomPropertyPtr =
         customPropertyPtrValue != undefined
           ? (_NodeReference.unpack(1, customPropertyPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
       const unpackedKey =
-        keyValue != undefined ? (_Value.unpack(1, keyValue, _session) as Value) : null;
+        keyValue != undefined ? (_Value.unpack(1, keyValue, _session) as Value) : undefined;
       const valueValue = objectJson["value"];
       const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : null;
+        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
       const reverseOperationValue = objectJson["reverseOperation"];
       const unpackedReverseOperation =
-        reverseOperationValue != undefined ? (EditOperation[reverseOperationValue] as any) : null;
+        reverseOperationValue != undefined
+          ? (EditOperation[reverseOperationValue] as any)
+          : undefined;
       const reverseValueValue = objectJson["reverseValue"];
       const unpackedReverseValue =
         reverseValueValue != undefined
           ? (_Value.unpack(1, reverseValueValue, _session) as Value)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[90100] as typeof EditEvent)({
         type: EditType[objectJson["type"]] as any,
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         operation: unpackedOperation,
-        propertyId: Number(objectJson["propertyId"]),
+        propertyId: unpackedPropertyId,
         customProperty: unpackedCustomPropertyPtr,
         key: unpackedKey,
         value: unpackedValue,
@@ -930,7 +936,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 90100)] = new EditEventJsonEncoder();
 
-  class PermissionJsonEncoder implements _JsonObjectEncoder {
+  class PermissionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Permission): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PERMISSION";
@@ -994,32 +1000,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1030,16 +1036,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[50000] as typeof Permission)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -1072,7 +1078,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 50000)] = new PermissionJsonEncoder();
 
-  class MethodJsonEncoder implements _JsonObjectEncoder {
+  class MethodJsonEncoder implements JsonObjectEncoder {
     packObject(object: Method): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "METHOD";
@@ -1154,7 +1160,7 @@ export function loadEncoders(): void {
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
       const unpackedText =
-        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : null;
+        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
       if (objectJson["platforms"] != undefined) {
         for (const item of objectJson["platforms"]) {
@@ -1171,32 +1177,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1207,16 +1213,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[40000] as typeof Method)({
         type: MethodType[objectJson["type"]] as any,
         text: unpackedText,
@@ -1254,7 +1260,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 40000)] = new MethodJsonEncoder();
 
-  class ActionJsonEncoder implements _JsonObjectEncoder {
+  class ActionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Action): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ACTION";
@@ -1336,7 +1342,7 @@ export function loadEncoders(): void {
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
       const unpackedText =
-        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : null;
+        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
       if (objectJson["platforms"] != undefined) {
         for (const item of objectJson["platforms"]) {
@@ -1353,32 +1359,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1389,16 +1395,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[40100] as typeof Action)({
         type: MethodType[objectJson["type"]] as any,
         text: unpackedText,
@@ -1436,7 +1442,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 40100)] = new ActionJsonEncoder();
 
-  class CustomEnumJsonEncoder implements _JsonObjectEncoder {
+  class CustomEnumJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomEnum): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUSTOM_ENUM";
@@ -1502,37 +1508,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1543,16 +1549,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20200] as typeof CustomEnum)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -1586,7 +1592,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 20200)] = new CustomEnumJsonEncoder();
 
-  class CustomOptionJsonEncoder implements _JsonObjectEncoder {
+  class CustomOptionJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomOption): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUSTOM_OPTION";
@@ -1654,35 +1660,35 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1693,16 +1699,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20400] as typeof CustomOption)({
         parent: unpackedParentPtr,
         icon: unpackedIcon,
@@ -1736,7 +1742,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 20400)] = new CustomOptionJsonEncoder();
 
-  class IndexJsonEncoder implements _JsonObjectEncoder {
+  class IndexJsonEncoder implements JsonObjectEncoder {
     packObject(object: Index): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INDEX";
@@ -1817,32 +1823,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -1853,16 +1859,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[30100] as typeof Index)({
         type: IndexType[objectJson["type"]] as any,
         properties: unpackedProperties,
@@ -1897,7 +1903,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 30100)] = new IndexJsonEncoder();
 
-  class ConstraintJsonEncoder implements _JsonObjectEncoder {
+  class ConstraintJsonEncoder implements JsonObjectEncoder {
     packObject(object: Constraint): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CONSTRAINT";
@@ -1978,32 +1984,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2014,16 +2020,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[30200] as typeof Constraint)({
         type: ConstraintType[objectJson["type"]] as any,
         properties: unpackedProperties,
@@ -2058,7 +2064,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 30200)] = new ConstraintJsonEncoder();
 
-  class MigrationJsonEncoder implements _JsonObjectEncoder {
+  class MigrationJsonEncoder implements JsonObjectEncoder {
     packObject(object: Migration): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MIGRATION";
@@ -2123,32 +2129,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2159,16 +2165,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[31000] as typeof Migration)({
         type: MigrationType[objectJson["type"]] as any,
         parent: unpackedParentPtr,
@@ -2202,7 +2208,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 31000)] = new MigrationJsonEncoder();
 
-  class MigrationOperationJsonEncoder implements _JsonObjectEncoder {
+  class MigrationOperationJsonEncoder implements JsonObjectEncoder {
     packObject(object: MigrationOperation): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MIGRATION_OPERATION";
@@ -2266,32 +2272,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2302,16 +2308,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[31100] as typeof MigrationOperation)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -2344,7 +2350,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 31100)] = new MigrationOperationJsonEncoder();
 
-  class CustomPropertyJsonEncoder implements _JsonObjectEncoder {
+  class CustomPropertyJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomProperty): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUSTOM_PROPERTY";
@@ -2472,12 +2478,13 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : null;
+        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
       const enumTypeValue = objectJson["enumType"];
-      const unpackedEnumType = enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : null;
+      const unpackedEnumType =
+        enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
       if (objectJson["nodeTypes"] != undefined) {
         for (const item of objectJson["nodeTypes"]) {
@@ -2486,16 +2493,16 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : null;
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
       const valueValue = objectJson["value"];
       const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : null;
+        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
       const valueFactoryValue = objectJson["valueFactory"];
       const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : null;
+        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
       const collectionConstraintValue = objectJson["collectionConstraint"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -2504,62 +2511,63 @@ export function loadEncoders(): void {
               collectionConstraintValue,
               _session,
             ) as CollectionConstraint)
-          : null;
+          : undefined;
       const stringConstraintValue = objectJson["stringConstraint"];
       const unpackedStringConstraint =
         stringConstraintValue != undefined
           ? (_StringConstraint.unpack(1, stringConstraintValue, _session) as StringConstraint)
-          : null;
+          : undefined;
       const numberConstraintValue = objectJson["numberConstraint"];
       const unpackedNumberConstraint =
         numberConstraintValue != undefined
           ? (_NumberConstraint.unpack(1, numberConstraintValue, _session) as NumberConstraint)
-          : null;
+          : undefined;
       const edgeTypeValue = objectJson["edgeType"];
-      const unpackedEdgeType = edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : null;
+      const unpackedEdgeType =
+        edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : undefined;
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
-        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : null;
+        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
       const isRequiredValue = objectJson["isRequired"];
-      const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+      const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
       const isUniqueValue = objectJson["isUnique"];
-      const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : null;
+      const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : undefined;
       const isComputedValue = objectJson["isComputed"];
-      const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
+      const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : undefined;
       const isReadonlyValue = objectJson["isReadonly"];
-      const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
+      const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : undefined;
       const isMainValue = objectJson["isMain"];
-      const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
+      const unpackedIsMain = isMainValue != undefined ? isMainValue : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2570,16 +2578,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20300] as typeof CustomProperty)({
         type: PropertyType[objectJson["type"]] as any,
         icon: unpackedIcon,
@@ -2633,7 +2641,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 20300)] = new CustomPropertyJsonEncoder();
 
-  class SpaceJsonEncoder implements _JsonObjectEncoder {
+  class SpaceJsonEncoder implements JsonObjectEncoder {
     packObject(object: Space): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SPACE";
@@ -2702,37 +2710,37 @@ export function loadEncoders(): void {
       const unpackedHandlePtr =
         handlePtrValue != undefined
           ? (_NodeReference.unpack(1, handlePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2743,16 +2751,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1100] as typeof Space)({
         space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
         slug: objectJson["slug"],
@@ -2788,7 +2796,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1100)] = new SpaceJsonEncoder();
 
-  class CustomStructJsonEncoder implements _JsonObjectEncoder {
+  class CustomStructJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomStruct): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUSTOM_STRUCT";
@@ -2859,7 +2867,7 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const baseTypeValue = objectJson["baseType"];
       const unpackedBaseType =
         baseTypeValue != undefined
@@ -2868,37 +2876,37 @@ export function loadEncoders(): void {
               baseTypeValue,
               _session,
             ) as StructDefinitionReference)
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -2909,16 +2917,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20100] as typeof CustomStruct)({
         icon: unpackedIcon,
         baseType: unpackedBaseType,
@@ -2953,7 +2961,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 20100)] = new CustomStructJsonEncoder();
 
-  class BranchJsonEncoder implements _JsonObjectEncoder {
+  class BranchJsonEncoder implements JsonObjectEncoder {
     packObject(object: Branch): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "BRANCH";
@@ -3018,32 +3026,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -3054,16 +3062,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2000] as typeof Branch)({
         parent: unpackedParentPtr,
         type: BranchType[objectJson["type"]] as any,
@@ -3097,7 +3105,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000)] = new BranchJsonEncoder();
 
-  class SnapshotJsonEncoder implements _JsonObjectEncoder {
+  class SnapshotJsonEncoder implements JsonObjectEncoder {
     packObject(object: Snapshot): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SNAPSHOT";
@@ -3163,32 +3171,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -3199,16 +3207,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100] as typeof Snapshot)({
         parent: unpackedParentPtr,
         type: SnapshotType[objectJson["type"]] as any,
@@ -3243,7 +3251,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100)] = new SnapshotJsonEncoder();
 
-  class EntitlementRequestedEventJsonEncoder implements _JsonObjectEncoder {
+  class EntitlementRequestedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: EntitlementRequestedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENTITLEMENT_REQUESTED_EVENT";
@@ -3279,17 +3287,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360502] as typeof EntitlementRequestedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -3317,7 +3325,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360502)] = new EntitlementRequestedEventJsonEncoder();
 
-  class EntitlementGrantedEventJsonEncoder implements _JsonObjectEncoder {
+  class EntitlementGrantedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: EntitlementGrantedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENTITLEMENT_GRANTED_EVENT";
@@ -3353,17 +3361,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360503] as typeof EntitlementGrantedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -3391,7 +3399,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360503)] = new EntitlementGrantedEventJsonEncoder();
 
-  class EntitlementRevokedEventJsonEncoder implements _JsonObjectEncoder {
+  class EntitlementRevokedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: EntitlementRevokedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENTITLEMENT_REVOKED_EVENT";
@@ -3427,17 +3435,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360504] as typeof EntitlementRevokedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -3465,7 +3473,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360504)] = new EntitlementRevokedEventJsonEncoder();
 
-  class EntitlementExpiredEventJsonEncoder implements _JsonObjectEncoder {
+  class EntitlementExpiredEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: EntitlementExpiredEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENTITLEMENT_EXPIRED_EVENT";
@@ -3501,17 +3509,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360505] as typeof EntitlementExpiredEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -3539,7 +3547,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360505)] = new EntitlementExpiredEventJsonEncoder();
 
-  class EntitlementJsonEncoder implements _JsonObjectEncoder {
+  class EntitlementJsonEncoder implements JsonObjectEncoder {
     packObject(object: Entitlement): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENTITLEMENT";
@@ -3608,37 +3616,37 @@ export function loadEncoders(): void {
       const unpackedExpiresAt =
         expiresAtValue != undefined
           ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -3649,16 +3657,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[360500] as typeof Entitlement)({
         type: EntitlementType[objectJson["type"]] as any,
         expiresAt: unpackedExpiresAt,
@@ -3694,7 +3702,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360500)] = new EntitlementJsonEncoder();
 
-  class InviteSentEventJsonEncoder implements _JsonObjectEncoder {
+  class InviteSentEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: InviteSentEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INVITE_SENT_EVENT";
@@ -3733,17 +3741,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360102] as typeof InviteSentEvent)({
         role: _NodeReference.unpack(1, objectJson["role"], _session) as NodeReference,
         roleType: RoleType[objectJson["roleType"]] as any,
@@ -3774,7 +3782,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360102)] = new InviteSentEventJsonEncoder();
 
-  class InviteRescindedEventJsonEncoder implements _JsonObjectEncoder {
+  class InviteRescindedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: InviteRescindedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INVITE_RESCINDED_EVENT";
@@ -3811,17 +3819,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360103] as typeof InviteRescindedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         joinable: _NodeReference.unpack(1, objectJson["joinable"], _session) as NodeReference,
@@ -3850,7 +3858,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360103)] = new InviteRescindedEventJsonEncoder();
 
-  class InviteAcceptedEventJsonEncoder implements _JsonObjectEncoder {
+  class InviteAcceptedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: InviteAcceptedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INVITE_ACCEPTED_EVENT";
@@ -3889,17 +3897,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360104] as typeof InviteAcceptedEvent)({
         role: _NodeReference.unpack(1, objectJson["role"], _session) as NodeReference,
         roleType: RoleType[objectJson["roleType"]] as any,
@@ -3930,7 +3938,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360104)] = new InviteAcceptedEventJsonEncoder();
 
-  class InviteRejectedEventJsonEncoder implements _JsonObjectEncoder {
+  class InviteRejectedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: InviteRejectedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INVITE_REJECTED_EVENT";
@@ -3967,17 +3975,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360105] as typeof InviteRejectedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         joinable: _NodeReference.unpack(1, objectJson["joinable"], _session) as NodeReference,
@@ -4006,7 +4014,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360105)] = new InviteRejectedEventJsonEncoder();
 
-  class InviteJsonEncoder implements _JsonObjectEncoder {
+  class InviteJsonEncoder implements JsonObjectEncoder {
     packObject(object: Invite): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INVITE";
@@ -4077,39 +4085,40 @@ export function loadEncoders(): void {
       const unpackedRolePtr =
         rolePtrValue != undefined
           ? (_NodeReference.unpack(1, rolePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const roleTypeValue = objectJson["roleType"];
-      const unpackedRoleType = roleTypeValue != undefined ? (RoleType[roleTypeValue] as any) : null;
+      const unpackedRoleType =
+        roleTypeValue != undefined ? (RoleType[roleTypeValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -4120,16 +4129,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[360100] as typeof Invite)({
         member: _NodeReference.unpack(1, objectJson["member"], _session) as NodeReference,
         role: unpackedRolePtr,
@@ -4165,7 +4174,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360100)] = new InviteJsonEncoder();
 
-  class MembershipJoinedEventJsonEncoder implements _JsonObjectEncoder {
+  class MembershipJoinedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: MembershipJoinedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MEMBERSHIP_JOINED_EVENT";
@@ -4204,17 +4213,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360002] as typeof MembershipJoinedEvent)({
         role: _NodeReference.unpack(1, objectJson["role"], _session) as NodeReference,
         roleType: RoleType[objectJson["roleType"]] as any,
@@ -4245,7 +4254,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360002)] = new MembershipJoinedEventJsonEncoder();
 
-  class MembershipLeftEventJsonEncoder implements _JsonObjectEncoder {
+  class MembershipLeftEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: MembershipLeftEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MEMBERSHIP_LEFT_EVENT";
@@ -4282,17 +4291,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360003] as typeof MembershipLeftEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         joinable: _NodeReference.unpack(1, objectJson["joinable"], _session) as NodeReference,
@@ -4321,7 +4330,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360003)] = new MembershipLeftEventJsonEncoder();
 
-  class MembershipJsonEncoder implements _JsonObjectEncoder {
+  class MembershipJsonEncoder implements JsonObjectEncoder {
     packObject(object: Membership): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MEMBERSHIP";
@@ -4392,39 +4401,40 @@ export function loadEncoders(): void {
       const unpackedRolePtr =
         rolePtrValue != undefined
           ? (_NodeReference.unpack(1, rolePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const roleTypeValue = objectJson["roleType"];
-      const unpackedRoleType = roleTypeValue != undefined ? (RoleType[roleTypeValue] as any) : null;
+      const unpackedRoleType =
+        roleTypeValue != undefined ? (RoleType[roleTypeValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -4435,16 +4445,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[360000] as typeof Membership)({
         member: _NodeReference.unpack(1, objectJson["member"], _session) as NodeReference,
         role: unpackedRolePtr,
@@ -4480,7 +4490,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360000)] = new MembershipJsonEncoder();
 
-  class RoleAssignedEventJsonEncoder implements _JsonObjectEncoder {
+  class RoleAssignedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RoleAssignedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ROLE_ASSIGNED_EVENT";
@@ -4516,17 +4526,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360202] as typeof RoleAssignedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         actor: _NodeReference.unpack(1, objectJson["actor"], _session) as NodeReference,
@@ -4554,7 +4564,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360202)] = new RoleAssignedEventJsonEncoder();
 
-  class RoleUnassignedEventJsonEncoder implements _JsonObjectEncoder {
+  class RoleUnassignedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RoleUnassignedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ROLE_UNASSIGNED_EVENT";
@@ -4590,17 +4600,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360203] as typeof RoleUnassignedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         actor: _NodeReference.unpack(1, objectJson["actor"], _session) as NodeReference,
@@ -4628,7 +4638,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360203)] = new RoleUnassignedEventJsonEncoder();
 
-  class RoleJsonEncoder implements _JsonObjectEncoder {
+  class RoleJsonEncoder implements JsonObjectEncoder {
     packObject(object: Role): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ROLE";
@@ -4695,37 +4705,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -4736,16 +4746,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[360200] as typeof Role)({
         type: RoleType[objectJson["type"]] as any,
         icon: unpackedIcon,
@@ -4780,7 +4790,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360200)] = new RoleJsonEncoder();
 
-  class SanctionRequestedEventJsonEncoder implements _JsonObjectEncoder {
+  class SanctionRequestedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SanctionRequestedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SANCTION_REQUESTED_EVENT";
@@ -4816,17 +4826,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360402] as typeof SanctionRequestedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -4854,7 +4864,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360402)] = new SanctionRequestedEventJsonEncoder();
 
-  class SanctionGrantedEventJsonEncoder implements _JsonObjectEncoder {
+  class SanctionGrantedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SanctionGrantedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SANCTION_GRANTED_EVENT";
@@ -4890,17 +4900,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360403] as typeof SanctionGrantedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -4928,7 +4938,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360403)] = new SanctionGrantedEventJsonEncoder();
 
-  class SanctionRevokedEventJsonEncoder implements _JsonObjectEncoder {
+  class SanctionRevokedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SanctionRevokedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SANCTION_REVOKED_EVENT";
@@ -4964,17 +4974,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360404] as typeof SanctionRevokedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -5002,7 +5012,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360404)] = new SanctionRevokedEventJsonEncoder();
 
-  class SanctionExpiredEventJsonEncoder implements _JsonObjectEncoder {
+  class SanctionExpiredEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SanctionExpiredEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SANCTION_EXPIRED_EVENT";
@@ -5038,17 +5048,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[360405] as typeof SanctionExpiredEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: _NodeReference.unpack(1, objectJson["target"], _session) as NodeReference,
@@ -5076,7 +5086,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360405)] = new SanctionExpiredEventJsonEncoder();
 
-  class SanctionJsonEncoder implements _JsonObjectEncoder {
+  class SanctionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Sanction): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SANCTION";
@@ -5145,37 +5155,37 @@ export function loadEncoders(): void {
       const unpackedExpiresAt =
         expiresAtValue != undefined
           ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -5186,16 +5196,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[360400] as typeof Sanction)({
         type: SanctionType[objectJson["type"]] as any,
         expiresAt: unpackedExpiresAt,
@@ -5231,7 +5241,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 360400)] = new SanctionJsonEncoder();
 
-  class ColorStyleJsonEncoder implements _JsonObjectEncoder {
+  class ColorStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: ColorStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COLOR_STYLE";
@@ -5318,52 +5328,53 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const hueValue = objectJson["hue"];
-      const unpackedHue = hueValue != undefined ? (ColorHue[hueValue] as any) : null;
+      const unpackedHue = hueValue != undefined ? (ColorHue[hueValue] as any) : undefined;
       const shadeValue = objectJson["shade"];
-      const unpackedShade = shadeValue != undefined ? (ColorShade[shadeValue] as any) : null;
+      const unpackedShade = shadeValue != undefined ? (ColorShade[shadeValue] as any) : undefined;
       const intentValue = objectJson["intent"];
-      const unpackedIntent = intentValue != undefined ? (ColorIntent[intentValue] as any) : null;
+      const unpackedIntent =
+        intentValue != undefined ? (ColorIntent[intentValue] as any) : undefined;
       const xValue = objectJson["x"];
-      const unpackedX = xValue != undefined ? Number(xValue) : null;
+      const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
-      const unpackedY = yValue != undefined ? Number(yValue) : null;
+      const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       const zValue = objectJson["z"];
-      const unpackedZ = zValue != undefined ? Number(zValue) : null;
+      const unpackedZ = zValue != undefined ? Number(zValue) : undefined;
       const alphaValue = objectJson["alpha"];
-      const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
+      const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : undefined;
       const darkValue = objectJson["dark"];
       const unpackedDark =
-        darkValue != undefined ? (_Color.unpack(1, darkValue, _session) as Color) : null;
+        darkValue != undefined ? (_Color.unpack(1, darkValue, _session) as Color) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -5374,16 +5385,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100300] as typeof ColorStyle)({
         type: ColorType[objectJson["type"]] as any,
         hue: unpackedHue,
@@ -5425,7 +5436,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100300)] = new ColorStyleJsonEncoder();
 
-  class BorderStyleJsonEncoder implements _JsonObjectEncoder {
+  class BorderStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: BorderStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "BORDER_STYLE";
@@ -5499,45 +5510,45 @@ export function loadEncoders(): void {
       const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Inset2.unpack(1, widthValue, _session) as Inset2) : null;
+        widthValue != undefined ? (_Inset2.unpack(1, widthValue, _session) as Inset2) : undefined;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -5548,16 +5559,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100600] as typeof BorderStyle)({
         type: BorderType[objectJson["type"]] as any,
         color: unpackedColor,
@@ -5594,7 +5605,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100600)] = new BorderStyleJsonEncoder();
 
-  class GradientStyleJsonEncoder implements _JsonObjectEncoder {
+  class GradientStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: GradientStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GRADIENT_STYLE";
@@ -5675,7 +5686,7 @@ export function loadEncoders(): void {
       const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const angleValue = objectJson["angle"];
-      const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
+      const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
       if (objectJson["stops"] != undefined) {
         for (const item of objectJson["stops"]) {
@@ -5686,40 +5697,40 @@ export function loadEncoders(): void {
       const unpackedCenterAnchor =
         centerAnchorValue != undefined
           ? (_Axis2.unpack(1, centerAnchorValue, _session) as Axis2)
-          : null;
+          : undefined;
       const darkValue = objectJson["dark"];
       const unpackedDark =
-        darkValue != undefined ? (_Gradient.unpack(1, darkValue, _session) as Gradient) : null;
+        darkValue != undefined ? (_Gradient.unpack(1, darkValue, _session) as Gradient) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -5730,16 +5741,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100800] as typeof GradientStyle)({
         type: GradientType[objectJson["type"]] as any,
         angle: unpackedAngle,
@@ -5777,7 +5788,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100800)] = new GradientStyleJsonEncoder();
 
-  class FillStyleJsonEncoder implements _JsonObjectEncoder {
+  class FillStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: FillStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FILL_STYLE";
@@ -5857,52 +5868,52 @@ export function loadEncoders(): void {
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const gradientValue = objectJson["gradient"];
       const unpackedGradient =
         gradientValue != undefined
           ? (_Gradient.unpack(1, gradientValue, _session) as Gradient)
-          : null;
+          : undefined;
       const imagePtrValue = objectJson["image"];
       const unpackedImagePtr =
         imagePtrValue != undefined
           ? (_NodeReference.unpack(1, imagePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
-        positionValue != undefined ? (FillPosition[positionValue] as any) : null;
+        positionValue != undefined ? (FillPosition[positionValue] as any) : undefined;
       const sizeValue = objectJson["size"];
-      const unpackedSize = sizeValue != undefined ? (FillSize[sizeValue] as any) : null;
+      const unpackedSize = sizeValue != undefined ? (FillSize[sizeValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -5913,16 +5924,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100400] as typeof FillStyle)({
         type: FillType[objectJson["type"]] as any,
         color: unpackedColor,
@@ -5961,7 +5972,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100400)] = new FillStyleJsonEncoder();
 
-  class FontStyleJsonEncoder implements _JsonObjectEncoder {
+  class FontStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: FontStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FONT_STYLE";
@@ -6049,60 +6060,61 @@ export function loadEncoders(): void {
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const weightValue = objectJson["weight"];
-      const unpackedWeight = weightValue != undefined ? (FontWeight[weightValue] as any) : null;
+      const unpackedWeight =
+        weightValue != undefined ? (FontWeight[weightValue] as any) : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : null;
+        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : undefined;
       const sizeValue = objectJson["size"];
-      const unpackedSize = sizeValue != undefined ? (FontSize[sizeValue] as any) : null;
+      const unpackedSize = sizeValue != undefined ? (FontSize[sizeValue] as any) : undefined;
       const alignValue = objectJson["align"];
-      const unpackedAlign = alignValue != undefined ? (TextAlign[alignValue] as any) : null;
+      const unpackedAlign = alignValue != undefined ? (TextAlign[alignValue] as any) : undefined;
       const lineHeightValue = objectJson["lineHeight"];
       const unpackedLineHeight =
         lineHeightValue != undefined
           ? (_Length.unpack(1, lineHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const letterSpacingValue = objectJson["letterSpacing"];
       const unpackedLetterSpacing =
         letterSpacingValue != undefined
           ? (_Length.unpack(1, letterSpacingValue, _session) as Length)
-          : null;
+          : undefined;
       const decorationValue = objectJson["decoration"];
       const unpackedDecoration =
-        decorationValue != undefined ? (TextDecoration[decorationValue] as any) : null;
+        decorationValue != undefined ? (TextDecoration[decorationValue] as any) : undefined;
       const transformValue = objectJson["transform"];
       const unpackedTransform =
-        transformValue != undefined ? (TextTransform[transformValue] as any) : null;
+        transformValue != undefined ? (TextTransform[transformValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6113,16 +6125,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100500] as typeof FontStyle)({
         type: FontType[objectJson["type"]] as any,
         weight: unpackedWeight,
@@ -6164,7 +6176,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100500)] = new FontStyleJsonEncoder();
 
-  class PaletteJsonEncoder implements _JsonObjectEncoder {
+  class PaletteJsonEncoder implements JsonObjectEncoder {
     packObject(object: Palette): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PALETTE";
@@ -6230,37 +6242,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6271,16 +6283,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100100] as typeof Palette)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -6314,7 +6326,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100100)] = new PaletteJsonEncoder();
 
-  class ShadowStyleJsonEncoder implements _JsonObjectEncoder {
+  class ShadowStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: ShadowStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SHADOW_STYLE";
@@ -6395,46 +6407,46 @@ export function loadEncoders(): void {
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Axis2.unpack(1, offsetValue, _session) as Axis2) : null;
+        offsetValue != undefined ? (_Axis2.unpack(1, offsetValue, _session) as Axis2) : undefined;
       const blurValue = objectJson["blur"];
-      const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
+      const unpackedBlur = blurValue != undefined ? Number(blurValue) : undefined;
       const spreadValue = objectJson["spread"];
-      const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
+      const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : undefined;
       const diffusionValue = objectJson["diffusion"];
-      const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
+      const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6445,16 +6457,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100700] as typeof ShadowStyle)({
         type: ShadowType[objectJson["type"]] as any,
         color: unpackedColor,
@@ -6494,7 +6506,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100700)] = new ShadowStyleJsonEncoder();
 
-  class StrokeStyleJsonEncoder implements _JsonObjectEncoder {
+  class StrokeStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: StrokeStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE_STYLE";
@@ -6569,40 +6581,42 @@ export function loadEncoders(): void {
       const _StrokeCap = STRUCT_CLASS_BY_TYPE[2101101] as typeof StrokeCap;
       const startValue = objectJson["start"];
       const unpackedStart =
-        startValue != undefined ? (_StrokeCap.unpack(1, startValue, _session) as StrokeCap) : null;
+        startValue != undefined
+          ? (_StrokeCap.unpack(1, startValue, _session) as StrokeCap)
+          : undefined;
       const endValue = objectJson["end"];
       const unpackedEnd =
-        endValue != undefined ? (_StrokeCap.unpack(1, endValue, _session) as StrokeCap) : null;
+        endValue != undefined ? (_StrokeCap.unpack(1, endValue, _session) as StrokeCap) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6613,16 +6627,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2101100] as typeof StrokeStyle)({
         type: StrokeType[objectJson["type"]] as any,
         size: Number(objectJson["size"]),
@@ -6663,7 +6677,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2101100)] = new StrokeStyleJsonEncoder();
 
-  class ThemeJsonEncoder implements _JsonObjectEncoder {
+  class ThemeJsonEncoder implements JsonObjectEncoder {
     packObject(object: Theme): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "THEME";
@@ -6727,32 +6741,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6763,16 +6777,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2100000] as typeof Theme)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -6805,7 +6819,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2100000)] = new ThemeJsonEncoder();
 
-  class TransitionStyleJsonEncoder implements _JsonObjectEncoder {
+  class TransitionStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: TransitionStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TRANSITION_STYLE";
@@ -6895,9 +6909,9 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const delayValue = objectJson["delay"];
-      const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
+      const unpackedDelay = delayValue != undefined ? Number(delayValue) : undefined;
       const durationValue = objectJson["duration"];
-      const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
+      const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const unpackedEase: any[] = [];
       if (objectJson["ease"] != undefined) {
         for (const item of objectJson["ease"]) {
@@ -6905,46 +6919,46 @@ export function loadEncoders(): void {
         }
       }
       const stiffnessValue = objectJson["stiffness"];
-      const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
+      const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : undefined;
       const dampingValue = objectJson["damping"];
-      const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
+      const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : undefined;
       const massValue = objectJson["mass"];
-      const unpackedMass = massValue != undefined ? Number(massValue) : null;
+      const unpackedMass = massValue != undefined ? Number(massValue) : undefined;
       const bounceValue = objectJson["bounce"];
-      const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
+      const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : undefined;
       const springTypeValue = objectJson["springType"];
       const unpackedSpringType =
-        springTypeValue != undefined ? (SpringType[springTypeValue] as any) : null;
+        springTypeValue != undefined ? (SpringType[springTypeValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -6955,16 +6969,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2200000] as typeof TransitionStyle)({
         type: TransitionType[objectJson["type"]] as any,
         delay: unpackedDelay,
@@ -7006,7 +7020,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2200000)] = new TransitionStyleJsonEncoder();
 
-  class EffectStyleJsonEncoder implements _JsonObjectEncoder {
+  class EffectStyleJsonEncoder implements JsonObjectEncoder {
     packObject(object: EffectStyle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "EFFECT_STYLE";
@@ -7113,70 +7127,76 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Vector2.unpack(1, offsetValue, _session) as Vector2) : null;
+        offsetValue != undefined
+          ? (_Vector2.unpack(1, offsetValue, _session) as Vector2)
+          : undefined;
       const scaleValue = objectJson["scale"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
+      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
       const rotateValue = objectJson["rotate"];
       const unpackedRotate =
-        rotateValue != undefined ? (_Axis3.unpack(1, rotateValue, _session) as Axis3) : null;
+        rotateValue != undefined ? (_Axis3.unpack(1, rotateValue, _session) as Axis3) : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const perspectiveValue = objectJson["perspective"];
-      const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
+      const unpackedPerspective =
+        perspectiveValue != undefined ? Number(perspectiveValue) : undefined;
       const delayValue = objectJson["delay"];
-      const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
+      const unpackedDelay =
+        delayValue != undefined ? timedeltaFromISOFormat(delayValue) : undefined;
       const durationValue = objectJson["duration"];
-      const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
+      const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const thresholdValue = objectJson["threshold"];
-      const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
+      const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : undefined;
       const onceValue = objectJson["once"];
-      const unpackedOnce = onceValue != undefined ? onceValue : null;
+      const unpackedOnce = onceValue != undefined ? onceValue : undefined;
       const repeatValue = objectJson["repeat"];
-      const unpackedRepeat = repeatValue != undefined ? (RepeatType[repeatValue] as any) : null;
+      const unpackedRepeat =
+        repeatValue != undefined ? (RepeatType[repeatValue] as any) : undefined;
       const splitValue = objectJson["split"];
-      const unpackedSplit = splitValue != undefined ? (TextSplitType[splitValue] as any) : null;
+      const unpackedSplit =
+        splitValue != undefined ? (TextSplitType[splitValue] as any) : undefined;
       const offscreenValue = objectJson["offscreen"];
       const unpackedOffscreen =
-        offscreenValue != undefined ? (OffscreenBehavior[offscreenValue] as any) : null;
+        offscreenValue != undefined ? (OffscreenBehavior[offscreenValue] as any) : undefined;
       const transitionValue = objectJson["transition"];
       const unpackedTransition =
         transitionValue != undefined
           ? (_Transition.unpack(1, transitionValue, _session) as Transition)
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -7187,16 +7207,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2200100] as typeof EffectStyle)({
         type: EffectType[objectJson["type"]] as any,
         opacity: unpackedOpacity,
@@ -7244,7 +7264,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2200100)] = new EffectStyleJsonEncoder();
 
-  class FileJsonEncoder implements _JsonObjectEncoder {
+  class FileJsonEncoder implements JsonObjectEncoder {
     packObject(object: File): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FILE";
@@ -7363,71 +7383,74 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const mimeTypeValue = objectJson["mimeType"];
-      const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
+      const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : undefined;
       const formatValue = objectJson["format"];
-      const unpackedFormat = formatValue != undefined ? (FileFormat[formatValue] as any) : null;
+      const unpackedFormat =
+        formatValue != undefined ? (FileFormat[formatValue] as any) : undefined;
       const sizeValue = objectJson["size"];
-      const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
+      const unpackedSize = sizeValue != undefined ? Number(sizeValue) : undefined;
       const sha256Value = objectJson["sha256"];
-      const unpackedSha256 = sha256Value != undefined ? sha256Value : null;
+      const unpackedSha256 = sha256Value != undefined ? sha256Value : undefined;
       const widthValue = objectJson["width"];
-      const unpackedWidth = widthValue != undefined ? Number(widthValue) : null;
+      const unpackedWidth = widthValue != undefined ? Number(widthValue) : undefined;
       const heightValue = objectJson["height"];
-      const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
+      const unpackedHeight = heightValue != undefined ? Number(heightValue) : undefined;
       const aspectRatioValue = objectJson["aspectRatio"];
-      const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
+      const unpackedAspectRatio =
+        aspectRatioValue != undefined ? Number(aspectRatioValue) : undefined;
       const codecValue = objectJson["codec"];
-      const unpackedCodec = codecValue != undefined ? codecValue : null;
+      const unpackedCodec = codecValue != undefined ? codecValue : undefined;
       const durationValue = objectJson["duration"];
       const unpackedDuration =
-        durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
+        durationValue != undefined ? timedeltaFromISOFormat(durationValue) : undefined;
       const urlValue = objectJson["url"];
-      const unpackedUrl = urlValue != undefined ? urlValue : null;
+      const unpackedUrl = urlValue != undefined ? urlValue : undefined;
       const contentUrlValue = objectJson["contentUrl"];
-      const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
+      const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : undefined;
       const thumbnailUrlValue = objectJson["thumbnailUrl"];
-      const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
+      const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : undefined;
       const faviconUrlValue = objectJson["faviconUrl"];
-      const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
+      const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : undefined;
       const thumbnailWidthValue = objectJson["thumbnailWidth"];
       const unpackedThumbnailWidth =
-        thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
+        thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : undefined;
       const thumbnailHeightValue = objectJson["thumbnailHeight"];
       const unpackedThumbnailHeight =
-        thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
+        thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : undefined;
       const contentValue = objectJson["content"];
-      const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : null;
+      const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : undefined;
       const statusValue = objectJson["status"];
-      const unpackedStatus = statusValue != undefined ? (ResourceStatus[statusValue] as any) : null;
+      const unpackedStatus =
+        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
-      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : null;
+      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -7438,16 +7461,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[480000] as typeof File)({
         parent: unpackedParentPtr,
         type: FileType[objectJson["type"]] as any,
@@ -7499,7 +7522,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 480000)] = new FileJsonEncoder();
 
-  class EnvironmentJsonEncoder implements _JsonObjectEncoder {
+  class EnvironmentJsonEncoder implements JsonObjectEncoder {
     packObject(object: Environment): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENVIRONMENT";
@@ -7567,35 +7590,35 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -7606,16 +7629,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1100000] as typeof Environment)({
         parent: unpackedParentPtr,
         icon: unpackedIcon,
@@ -7649,7 +7672,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1100000)] = new EnvironmentJsonEncoder();
 
-  class LogEventJsonEncoder implements _JsonObjectEncoder {
+  class LogEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: LogEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LOG_EVENT";
@@ -7701,22 +7724,22 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110011] as typeof LogEvent)({
         content: objectJson["content"],
         attributes: unpackedAttributes,
@@ -7746,7 +7769,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110011)] = new LogEventJsonEncoder();
 
-  class RunStartedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunStartedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunStartedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_STARTED_EVENT";
@@ -7784,22 +7807,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110002] as typeof RunStartedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -7827,7 +7850,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110002)] = new RunStartedEventJsonEncoder();
 
-  class RunPauseRequestedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunPauseRequestedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunPauseRequestedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_PAUSE_REQUESTED_EVENT";
@@ -7865,22 +7888,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110003] as typeof RunPauseRequestedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -7908,7 +7931,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110003)] = new RunPauseRequestedEventJsonEncoder();
 
-  class RunPausedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunPausedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunPausedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_PAUSED_EVENT";
@@ -7946,22 +7969,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110004] as typeof RunPausedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -7989,7 +8012,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110004)] = new RunPausedEventJsonEncoder();
 
-  class RunResumeRequestedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunResumeRequestedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunResumeRequestedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_RESUME_REQUESTED_EVENT";
@@ -8027,22 +8050,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110005] as typeof RunResumeRequestedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -8070,7 +8093,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110005)] = new RunResumeRequestedEventJsonEncoder();
 
-  class RunResumedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunResumedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunResumedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_RESUMED_EVENT";
@@ -8108,22 +8131,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110006] as typeof RunResumedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -8151,7 +8174,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110006)] = new RunResumedEventJsonEncoder();
 
-  class RunStopRequestedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunStopRequestedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunStopRequestedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_STOP_REQUESTED_EVENT";
@@ -8189,22 +8212,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110007] as typeof RunStopRequestedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -8232,7 +8255,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110007)] = new RunStopRequestedEventJsonEncoder();
 
-  class RunFailedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunFailedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunFailedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_FAILED_EVENT";
@@ -8270,22 +8293,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110008] as typeof RunFailedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -8313,7 +8336,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110008)] = new RunFailedEventJsonEncoder();
 
-  class RunCompletedEventJsonEncoder implements _JsonObjectEncoder {
+  class RunCompletedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: RunCompletedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RUN_COMPLETED_EVENT";
@@ -8351,22 +8374,22 @@ export function loadEncoders(): void {
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110009] as typeof RunCompletedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         target: unpackedTargetPtr,
@@ -8394,7 +8417,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110009)] = new RunCompletedEventJsonEncoder();
 
-  class SpanEventJsonEncoder implements _JsonObjectEncoder {
+  class SpanEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SpanEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SPAN_EVENT";
@@ -8429,17 +8452,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1110010] as typeof SpanEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -8466,7 +8489,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1110010)] = new SpanEventJsonEncoder();
 
-  class ArrowShape2DJsonEncoder implements _JsonObjectEncoder {
+  class ArrowShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: ArrowShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ARROW_SHAPE2D";
@@ -8559,61 +8582,65 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -8624,16 +8651,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410200] as typeof ArrowShape2D)({
         startType: ArrowHeadType[objectJson["startType"]] as any,
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
@@ -8678,7 +8705,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410200)] = new ArrowShape2DJsonEncoder();
 
-  class EllipseShape2DJsonEncoder implements _JsonObjectEncoder {
+  class EllipseShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: EllipseShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ELLIPSE_SHAPE2D";
@@ -8767,61 +8794,65 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -8832,16 +8863,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410400] as typeof EllipseShape2D)({
         stroke: unpackedStroke,
         position: unpackedPosition,
@@ -8882,7 +8913,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410400)] = new EllipseShape2DJsonEncoder();
 
-  class LineShape2DJsonEncoder implements _JsonObjectEncoder {
+  class LineShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: LineShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LINE_SHAPE2D";
@@ -8973,61 +9004,65 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -9038,16 +9073,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410100] as typeof LineShape2D)({
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
         end: _Vector2.unpack(1, objectJson["end"], _session) as Vector2,
@@ -9090,7 +9125,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410100)] = new LineShape2DJsonEncoder();
 
-  class PathShape2DJsonEncoder implements _JsonObjectEncoder {
+  class PathShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: PathShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PATH_SHAPE2D";
@@ -9192,61 +9227,65 @@ export function loadEncoders(): void {
       }
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -9257,16 +9296,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410600] as typeof PathShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
@@ -9308,7 +9347,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410600)] = new PathShape2DJsonEncoder();
 
-  class PolygonShape2DJsonEncoder implements _JsonObjectEncoder {
+  class PolygonShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: PolygonShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POLYGON_SHAPE2D";
@@ -9410,61 +9449,65 @@ export function loadEncoders(): void {
       }
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -9475,16 +9518,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410500] as typeof PolygonShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
@@ -9526,7 +9569,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410500)] = new PolygonShape2DJsonEncoder();
 
-  class RectangleShape2DJsonEncoder implements _JsonObjectEncoder {
+  class RectangleShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: RectangleShape2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RECTANGLE_SHAPE2D";
@@ -9621,67 +9664,73 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : null;
+        widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Vector2.unpack(1, heightValue, _session) as Vector2) : null;
+        heightValue != undefined
+          ? (_Vector2.unpack(1, heightValue, _session) as Vector2)
+          : undefined;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -9692,16 +9741,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[2410300] as typeof RectangleShape2D)({
         width: unpackedWidth,
         height: unpackedHeight,
@@ -9744,7 +9793,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410300)] = new RectangleShape2DJsonEncoder();
 
-  class DatabaseJsonEncoder implements _JsonObjectEncoder {
+  class DatabaseJsonEncoder implements JsonObjectEncoder {
     packObject(object: Database): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DATABASE";
@@ -9828,48 +9877,50 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const galaxyNameValue = objectJson["galaxyName"];
-      const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
+      const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : undefined;
       const customSchemaNameValue = objectJson["customSchemaName"];
       const unpackedCustomSchemaName =
-        customSchemaNameValue != undefined ? customSchemaNameValue : null;
+        customSchemaNameValue != undefined ? customSchemaNameValue : undefined;
       const connectionUrlValue = objectJson["connectionUrl"];
-      const unpackedConnectionUrl = connectionUrlValue != undefined ? connectionUrlValue : null;
+      const unpackedConnectionUrl =
+        connectionUrlValue != undefined ? connectionUrlValue : undefined;
       const statusValue = objectJson["status"];
-      const unpackedStatus = statusValue != undefined ? (ResourceStatus[statusValue] as any) : null;
+      const unpackedStatus =
+        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
-      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : null;
+      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -9880,16 +9931,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1000000] as typeof Database)({
         type: DatabaseType[objectJson["type"]] as any,
         icon: unpackedIcon,
@@ -9931,7 +9982,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1000000)] = new DatabaseJsonEncoder();
 
-  class MachineJsonEncoder implements _JsonObjectEncoder {
+  class MachineJsonEncoder implements JsonObjectEncoder {
     packObject(object: Machine): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MACHINE";
@@ -10014,45 +10065,46 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const externalNameValue = objectJson["externalName"];
-      const unpackedExternalName = externalNameValue != undefined ? externalNameValue : null;
+      const unpackedExternalName = externalNameValue != undefined ? externalNameValue : undefined;
       const externalIdValue = objectJson["externalId"];
-      const unpackedExternalId = externalIdValue != undefined ? externalIdValue : null;
+      const unpackedExternalId = externalIdValue != undefined ? externalIdValue : undefined;
       const imageIdValue = objectJson["imageId"];
-      const unpackedImageId = imageIdValue != undefined ? imageIdValue : null;
+      const unpackedImageId = imageIdValue != undefined ? imageIdValue : undefined;
       const statusValue = objectJson["status"];
-      const unpackedStatus = statusValue != undefined ? (ResourceStatus[statusValue] as any) : null;
+      const unpackedStatus =
+        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
-      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : null;
+      const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -10063,16 +10115,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1001000] as typeof Machine)({
         type: MachineType[objectJson["type"]] as any,
         version: objectJson["version"],
@@ -10117,7 +10169,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1001000)] = new MachineJsonEncoder();
 
-  class CopyEventJsonEncoder implements _JsonObjectEncoder {
+  class CopyEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: CopyEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COPY_EVENT";
@@ -10154,22 +10206,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000501] as typeof CopyEvent)({
         node: unpackedNodePtr,
         definition: unpackedDefinitionPtr,
@@ -10196,7 +10248,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000501)] = new CopyEventJsonEncoder();
 
-  class CutEventJsonEncoder implements _JsonObjectEncoder {
+  class CutEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: CutEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CUT_EVENT";
@@ -10233,22 +10285,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000502] as typeof CutEvent)({
         node: unpackedNodePtr,
         definition: unpackedDefinitionPtr,
@@ -10275,7 +10327,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000502)] = new CutEventJsonEncoder();
 
-  class PasteEventJsonEncoder implements _JsonObjectEncoder {
+  class PasteEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PasteEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PASTE_EVENT";
@@ -10312,22 +10364,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000503] as typeof PasteEvent)({
         node: unpackedNodePtr,
         definition: unpackedDefinitionPtr,
@@ -10354,7 +10406,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000503)] = new PasteEventJsonEncoder();
 
-  class DragStartEventJsonEncoder implements _JsonObjectEncoder {
+  class DragStartEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DragStartEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DRAG_START_EVENT";
@@ -10393,22 +10445,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000401] as typeof DragStartEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10436,7 +10488,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000401)] = new DragStartEventJsonEncoder();
 
-  class DragEndEventJsonEncoder implements _JsonObjectEncoder {
+  class DragEndEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DragEndEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DRAG_END_EVENT";
@@ -10475,22 +10527,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000402] as typeof DragEndEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10518,7 +10570,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000402)] = new DragEndEventJsonEncoder();
 
-  class DragOverEventJsonEncoder implements _JsonObjectEncoder {
+  class DragOverEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DragOverEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DRAG_OVER_EVENT";
@@ -10557,22 +10609,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000403] as typeof DragOverEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10600,7 +10652,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000403)] = new DragOverEventJsonEncoder();
 
-  class DragEnterEventJsonEncoder implements _JsonObjectEncoder {
+  class DragEnterEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DragEnterEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DRAG_ENTER_EVENT";
@@ -10639,22 +10691,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000404] as typeof DragEnterEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10682,7 +10734,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000404)] = new DragEnterEventJsonEncoder();
 
-  class DragLeaveEventJsonEncoder implements _JsonObjectEncoder {
+  class DragLeaveEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DragLeaveEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DRAG_LEAVE_EVENT";
@@ -10721,22 +10773,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000405] as typeof DragLeaveEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10764,7 +10816,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000405)] = new DragLeaveEventJsonEncoder();
 
-  class DropEventJsonEncoder implements _JsonObjectEncoder {
+  class DropEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DropEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DROP_EVENT";
@@ -10803,22 +10855,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000406] as typeof DropEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         node: unpackedNodePtr,
@@ -10846,7 +10898,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000406)] = new DropEventJsonEncoder();
 
-  class FocusInEventJsonEncoder implements _JsonObjectEncoder {
+  class FocusInEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: FocusInEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOCUS_IN_EVENT";
@@ -10883,22 +10935,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000601] as typeof FocusInEvent)({
         node: unpackedNodePtr,
         definition: unpackedDefinitionPtr,
@@ -10925,7 +10977,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000601)] = new FocusInEventJsonEncoder();
 
-  class FocusOutEventJsonEncoder implements _JsonObjectEncoder {
+  class FocusOutEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: FocusOutEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOCUS_OUT_EVENT";
@@ -10962,22 +11014,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000602] as typeof FocusOutEvent)({
         node: unpackedNodePtr,
         definition: unpackedDefinitionPtr,
@@ -11004,7 +11056,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000602)] = new FocusOutEventJsonEncoder();
 
-  class KeyDownEventJsonEncoder implements _JsonObjectEncoder {
+  class KeyDownEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: KeyDownEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "KEY_DOWN_EVENT";
@@ -11049,22 +11101,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000301] as typeof KeyDownEvent)({
         key: objectJson["key"],
         code: objectJson["code"],
@@ -11099,7 +11151,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000301)] = new KeyDownEventJsonEncoder();
 
-  class KeyUpEventJsonEncoder implements _JsonObjectEncoder {
+  class KeyUpEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: KeyUpEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "KEY_UP_EVENT";
@@ -11144,22 +11196,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000302] as typeof KeyUpEvent)({
         key: objectJson["key"],
         code: objectJson["code"],
@@ -11194,7 +11246,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000302)] = new KeyUpEventJsonEncoder();
 
-  class KeyPressEventJsonEncoder implements _JsonObjectEncoder {
+  class KeyPressEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: KeyPressEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "KEY_PRESS_EVENT";
@@ -11239,22 +11291,22 @@ export function loadEncoders(): void {
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000303] as typeof KeyPressEvent)({
         key: objectJson["key"],
         code: objectJson["code"],
@@ -11289,7 +11341,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000303)] = new KeyPressEventJsonEncoder();
 
-  class PointerDownEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerDownEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerDownEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_DOWN_EVENT";
@@ -11332,27 +11384,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000101] as typeof PointerDownEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11385,7 +11437,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000101)] = new PointerDownEventJsonEncoder();
 
-  class PointerUpEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerUpEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerUpEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_UP_EVENT";
@@ -11428,27 +11480,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000102] as typeof PointerUpEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11481,7 +11533,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000102)] = new PointerUpEventJsonEncoder();
 
-  class PointerMoveEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerMoveEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerMoveEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_MOVE_EVENT";
@@ -11524,27 +11576,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000103] as typeof PointerMoveEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11577,7 +11629,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000103)] = new PointerMoveEventJsonEncoder();
 
-  class PointerEnterEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerEnterEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerEnterEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_ENTER_EVENT";
@@ -11620,27 +11672,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000104] as typeof PointerEnterEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11673,7 +11725,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000104)] = new PointerEnterEventJsonEncoder();
 
-  class PointerOverEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerOverEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerOverEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_OVER_EVENT";
@@ -11716,27 +11768,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000105] as typeof PointerOverEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11769,7 +11821,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000105)] = new PointerOverEventJsonEncoder();
 
-  class PointerLeaveEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerLeaveEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerLeaveEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_LEAVE_EVENT";
@@ -11812,27 +11864,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000106] as typeof PointerLeaveEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11865,7 +11917,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000106)] = new PointerLeaveEventJsonEncoder();
 
-  class PointerLongPressEventJsonEncoder implements _JsonObjectEncoder {
+  class PointerLongPressEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: PointerLongPressEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POINTER_LONG_PRESS_EVENT";
@@ -11908,27 +11960,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000107] as typeof PointerLongPressEvent)({
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
         pressure: unpackedPressure,
@@ -11961,7 +12013,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000107)] = new PointerLongPressEventJsonEncoder();
 
-  class SingleClickEventJsonEncoder implements _JsonObjectEncoder {
+  class SingleClickEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: SingleClickEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SINGLE_CLICK_EVENT";
@@ -12005,27 +12057,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000202] as typeof SingleClickEvent)({
         button: MouseButton[objectJson["button"]] as any,
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
@@ -12059,7 +12111,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000202)] = new SingleClickEventJsonEncoder();
 
-  class DoubleClickEventJsonEncoder implements _JsonObjectEncoder {
+  class DoubleClickEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: DoubleClickEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DOUBLE_CLICK_EVENT";
@@ -12103,27 +12155,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000203] as typeof DoubleClickEvent)({
         button: MouseButton[objectJson["button"]] as any,
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
@@ -12157,7 +12209,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000203)] = new DoubleClickEventJsonEncoder();
 
-  class TripleClickEventJsonEncoder implements _JsonObjectEncoder {
+  class TripleClickEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TripleClickEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TRIPLE_CLICK_EVENT";
@@ -12201,27 +12253,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000204] as typeof TripleClickEvent)({
         button: MouseButton[objectJson["button"]] as any,
         position: _Vector2.unpack(1, objectJson["position"], _session) as Vector2,
@@ -12255,7 +12307,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000204)] = new TripleClickEventJsonEncoder();
 
-  class WheelEventJsonEncoder implements _JsonObjectEncoder {
+  class WheelEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: WheelEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "WHEEL_EVENT";
@@ -12300,27 +12352,27 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const pressureValue = objectJson["pressure"];
-      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : null;
+      const unpackedPressure = pressureValue != undefined ? Number(pressureValue) : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[2000210] as typeof WheelEvent)({
         delta: _Vector2.unpack(1, objectJson["delta"], _session) as Vector2,
         button: MouseButton[objectJson["button"]] as any,
@@ -12355,7 +12407,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2000210)] = new WheelEventJsonEncoder();
 
-  class ScriptJsonEncoder implements _JsonObjectEncoder {
+  class ScriptJsonEncoder implements JsonObjectEncoder {
     packObject(object: Script): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SCRIPT";
@@ -12420,32 +12472,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -12456,16 +12508,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[700000] as typeof Script)({
         code: objectJson["code"],
         parent: unpackedParentPtr,
@@ -12499,7 +12551,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 700000)] = new ScriptJsonEncoder();
 
-  class ServiceJsonEncoder implements _JsonObjectEncoder {
+  class ServiceJsonEncoder implements JsonObjectEncoder {
     packObject(object: Service): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SERVICE";
@@ -12565,37 +12617,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -12606,16 +12658,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[10300] as typeof Service)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -12649,7 +12701,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 10300)] = new ServiceJsonEncoder();
 
-  class TimerStartedEventJsonEncoder implements _JsonObjectEncoder {
+  class TimerStartedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TimerStartedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER_STARTED_EVENT";
@@ -12684,17 +12736,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[705102] as typeof TimerStartedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -12721,7 +12773,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705102)] = new TimerStartedEventJsonEncoder();
 
-  class TimerPausedEventJsonEncoder implements _JsonObjectEncoder {
+  class TimerPausedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TimerPausedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER_PAUSED_EVENT";
@@ -12756,17 +12808,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[705103] as typeof TimerPausedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -12793,7 +12845,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705103)] = new TimerPausedEventJsonEncoder();
 
-  class TimerResumedEventJsonEncoder implements _JsonObjectEncoder {
+  class TimerResumedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TimerResumedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER_RESUMED_EVENT";
@@ -12828,17 +12880,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[705104] as typeof TimerResumedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -12865,7 +12917,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705104)] = new TimerResumedEventJsonEncoder();
 
-  class TimerCompletedEventJsonEncoder implements _JsonObjectEncoder {
+  class TimerCompletedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TimerCompletedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER_COMPLETED_EVENT";
@@ -12900,17 +12952,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[705105] as typeof TimerCompletedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -12937,7 +12989,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705105)] = new TimerCompletedEventJsonEncoder();
 
-  class TimerCancelledEventJsonEncoder implements _JsonObjectEncoder {
+  class TimerCancelledEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: TimerCancelledEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER_CANCELLED_EVENT";
@@ -12972,17 +13024,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[705106] as typeof TimerCancelledEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -13009,7 +13061,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705106)] = new TimerCancelledEventJsonEncoder();
 
-  class TimerJsonEncoder implements _JsonObjectEncoder {
+  class TimerJsonEncoder implements JsonObjectEncoder {
     packObject(object: Timer): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TIMER";
@@ -13078,37 +13130,37 @@ export function loadEncoders(): void {
       const unpackedSchedule =
         scheduleValue != undefined
           ? (_Schedule.unpack(1, scheduleValue, _session) as Schedule)
-          : null;
+          : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -13119,16 +13171,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[705100] as typeof Timer)({
         type: TimerType[objectJson["type"]] as any,
         schedule: unpackedSchedule,
@@ -13163,7 +13215,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705100)] = new TimerJsonEncoder();
 
-  class TriggerJsonEncoder implements _JsonObjectEncoder {
+  class TriggerJsonEncoder implements JsonObjectEncoder {
     packObject(object: Trigger): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TRIGGER";
@@ -13247,20 +13299,22 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const eventValue = objectJson["event"];
       const unpackedEvent =
         eventValue != undefined
           ? (_NodeDefinitionReference.unpack(1, eventValue, _session) as NodeDefinitionReference)
-          : null;
+          : undefined;
       const whereValue = objectJson["where"];
       const unpackedWhere =
-        whereValue != undefined ? (_Condition.unpack(1, whereValue, _session) as Condition) : null;
+        whereValue != undefined
+          ? (_Condition.unpack(1, whereValue, _session) as Condition)
+          : undefined;
       const targetPtrValue = objectJson["target"];
       const unpackedTargetPtr =
         targetPtrValue != undefined
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedArguments = {} as any;
       if (objectJson["arguments"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["arguments"])) {
@@ -13271,32 +13325,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -13307,16 +13361,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[705000] as typeof Trigger)({
         icon: unpackedIcon,
         event: unpackedEvent,
@@ -13354,7 +13408,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 705000)] = new TriggerJsonEncoder();
 
-  class GaugeMetricJsonEncoder implements _JsonObjectEncoder {
+  class GaugeMetricJsonEncoder implements JsonObjectEncoder {
     packObject(object: GaugeMetric): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GAUGE_METRIC";
@@ -13420,37 +13474,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -13461,16 +13515,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1200000] as typeof GaugeMetric)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -13504,7 +13558,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200000)] = new GaugeMetricJsonEncoder();
 
-  class GaugeMeasurementEventJsonEncoder implements _JsonObjectEncoder {
+  class GaugeMeasurementEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: GaugeMeasurementEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GAUGE_MEASUREMENT_EVENT";
@@ -13539,17 +13593,17 @@ export function loadEncoders(): void {
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1200001] as typeof GaugeMeasurementEvent)({
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
         branch: _NodeReference.unpack(1, objectJson["branch"], _session) as NodeReference,
@@ -13576,7 +13630,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200001)] = new GaugeMeasurementEventJsonEncoder();
 
-  class CounterMetricJsonEncoder implements _JsonObjectEncoder {
+  class CounterMetricJsonEncoder implements JsonObjectEncoder {
     packObject(object: CounterMetric): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COUNTER_METRIC";
@@ -13642,37 +13696,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -13683,16 +13737,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1200100] as typeof CounterMetric)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -13726,7 +13780,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200100)] = new CounterMetricJsonEncoder();
 
-  class CounterMeasurementEventJsonEncoder implements _JsonObjectEncoder {
+  class CounterMeasurementEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: CounterMeasurementEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COUNTER_MEASUREMENT_EVENT";
@@ -13761,17 +13815,17 @@ export function loadEncoders(): void {
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1200101] as typeof CounterMeasurementEvent)({
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
         branch: _NodeReference.unpack(1, objectJson["branch"], _session) as NodeReference,
@@ -13798,7 +13852,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200101)] = new CounterMeasurementEventJsonEncoder();
 
-  class HistogramMetricJsonEncoder implements _JsonObjectEncoder {
+  class HistogramMetricJsonEncoder implements JsonObjectEncoder {
     packObject(object: HistogramMetric): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "HISTOGRAM_METRIC";
@@ -13864,37 +13918,37 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -13905,16 +13959,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1200200] as typeof HistogramMetric)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
@@ -13948,7 +14002,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200200)] = new HistogramMetricJsonEncoder();
 
-  class HistogramMeasurementEventJsonEncoder implements _JsonObjectEncoder {
+  class HistogramMeasurementEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: HistogramMeasurementEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "HISTOGRAM_MEASUREMENT_EVENT";
@@ -13983,17 +14037,17 @@ export function loadEncoders(): void {
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1200201] as typeof HistogramMeasurementEvent)({
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
         branch: _NodeReference.unpack(1, objectJson["branch"], _session) as NodeReference,
@@ -14020,7 +14074,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1200201)] = new HistogramMeasurementEventJsonEncoder();
 
-  class LayerJsonEncoder implements _JsonObjectEncoder {
+  class LayerJsonEncoder implements JsonObjectEncoder {
     packObject(object: Layer): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LAYER";
@@ -14093,41 +14147,41 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -14138,16 +14192,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1700300] as typeof Layer)({
         type: LayerType[objectJson["type"]] as any,
         icon: unpackedIcon,
@@ -14184,7 +14238,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1700300)] = new LayerJsonEncoder();
 
-  class FrameViewJsonEncoder implements _JsonObjectEncoder {
+  class FrameViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: FrameView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FRAME_VIEW";
@@ -14343,125 +14397,138 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const layoutValue = objectJson["layout"];
-      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : null;
+      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
       const unpackedDirection =
-        directionValue != undefined ? (Direction[directionValue] as any) : null;
+        directionValue != undefined ? (Direction[directionValue] as any) : undefined;
       const distributeValue = objectJson["distribute"];
       const unpackedDistribute =
-        distributeValue != undefined ? (Distribute[distributeValue] as any) : null;
+        distributeValue != undefined ? (Distribute[distributeValue] as any) : undefined;
       const alignValue = objectJson["align"];
-      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : null;
+      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : undefined;
       const gapValue = objectJson["gap"];
       const unpackedGap =
-        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : null;
+        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : undefined;
       const paddingValue = objectJson["padding"];
       const unpackedPadding =
-        paddingValue != undefined ? (_Inset2.unpack(1, paddingValue, _session) as Inset2) : null;
+        paddingValue != undefined
+          ? (_Inset2.unpack(1, paddingValue, _session) as Inset2)
+          : undefined;
       const gridValue = objectJson["grid"];
       const unpackedGrid =
-        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : null;
+        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : undefined;
       const gridSpanValue = objectJson["gridSpan"];
       const unpackedGridSpan =
         gridSpanValue != undefined
           ? (_GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2)
-          : null;
+          : undefined;
       const aspectRatioValue = objectJson["aspectRatio"];
-      const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
+      const unpackedAspectRatio =
+        aspectRatioValue != undefined ? Number(aspectRatioValue) : undefined;
       const isWrapValue = objectJson["isWrap"];
-      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -14472,16 +14539,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1800200] as typeof FrameView)({
         layout: unpackedLayout,
         direction: unpackedDirection,
@@ -14543,7 +14610,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1800200)] = new FrameViewJsonEncoder();
 
-  class LabelViewJsonEncoder implements _JsonObjectEncoder {
+  class LabelViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: LabelView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LABEL_VIEW";
@@ -14702,125 +14769,138 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const layoutValue = objectJson["layout"];
-      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : null;
+      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
       const unpackedDirection =
-        directionValue != undefined ? (Direction[directionValue] as any) : null;
+        directionValue != undefined ? (Direction[directionValue] as any) : undefined;
       const distributeValue = objectJson["distribute"];
       const unpackedDistribute =
-        distributeValue != undefined ? (Distribute[distributeValue] as any) : null;
+        distributeValue != undefined ? (Distribute[distributeValue] as any) : undefined;
       const alignValue = objectJson["align"];
-      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : null;
+      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : undefined;
       const gapValue = objectJson["gap"];
       const unpackedGap =
-        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : null;
+        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : undefined;
       const paddingValue = objectJson["padding"];
       const unpackedPadding =
-        paddingValue != undefined ? (_Inset2.unpack(1, paddingValue, _session) as Inset2) : null;
+        paddingValue != undefined
+          ? (_Inset2.unpack(1, paddingValue, _session) as Inset2)
+          : undefined;
       const gridValue = objectJson["grid"];
       const unpackedGrid =
-        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : null;
+        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : undefined;
       const gridSpanValue = objectJson["gridSpan"];
       const unpackedGridSpan =
         gridSpanValue != undefined
           ? (_GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2)
-          : null;
+          : undefined;
       const aspectRatioValue = objectJson["aspectRatio"];
-      const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
+      const unpackedAspectRatio =
+        aspectRatioValue != undefined ? Number(aspectRatioValue) : undefined;
       const isWrapValue = objectJson["isWrap"];
-      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -14831,16 +14911,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1800300] as typeof LabelView)({
         layout: unpackedLayout,
         direction: unpackedDirection,
@@ -14902,7 +14982,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1800300)] = new LabelViewJsonEncoder();
 
-  class NumberInputViewJsonEncoder implements _JsonObjectEncoder {
+  class NumberInputViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: NumberInputView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NUMBER_INPUT_VIEW";
@@ -15033,101 +15113,111 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const valueValue = objectJson["value"];
-      const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
+      const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const placeholderValue = objectJson["placeholder"];
-      const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : null;
+      const unpackedPlaceholder = placeholderValue != undefined ? placeholderValue : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -15138,16 +15228,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1810100] as typeof NumberInputView)({
         value: unpackedValue,
         placeholder: unpackedPlaceholder,
@@ -15201,7 +15291,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1810100)] = new NumberInputViewJsonEncoder();
 
-  class SliderInputViewJsonEncoder implements _JsonObjectEncoder {
+  class SliderInputViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: SliderInputView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SLIDER_INPUT_VIEW";
@@ -15338,105 +15428,115 @@ export function loadEncoders(): void {
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const valueValue = objectJson["value"];
-      const unpackedValue = valueValue != undefined ? Number(valueValue) : null;
+      const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const minValueValue = objectJson["minValue"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
+      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
       const maxValueValue = objectJson["maxValue"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
+      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
       const stepValue = objectJson["step"];
-      const unpackedStep = stepValue != undefined ? Number(stepValue) : null;
+      const unpackedStep = stepValue != undefined ? Number(stepValue) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -15447,16 +15547,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1810200] as typeof SliderInputView)({
         value: unpackedValue,
         minValue: unpackedMinValue,
@@ -15512,7 +15612,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1810200)] = new SliderInputViewJsonEncoder();
 
-  class SplitViewJsonEncoder implements _JsonObjectEncoder {
+  class SplitViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: SplitView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SPLIT_VIEW";
@@ -15671,125 +15771,138 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const layoutValue = objectJson["layout"];
-      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : null;
+      const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
       const unpackedDirection =
-        directionValue != undefined ? (Direction[directionValue] as any) : null;
+        directionValue != undefined ? (Direction[directionValue] as any) : undefined;
       const distributeValue = objectJson["distribute"];
       const unpackedDistribute =
-        distributeValue != undefined ? (Distribute[distributeValue] as any) : null;
+        distributeValue != undefined ? (Distribute[distributeValue] as any) : undefined;
       const alignValue = objectJson["align"];
-      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : null;
+      const unpackedAlign = alignValue != undefined ? (Align[alignValue] as any) : undefined;
       const gapValue = objectJson["gap"];
       const unpackedGap =
-        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : null;
+        gapValue != undefined ? (_Axis2.unpack(1, gapValue, _session) as Axis2) : undefined;
       const paddingValue = objectJson["padding"];
       const unpackedPadding =
-        paddingValue != undefined ? (_Inset2.unpack(1, paddingValue, _session) as Inset2) : null;
+        paddingValue != undefined
+          ? (_Inset2.unpack(1, paddingValue, _session) as Inset2)
+          : undefined;
       const gridValue = objectJson["grid"];
       const unpackedGrid =
-        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : null;
+        gridValue != undefined ? (_Grid2.unpack(1, gridValue, _session) as Grid2) : undefined;
       const gridSpanValue = objectJson["gridSpan"];
       const unpackedGridSpan =
         gridSpanValue != undefined
           ? (_GridSpan2.unpack(1, gridSpanValue, _session) as GridSpan2)
-          : null;
+          : undefined;
       const aspectRatioValue = objectJson["aspectRatio"];
-      const unpackedAspectRatio = aspectRatioValue != undefined ? Number(aspectRatioValue) : null;
+      const unpackedAspectRatio =
+        aspectRatioValue != undefined ? Number(aspectRatioValue) : undefined;
       const isWrapValue = objectJson["isWrap"];
-      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : null;
+      const unpackedIsWrap = isWrapValue != undefined ? isWrapValue : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -15800,16 +15913,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1800400] as typeof SplitView)({
         layout: unpackedLayout,
         direction: unpackedDirection,
@@ -15871,7 +15984,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1800400)] = new SplitViewJsonEncoder();
 
-  class TextViewJsonEncoder implements _JsonObjectEncoder {
+  class TextViewJsonEncoder implements JsonObjectEncoder {
     packObject(object: TextView): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TEXT_VIEW";
@@ -16008,105 +16121,115 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const textValue = objectJson["text"];
       const unpackedText =
-        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : null;
+        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const fontValue = objectJson["font"];
       const unpackedFont =
-        fontValue != undefined ? (_Font.unpack(1, fontValue, _session) as Font) : null;
+        fontValue != undefined ? (_Font.unpack(1, fontValue, _session) as Font) : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : null;
+        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       const minWidthValue = objectJson["minWidth"];
       const unpackedMinWidth =
-        minWidthValue != undefined ? (_Length.unpack(1, minWidthValue, _session) as Length) : null;
+        minWidthValue != undefined
+          ? (_Length.unpack(1, minWidthValue, _session) as Length)
+          : undefined;
       const minHeightValue = objectJson["minHeight"];
       const unpackedMinHeight =
         minHeightValue != undefined
           ? (_Length.unpack(1, minHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const maxWidthValue = objectJson["maxWidth"];
       const unpackedMaxWidth =
-        maxWidthValue != undefined ? (_Length.unpack(1, maxWidthValue, _session) as Length) : null;
+        maxWidthValue != undefined
+          ? (_Length.unpack(1, maxWidthValue, _session) as Length)
+          : undefined;
       const maxHeightValue = objectJson["maxHeight"];
       const unpackedMaxHeight =
         maxHeightValue != undefined
           ? (_Length.unpack(1, maxHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const isVisibleValue = objectJson["isVisible"];
-      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
+      const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const fillValue = objectJson["fill"];
       const unpackedFill =
-        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : null;
+        fillValue != undefined ? (_Fill.unpack(1, fillValue, _session) as Fill) : undefined;
       const shadowValue = objectJson["shadow"];
       const unpackedShadow =
-        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : null;
+        shadowValue != undefined ? (_Shadow.unpack(1, shadowValue, _session) as Shadow) : undefined;
       const borderValue = objectJson["border"];
       const unpackedBorder =
-        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : null;
+        borderValue != undefined ? (_Border.unpack(1, borderValue, _session) as Border) : undefined;
       const radiusValue = objectJson["radius"];
       const unpackedRadius =
-        radiusValue != undefined ? (_Corner2.unpack(1, radiusValue, _session) as Corner2) : null;
+        radiusValue != undefined
+          ? (_Corner2.unpack(1, radiusValue, _session) as Corner2)
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
         positionValue != undefined
           ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
-          : null;
+          : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Offset2.unpack(1, offsetValue, _session) as Offset2) : null;
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
       const scaleValue = objectJson["scale"];
       const unpackedScale =
-        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : null;
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
       const rotationValue = objectJson["rotation"];
       const unpackedRotation =
         rotationValue != undefined
           ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
-          : null;
+          : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const originValue = objectJson["origin"];
       const unpackedOrigin =
-        originValue != undefined ? (_Vector2.unpack(1, originValue, _session) as Vector2) : null;
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
       const anchorValue = objectJson["anchor"];
-      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : null;
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -16117,16 +16240,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1805100] as typeof TextView)({
         text: unpackedText,
         font: unpackedFont,
@@ -16181,7 +16304,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1805100)] = new TextViewJsonEncoder();
 
-  class SceneJsonEncoder implements _JsonObjectEncoder {
+  class SceneJsonEncoder implements JsonObjectEncoder {
     packObject(object: Scene): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SCENE";
@@ -16252,40 +16375,40 @@ export function loadEncoders(): void {
       const unpackedRootViewPtr =
         rootViewPtrValue != undefined
           ? (_NodeReference.unpack(1, rootViewPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -16296,16 +16419,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1700200] as typeof Scene)({
         rootView: unpackedRootViewPtr,
         icon: unpackedIcon,
@@ -16340,7 +16463,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1700200)] = new SceneJsonEncoder();
 
-  class StageJsonEncoder implements _JsonObjectEncoder {
+  class StageJsonEncoder implements JsonObjectEncoder {
     packObject(object: Stage): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STAGE";
@@ -16404,32 +16527,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -16440,16 +16563,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1700000] as typeof Stage)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -16482,7 +16605,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1700000)] = new StageJsonEncoder();
 
-  class FollowJsonEncoder implements _JsonObjectEncoder {
+  class FollowJsonEncoder implements JsonObjectEncoder {
     packObject(object: Follow): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOLLOW";
@@ -16546,32 +16669,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -16582,16 +16705,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1400200] as typeof Follow)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -16624,7 +16747,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400200)] = new FollowJsonEncoder();
 
-  class FollowEventJsonEncoder implements _JsonObjectEncoder {
+  class FollowEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: FollowEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOLLOW_EVENT";
@@ -16659,17 +16782,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400201] as typeof FollowEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -16696,7 +16819,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400201)] = new FollowEventJsonEncoder();
 
-  class FollowAddedEventJsonEncoder implements _JsonObjectEncoder {
+  class FollowAddedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: FollowAddedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOLLOW_ADDED_EVENT";
@@ -16731,17 +16854,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400202] as typeof FollowAddedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -16768,7 +16891,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400202)] = new FollowAddedEventJsonEncoder();
 
-  class FollowRemovedEventJsonEncoder implements _JsonObjectEncoder {
+  class FollowRemovedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: FollowRemovedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOLLOW_REMOVED_EVENT";
@@ -16803,17 +16926,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400203] as typeof FollowRemovedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -16840,7 +16963,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400203)] = new FollowRemovedEventJsonEncoder();
 
-  class NotificationSentEventJsonEncoder implements _JsonObjectEncoder {
+  class NotificationSentEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: NotificationSentEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION_SENT_EVENT";
@@ -16875,17 +16998,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400502] as typeof NotificationSentEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -16912,7 +17035,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400502)] = new NotificationSentEventJsonEncoder();
 
-  class NotificationRescindedEventJsonEncoder implements _JsonObjectEncoder {
+  class NotificationRescindedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: NotificationRescindedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION_RESCINDED_EVENT";
@@ -16947,17 +17070,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400503] as typeof NotificationRescindedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -16984,7 +17107,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400503)] = new NotificationRescindedEventJsonEncoder();
 
-  class NotificationReadEventJsonEncoder implements _JsonObjectEncoder {
+  class NotificationReadEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: NotificationReadEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION_READ_EVENT";
@@ -17019,17 +17142,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400504] as typeof NotificationReadEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -17056,7 +17179,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400504)] = new NotificationReadEventJsonEncoder();
 
-  class NotificationDismissedEventJsonEncoder implements _JsonObjectEncoder {
+  class NotificationDismissedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: NotificationDismissedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION_DISMISSED_EVENT";
@@ -17091,17 +17214,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400505] as typeof NotificationDismissedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -17128,7 +17251,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400505)] = new NotificationDismissedEventJsonEncoder();
 
-  class NotificationExpiredEventJsonEncoder implements _JsonObjectEncoder {
+  class NotificationExpiredEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: NotificationExpiredEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION_EXPIRED_EVENT";
@@ -17163,17 +17286,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400506] as typeof NotificationExpiredEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -17200,7 +17323,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400506)] = new NotificationExpiredEventJsonEncoder();
 
-  class NotificationJsonEncoder implements _JsonObjectEncoder {
+  class NotificationJsonEncoder implements JsonObjectEncoder {
     packObject(object: Notification): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NOTIFICATION";
@@ -17268,37 +17391,37 @@ export function loadEncoders(): void {
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
       const unpackedText =
-        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : null;
+        textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -17309,16 +17432,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1400500] as typeof Notification)({
         title: objectJson["title"],
         status: NotificationStatus[objectJson["status"]] as any,
@@ -17354,7 +17477,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400500)] = new NotificationJsonEncoder();
 
-  class ReactionJsonEncoder implements _JsonObjectEncoder {
+  class ReactionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Reaction): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "REACTION";
@@ -17419,32 +17542,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -17455,16 +17578,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1400000] as typeof Reaction)({
         content: objectJson["content"],
         parent: unpackedParentPtr,
@@ -17498,7 +17621,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400000)] = new ReactionJsonEncoder();
 
-  class ReactionEventJsonEncoder implements _JsonObjectEncoder {
+  class ReactionEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: ReactionEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "REACTION_EVENT";
@@ -17534,17 +17657,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400001] as typeof ReactionEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         content: objectJson["content"],
@@ -17572,7 +17695,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400001)] = new ReactionEventJsonEncoder();
 
-  class ReactionAddedEventJsonEncoder implements _JsonObjectEncoder {
+  class ReactionAddedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: ReactionAddedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "REACTION_ADDED_EVENT";
@@ -17608,17 +17731,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400002] as typeof ReactionAddedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         content: objectJson["content"],
@@ -17646,7 +17769,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400002)] = new ReactionAddedEventJsonEncoder();
 
-  class ReactionRemovedEventJsonEncoder implements _JsonObjectEncoder {
+  class ReactionRemovedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: ReactionRemovedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "REACTION_REMOVED_EVENT";
@@ -17682,17 +17805,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400003] as typeof ReactionRemovedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         content: objectJson["content"],
@@ -17720,7 +17843,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400003)] = new ReactionRemovedEventJsonEncoder();
 
-  class StarJsonEncoder implements _JsonObjectEncoder {
+  class StarJsonEncoder implements JsonObjectEncoder {
     packObject(object: Star): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STAR";
@@ -17784,32 +17907,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -17820,16 +17943,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1400100] as typeof Star)({
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -17862,7 +17985,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400100)] = new StarJsonEncoder();
 
-  class StarEventJsonEncoder implements _JsonObjectEncoder {
+  class StarEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: StarEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STAR_EVENT";
@@ -17897,17 +18020,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400101] as typeof StarEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -17934,7 +18057,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400101)] = new StarEventJsonEncoder();
 
-  class StarAddedEventJsonEncoder implements _JsonObjectEncoder {
+  class StarAddedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: StarAddedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STAR_ADDED_EVENT";
@@ -17969,17 +18092,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400102] as typeof StarAddedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -18006,7 +18129,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400102)] = new StarAddedEventJsonEncoder();
 
-  class StarRemovedEventJsonEncoder implements _JsonObjectEncoder {
+  class StarRemovedEventJsonEncoder implements JsonObjectEncoder {
     packObject(object: StarRemovedEvent): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STAR_REMOVED_EVENT";
@@ -18041,17 +18164,17 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const causedByPtrValue = objectJson["causedBy"];
       const unpackedCausedByPtr =
         causedByPtrValue != undefined
           ? (_NodeReference.unpack(1, causedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (NODE_CLASS_BY_TYPE[1400103] as typeof StarRemovedEvent)({
         node: _NodeReference.unpack(1, objectJson["node"], _session) as NodeReference,
         definition: unpackedDefinitionPtr,
@@ -18078,7 +18201,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 1400103)] = new StarRemovedEventJsonEncoder();
 
-  class FolderJsonEncoder implements _JsonObjectEncoder {
+  class FolderJsonEncoder implements JsonObjectEncoder {
     packObject(object: Folder): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FOLDER";
@@ -18153,42 +18276,42 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const slugValue = objectJson["slug"];
-      const unpackedSlug = slugValue != undefined ? slugValue : null;
+      const unpackedSlug = slugValue != undefined ? slugValue : undefined;
       const mainScenePtrValue = objectJson["mainScene"];
       const unpackedMainScenePtr =
         mainScenePtrValue != undefined
           ? (_NodeReference.unpack(1, mainScenePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -18199,16 +18322,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[240000] as typeof Folder)({
         parent: unpackedParentPtr,
         type: FolderType[objectJson["type"]] as any,
@@ -18245,7 +18368,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 240000)] = new FolderJsonEncoder();
 
-  class ClientJsonEncoder implements _JsonObjectEncoder {
+  class ClientJsonEncoder implements JsonObjectEncoder {
     packObject(object: Client): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CLIENT";
@@ -18340,65 +18463,66 @@ export function loadEncoders(): void {
       const unpackedMachinePtr =
         machinePtrValue != undefined
           ? (_NodeReference.unpack(1, machinePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const userPtrValue = objectJson["user"];
       const unpackedUserPtr =
         userPtrValue != undefined
           ? (_NodeReference.unpack(1, userPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const accessTokenValue = objectJson["accessToken"];
-      const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
+      const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : undefined;
       const seenAtValue = objectJson["seenAt"];
       const unpackedSeenAt =
         seenAtValue != undefined
           ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const loggedInAtValue = objectJson["loggedInAt"];
       const unpackedLoggedInAt =
         loggedInAtValue != undefined
           ? Temporal.Instant.from(loggedInAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const deviceTypeValue = objectJson["deviceType"];
-      const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : null;
+      const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : undefined;
       const deviceNameValue = objectJson["deviceName"];
-      const unpackedDeviceName = deviceNameValue != undefined ? deviceNameValue : null;
+      const unpackedDeviceName = deviceNameValue != undefined ? deviceNameValue : undefined;
       const operatingSystemValue = objectJson["operatingSystem"];
       const unpackedOperatingSystem =
-        operatingSystemValue != undefined ? operatingSystemValue : null;
+        operatingSystemValue != undefined ? operatingSystemValue : undefined;
       const browserNameValue = objectJson["browserName"];
-      const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
+      const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : undefined;
       const browserVersionValue = objectJson["browserVersion"];
-      const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
+      const unpackedBrowserVersion =
+        browserVersionValue != undefined ? browserVersionValue : undefined;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -18409,16 +18533,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[121300] as typeof Client)({
         type: ClientType[objectJson["type"]] as any,
         machine: unpackedMachinePtr,
@@ -18462,7 +18586,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 121300)] = new ClientJsonEncoder();
 
-  class HandleJsonEncoder implements _JsonObjectEncoder {
+  class HandleJsonEncoder implements JsonObjectEncoder {
     packObject(object: Handle): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "HANDLE";
@@ -18527,32 +18651,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -18563,16 +18687,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[100200] as typeof Handle)({
         parent: unpackedParentPtr,
         slug: objectJson["slug"],
@@ -18606,7 +18730,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 100200)] = new HandleJsonEncoder();
 
-  class OrganizationJsonEncoder implements _JsonObjectEncoder {
+  class OrganizationJsonEncoder implements JsonObjectEncoder {
     packObject(object: Organization): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ORGANIZATION";
@@ -18675,37 +18799,37 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const handlePtrValue = objectJson["handle"];
       const unpackedHandlePtr =
         handlePtrValue != undefined
           ? (_NodeReference.unpack(1, handlePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -18716,16 +18840,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[122000] as typeof Organization)({
         parent: unpackedParentPtr,
         slug: objectJson["slug"],
@@ -18761,7 +18885,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 122000)] = new OrganizationJsonEncoder();
 
-  class TeamJsonEncoder implements _JsonObjectEncoder {
+  class TeamJsonEncoder implements JsonObjectEncoder {
     packObject(object: Team): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TEAM";
@@ -18826,32 +18950,32 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -18862,16 +18986,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[122100] as typeof Team)({
         parent: unpackedParentPtr,
         slug: objectJson["slug"],
@@ -18905,7 +19029,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 122100)] = new TeamJsonEncoder();
 
-  class UserJsonEncoder implements _JsonObjectEncoder {
+  class UserJsonEncoder implements JsonObjectEncoder {
     packObject(object: User): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "USER";
@@ -18987,50 +19111,50 @@ export function loadEncoders(): void {
       const unpackedParentPtr =
         parentPtrValue != undefined
           ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const lastLoggedInAtValue = objectJson["lastLoggedInAt"];
       const unpackedLastLoggedInAt =
         lastLoggedInAtValue != undefined
           ? Temporal.Instant.from(lastLoggedInAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const handlePtrValue = objectJson["handle"];
       const unpackedHandlePtr =
         handlePtrValue != undefined
           ? (_NodeReference.unpack(1, handlePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const emailValue = objectJson["email"];
-      const unpackedEmail = emailValue != undefined ? emailValue : null;
+      const unpackedEmail = emailValue != undefined ? emailValue : undefined;
       const passwordSaltValue = objectJson["passwordSalt"];
       const unpackedPasswordSalt =
-        passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : null;
+        passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : undefined;
       const passwordHashValue = objectJson["passwordHash"];
       const unpackedPasswordHash =
-        passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
+        passwordHashValue != undefined ? base64Decode(passwordHashValue) : undefined;
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const precededByPtrValue = objectJson["precededBy"];
       const unpackedPrecededByPtr =
         precededByPtrValue != undefined
           ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const instancePtrValue = objectJson["instance"];
       const unpackedInstancePtr =
         instancePtrValue != undefined
           ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const deletedAtValue = objectJson["deletedAt"];
       const unpackedDeletedAt =
         deletedAtValue != undefined
           ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const ownedByPtrValue = objectJson["ownedBy"];
       const unpackedOwnedByPtr =
         ownedByPtrValue != undefined
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const unpackedCustomValues = {} as any;
       if (objectJson["customValues"] != undefined) {
         for (const [key, value] of Object.entries(objectJson["customValues"])) {
@@ -19041,16 +19165,16 @@ export function loadEncoders(): void {
       const unpackedScriptPtr =
         scriptPtrValue != undefined
           ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const isExtensibleValue = objectJson["isExtensible"];
-      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : null;
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
       const sourcePtrValue = objectJson["source"];
       const unpackedSourcePtr =
         sourcePtrValue != undefined
           ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const keyValue = objectJson["key"];
-      const unpackedKey = keyValue != undefined ? keyValue : null;
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[121000] as typeof User)({
         parent: unpackedParentPtr,
         slug: objectJson["slug"],
@@ -19091,7 +19215,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 121000)] = new UserJsonEncoder();
 
-  class NodeDefinitionReferenceJsonEncoder implements _JsonObjectEncoder {
+  class NodeDefinitionReferenceJsonEncoder implements JsonObjectEncoder {
     packObject(object: NodeDefinitionReference): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NODE_DEFINITION_REFERENCE";
@@ -19109,7 +19233,7 @@ export function loadEncoders(): void {
       const unpackedDefinitionPtr =
         definitionPtrValue != undefined
           ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference)({
         type: NodeDefinitionType[objectJson["type"]] as any,
         nodeType: NodeType[objectJson["nodeType"]] as any,
@@ -19122,7 +19246,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 13)] = new NodeDefinitionReferenceJsonEncoder();
 
-  class ObjectDefinitionReferenceJsonEncoder implements _JsonObjectEncoder {
+  class ObjectDefinitionReferenceJsonEncoder implements JsonObjectEncoder {
     packObject(object: ObjectDefinitionReference): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "OBJECT_DEFINITION_REFERENCE";
@@ -19145,18 +19269,19 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): ObjectDefinitionReference {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const nodeTypeValue = objectJson["nodeType"];
-      const unpackedNodeType = nodeTypeValue != undefined ? (NodeType[nodeTypeValue] as any) : null;
+      const unpackedNodeType =
+        nodeTypeValue != undefined ? (NodeType[nodeTypeValue] as any) : undefined;
       const traitTypeValue = objectJson["traitType"];
       const unpackedTraitType =
-        traitTypeValue != undefined ? (TraitType[traitTypeValue] as any) : null;
+        traitTypeValue != undefined ? (TraitType[traitTypeValue] as any) : undefined;
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       const customDefinitionPtrValue = objectJson["customDefinition"];
       const unpackedCustomDefinitionPtr =
         customDefinitionPtrValue != undefined
           ? (_NodeReference.unpack(1, customDefinitionPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[11] as typeof ObjectDefinitionReference)({
         type: ObjectDefinitionType[objectJson["type"]] as any,
         nodeType: unpackedNodeType,
@@ -19171,7 +19296,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 11)] = new ObjectDefinitionReferenceJsonEncoder();
 
-  class StructDefinitionReferenceJsonEncoder implements _JsonObjectEncoder {
+  class StructDefinitionReferenceJsonEncoder implements JsonObjectEncoder {
     packObject(object: StructDefinitionReference): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STRUCT_DEFINITION_REFERENCE";
@@ -19187,7 +19312,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[16] as typeof StructDefinitionReference)({
         type: StructDefinitionType[objectJson["type"]] as any,
         structType: unpackedStructType,
@@ -19200,7 +19325,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 16)] = new StructDefinitionReferenceJsonEncoder();
 
-  class PropertyReferenceJsonEncoder implements _JsonObjectEncoder {
+  class PropertyReferenceJsonEncoder implements JsonObjectEncoder {
     packObject(object: PropertyReference): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PROPERTY_REFERENCE";
@@ -19226,20 +19351,21 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): PropertyReference {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const nodeTypeValue = objectJson["nodeType"];
-      const unpackedNodeType = nodeTypeValue != undefined ? (NodeType[nodeTypeValue] as any) : null;
+      const unpackedNodeType =
+        nodeTypeValue != undefined ? (NodeType[nodeTypeValue] as any) : undefined;
       const traitTypeValue = objectJson["traitType"];
       const unpackedTraitType =
-        traitTypeValue != undefined ? (TraitType[traitTypeValue] as any) : null;
+        traitTypeValue != undefined ? (TraitType[traitTypeValue] as any) : undefined;
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       const idValue = objectJson["id"];
-      const unpackedId = idValue != undefined ? Number(idValue) : null;
+      const unpackedId = idValue != undefined ? Number(idValue) : undefined;
       const customPropertyPtrValue = objectJson["customProperty"];
       const unpackedCustomPropertyPtr =
         customPropertyPtrValue != undefined
           ? (_NodeReference.unpack(1, customPropertyPtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference)({
         type: PropertyReferenceType[objectJson["type"]] as any,
         nodeType: unpackedNodeType,
@@ -19255,7 +19381,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 1001)] = new PropertyReferenceJsonEncoder();
 
-  class NodeReferenceJsonEncoder implements _JsonObjectEncoder {
+  class NodeReferenceJsonEncoder implements JsonObjectEncoder {
     packObject(object: NodeReference): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NODE_REFERENCE";
@@ -19275,9 +19401,10 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): NodeReference {
       const definitionIdValue = objectJson["definitionId"];
-      const unpackedDefinitionId = definitionIdValue != undefined ? definitionIdValue : null;
+      const unpackedDefinitionId = definitionIdValue != undefined ? definitionIdValue : undefined;
       const storeKeyValue = objectJson["storeKey"];
-      const unpackedStoreKey = storeKeyValue != undefined ? (GraphKey[storeKeyValue] as any) : null;
+      const unpackedStoreKey =
+        storeKeyValue != undefined ? (GraphKey[storeKeyValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference)({
         type: NodeType[objectJson["type"]] as any,
         id: objectJson["id"],
@@ -19294,7 +19421,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 1000)] = new NodeReferenceJsonEncoder();
 
-  class NodeDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class NodeDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: NodeDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NODE_DEFINITION";
@@ -19555,7 +19682,8 @@ export function loadEncoders(): void {
         }
       }
       const baseTypeValue = objectJson["baseType"];
-      const unpackedBaseType = baseTypeValue != undefined ? (NodeType[baseTypeValue] as any) : null;
+      const unpackedBaseType =
+        baseTypeValue != undefined ? (NodeType[baseTypeValue] as any) : undefined;
       const unpackedExtendedBy: any[] = [];
       if (objectJson["extendedBy"] != undefined) {
         for (const item of objectJson["extendedBy"]) {
@@ -19659,12 +19787,13 @@ export function loadEncoders(): void {
         }
       }
       const domainValue = objectJson["domain"];
-      const unpackedDomain = domainValue != undefined ? (GraphDomain[domainValue] as any) : null;
+      const unpackedDomain =
+        domainValue != undefined ? (GraphDomain[domainValue] as any) : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -19716,7 +19845,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 12)] = new NodeDefinitionJsonEncoder();
 
-  class TraitDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class TraitDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: TraitDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TRAIT_DEFINITION";
@@ -19839,9 +19968,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -19872,7 +20001,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 14)] = new TraitDefinitionJsonEncoder();
 
-  class StructDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class StructDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: StructDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STRUCT_DEFINITION";
@@ -20014,7 +20143,7 @@ export function loadEncoders(): void {
       }
       const baseTypeValue = objectJson["baseType"];
       const unpackedBaseType =
-        baseTypeValue != undefined ? (StructType[baseTypeValue] as any) : null;
+        baseTypeValue != undefined ? (StructType[baseTypeValue] as any) : undefined;
       const unpackedExtendedBy: any[] = [];
       if (objectJson["extendedBy"] != undefined) {
         for (const item of objectJson["extendedBy"]) {
@@ -20047,9 +20176,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20085,7 +20214,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 15)] = new StructDefinitionJsonEncoder();
 
-  class EnumDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class EnumDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: EnumDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ENUM_DEFINITION";
@@ -20126,9 +20255,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20151,7 +20280,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 17)] = new EnumDefinitionJsonEncoder();
 
-  class PropertyDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class PropertyDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: PropertyDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PROPERTY_DEFINITION";
@@ -20216,6 +20345,7 @@ export function loadEncoders(): void {
         objectJson["cascade"] = CascadeAction[object.cascade];
       }
       objectJson["isRequired"] = object.isRequired;
+      objectJson["isIdentity"] = object.isIdentity;
       objectJson["isUnique"] = object.isUnique;
       objectJson["isReadonly"] = object.isReadonly;
       objectJson["isMain"] = object.isMain;
@@ -20239,9 +20369,10 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : null;
+        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
       const enumTypeValue = objectJson["enumType"];
-      const unpackedEnumType = enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : null;
+      const unpackedEnumType =
+        enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
       if (objectJson["nodeTypes"] != undefined) {
         for (const item of objectJson["nodeTypes"]) {
@@ -20250,16 +20381,16 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : null;
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
       const valueValue = objectJson["value"];
       const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : null;
+        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
       const valueFactoryValue = objectJson["valueFactory"];
       const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : null;
+        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
       const collectionConstraintValue = objectJson["collectionConstraint"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -20268,27 +20399,28 @@ export function loadEncoders(): void {
               collectionConstraintValue,
               _session,
             ) as CollectionConstraint)
-          : null;
+          : undefined;
       const stringConstraintValue = objectJson["stringConstraint"];
       const unpackedStringConstraint =
         stringConstraintValue != undefined
           ? (_StringConstraint.unpack(1, stringConstraintValue, _session) as StringConstraint)
-          : null;
+          : undefined;
       const numberConstraintValue = objectJson["numberConstraint"];
       const unpackedNumberConstraint =
         numberConstraintValue != undefined
           ? (_NumberConstraint.unpack(1, numberConstraintValue, _session) as NumberConstraint)
-          : null;
+          : undefined;
       const edgeTypeValue = objectJson["edgeType"];
-      const unpackedEdgeType = edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : null;
+      const unpackedEdgeType =
+        edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : undefined;
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
-        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : null;
+        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20322,6 +20454,7 @@ export function loadEncoders(): void {
         edgeType: unpackedEdgeType,
         cascade: unpackedCascade,
         isRequired: objectJson["isRequired"],
+        isIdentity: objectJson["isIdentity"],
         isUnique: objectJson["isUnique"],
         isReadonly: objectJson["isReadonly"],
         isMain: objectJson["isMain"],
@@ -20344,7 +20477,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 18)] = new PropertyDefinitionJsonEncoder();
 
-  class OptionDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class OptionDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: OptionDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "OPTION_DEFINITION";
@@ -20371,9 +20504,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20395,7 +20528,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 20)] = new OptionDefinitionJsonEncoder();
 
-  class ConstantDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class ConstantDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: ConstantDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CONSTANT_DEFINITION";
@@ -20423,9 +20556,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20447,7 +20580,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 19)] = new ConstantDefinitionJsonEncoder();
 
-  class TagDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class TagDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: TagDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TAG_DEFINITION";
@@ -20473,9 +20606,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20496,7 +20629,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 21)] = new TagDefinitionJsonEncoder();
 
-  class IndexDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class IndexDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: IndexDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INDEX_DEFINITION";
@@ -20552,9 +20685,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20578,7 +20711,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 30100)] = new IndexDefinitionJsonEncoder();
 
-  class ConstraintDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class ConstraintDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: ConstraintDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CONSTRAINT_DEFINITION";
@@ -20621,9 +20754,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20646,7 +20779,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 30200)] = new ConstraintDefinitionJsonEncoder();
 
-  class PermissionDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class PermissionDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: PermissionDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PERMISSION_DEFINITION";
@@ -20672,9 +20805,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20695,7 +20828,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 50000)] = new PermissionDefinitionJsonEncoder();
 
-  class MethodDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class MethodDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: MethodDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "METHOD_DEFINITION";
@@ -20765,9 +20898,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20793,7 +20926,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 40000)] = new MethodDefinitionJsonEncoder();
 
-  class ActionDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class ActionDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: ActionDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ACTION_DEFINITION";
@@ -20863,9 +20996,9 @@ export function loadEncoders(): void {
       }
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -20891,7 +21024,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 40100)] = new ActionDefinitionJsonEncoder();
 
-  class IconJsonEncoder implements _JsonObjectEncoder {
+  class IconJsonEncoder implements JsonObjectEncoder {
     packObject(object: Icon): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ICON";
@@ -20921,21 +21054,21 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const emojiValue = objectJson["emoji"];
-      const unpackedEmoji = emojiValue != undefined ? emojiValue : null;
+      const unpackedEmoji = emojiValue != undefined ? emojiValue : undefined;
       const faNameValue = objectJson["faName"];
-      const unpackedFaName = faNameValue != undefined ? faNameValue : null;
+      const unpackedFaName = faNameValue != undefined ? faNameValue : undefined;
       const vscNameValue = objectJson["vscName"];
-      const unpackedVscName = vscNameValue != undefined ? vscNameValue : null;
+      const unpackedVscName = vscNameValue != undefined ? vscNameValue : undefined;
       const filePtrValue = objectJson["file"];
       const unpackedFilePtr =
         filePtrValue != undefined
           ? (_NodeReference.unpack(1, filePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const fileUrlValue = objectJson["fileUrl"];
-      const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
+      const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[400031] as typeof Icon)({
         type: IconType[objectJson["type"]] as any,
         emoji: unpackedEmoji,
@@ -20952,7 +21085,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 400031)] = new IconJsonEncoder();
 
-  class MigrationDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class MigrationDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: MigrationDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MIGRATION_DEFINITION";
@@ -20979,9 +21112,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -21003,7 +21136,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 31000)] = new MigrationDefinitionJsonEncoder();
 
-  class MigrationOperationDefinitionJsonEncoder implements _JsonObjectEncoder {
+  class MigrationOperationDefinitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: MigrationOperationDefinition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MIGRATION_OPERATION_DEFINITION";
@@ -21029,9 +21162,9 @@ export function loadEncoders(): void {
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : null;
+        iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectJson["description"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
       if (objectJson["taggings"] != undefined) {
         for (const item of objectJson["taggings"]) {
@@ -21052,7 +21185,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 31100)] = new MigrationOperationDefinitionJsonEncoder();
 
-  class StringConstraintJsonEncoder implements _JsonObjectEncoder {
+  class StringConstraintJsonEncoder implements JsonObjectEncoder {
     packObject(object: StringConstraint): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STRING_CONSTRAINT";
@@ -21073,13 +21206,14 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): StringConstraint {
       const formatValue = objectJson["format"];
-      const unpackedFormat = formatValue != undefined ? (StringFormat[formatValue] as any) : null;
+      const unpackedFormat =
+        formatValue != undefined ? (StringFormat[formatValue] as any) : undefined;
       const regexValue = objectJson["regex"];
-      const unpackedRegex = regexValue != undefined ? regexValue : null;
+      const unpackedRegex = regexValue != undefined ? regexValue : undefined;
       const startsWithValue = objectJson["startsWith"];
-      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : null;
+      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : undefined;
       const endsWithValue = objectJson["endsWith"];
-      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : null;
+      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint)({
         format: unpackedFormat,
         regex: unpackedRegex,
@@ -21093,7 +21227,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 111)] = new StringConstraintJsonEncoder();
 
-  class NumberConstraintJsonEncoder implements _JsonObjectEncoder {
+  class NumberConstraintJsonEncoder implements JsonObjectEncoder {
     packObject(object: NumberConstraint): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "NUMBER_CONSTRAINT";
@@ -21120,17 +21254,18 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): NumberConstraint {
       const formatValue = objectJson["format"];
-      const unpackedFormat = formatValue != undefined ? (NumberFormat[formatValue] as any) : null;
+      const unpackedFormat =
+        formatValue != undefined ? (NumberFormat[formatValue] as any) : undefined;
       const minValueValue = objectJson["minValue"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : null;
+      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
       const maxValueValue = objectJson["maxValue"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : null;
+      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
       const stepValueValue = objectJson["stepValue"];
-      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : null;
+      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
       const precisionValue = objectJson["precision"];
-      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : null;
+      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : undefined;
       const scaleValue = objectJson["scale"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
+      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
         format: unpackedFormat,
         minValue: unpackedMinValue,
@@ -21146,7 +21281,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 110)] = new NumberConstraintJsonEncoder();
 
-  class CollectionConstraintJsonEncoder implements _JsonObjectEncoder {
+  class CollectionConstraintJsonEncoder implements JsonObjectEncoder {
     packObject(object: CollectionConstraint): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COLLECTION_CONSTRAINT";
@@ -21161,9 +21296,9 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): CollectionConstraint {
       const minLengthValue = objectJson["minLength"];
-      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : null;
+      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : undefined;
       const maxLengthValue = objectJson["maxLength"];
-      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : null;
+      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint)({
         minLength: unpackedMinLength,
         maxLength: unpackedMaxLength,
@@ -21175,7 +21310,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintJsonEncoder();
 
-  class TypeJsonEncoder implements _JsonObjectEncoder {
+  class TypeJsonEncoder implements JsonObjectEncoder {
     packObject(object: Type): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TYPE";
@@ -21234,12 +21369,13 @@ export function loadEncoders(): void {
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
       const nameValue = objectJson["name"];
-      const unpackedName = nameValue != undefined ? nameValue : null;
+      const unpackedName = nameValue != undefined ? nameValue : undefined;
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : null;
+        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
       const enumTypeValue = objectJson["enumType"];
-      const unpackedEnumType = enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : null;
+      const unpackedEnumType =
+        enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
       if (objectJson["nodeTypes"] != undefined) {
         for (const item of objectJson["nodeTypes"]) {
@@ -21248,16 +21384,16 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : null;
+        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : null;
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
       const valueValue = objectJson["value"];
       const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : null;
+        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
       const valueFactoryValue = objectJson["valueFactory"];
       const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : null;
+        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
       const collectionConstraintValue = objectJson["collectionConstraint"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -21266,21 +21402,21 @@ export function loadEncoders(): void {
               collectionConstraintValue,
               _session,
             ) as CollectionConstraint)
-          : null;
+          : undefined;
       const stringConstraintValue = objectJson["stringConstraint"];
       const unpackedStringConstraint =
         stringConstraintValue != undefined
           ? (_StringConstraint.unpack(1, stringConstraintValue, _session) as StringConstraint)
-          : null;
+          : undefined;
       const numberConstraintValue = objectJson["numberConstraint"];
       const unpackedNumberConstraint =
         numberConstraintValue != undefined
           ? (_NumberConstraint.unpack(1, numberConstraintValue, _session) as NumberConstraint)
-          : null;
+          : undefined;
       const isRequiredValue = objectJson["isRequired"];
-      const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+      const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
       const isMainValue = objectJson["isMain"];
-      const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
+      const unpackedIsMain = isMainValue != undefined ? isMainValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[101] as typeof Type)({
         name: unpackedName,
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
@@ -21305,7 +21441,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new TypeJsonEncoder();
 
-  class ValueJsonEncoder implements _JsonObjectEncoder {
+  class ValueJsonEncoder implements JsonObjectEncoder {
     packObject(object: Value): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VALUE";
@@ -21319,7 +21455,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Value {
       const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
       const valueValue = objectJson["value"];
-      const unpackedValue = valueValue != undefined ? valueValue : null;
+      const unpackedValue = valueValue != undefined ? valueValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[100] as typeof Value)({
         type: _Type.unpack(1, objectJson["type"], _session) as Type,
         value: unpackedValue,
@@ -21331,7 +21467,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 100)] = new ValueJsonEncoder();
 
-  class FunctionJsonEncoder implements _JsonObjectEncoder {
+  class FunctionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Function): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FUNCTION";
@@ -21349,7 +21485,7 @@ export function loadEncoders(): void {
       const unpackedRight =
         rightValue != undefined
           ? (_Expression.unpack(1, rightValue, _session) as Expression)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[201] as typeof Function)({
         type: FunctionType[objectJson["type"]] as any,
         left: _Expression.unpack(1, objectJson["left"], _session) as Expression,
@@ -21362,7 +21498,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 201)] = new FunctionJsonEncoder();
 
-  class ConditionJsonEncoder implements _JsonObjectEncoder {
+  class ConditionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Condition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CONDITION";
@@ -21380,7 +21516,7 @@ export function loadEncoders(): void {
       const unpackedRight =
         rightValue != undefined
           ? (_Expression.unpack(1, rightValue, _session) as Expression)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[204] as typeof Condition)({
         type: ConditionalType[objectJson["type"]] as any,
         left: _Expression.unpack(1, objectJson["left"], _session) as Expression,
@@ -21393,7 +21529,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 204)] = new ConditionJsonEncoder();
 
-  class AggregationJsonEncoder implements _JsonObjectEncoder {
+  class AggregationJsonEncoder implements JsonObjectEncoder {
     packObject(object: Aggregation): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "AGGREGATION";
@@ -21410,7 +21546,7 @@ export function loadEncoders(): void {
       const unpackedExpression =
         expressionValue != undefined
           ? (_Expression.unpack(1, expressionValue, _session) as Expression)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[203] as typeof Aggregation)({
         type: AggregationType[objectJson["type"]] as any,
         expression: unpackedExpression,
@@ -21422,7 +21558,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 203)] = new AggregationJsonEncoder();
 
-  class ExpressionJsonEncoder implements _JsonObjectEncoder {
+  class ExpressionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Expression): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "EXPRESSION";
@@ -21453,27 +21589,27 @@ export function loadEncoders(): void {
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const literalValue = objectJson["literal"];
       const unpackedLiteral =
-        literalValue != undefined ? (_Value.unpack(1, literalValue, _session) as Value) : null;
+        literalValue != undefined ? (_Value.unpack(1, literalValue, _session) as Value) : undefined;
       const attributeValue = objectJson["attribute"];
       const unpackedAttribute =
         attributeValue != undefined
           ? (_PropertyReference.unpack(1, attributeValue, _session) as PropertyReference)
-          : null;
+          : undefined;
       const conditionValue = objectJson["condition"];
       const unpackedCondition =
         conditionValue != undefined
           ? (_Condition.unpack(1, conditionValue, _session) as Condition)
-          : null;
+          : undefined;
       const functionValue = objectJson["function"];
       const unpackedFunction =
         functionValue != undefined
           ? (_Function.unpack(1, functionValue, _session) as Function)
-          : null;
+          : undefined;
       const aggregationValue = objectJson["aggregation"];
       const unpackedAggregation =
         aggregationValue != undefined
           ? (_Aggregation.unpack(1, aggregationValue, _session) as Aggregation)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[200] as typeof Expression)({
         type: ExpressionType[objectJson["type"]] as any,
         literal: unpackedLiteral,
@@ -21489,7 +21625,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 200)] = new ExpressionJsonEncoder();
 
-  class SortJsonEncoder implements _JsonObjectEncoder {
+  class SortJsonEncoder implements JsonObjectEncoder {
     packObject(object: Sort): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SORT";
@@ -21504,7 +21640,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Sort {
       const _Expression = STRUCT_CLASS_BY_TYPE[200] as typeof Expression;
       const modeValue = objectJson["mode"];
-      const unpackedMode = modeValue != undefined ? (SortMode[modeValue] as any) : null;
+      const unpackedMode = modeValue != undefined ? (SortMode[modeValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[205] as typeof Sort)({
         type: SortType[objectJson["type"]] as any,
         by: _Expression.unpack(1, objectJson["by"], _session) as Expression,
@@ -21517,7 +21653,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 205)] = new SortJsonEncoder();
 
-  class SelectJsonEncoder implements _JsonObjectEncoder {
+  class SelectJsonEncoder implements JsonObjectEncoder {
     packObject(object: Select): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SELECT";
@@ -21551,7 +21687,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 206)] = new SelectJsonEncoder();
 
-  class JoinJsonEncoder implements _JsonObjectEncoder {
+  class JoinJsonEncoder implements JsonObjectEncoder {
     packObject(object: Join): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "JOIN";
@@ -21569,10 +21705,10 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Join {
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
       const depthValue = objectJson["depth"];
-      const unpackedDepth = depthValue != undefined ? Number(depthValue) : null;
+      const unpackedDepth = depthValue != undefined ? Number(depthValue) : undefined;
       const onValue = objectJson["on"];
       const unpackedOn =
-        onValue != undefined ? (_Condition.unpack(1, onValue, _session) as Condition) : null;
+        onValue != undefined ? (_Condition.unpack(1, onValue, _session) as Condition) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
         type: JoinType[objectJson["type"]] as any,
         recursive: objectJson["recursive"],
@@ -21586,7 +21722,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 202)] = new JoinJsonEncoder();
 
-  class QueryJsonEncoder implements _JsonObjectEncoder {
+  class QueryJsonEncoder implements JsonObjectEncoder {
     packObject(object: Query): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "QUERY";
@@ -21657,18 +21793,20 @@ export function loadEncoders(): void {
       }
       const joinValue = objectJson["join"];
       const unpackedJoin =
-        joinValue != undefined ? (_Join.unpack(1, joinValue, _session) as Join) : null;
+        joinValue != undefined ? (_Join.unpack(1, joinValue, _session) as Join) : undefined;
       const selectValue = objectJson["select"];
       const unpackedSelect =
-        selectValue != undefined ? (_Select.unpack(1, selectValue, _session) as Select) : null;
+        selectValue != undefined ? (_Select.unpack(1, selectValue, _session) as Select) : undefined;
       const whereValue = objectJson["where"];
       const unpackedWhere =
-        whereValue != undefined ? (_Condition.unpack(1, whereValue, _session) as Condition) : null;
+        whereValue != undefined
+          ? (_Condition.unpack(1, whereValue, _session) as Condition)
+          : undefined;
       const havingValue = objectJson["having"];
       const unpackedHaving =
         havingValue != undefined
           ? (_Condition.unpack(1, havingValue, _session) as Condition)
-          : null;
+          : undefined;
       const unpackedGroupBy: any[] = [];
       if (objectJson["groupBy"] != undefined) {
         for (const item of objectJson["groupBy"]) {
@@ -21679,7 +21817,7 @@ export function loadEncoders(): void {
       const unpackedAggregation =
         aggregationValue != undefined
           ? (_Aggregation.unpack(1, aggregationValue, _session) as Aggregation)
-          : null;
+          : undefined;
       const unpackedSort: any[] = [];
       if (objectJson["sort"] != undefined) {
         for (const item of objectJson["sort"]) {
@@ -21687,9 +21825,9 @@ export function loadEncoders(): void {
         }
       }
       const limitValue = objectJson["limit"];
-      const unpackedLimit = limitValue != undefined ? Number(limitValue) : null;
+      const unpackedLimit = limitValue != undefined ? Number(limitValue) : undefined;
       const offsetValue = objectJson["offset"];
-      const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
+      const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[300] as typeof Query)({
         id: objectJson["id"],
         type: QueryType[objectJson["type"]] as any,
@@ -21718,7 +21856,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 300)] = new QueryJsonEncoder();
 
-  class DatumJsonEncoder implements _JsonObjectEncoder {
+  class DatumJsonEncoder implements JsonObjectEncoder {
     packObject(object: Datum): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DATUM";
@@ -21753,7 +21891,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2)] = new DatumJsonEncoder();
 
-  class DatumMutableJsonEncoder implements _JsonObjectEncoder {
+  class DatumMutableJsonEncoder implements JsonObjectEncoder {
     packObject(object: DatumMutable): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DATUM_MUTABLE";
@@ -21787,7 +21925,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 3)] = new DatumMutableJsonEncoder();
 
-  class TextSpanJsonEncoder implements _JsonObjectEncoder {
+  class TextSpanJsonEncoder implements JsonObjectEncoder {
     packObject(object: TextSpan): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TEXT_SPAN";
@@ -21822,25 +21960,25 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): TextSpan {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const contentValue = objectJson["content"];
-      const unpackedContent = contentValue != undefined ? contentValue : null;
+      const unpackedContent = contentValue != undefined ? contentValue : undefined;
       const nodePtrValue = objectJson["node"];
       const unpackedNodePtr =
         nodePtrValue != undefined
           ? (_NodeReference.unpack(1, nodePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const urlValue = objectJson["url"];
-      const unpackedUrl = urlValue != undefined ? urlValue : null;
+      const unpackedUrl = urlValue != undefined ? urlValue : undefined;
       const isBoldValue = objectJson["isBold"];
-      const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
+      const unpackedIsBold = isBoldValue != undefined ? isBoldValue : undefined;
       const isItalicValue = objectJson["isItalic"];
-      const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
+      const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : undefined;
       const isStrikethroughValue = objectJson["isStrikethrough"];
       const unpackedIsStrikethrough =
-        isStrikethroughValue != undefined ? isStrikethroughValue : null;
+        isStrikethroughValue != undefined ? isStrikethroughValue : undefined;
       const isUnderlineValue = objectJson["isUnderline"];
-      const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
+      const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : undefined;
       const isCodeValue = objectJson["isCode"];
-      const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
+      const unpackedIsCode = isCodeValue != undefined ? isCodeValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[400021] as typeof TextSpan)({
         type: TextSpanType[objectJson["type"]] as any,
         content: unpackedContent,
@@ -21859,7 +21997,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 400021)] = new TextSpanJsonEncoder();
 
-  class TextJsonEncoder implements _JsonObjectEncoder {
+  class TextJsonEncoder implements JsonObjectEncoder {
     packObject(object: Text): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TEXT";
@@ -21897,16 +22035,16 @@ export function loadEncoders(): void {
         }
       }
       const isBoldValue = objectJson["isBold"];
-      const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
+      const unpackedIsBold = isBoldValue != undefined ? isBoldValue : undefined;
       const isItalicValue = objectJson["isItalic"];
-      const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
+      const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : undefined;
       const isStrikethroughValue = objectJson["isStrikethrough"];
       const unpackedIsStrikethrough =
-        isStrikethroughValue != undefined ? isStrikethroughValue : null;
+        isStrikethroughValue != undefined ? isStrikethroughValue : undefined;
       const isUnderlineValue = objectJson["isUnderline"];
-      const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
+      const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : undefined;
       const isCodeValue = objectJson["isCode"];
-      const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
+      const unpackedIsCode = isCodeValue != undefined ? isCodeValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[400020] as typeof Text)({
         spans: unpackedSpans,
         isBold: unpackedIsBold,
@@ -21922,7 +22060,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 400020)] = new TextJsonEncoder();
 
-  class ColorJsonEncoder implements _JsonObjectEncoder {
+  class ColorJsonEncoder implements JsonObjectEncoder {
     packObject(object: Color): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "COLOR";
@@ -21960,21 +22098,22 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const hueValue = objectJson["hue"];
-      const unpackedHue = hueValue != undefined ? (ColorHue[hueValue] as any) : null;
+      const unpackedHue = hueValue != undefined ? (ColorHue[hueValue] as any) : undefined;
       const shadeValue = objectJson["shade"];
-      const unpackedShade = shadeValue != undefined ? (ColorShade[shadeValue] as any) : null;
+      const unpackedShade = shadeValue != undefined ? (ColorShade[shadeValue] as any) : undefined;
       const intentValue = objectJson["intent"];
-      const unpackedIntent = intentValue != undefined ? (ColorIntent[intentValue] as any) : null;
+      const unpackedIntent =
+        intentValue != undefined ? (ColorIntent[intentValue] as any) : undefined;
       const xValue = objectJson["x"];
-      const unpackedX = xValue != undefined ? Number(xValue) : null;
+      const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
-      const unpackedY = yValue != undefined ? Number(yValue) : null;
+      const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       const zValue = objectJson["z"];
-      const unpackedZ = zValue != undefined ? Number(zValue) : null;
+      const unpackedZ = zValue != undefined ? Number(zValue) : undefined;
       const alphaValue = objectJson["alpha"];
-      const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : null;
+      const unpackedAlpha = alphaValue != undefined ? Number(alphaValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100300] as typeof Color)({
         type: ColorType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -21993,7 +22132,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100300)] = new ColorJsonEncoder();
 
-  class BorderJsonEncoder implements _JsonObjectEncoder {
+  class BorderJsonEncoder implements JsonObjectEncoder {
     packObject(object: Border): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "BORDER";
@@ -22016,15 +22155,15 @@ export function loadEncoders(): void {
       const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Inset2.unpack(1, widthValue, _session) as Inset2) : null;
+        widthValue != undefined ? (_Inset2.unpack(1, widthValue, _session) as Inset2) : undefined;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100600] as typeof Border)({
         type: BorderType[objectJson["type"]] as any,
         color: unpackedColor,
@@ -22038,7 +22177,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100600)] = new BorderJsonEncoder();
 
-  class GradientStopJsonEncoder implements _JsonObjectEncoder {
+  class GradientStopJsonEncoder implements JsonObjectEncoder {
     packObject(object: GradientStop): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GRADIENT_STOP";
@@ -22053,7 +22192,7 @@ export function loadEncoders(): void {
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop)({
         color: unpackedColor,
         position: Number(objectJson["position"]),
@@ -22065,7 +22204,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100801)] = new GradientStopJsonEncoder();
 
-  class GradientJsonEncoder implements _JsonObjectEncoder {
+  class GradientJsonEncoder implements JsonObjectEncoder {
     packObject(object: Gradient): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GRADIENT";
@@ -22097,9 +22236,9 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const angleValue = objectJson["angle"];
-      const unpackedAngle = angleValue != undefined ? Number(angleValue) : null;
+      const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
       if (objectJson["stops"] != undefined) {
         for (const item of objectJson["stops"]) {
@@ -22110,7 +22249,7 @@ export function loadEncoders(): void {
       const unpackedCenterAnchor =
         centerAnchorValue != undefined
           ? (_Axis2.unpack(1, centerAnchorValue, _session) as Axis2)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient)({
         type: GradientType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22125,7 +22264,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100800)] = new GradientJsonEncoder();
 
-  class FillJsonEncoder implements _JsonObjectEncoder {
+  class FillJsonEncoder implements JsonObjectEncoder {
     packObject(object: Fill): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FILL";
@@ -22159,25 +22298,25 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const gradientValue = objectJson["gradient"];
       const unpackedGradient =
         gradientValue != undefined
           ? (_Gradient.unpack(1, gradientValue, _session) as Gradient)
-          : null;
+          : undefined;
       const imagePtrValue = objectJson["image"];
       const unpackedImagePtr =
         imagePtrValue != undefined
           ? (_NodeReference.unpack(1, imagePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const positionValue = objectJson["position"];
       const unpackedPosition =
-        positionValue != undefined ? (FillPosition[positionValue] as any) : null;
+        positionValue != undefined ? (FillPosition[positionValue] as any) : undefined;
       const sizeValue = objectJson["size"];
-      const unpackedSize = sizeValue != undefined ? (FillSize[sizeValue] as any) : null;
+      const unpackedSize = sizeValue != undefined ? (FillSize[sizeValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill)({
         type: FillType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22194,7 +22333,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100400)] = new FillJsonEncoder();
 
-  class FontJsonEncoder implements _JsonObjectEncoder {
+  class FontJsonEncoder implements JsonObjectEncoder {
     packObject(object: Font): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "FONT";
@@ -22237,32 +22376,33 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const weightValue = objectJson["weight"];
-      const unpackedWeight = weightValue != undefined ? (FontWeight[weightValue] as any) : null;
+      const unpackedWeight =
+        weightValue != undefined ? (FontWeight[weightValue] as any) : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : null;
+        colorValue != undefined ? (_Fill.unpack(1, colorValue, _session) as Fill) : undefined;
       const sizeValue = objectJson["size"];
-      const unpackedSize = sizeValue != undefined ? (FontSize[sizeValue] as any) : null;
+      const unpackedSize = sizeValue != undefined ? (FontSize[sizeValue] as any) : undefined;
       const alignValue = objectJson["align"];
-      const unpackedAlign = alignValue != undefined ? (TextAlign[alignValue] as any) : null;
+      const unpackedAlign = alignValue != undefined ? (TextAlign[alignValue] as any) : undefined;
       const lineHeightValue = objectJson["lineHeight"];
       const unpackedLineHeight =
         lineHeightValue != undefined
           ? (_Length.unpack(1, lineHeightValue, _session) as Length)
-          : null;
+          : undefined;
       const letterSpacingValue = objectJson["letterSpacing"];
       const unpackedLetterSpacing =
         letterSpacingValue != undefined
           ? (_Length.unpack(1, letterSpacingValue, _session) as Length)
-          : null;
+          : undefined;
       const decorationValue = objectJson["decoration"];
       const unpackedDecoration =
-        decorationValue != undefined ? (TextDecoration[decorationValue] as any) : null;
+        decorationValue != undefined ? (TextDecoration[decorationValue] as any) : undefined;
       const transformValue = objectJson["transform"];
       const unpackedTransform =
-        transformValue != undefined ? (TextTransform[transformValue] as any) : null;
+        transformValue != undefined ? (TextTransform[transformValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100500] as typeof Font)({
         type: FontType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22282,7 +22422,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100500)] = new FontJsonEncoder();
 
-  class ShadowJsonEncoder implements _JsonObjectEncoder {
+  class ShadowJsonEncoder implements JsonObjectEncoder {
     packObject(object: Shadow): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SHADOW";
@@ -22317,19 +22457,19 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Axis2.unpack(1, offsetValue, _session) as Axis2) : null;
+        offsetValue != undefined ? (_Axis2.unpack(1, offsetValue, _session) as Axis2) : undefined;
       const blurValue = objectJson["blur"];
-      const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
+      const unpackedBlur = blurValue != undefined ? Number(blurValue) : undefined;
       const spreadValue = objectJson["spread"];
-      const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
+      const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : undefined;
       const diffusionValue = objectJson["diffusion"];
-      const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : null;
+      const unpackedDiffusion = diffusionValue != undefined ? Number(diffusionValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow)({
         type: ShadowType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22347,7 +22487,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2100700)] = new ShadowJsonEncoder();
 
-  class StrokeJsonEncoder implements _JsonObjectEncoder {
+  class StrokeJsonEncoder implements JsonObjectEncoder {
     packObject(object: Stroke): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE";
@@ -22374,13 +22514,15 @@ export function loadEncoders(): void {
       const _StrokeCap = STRUCT_CLASS_BY_TYPE[2101101] as typeof StrokeCap;
       const colorValue = objectJson["color"];
       const unpackedColor =
-        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : null;
+        colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
       const startValue = objectJson["start"];
       const unpackedStart =
-        startValue != undefined ? (_StrokeCap.unpack(1, startValue, _session) as StrokeCap) : null;
+        startValue != undefined
+          ? (_StrokeCap.unpack(1, startValue, _session) as StrokeCap)
+          : undefined;
       const endValue = objectJson["end"];
       const unpackedEnd =
-        endValue != undefined ? (_StrokeCap.unpack(1, endValue, _session) as StrokeCap) : null;
+        endValue != undefined ? (_StrokeCap.unpack(1, endValue, _session) as StrokeCap) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke)({
         type: StrokeType[objectJson["type"]] as any,
         size: Number(objectJson["size"]),
@@ -22399,7 +22541,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2101100)] = new StrokeJsonEncoder();
 
-  class StrokeCapJsonEncoder implements _JsonObjectEncoder {
+  class StrokeCapJsonEncoder implements JsonObjectEncoder {
     packObject(object: StrokeCap): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE_CAP";
@@ -22422,7 +22564,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2101101)] = new StrokeCapJsonEncoder();
 
-  class StrokePointJsonEncoder implements _JsonObjectEncoder {
+  class StrokePointJsonEncoder implements JsonObjectEncoder {
     packObject(object: StrokePoint): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE_POINT";
@@ -22454,7 +22596,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2101103)] = new StrokePointJsonEncoder();
 
-  class StrokePathJsonEncoder implements _JsonObjectEncoder {
+  class StrokePathJsonEncoder implements JsonObjectEncoder {
     packObject(object: StrokePath): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE_PATH";
@@ -22486,7 +22628,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2101102)] = new StrokePathJsonEncoder();
 
-  class TransitionJsonEncoder implements _JsonObjectEncoder {
+  class TransitionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Transition): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TRANSITION";
@@ -22531,11 +22673,11 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const delayValue = objectJson["delay"];
-      const unpackedDelay = delayValue != undefined ? Number(delayValue) : null;
+      const unpackedDelay = delayValue != undefined ? Number(delayValue) : undefined;
       const durationValue = objectJson["duration"];
-      const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
+      const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const unpackedEase: any[] = [];
       if (objectJson["ease"] != undefined) {
         for (const item of objectJson["ease"]) {
@@ -22543,16 +22685,16 @@ export function loadEncoders(): void {
         }
       }
       const stiffnessValue = objectJson["stiffness"];
-      const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : null;
+      const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : undefined;
       const dampingValue = objectJson["damping"];
-      const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : null;
+      const unpackedDamping = dampingValue != undefined ? Number(dampingValue) : undefined;
       const massValue = objectJson["mass"];
-      const unpackedMass = massValue != undefined ? Number(massValue) : null;
+      const unpackedMass = massValue != undefined ? Number(massValue) : undefined;
       const bounceValue = objectJson["bounce"];
-      const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : null;
+      const unpackedBounce = bounceValue != undefined ? Number(bounceValue) : undefined;
       const springTypeValue = objectJson["springType"];
       const unpackedSpringType =
-        springTypeValue != undefined ? (SpringType[springTypeValue] as any) : null;
+        springTypeValue != undefined ? (SpringType[springTypeValue] as any) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition)({
         type: TransitionType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22572,7 +22714,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2200000)] = new TransitionJsonEncoder();
 
-  class EffectJsonEncoder implements _JsonObjectEncoder {
+  class EffectJsonEncoder implements JsonObjectEncoder {
     packObject(object: Effect): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "EFFECT";
@@ -22634,42 +22776,48 @@ export function loadEncoders(): void {
       const unpackedStylePtr =
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
-          : null;
+          : undefined;
       const opacityValue = objectJson["opacity"];
-      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : null;
+      const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const offsetValue = objectJson["offset"];
       const unpackedOffset =
-        offsetValue != undefined ? (_Vector2.unpack(1, offsetValue, _session) as Vector2) : null;
+        offsetValue != undefined
+          ? (_Vector2.unpack(1, offsetValue, _session) as Vector2)
+          : undefined;
       const scaleValue = objectJson["scale"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
+      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
       const rotateValue = objectJson["rotate"];
       const unpackedRotate =
-        rotateValue != undefined ? (_Axis3.unpack(1, rotateValue, _session) as Axis3) : null;
+        rotateValue != undefined ? (_Axis3.unpack(1, rotateValue, _session) as Axis3) : undefined;
       const skewValue = objectJson["skew"];
       const unpackedSkew =
-        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : null;
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
       const perspectiveValue = objectJson["perspective"];
-      const unpackedPerspective = perspectiveValue != undefined ? Number(perspectiveValue) : null;
+      const unpackedPerspective =
+        perspectiveValue != undefined ? Number(perspectiveValue) : undefined;
       const delayValue = objectJson["delay"];
-      const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
+      const unpackedDelay =
+        delayValue != undefined ? timedeltaFromISOFormat(delayValue) : undefined;
       const durationValue = objectJson["duration"];
-      const unpackedDuration = durationValue != undefined ? Number(durationValue) : null;
+      const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const thresholdValue = objectJson["threshold"];
-      const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : null;
+      const unpackedThreshold = thresholdValue != undefined ? Number(thresholdValue) : undefined;
       const onceValue = objectJson["once"];
-      const unpackedOnce = onceValue != undefined ? onceValue : null;
+      const unpackedOnce = onceValue != undefined ? onceValue : undefined;
       const repeatValue = objectJson["repeat"];
-      const unpackedRepeat = repeatValue != undefined ? (RepeatType[repeatValue] as any) : null;
+      const unpackedRepeat =
+        repeatValue != undefined ? (RepeatType[repeatValue] as any) : undefined;
       const splitValue = objectJson["split"];
-      const unpackedSplit = splitValue != undefined ? (TextSplitType[splitValue] as any) : null;
+      const unpackedSplit =
+        splitValue != undefined ? (TextSplitType[splitValue] as any) : undefined;
       const offscreenValue = objectJson["offscreen"];
       const unpackedOffscreen =
-        offscreenValue != undefined ? (OffscreenBehavior[offscreenValue] as any) : null;
+        offscreenValue != undefined ? (OffscreenBehavior[offscreenValue] as any) : undefined;
       const transitionValue = objectJson["transition"];
       const unpackedTransition =
         transitionValue != undefined
           ? (_Transition.unpack(1, transitionValue, _session) as Transition)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2200100] as typeof Effect)({
         type: EffectType[objectJson["type"]] as any,
         style: unpackedStylePtr,
@@ -22695,7 +22843,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2200100)] = new EffectJsonEncoder();
 
-  class Arrow2DJsonEncoder implements _JsonObjectEncoder {
+  class Arrow2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Arrow2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ARROW2D";
@@ -22721,7 +22869,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411200)] = new Arrow2DJsonEncoder();
 
-  class Ellipse2DJsonEncoder implements _JsonObjectEncoder {
+  class Ellipse2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Ellipse2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "ELLIPSE2D";
@@ -22735,7 +22883,7 @@ export function loadEncoders(): void {
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2411400] as typeof Ellipse2D)({
         stroke: unpackedStroke,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -22746,7 +22894,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411400)] = new Ellipse2DJsonEncoder();
 
-  class Line2DJsonEncoder implements _JsonObjectEncoder {
+  class Line2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Line2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LINE2D";
@@ -22763,7 +22911,7 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2411100] as typeof Line2D)({
         stroke: unpackedStroke,
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
@@ -22776,7 +22924,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411100)] = new Line2DJsonEncoder();
 
-  class Path2DJsonEncoder implements _JsonObjectEncoder {
+  class Path2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Path2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PATH2D";
@@ -22798,7 +22946,7 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       if (objectJson["points"] != undefined) {
         for (const item of objectJson["points"]) {
@@ -22816,7 +22964,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411600)] = new Path2DJsonEncoder();
 
-  class Polygon2DJsonEncoder implements _JsonObjectEncoder {
+  class Polygon2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Polygon2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POLYGON2D";
@@ -22838,7 +22986,7 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       if (objectJson["points"] != undefined) {
         for (const item of objectJson["points"]) {
@@ -22856,7 +23004,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411500)] = new Polygon2DJsonEncoder();
 
-  class Vector2JsonEncoder implements _JsonObjectEncoder {
+  class Vector2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR2";
@@ -22877,7 +23025,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400000)] = new Vector2JsonEncoder();
 
-  class Vector3JsonEncoder implements _JsonObjectEncoder {
+  class Vector3JsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector3): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR3";
@@ -22900,7 +23048,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400002)] = new Vector3JsonEncoder();
 
-  class Vector4JsonEncoder implements _JsonObjectEncoder {
+  class Vector4JsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector4): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR4";
@@ -22925,7 +23073,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400004)] = new Vector4JsonEncoder();
 
-  class Vector2iJsonEncoder implements _JsonObjectEncoder {
+  class Vector2iJsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector2i): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR2I";
@@ -22946,7 +23094,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400001)] = new Vector2iJsonEncoder();
 
-  class Vector3iJsonEncoder implements _JsonObjectEncoder {
+  class Vector3iJsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector3i): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR3I";
@@ -22969,7 +23117,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400003)] = new Vector3iJsonEncoder();
 
-  class Vector4iJsonEncoder implements _JsonObjectEncoder {
+  class Vector4iJsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector4i): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "VECTOR4I";
@@ -22994,7 +23142,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400005)] = new Vector4iJsonEncoder();
 
-  class QuaternionJsonEncoder implements _JsonObjectEncoder {
+  class QuaternionJsonEncoder implements JsonObjectEncoder {
     packObject(object: Quaternion): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "QUATERNION";
@@ -23019,7 +23167,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400010)] = new QuaternionJsonEncoder();
 
-  class Rectangle2DJsonEncoder implements _JsonObjectEncoder {
+  class Rectangle2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Rectangle2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RECTANGLE2D";
@@ -23040,13 +23188,15 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : null;
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : null;
+        widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Vector2.unpack(1, heightValue, _session) as Vector2) : null;
+        heightValue != undefined
+          ? (_Vector2.unpack(1, heightValue, _session) as Vector2)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2411300] as typeof Rectangle2D)({
         stroke: unpackedStroke,
         width: unpackedWidth,
@@ -23059,7 +23209,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2411300)] = new Rectangle2DJsonEncoder();
 
-  class LengthJsonEncoder implements _JsonObjectEncoder {
+  class LengthJsonEncoder implements JsonObjectEncoder {
     packObject(object: Length): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LENGTH";
@@ -23080,7 +23230,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 1800001)] = new LengthJsonEncoder();
 
-  class Offset2JsonEncoder implements _JsonObjectEncoder {
+  class Offset2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Offset2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "OFFSET2";
@@ -23104,16 +23254,16 @@ export function loadEncoders(): void {
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const topValue = objectJson["top"];
       const unpackedTop =
-        topValue != undefined ? (_Length.unpack(1, topValue, _session) as Length) : null;
+        topValue != undefined ? (_Length.unpack(1, topValue, _session) as Length) : undefined;
       const leftValue = objectJson["left"];
       const unpackedLeft =
-        leftValue != undefined ? (_Length.unpack(1, leftValue, _session) as Length) : null;
+        leftValue != undefined ? (_Length.unpack(1, leftValue, _session) as Length) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
-        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : null;
+        widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
       const heightValue = objectJson["height"];
       const unpackedHeight =
-        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : null;
+        heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2)({
         type: Anchor[objectJson["type"]] as any,
         top: unpackedTop,
@@ -23128,7 +23278,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400020)] = new Offset2JsonEncoder();
 
-  class Inset2JsonEncoder implements _JsonObjectEncoder {
+  class Inset2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Inset2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "INSET2";
@@ -23150,13 +23300,13 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Inset2 {
       const topValue = objectJson["top"];
-      const unpackedTop = topValue != undefined ? Number(topValue) : null;
+      const unpackedTop = topValue != undefined ? Number(topValue) : undefined;
       const leftValue = objectJson["left"];
-      const unpackedLeft = leftValue != undefined ? Number(leftValue) : null;
+      const unpackedLeft = leftValue != undefined ? Number(leftValue) : undefined;
       const rightValue = objectJson["right"];
-      const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
+      const unpackedRight = rightValue != undefined ? Number(rightValue) : undefined;
       const bottomValue = objectJson["bottom"];
-      const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
+      const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2)({
         base: Number(objectJson["base"]),
         top: unpackedTop,
@@ -23171,7 +23321,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400023)] = new Inset2JsonEncoder();
 
-  class Corner2JsonEncoder implements _JsonObjectEncoder {
+  class Corner2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Corner2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "CORNER2";
@@ -23193,13 +23343,14 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Corner2 {
       const topLeftValue = objectJson["topLeft"];
-      const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
+      const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : undefined;
       const topRightValue = objectJson["topRight"];
-      const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : null;
+      const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : undefined;
       const bottomLeftValue = objectJson["bottomLeft"];
-      const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
+      const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : undefined;
       const bottomRightValue = objectJson["bottomRight"];
-      const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
+      const unpackedBottomRight =
+        bottomRightValue != undefined ? Number(bottomRightValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2)({
         base: Number(objectJson["base"]),
         topLeft: unpackedTopLeft,
@@ -23214,7 +23365,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400024)] = new Corner2JsonEncoder();
 
-  class Axis2JsonEncoder implements _JsonObjectEncoder {
+  class Axis2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Axis2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "AXIS2";
@@ -23230,9 +23381,9 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Axis2 {
       const xValue = objectJson["x"];
-      const unpackedX = xValue != undefined ? Number(xValue) : null;
+      const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
-      const unpackedY = yValue != undefined ? Number(yValue) : null;
+      const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2)({
         base: Number(objectJson["base"]),
         x: unpackedX,
@@ -23245,7 +23396,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400025)] = new Axis2JsonEncoder();
 
-  class Axis3JsonEncoder implements _JsonObjectEncoder {
+  class Axis3JsonEncoder implements JsonObjectEncoder {
     packObject(object: Axis3): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "AXIS3";
@@ -23264,11 +23415,11 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Axis3 {
       const xValue = objectJson["x"];
-      const unpackedX = xValue != undefined ? Number(xValue) : null;
+      const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
-      const unpackedY = yValue != undefined ? Number(yValue) : null;
+      const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       const zValue = objectJson["z"];
-      const unpackedZ = zValue != undefined ? Number(zValue) : null;
+      const unpackedZ = zValue != undefined ? Number(zValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3)({
         base: Number(objectJson["base"]),
         x: unpackedX,
@@ -23282,7 +23433,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400026)] = new Axis3JsonEncoder();
 
-  class Grid2JsonEncoder implements _JsonObjectEncoder {
+  class Grid2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Grid2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GRID2";
@@ -23306,17 +23457,17 @@ export function loadEncoders(): void {
       const unpackedColumnWidth =
         columnWidthValue != undefined
           ? (_Length.unpack(1, columnWidthValue, _session) as Length)
-          : null;
+          : undefined;
       const columnMinWidthValue = objectJson["columnMinWidth"];
       const unpackedColumnMinWidth =
         columnMinWidthValue != undefined
           ? (_Length.unpack(1, columnMinWidthValue, _session) as Length)
-          : null;
+          : undefined;
       const rowHeightValue = objectJson["rowHeight"];
       const unpackedRowHeight =
         rowHeightValue != undefined
           ? (_Length.unpack(1, rowHeightValue, _session) as Length)
-          : null;
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2)({
         columns: Number(objectJson["columns"]),
         rows: Number(objectJson["rows"]),
@@ -23331,7 +23482,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400021)] = new Grid2JsonEncoder();
 
-  class GridSpan2JsonEncoder implements _JsonObjectEncoder {
+  class GridSpan2JsonEncoder implements JsonObjectEncoder {
     packObject(object: GridSpan2): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "GRID_SPAN2";
@@ -23352,7 +23503,7 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 2400022)] = new GridSpan2JsonEncoder();
 
-  class ScheduleJsonEncoder implements _JsonObjectEncoder {
+  class ScheduleJsonEncoder implements JsonObjectEncoder {
     packObject(object: Schedule): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SCHEDULE";
@@ -23448,15 +23599,17 @@ export function loadEncoders(): void {
       const unpackedStart =
         startValue != undefined
           ? Temporal.Instant.from(startValue).toZonedDateTimeISO("UTC")
-          : null;
+          : undefined;
       const endValue = objectJson["end"];
       const unpackedEnd =
-        endValue != undefined ? Temporal.Instant.from(endValue).toZonedDateTimeISO("UTC") : null;
+        endValue != undefined
+          ? Temporal.Instant.from(endValue).toZonedDateTimeISO("UTC")
+          : undefined;
       const countValue = objectJson["count"];
-      const unpackedCount = countValue != undefined ? Number(countValue) : null;
+      const unpackedCount = countValue != undefined ? Number(countValue) : undefined;
       const weekStartValue = objectJson["weekStart"];
       const unpackedWeekStart =
-        weekStartValue != undefined ? (DayOfWeek[weekStartValue] as any) : null;
+        weekStartValue != undefined ? (DayOfWeek[weekStartValue] as any) : undefined;
       const unpackedBySetPos: any[] = [];
       if (objectJson["bySetPos"] != undefined) {
         for (const item of objectJson["bySetPos"]) {

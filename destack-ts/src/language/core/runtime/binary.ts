@@ -171,11 +171,7 @@ export class BinaryWriter {
       this.view.setUint8(this.pos++, 3); // negative infinity
     } else if (Number.isNaN(value)) {
       this.view.setUint8(this.pos++, 4); // NaN
-    } else if (
-      Number.isInteger(value) &&
-      value >= -(2 ** 7) &&
-      value <= 2 ** 7
-    ) {
+    } else if (Number.isInteger(value) && value >= -(2 ** 7) && value <= 2 ** 7) {
       // can be represented as sint8
       this.view.setUint8(this.pos++, 5);
       this.writeSInt8(value);
@@ -213,11 +209,7 @@ export class BinaryWriter {
       this.view.setUint8(this.pos++, 3); // negative infinity
     } else if (Number.isNaN(value)) {
       this.view.setUint8(this.pos++, 4); // NaN
-    } else if (
-      Number.isInteger(value) &&
-      value >= -(2 ** 15) &&
-      value <= 2 ** 15
-    ) {
+    } else if (Number.isInteger(value) && value >= -(2 ** 15) && value <= 2 ** 15) {
       // can be represented as sint16
       this.view.setUint8(this.pos++, 5);
       this.writeSInt16(value);
@@ -253,11 +245,7 @@ export class BinaryWriter {
       this.view.setUint8(this.pos++, 3); // negative infinity
     } else if (Number.isNaN(value)) {
       this.view.setUint8(this.pos++, 4); // NaN
-    } else if (
-      Number.isInteger(value) &&
-      value >= -(2 ** 31) &&
-      value <= 2 ** 31
-    ) {
+    } else if (Number.isInteger(value) && value >= -(2 ** 31) && value <= 2 ** 31) {
       // can be represented as sint32
       this.view.setUint8(this.pos++, 5);
       this.writeSInt32(value);

@@ -14,10 +14,10 @@ export function getObjectKey(kind: ObjectKind, metatype: NodeType | StructType) 
 }
 
 /** All the BuiltinObject encoders for our Kompakt format. */
-export const KOMPAKT_OBJECT_ENCODERS: Record<string, _KompaktObjectEncoder> = {};
+export const KOMPAKT_OBJECT_ENCODERS: Record<string, KompaktObjectEncoder> = {};
 
 /** A Kompakt encoder for a BuiltinObject. */
-export interface _KompaktObjectEncoder {
+export interface KompaktObjectEncoder {
   /** Pack a BuiltinObject into some encoded format. */
   packObject(object: BuiltinObject, writer: BinaryWriter): void;
 

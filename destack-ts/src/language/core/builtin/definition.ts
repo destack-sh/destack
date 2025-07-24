@@ -2127,17 +2127,23 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly cascade: CascadeAction | null;
 
   /**
-   * Whether this property must be set.
+   * Whether this Property must have a value set (in every full instance).
    */
   readonly isRequired: boolean;
 
   /**
-   * Whether this property must have a unique value.
+   * Whether this Property is part of the object's identity.
+   *  (And thus is always required, in every instance including partials; only for Nodes.)
+   */
+  readonly isIdentity: boolean;
+
+  /**
+   * Whether this Property must have a unique value.
    */
   readonly isUnique: boolean;
 
   /**
-   * Whether this property is read-only.
+   * Whether this Property is read-only.
    */
   readonly isReadonly: boolean;
 
@@ -2200,6 +2206,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired: boolean;
+    isIdentity: boolean;
     isUnique: boolean;
     isReadonly: boolean;
     isMain: boolean;
@@ -2300,6 +2307,11 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.isRequired is required`);
     }
     this.isRequired = _isRequired;
+    let _isIdentity = options.isIdentity;
+    if (_isIdentity === null) {
+      throw new Error(`PropertyDefinition.isIdentity is required`);
+    }
+    this.isIdentity = _isIdentity;
     let _isUnique = options.isUnique;
     if (_isUnique === null) {
       throw new Error(`PropertyDefinition.isUnique is required`);
@@ -2434,6 +2446,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.isRequired === other.isRequired)) {
       return false;
     }
+    if (!(this.isIdentity === other.isIdentity)) {
+      return false;
+    }
     if (!(this.isUnique === other.isUnique)) {
       return false;
     }
@@ -2516,6 +2531,7 @@ export class PropertyDefinition extends BuiltinDefinition {
         propertyReprs.push(`valueFactory=${ValueFactory[this.valueFactory]}`);
       }
       propertyReprs.push(`isRequired=${this.isRequired}`);
+      propertyReprs.push(`isIdentity=${this.isIdentity}`);
       propertyReprs.push(`isUnique=${this.isUnique}`);
       propertyReprs.push(`isReadonly=${this.isReadonly}`);
       propertyReprs.push(`id=${this.id}`);
@@ -2579,6 +2595,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       h = (h * 31 + this.cascade) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isIdentity)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;

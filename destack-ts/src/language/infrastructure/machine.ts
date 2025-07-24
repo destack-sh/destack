@@ -701,7 +701,7 @@ export class Machine extends Resource {
     this._region = _region;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.21.0";
+      _version = "2025.07.24.2";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);

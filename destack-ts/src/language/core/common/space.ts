@@ -40,7 +40,7 @@ export abstract class Universe extends Entity {
   /**
    * The current version of Destack.
    */
-  static readonly VERSION: string = "2025.07.21.0";
+  static readonly VERSION: string = "2025.07.24.2";
 
   /**
    * The float epsilon used for floating point comparisons.

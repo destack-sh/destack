@@ -49,7 +49,7 @@ def generate_cson_encoders() -> str:
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
     import_parts.append(
-        "import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/core';"
+        "import { CSON_OBJECT_ENCODERS, CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/core';"
     )
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
@@ -64,7 +64,7 @@ def generate_cson_encoders() -> str:
     file_parts.append("\n".join(import_parts))
 
     # body
-    file_parts.append("export const CSON_ENCODERS: { [key: string]: _CsonObjectEncoder } = {};")
+    file_parts.append("export const CSON_ENCODERS: { [key: string]: CsonObjectEncoder } = {};")
 
     # encoders
     file_parts.append("let loaded = false;")
@@ -109,7 +109,7 @@ def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     return (
         encoder_name,
         f"""
-class {encoder_name} implements _CsonObjectEncoder {{
+class {encoder_name} implements CsonObjectEncoder {{
   packObject(object: {cls.__name__}): any {{
 {textwrap.indent(pack_cson, " " * 4)}
   }}
@@ -272,7 +272,9 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
         else:
             value_expr = _generate_unpack_cson_scalar(prop, f"{ts_name}Value")
             lines.append(f"const {ts_name}Value = {data_cson};")
-            lines.append(f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : null;")
+            lines.append(
+                f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
+            )
     elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"const {var_name}: any[] = [];")
         lines.append(f"if ({data_cson} != undefined) {{")

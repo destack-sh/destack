@@ -528,17 +528,25 @@ class PropertyDefinition(BuiltinDefinition):
     is_required: bool = builtin_property(
         150,
         is_repr=True,
-        description="Whether this property must be set.",
+        description="Whether this Property must have a value set (in every full instance).",
     )
-    is_unique: bool = builtin_property(
+    is_identity: bool = builtin_property(
         151,
         is_repr=True,
-        description="Whether this property must have a unique value.",
+        description="""\
+Whether this Property is part of the object's identity.
+ (And thus is always required, in every instance including partials; only for Nodes.)
+""",
+    )
+    is_unique: bool = builtin_property(
+        152,
+        is_repr=True,
+        description="Whether this Property must have a unique value.",
     )
     is_readonly: bool = builtin_property(
         153,
         is_repr=True,
-        description="Whether this property is read-only.",
+        description="Whether this Property is read-only.",
     )
     is_main: bool = builtin_property(154)
 
@@ -591,6 +599,7 @@ class PropertyDefinition(BuiltinDefinition):
             cascade=prop.cascade,
             # flags
             is_required=prop.is_required,
+            is_identity=prop.is_identity,
             is_unique=prop.is_unique,
             is_readonly=prop.is_readonly,
             is_main=prop.is_main,
