@@ -15,13 +15,13 @@ import {
   NodeType,
   ObjectKind,
   StructType,
-  TraitType,
+  type TraitType,
 } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
-import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
+import { BuiltinObject, type BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { isStruct } from "@destack/language/core/builtin/struct";
 import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
-import { Session } from "@destack/language/core/runtime";
+import type { Session } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import {
   NODE_CLASS_BY_TYPE,
@@ -135,8 +135,8 @@ export abstract class Node extends BuiltinObject {
       join?: Join;
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
@@ -145,9 +145,9 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, ...subqueries } = options ?? {};
     const query = new _Query<T>({
       type: QueryType.NODE,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       subqueries: toSubqueries(subqueries),
@@ -169,8 +169,8 @@ export abstract class Node extends BuiltinObject {
       offset?: number;
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } =
       options ?? {};
@@ -181,9 +181,9 @@ export abstract class Node extends BuiltinObject {
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       having,
@@ -205,8 +205,8 @@ export abstract class Node extends BuiltinObject {
       join?: Join;
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const { where, name, join, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
@@ -216,9 +216,9 @@ export abstract class Node extends BuiltinObject {
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const query = new _Query<T>({
       type: QueryType.SCALAR,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       aggregation: _Aggregation.of(AggregationType.EXISTS),
@@ -239,8 +239,8 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const { where, name, join, groupBy, having, sort, ...subqueries } = options ?? {};
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
@@ -251,9 +251,9 @@ export abstract class Node extends BuiltinObject {
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype], Casing.CAMEL),
       join,
       where,
       having,
@@ -278,8 +278,8 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
@@ -290,9 +290,9 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       having,
@@ -317,8 +317,8 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
@@ -329,9 +329,9 @@ export abstract class Node extends BuiltinObject {
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       having,
@@ -356,8 +356,8 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
     }>,
   ): Query<T> {
-    if (this.__definition__.domain == null) {
-      throw new Error(`${this.__definition__.name} has no store domain`);
+    if (Node.__definition__.domain == null) {
+      throw new Error(`${Node.__definition__.name} has no store domain`);
     }
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
@@ -368,9 +368,9 @@ export abstract class Node extends BuiltinObject {
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const query = new _Query<T>({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      domain: this.__definition__.domain,
-      definition: _NodeDefinitionReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype].toLocaleLowerCase(), Casing.CAMEL),
+      domain: Node.__definition__.domain,
+      definition: _NodeDefinitionReference.of(Node as unknown as NodeClass),
+      name: name ?? toCasing(NodeType[Node.metatype].toLocaleLowerCase(), Casing.CAMEL),
       join,
       where,
       having,

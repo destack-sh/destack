@@ -11,15 +11,14 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
-  Event,
-  Materialization,
-  Node,
+  type Entity,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Corner2, Length, Offset2, Vector2 } from "@destack/language/geometry";
-import { Anchor } from "@destack/language/geometry";
+import type { Anchor, Corner2, Length, Offset2, Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";

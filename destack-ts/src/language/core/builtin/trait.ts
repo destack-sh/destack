@@ -35,11 +35,7 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
 /**
  * An Entity that can be owned by an Actor.
  */
-export interface IsOwnable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsOwnable = {};
 
 /**
  * An Entity that can be owned by an Actor.
@@ -73,11 +69,7 @@ registerTraitClass(TraitType.OWNED, IsOwned);
 /**
  * An Entity that can be joined by Actors.
  */
-export interface IsJoinable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsJoinable = {};
 
 /**
  * An Entity that can be joined by Actors.
@@ -92,11 +84,7 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
 /**
  * An Entity that can be an Actor (can do something).
  */
-export interface IsActor {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsActor = {};
 
 /**
  * An Entity that can be an Actor (can do something).
@@ -111,11 +99,7 @@ registerTraitClass(TraitType.ACTOR, IsActor);
 /**
  * An Entity that can be reacted to (with Reactions).
  */
-export interface IsReactable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsReactable = {};
 
 /**
  * An Entity that can be reacted to (with Reactions).
@@ -130,11 +114,7 @@ registerTraitClass(TraitType.REACTABLE, IsReactable);
 /**
  * An Entity that can be starred (with Stars).
  */
-export interface IsStarable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsStarable = {};
 
 /**
  * An Entity that can be starred (with Stars).
@@ -149,11 +129,7 @@ registerTraitClass(TraitType.STARABLE, IsStarable);
 /**
  * An Entity that can be followed (with Follows).
  */
-export interface IsFollowable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsFollowable = {};
 
 /**
  * An Entity that can be followed (with Follows).
@@ -168,11 +144,7 @@ registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
 /**
  * An Entity that can be (directly, with Runs).
  */
-export interface IsRunnable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsRunnable = {};
 
 /**
  * An Entity that can be (directly, with Runs).
@@ -187,11 +159,7 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 /**
  * An Entity that can be ordered.
  */
-export interface IsOrdered {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsOrdered = {};
 
 /**
  * An Entity that can be ordered.
@@ -206,11 +174,7 @@ registerTraitClass(TraitType.ORDERED, IsOrdered);
 /**
  * An Entity that can be interacted with.
  */
-export interface IsInteractive {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsInteractive = {};
 
 /**
  * An Entity that can be interacted with.
@@ -225,11 +189,7 @@ registerTraitClass(TraitType.INTERACTIVE, IsInteractive);
 /**
  * An Entity that can be dragged.
  */
-export interface IsDraggable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsDraggable = {};
 
 /**
  * An Entity that can be dragged.
@@ -244,11 +204,7 @@ registerTraitClass(TraitType.DRAGGABLE, IsDraggable);
 /**
  * An Entity that can be selected.
  */
-export interface IsSelectable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
+export type IsSelectable = {};
 
 /**
  * An Entity that can be selected.

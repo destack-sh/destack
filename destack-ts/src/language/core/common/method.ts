@@ -1,17 +1,16 @@
 import {
   NodeType,
-  PlatformType,
-  RuntimeLanguage,
+  type PlatformType,
+  type RuntimeLanguage,
   StructType,
 } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import { BuiltinDefinition } from "@destack/language/core/builtin/definition";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import { Event } from "@destack/language/core/builtin/event";
-import { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
-import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node } from "@destack/language/core/builtin/node";
+import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
+import type { Event } from "@destack/language/core/builtin/event";
+import type { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Icon } from "@destack/language/core/common/icon";

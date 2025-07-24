@@ -1,20 +1,19 @@
 import {
-  CascadeAction,
-  EdgeType,
+  type CascadeAction,
+  type EdgeType,
   EnumType,
   NodeType,
   PrimitiveType,
-  PropertyType,
+  type PropertyType,
   ScalarType,
   StructType,
   TypeCardinality,
-  ValueFactory,
+  type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import { Event } from "@destack/language/core/builtin/event";
-import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node } from "@destack/language/core/builtin/node";
+import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
+import type { Event } from "@destack/language/core/builtin/event";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";

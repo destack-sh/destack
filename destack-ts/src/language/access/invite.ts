@@ -16,10 +16,10 @@ import {
   Entity,
   Event,
   EventStatus,
-  Materialization,
-  Node,
+  type Materialization,
+  type Node,
   NodeType,
-  RoleType,
+  type RoleType,
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";

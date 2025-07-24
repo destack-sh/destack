@@ -13,9 +13,8 @@
     "preview": "vite preview",
     "test": "bun test",
     "build": "vite build",
-    "type": "tsc --noEmit",
-    "check": "tsc --noEmit",
-    "format": "biome check --write --unsafe ."
+    "check": "tsc --noEmit && biome check --write --unsafe src/",
+    "format": "biome check --write --unsafe src/"
   },
   "engines": {
     "node": ">=18.0.0"

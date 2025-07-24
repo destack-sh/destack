@@ -1,6 +1,6 @@
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
+import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type {

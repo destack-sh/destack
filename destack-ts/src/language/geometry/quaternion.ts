@@ -1,4 +1,3 @@
-import type { PackedCache, Session } from "@destack/language/core";
 import { StructType } from "@destack/language/core";
 import { Vector4 } from "@destack/language/geometry/vector";
 import { registerStructClass } from "@destack/language/registry";
@@ -11,25 +10,6 @@ import { hashFloat } from "@destack/utils/hash";
 export class Quaternion extends Vector4 {
   static metatype: StructType = StructType.QUATERNION;
   static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {

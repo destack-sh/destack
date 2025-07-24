@@ -1,4 +1,4 @@
-import { NodeSDK } from "@opentelemetry/sdk-node";
+import type { NodeSDK } from "@opentelemetry/sdk-node";
 import { getFromEnvMaybe, setupTelemetry as setupTelemetryBase } from "destack";
 
 let _sdk: NodeSDK | null = null;

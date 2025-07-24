@@ -15,7 +15,7 @@ import {
   EnumType,
   Event,
   EventStatus,
-  Node,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";

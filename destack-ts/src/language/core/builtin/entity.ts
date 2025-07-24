@@ -1,4 +1,4 @@
-import { Tag, Tagging } from "@destack/language/core/builtin/base";
+import { type Tag, Tagging } from "@destack/language/core/builtin/base";
 import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/common";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { hasTrait, Node } from "@destack/language/core/builtin/node";
@@ -13,7 +13,7 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import { getOrderKey } from "@destack/utils";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**

@@ -12,11 +12,11 @@ import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Entity,
+  type Entity,
   EnumType,
-  Event,
-  Materialization,
-  Node,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructFrozen,
   StructType,
@@ -1195,12 +1195,12 @@ registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
 
 /** y-encoded sRGB → linear */
 function srgbToLinear(c: number): number {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
 /** linear → y-encoded sRGB */
 function linearToSrgb(c: number): number {
-  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
 }
 
 /** avoid tiny negatives after matrices */

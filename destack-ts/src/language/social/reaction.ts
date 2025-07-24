@@ -15,8 +15,8 @@ import {
   Entity,
   Event,
   EventStatus,
-  Materialization,
-  Node,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
@@ -1102,35 +1102,6 @@ registerNodeClass(NodeType.REACTION_EVENT, ReactionEvent);
 export class ReactionAddedEvent extends ReactionEvent {
   static metatype: NodeType = NodeType.REACTION_ADDED_EVENT;
 
-  constructor(options: {
-    id?: string;
-    space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
-    branch?: Branch | NodeReference;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Event | NodeReference | null;
-    causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: Entity | NodeReference;
-    client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
-    status?: EventStatus;
-    node: Reaction | NodeReference;
-    content: string;
-    _session?: Session | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
-
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
       return false;
@@ -1263,35 +1234,6 @@ registerNodeClass(NodeType.REACTION_ADDED_EVENT, ReactionAddedEvent);
  */
 export class ReactionRemovedEvent extends ReactionEvent {
   static metatype: NodeType = NodeType.REACTION_REMOVED_EVENT;
-
-  constructor(options: {
-    id?: string;
-    space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
-    branch?: Branch | NodeReference;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Event | NodeReference | null;
-    causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: Entity | NodeReference;
-    client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
-    status?: EventStatus;
-    node: Reaction | NodeReference;
-    content: string;
-    _session?: Session | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {

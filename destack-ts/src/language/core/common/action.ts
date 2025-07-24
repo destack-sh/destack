@@ -1,31 +1,15 @@
-import {
-  NodeType,
-  PlatformType,
-  RuntimeLanguage,
-  StructType,
-} from "@destack/language/core/builtin/common";
-import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import { Event } from "@destack/language/core/builtin/event";
-import { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import type { Entity } from "@destack/language/core/builtin/entity";
+import type { Event } from "@destack/language/core/builtin/event";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsRunnable } from "@destack/language/core/builtin/trait";
-import type { Icon } from "@destack/language/core/common/icon";
 import { Method, MethodDefinition } from "@destack/language/core/common/method";
-import type { Space } from "@destack/language/core/common/space";
-import type { Text } from "@destack/language/core/common/text";
-import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
-import type { Session } from "@destack/language/core/runtime/session";
-import type { Script } from "@destack/language/logic";
 import {
   registerNodeClass,
   registerStructClass,
   STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
-import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:40100 ==== */
 /**
@@ -34,31 +18,6 @@ import { Temporal } from "temporal-polyfill";
 export class ActionDefinition extends MethodDefinition {
   static metatype: StructType = StructType.ACTION_DEFINITION;
   static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    id: number;
-    type: MethodType;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    taggings?: readonly number[];
-    cardinality?: MethodCardinality;
-    platforms?: readonly PlatformType[];
-    languages?: readonly RuntimeLanguage[];
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
@@ -193,47 +152,6 @@ registerStructClass(StructType.ACTION_DEFINITION, ActionDefinition);
  */
 export class Action extends Method implements IsRunnable {
   static metatype: NodeType = NodeType.ACTION;
-
-  constructor(options: {
-    id?: string;
-    parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference;
-    materialization?: Materialization;
-    definition?: Entity | NodeReference | null;
-    branch?: Branch | NodeReference;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Action | NodeReference | null;
-    instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
-    updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
-    script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
-    source?: Script | NodeReference | null;
-    key?: string | null;
-    type: MethodType;
-    text?: Text | null;
-    cardinality?: MethodCardinality;
-    platforms?: readonly PlatformType[];
-    languages?: readonly RuntimeLanguage[];
-    _session?: Session | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {

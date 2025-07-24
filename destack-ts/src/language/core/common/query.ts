@@ -7,7 +7,7 @@ import {
 } from "@destack/language/core/builtin/common";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
-import { isNode, Node } from "@destack/language/core/builtin/node";
+import { isNode, type Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type {
   NodeDefinitionReference,

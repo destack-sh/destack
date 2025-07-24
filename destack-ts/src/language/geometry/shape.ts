@@ -6,14 +6,14 @@ import type {
   Space,
   Value,
 } from "@destack/language/core";
-import { Entity, Entity2D, Entity3D, NodeType } from "@destack/language/core";
+import { type Entity, Entity2D, Entity3D, NodeType } from "@destack/language/core";
 import type { Quaternion } from "@destack/language/geometry/quaternion";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
 import type { Vector2, Vector3 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Stroke } from "@destack/language/style";
-import { Temporal } from "temporal-polyfill";
+import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2410000 ==== */
 /**

@@ -2,15 +2,15 @@ import { getObjectKey, JSON_OBJECT_ENCODERS } from "@destack/encoder/json/genera
 import { loadEncoders } from "@destack/encoder/json/generated";
 import { packJson, unpackJson } from "@destack/encoder/json/wiring";
 import {
-  BuiltinObject,
-  Encoder,
+  type BinaryReader,
+  type BinaryWriter,
+  type BuiltinObject,
+  type Encoder,
   NodeType,
   ObjectKind,
-  Session,
+  type Session,
   StructType,
-  BinaryWriter,
-  BinaryReader,
-  Type,
+  type Type,
 } from "@destack/language";
 
 /** Encoder for our JSON format. */

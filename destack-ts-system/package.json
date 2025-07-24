@@ -14,7 +14,8 @@
     "dev": "bun run --env-file ../.env.dev --env-file ../.env.dev.local src/cli/index.tsx",
     "build": "tsc",
     "test": "bun test --env-file ../.env.dev --env-file ../.env.dev.local",
-    "format": "biome check --write --unsafe ."
+    "check": "tsc --noEmit && biome check --write --unsafe src/",
+    "fmt": "biome check --write --unsafe src/"
   },
   "engines": {
     "node": ">=18.0.0"

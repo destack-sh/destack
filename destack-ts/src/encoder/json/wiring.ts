@@ -1,7 +1,7 @@
 import { BuiltinObject } from "@destack/language/core/builtin";
 import {
   Encoding,
-  NodeType,
+  type NodeType,
   PrimitiveType,
   ScalarType,
   StructType,

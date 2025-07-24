@@ -6,7 +6,7 @@ import {
   ScalarType,
   StructType,
   TypeCardinality,
-  ValueFactory,
+  type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";

@@ -2258,4 +2258,4 @@ finalize();
     root_index_path.write_text(root_index_content)
 
     # format it all
-    subprocess.run("cd destack-ts && bun run fmt-language", shell=True, check=True)
+    subprocess.run("cd destack-ts && bun run fmt", shell=True, check=True)

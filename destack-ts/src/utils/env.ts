@@ -7,7 +7,7 @@ export function getFromEnvMaybe<T>(
   typ: "string" | "number" | "boolean",
 ): T | undefined {
   const value =
-    typeof process !== "undefined" ? process.env[key] : (import.meta as any).env["VITE_" + key];
+    typeof process !== "undefined" ? process.env[key] : (import.meta as any).env[`VITE_${key}`];
   if (value === undefined) {
     return undefined;
   }
@@ -15,9 +15,10 @@ export function getFromEnvMaybe<T>(
   switch (typ) {
     case "string":
       return value as T;
-    case "number":
+    case "number": {
       const num = Number(value);
-      return (isNaN(num) ? undefined : num) as T;
+      return (Number.isNaN(num) ? undefined : num) as T;
+    }
     case "boolean":
       return (value.toLowerCase() === "true" || value === "1") as T;
     default:

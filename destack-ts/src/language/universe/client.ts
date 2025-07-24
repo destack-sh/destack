@@ -13,9 +13,9 @@ import {
   ACTIVE_SPACE,
   ClientType,
   Entity,
-  Event,
-  Materialization,
-  Node,
+  type Event,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";

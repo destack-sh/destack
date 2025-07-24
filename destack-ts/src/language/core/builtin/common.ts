@@ -1,5 +1,4 @@
 import { registerEnumClass } from "@destack/language/registry";
-import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
 /**
@@ -877,27 +876,6 @@ export enum ValueFactory {
 registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
 /* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
 
-export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
-  [PrimitiveType.BOOLEAN]: Boolean,
-  [PrimitiveType.SINT8]: Number,
-  [PrimitiveType.SINT16]: Number,
-  [PrimitiveType.SINT32]: Number,
-  [PrimitiveType.SINT64]: Number,
-  [PrimitiveType.UINT8]: Number,
-  [PrimitiveType.UINT16]: Number,
-  [PrimitiveType.UINT32]: Number,
-  [PrimitiveType.UINT64]: Number,
-  [PrimitiveType.FLOAT32]: Number,
-  [PrimitiveType.FLOAT64]: Number,
-  [PrimitiveType.STRING]: String,
-  [PrimitiveType.UUID]: String,
-  [PrimitiveType.BYTES]: Uint8Array,
-  [PrimitiveType.DATETIME]: Temporal.ZonedDateTime,
-  [PrimitiveType.DATE]: Temporal.PlainDate,
-  [PrimitiveType.TIME]: Temporal.PlainTime,
-  [PrimitiveType.DURATION]: Temporal.Duration,
-  [PrimitiveType.JSON]: Object,
-} as const;
 export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Map([
   ["Boolean", PrimitiveType.BOOLEAN],
   ["Number", PrimitiveType.FLOAT64], // default for Number

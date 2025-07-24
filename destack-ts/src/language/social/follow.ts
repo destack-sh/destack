@@ -15,8 +15,8 @@ import {
   Entity,
   Event,
   EventStatus,
-  Materialization,
-  Node,
+  type Materialization,
+  type Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
@@ -1058,34 +1058,6 @@ registerNodeClass(NodeType.FOLLOW_EVENT, FollowEvent);
 export class FollowAddedEvent extends FollowEvent {
   static metatype: NodeType = NodeType.FOLLOW_ADDED_EVENT;
 
-  constructor(options: {
-    id?: string;
-    space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
-    branch?: Branch | NodeReference;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Event | NodeReference | null;
-    causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: Entity | NodeReference;
-    client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
-    status?: EventStatus;
-    node: Follow | NodeReference;
-    _session?: Session | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
-
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
       return false;
@@ -1214,34 +1186,6 @@ registerNodeClass(NodeType.FOLLOW_ADDED_EVENT, FollowAddedEvent);
  */
 export class FollowRemovedEvent extends FollowEvent {
   static metatype: NodeType = NodeType.FOLLOW_REMOVED_EVENT;
-
-  constructor(options: {
-    id?: string;
-    space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
-    branch?: Branch | NodeReference;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Event | NodeReference | null;
-    causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: Entity | NodeReference;
-    client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
-    status?: EventStatus;
-    node: Follow | NodeReference;
-    _session?: Session | null;
-  }) {
-    /* super */
-    super(options);
-
-    /* properties */
-
-    /* identity */
-    /* ... (already set in parent) */
-  }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {

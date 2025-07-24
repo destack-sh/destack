@@ -293,7 +293,7 @@ export class BinaryWriter {
       }
     } else if (exponent === 0) {
       // zero or subnormal
-      float16bits = (sign << 15);
+      float16bits = sign << 15;
     } else {
       // normal number
       const newExponent = exponent - 127 + 15;
@@ -302,7 +302,7 @@ export class BinaryWriter {
         float16bits = (sign << 15) | 0x7c00;
       } else if (newExponent <= 0) {
         // underflow to zero
-        float16bits = (sign << 15);
+        float16bits = sign << 15;
       } else {
         // normal float16
         float16bits = (sign << 15) | (newExponent << 10) | (mantissa >> 13);
@@ -668,7 +668,7 @@ export class BinaryReader {
         return sign ? -0 : 0;
       } else {
         // subnormal number
-        const value = Math.pow(2, -14) * (mantissa / 1024);
+        const value = 2 ** -14 * (mantissa / 1024);
         return sign ? -value : value;
       }
     } else {

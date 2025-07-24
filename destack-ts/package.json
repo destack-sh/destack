@@ -16,8 +16,8 @@
   "scripts": {
     "build": "tsc",
     "test": "bun test",
-    "fmt": "biome check --write --unsafe src/",
-    "fmt-language": "biome check --write --unsafe src/language/"
+    "check": "tsc --noEmit && biome check --write --unsafe src/",
+    "fmt": "biome check --write --unsafe src/"
   },
   "engines": {
     "node": ">=18.0.0"

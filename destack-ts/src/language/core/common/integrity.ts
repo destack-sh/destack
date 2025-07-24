@@ -1,10 +1,9 @@
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
-import { Entity, Materialization } from "@destack/language/core/builtin/entity";
-import { Event } from "@destack/language/core/builtin/event";
+import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
+import type { Event } from "@destack/language/core/builtin/event";
 import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
-import type { NodeClass } from "@destack/language/core/builtin/node";
-import { Node } from "@destack/language/core/builtin/node";
+import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";

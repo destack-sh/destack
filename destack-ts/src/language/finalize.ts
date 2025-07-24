@@ -3,13 +3,13 @@ import {
   ENCODERS,
   Encoding,
   loadConstants,
-  NodeClass,
-  NodeDefinition,
+  type NodeClass,
+  type NodeDefinition,
   NodeDefinitionReference,
   NodeType,
   ScalarType,
-  StructClass,
-  StructDefinition,
+  type StructClass,
+  type StructDefinition,
   StructType,
   TraitType,
   Type,
@@ -43,11 +43,11 @@ function _indexProperties(
       const upperCamelName = toCasing(propertyDefinition.name, Casing.CAMEL);
       const aliases = [
         propertyDefinition.name,
-        propertyDefinition.name + "_ptr",
+        `${propertyDefinition.name}_ptr`,
         lowerCamelName,
-        lowerCamelName + "Ptr",
+        `${lowerCamelName}Ptr`,
         upperCamelName,
-        upperCamelName + "Ptr",
+        `${upperCamelName}Ptr`,
       ];
       for (const alias of aliases) {
         if (
