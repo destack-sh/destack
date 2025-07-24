@@ -8,7 +8,6 @@ import structlog
 from opentelemetry import trace
 
 from destack.language import (
-    BinaryWriter,
     BuiltinObject,
     Encoding,
     Node,
@@ -55,7 +54,7 @@ def generate_cson_encoders() -> str:
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
     import_parts.append(
-        "import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/generate';"
+        "import { CSON_OBJECT_ENCODERS, _CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/core';"
     )
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
@@ -491,20 +490,16 @@ def _generate_cson_scalar(type: Type | TypeDeclaration | PropertyDeclaration, va
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        writer = BinaryWriter()
-        value.pack_binary(Encoding.CSON, writer)
-        value_bytes = writer.to_bytes()
-        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+        value_cson = value.pack(Encoding.CSON)
+        value_cson_str = json.dumps(value_cson, separators=(",", ":"))
+        return f"{value.__class__.__name__}.unpack({Encoding.CSON.value}, {value_cson_str!r})"
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
         assert isinstance(value, NodeReference), (
             f"value is not a NodeReference for {type!r}: {value!r}"
         )
-        writer = BinaryWriter()
-        value.pack_binary(Encoding.CSON, writer)
-        value_bytes = writer.to_bytes()
-        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"NodeReference.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
+        value_cson = value.pack(Encoding.CSON)
+        value_cson_str = json.dumps(value_cson, separators=(",", ":"))
+        return f"NodeReference.unpack({Encoding.CSON.value}, {value_cson_str!r})"
     elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
     else:

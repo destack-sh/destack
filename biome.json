@@ -35,6 +35,7 @@
         "noNonNullAssertion": "off"
       },
       "complexity": {
+        "noThisInStatic": "off",
         "noForEach": "off",
         "useLiteralKeys": "off",
         "noBannedTypes": "off"

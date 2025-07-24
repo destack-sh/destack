@@ -80,10 +80,13 @@ class EditEvent(Event):
     operation: "EditOperation | None" = builtin_property(
         102, is_repr=True, description="The specific Edit operation."
     )
-    property_id: int | None = builtin_property(
+    property_id: int = builtin_property(
         103,
         is_repr=True,
-        description="The id of the builtin Property being edited (if not a custom Property).",
+        description="""\
+The id of the builtin Property being edited.
+If it's a custom Property, this just refers to Entity.custom_values.
+""",
     )
     custom_property: "CustomProperty | None" = builtin_property(
         104, is_repr=True, description="The custom Property being edited (if not a builtin)."

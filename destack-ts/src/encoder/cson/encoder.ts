@@ -1,4 +1,4 @@
-import { CSON_OBJECT_ENCODERS, getObjectKey } from "@destack/encoder/cson/generate";
+import { CSON_OBJECT_ENCODERS, getObjectKey } from "@destack/encoder/cson/core";
 import { loadEncoders } from "@destack/encoder/cson/generated";
 import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
 import {
@@ -23,7 +23,7 @@ export class CsonEncoder implements Encoder<any> {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     return encoder.packObject(object);
@@ -38,7 +38,7 @@ export class CsonEncoder implements Encoder<any> {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     const objectPacked = encoder.packObject(object);
@@ -54,7 +54,7 @@ export class CsonEncoder implements Encoder<any> {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     return encoder.unpackObject(value, session);
@@ -69,7 +69,7 @@ export class CsonEncoder implements Encoder<any> {
     const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     const objectPacked = reader.readJson();

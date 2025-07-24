@@ -2,7 +2,7 @@ import {
   type _JsonObjectEncoder,
   getObjectKey,
   JSON_OBJECT_ENCODERS,
-} from "@destack/encoder/json/generate";
+} from "@destack/encoder/json/core";
 import type { Session } from "@destack/language";
 import {
   type Action,

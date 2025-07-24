@@ -45,64 +45,112 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.BOOLEAN
+  /**
+   * Write a boolean as 1 byte (0 for false, 1 for true).
+   * Size: 1 byte.
+   */
   writeBool(value: boolean): void {
     this.ensureCapacity(1);
     this.view.setUint8(this.pos++, value ? 1 : 0);
   }
 
   // PrimitiveType.SINT8
+  /**
+   * Write a signed 8-bit integer as raw byte.
+   * Size: 1 byte.
+   */
   writeSInt8(value: number): void {
     this.ensureCapacity(1);
     this.view.setInt8(this.pos++, value);
   }
 
   // PrimitiveType.SINT16
+  /**
+   * Write a signed 16-bit integer using zigzag encoding then varint.
+   * Size: 1-3 bytes.
+   */
   writeSInt16(value: number): void {
     this.writeVarint(this.zigzagEncode(value));
   }
 
   // PrimitiveType.SINT32
+  /**
+   * Write a signed 32-bit integer using zigzag encoding then varint.
+   * Size: 1-5 bytes.
+   */
   writeSInt32(value: number): void {
     this.writeVarint(this.zigzagEncode(value));
   }
 
   // PrimitiveType.SINT64
+  /**
+   * Write a signed 64-bit integer using zigzag encoding then varint.
+   * Size: 1-10 bytes.
+   */
   writeSInt64(value: bigint): void {
     this.writeVarint64(this.zigzagEncode64(value));
   }
 
   // PrimitiveType.SINT128
+  /**
+   * Write a signed 128-bit integer using zigzag encoding then varint.
+   * Size: 1-19 bytes.
+   */
   writeSInt128(value: bigint): void {
     this.writeVarint128(this.zigzagEncode128(value));
   }
 
   // PrimitiveType.UINT8
+  /**
+   * Write an unsigned 8-bit integer as raw byte.
+   * Size: 1 byte.
+   */
   writeUint8(value: number): void {
     this.ensureCapacity(1);
     this.view.setUint8(this.pos++, value);
   }
 
   // PrimitiveType.UINT16
+  /**
+   * Write an unsigned 16-bit integer using varint encoding.
+   * Size: 1-3 bytes.
+   */
   writeUint16(value: number): void {
     this.writeVarint(value);
   }
 
   // PrimitiveType.UINT32
+  /**
+   * Write an unsigned 32-bit integer using varint encoding.
+   * Size: 1-5 bytes.
+   */
   writeUint32(value: number): void {
     this.writeVarint(value);
   }
 
   // PrimitiveType.UINT64
+  /**
+   * Write an unsigned 64-bit integer using varint encoding.
+   * Size: 1-10 bytes.
+   */
   writeUint64(value: bigint): void {
     this.writeVarint64(value);
   }
 
   // PrimitiveType.UINT128
+  /**
+   * Write an unsigned 128-bit integer using varint encoding.
+   * Size: 1-19 bytes.
+   */
   writeUint128(value: bigint): void {
     this.writeVarint128(value);
   }
 
   // PrimitiveType.FLOAT16
+  /**
+   * Write a 16-bit float with flag byte (0 for zero, 1 + little-endian float16 for non-zero).
+   * Size: 1 byte (zero) or 3 bytes (non-zero).
+   */
   writeFloat16(value: number): void {
     this.ensureCapacity(3);
     if (value === 0.0) {
@@ -117,6 +165,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.FLOAT32
+  /**
+   * Write a 32-bit float with flag byte (0 for zero, 1 + little-endian float32 for non-zero).
+   * Size: 1 byte (zero) or 5 bytes (non-zero).
+   */
   writeFloat32(value: number): void {
     this.ensureCapacity(5);
     if (value === 0.0) {
@@ -129,6 +181,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.FLOAT64
+  /**
+   * Write a 64-bit float with flag byte (0 for zero, 1 + zigzag varint for integers, 2 + little-endian float64 for others).
+   * Size: 1 byte (zero), 2-11 bytes (integer), or 9 bytes (full float).
+   */
   writeFloat64(value: number): void {
     this.ensureCapacity(9);
     if (value === 0.0) {
@@ -156,13 +212,21 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.DATETIME
+  /**
+   * Write a datetime as zigzag-encoded varint of microseconds since epoch.
+   * Size: 1-10 bytes.
+   */
   writeDateTime(value: Temporal.ZonedDateTime): void {
-    // convert to microseconds since epoch
+    // convert to microseconds since epoch (64-bit)
     const micros = BigInt(value.epochMilliseconds) * 1000n + BigInt(value.nanosecond / 1000);
     this.writeVarint64(this.zigzagEncode64(micros));
   }
 
   // PrimitiveType.DATE
+  /**
+   * Write a date as zigzag-encoded varint of days since epoch (1970-01-01).
+   * Size: 1-5 bytes.
+   */
   writeDate(value: Temporal.PlainDate): void {
     // convert to days since epoch
     const days = _EPOCH_DATE.until(value, { largestUnit: "days" }).days;
@@ -170,6 +234,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.TIME
+  /**
+   * Write a time as varint of microseconds since midnight.
+   * Size: 1-6 bytes.
+   */
   writeTime(value: Temporal.PlainTime): void {
     const micros =
       BigInt(value.hour) * 3_600_000_000n +
@@ -181,6 +249,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.DURATION
+  /**
+   * Write a duration as zigzag-encoded varint of microseconds.
+   * Size: 1-10 bytes.
+   */
   writeDuration(value: Temporal.Duration): void {
     // convert to total microseconds
     const totalMicroseconds = value.total({ unit: "microseconds" });
@@ -188,12 +260,20 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.STRING
+  /**
+   * Write a UTF-8 string with varint length prefix.
+   * Size: 1-5 bytes (length) + string length in bytes.
+   */
   writeString(value: string): void {
     const encoded = this.textEncoder.encode(value);
     this.writeBytes(encoded);
   }
 
   // PrimitiveType.UUID
+  /**
+   * Write a UUID as 16 raw bytes.
+   * Size: 16 bytes.
+   */
   writeUuid(value: string): void {
     // Convert UUID string to 16 bytes
     const hex = value.replace(/-/g, "");
@@ -207,6 +287,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.BYTES
+  /**
+   * Write raw bytes with varint length prefix.
+   * Size: 1-5 bytes (length) + data length.
+   */
   writeBytes(value: Uint8Array): void {
     this.writeVarint(value.length);
     this.ensureCapacity(value.length);
@@ -215,6 +299,10 @@ export class BinaryWriter {
   }
 
   // PrimitiveType.JSON
+  /**
+   * Write JSON as UTF-8 string with varint length prefix.
+   * Size: 1-5 bytes (length) + JSON string length in bytes.
+   */
   writeJson(value: any): void {
     this.writeString(JSON.stringify(value));
   }
@@ -335,6 +423,10 @@ export class BinaryReader {
   }
 
   // PrimitiveType.BOOLEAN
+  /**
+   * Read a boolean from 1 byte (0 for false, non-zero for true).
+   * Size: 1 byte.
+   */
   readBool(): boolean {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -343,6 +435,10 @@ export class BinaryReader {
   }
 
   // PrimitiveType.SINT8
+  /**
+   * Read a signed 8-bit integer from raw byte.
+   * Size: 1 byte.
+   */
   readSInt8(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -351,26 +447,46 @@ export class BinaryReader {
   }
 
   // PrimitiveType.SINT16
+  /**
+   * Read a signed 16-bit integer from zigzag-decoded varint.
+   * Size: 1-3 bytes.
+   */
   readSInt16(): number {
     return this.zigzagDecode(this.readVarint());
   }
 
   // PrimitiveType.SINT32
+  /**
+   * Read a signed 32-bit integer from zigzag-decoded varint.
+   * Size: 1-5 bytes.
+   */
   readSInt32(): number {
     return this.zigzagDecode(this.readVarint());
   }
 
   // PrimitiveType.SINT64
+  /**
+   * Read a signed 64-bit integer from zigzag-decoded varint.
+   * Size: 1-10 bytes.
+   */
   readSInt64(): bigint {
     return this.zigzagDecode64(this.readVarint64());
   }
 
   // PrimitiveType.SINT128
+  /**
+   * Read a signed 128-bit integer from zigzag-decoded varint.
+   * Size: 1-19 bytes.
+   */
   readSInt128(): bigint {
     return this.zigzagDecode128(this.readVarint128());
   }
 
   // PrimitiveType.UINT8
+  /**
+   * Read an unsigned 8-bit integer from raw byte.
+   * Size: 1 byte.
+   */
   readUint8(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -379,26 +495,46 @@ export class BinaryReader {
   }
 
   // PrimitiveType.UINT16
+  /**
+   * Read an unsigned 16-bit integer from varint.
+   * Size: 1-3 bytes.
+   */
   readUint16(): number {
     return this.readVarint();
   }
 
   // PrimitiveType.UINT32
+  /**
+   * Read an unsigned 32-bit integer from varint.
+   * Size: 1-5 bytes.
+   */
   readUint32(): number {
     return this.readVarint();
   }
 
   // PrimitiveType.UINT64
+  /**
+   * Read an unsigned 64-bit integer from varint.
+   * Size: 1-10 bytes.
+   */
   readUint64(): bigint {
     return this.readVarint64();
   }
 
   // PrimitiveType.UINT128
+  /**
+   * Read an unsigned 128-bit integer from varint.
+   * Size: 1-19 bytes.
+   */
   readUint128(): bigint {
     return this.readVarint128();
   }
 
   // PrimitiveType.FLOAT16
+  /**
+   * Read a 16-bit float with flag byte (0 for zero, 1 + little-endian float16 for non-zero).
+   * Size: 1 byte (zero) or 3 bytes (non-zero).
+   */
   readFloat16(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -420,6 +556,10 @@ export class BinaryReader {
   }
 
   // PrimitiveType.FLOAT32
+  /**
+   * Read a 32-bit float with flag byte (0 for zero, 1 + little-endian float32 for non-zero).
+   * Size: 1 byte (zero) or 5 bytes (non-zero).
+   */
   readFloat32(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -441,6 +581,10 @@ export class BinaryReader {
   }
 
   // PrimitiveType.FLOAT64
+  /**
+   * Read a 64-bit float with flag byte (0 for zero, 1 for integer, 2 for float64).
+   * Size: 1 byte (zero), 2-11 bytes (integer), or 9 bytes (float64).
+   */
   readFloat64(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -482,18 +626,30 @@ export class BinaryReader {
   }
 
   // PrimitiveType.DATETIME
+  /**
+   * Read a datetime from zigzag-decoded varint of microseconds since epoch.
+   * Size: 1-10 bytes.
+   */
   readDateTime(): Temporal.ZonedDateTime {
     const micros = this.zigzagDecode64(this.readVarint64());
     return Temporal.Instant.fromEpochNanoseconds(micros * 1000n).toZonedDateTimeISO("UTC");
   }
 
   // PrimitiveType.DATE
+  /**
+   * Read a date from zigzag-decoded varint of days since epoch (1970-01-01).
+   * Size: 1-5 bytes.
+   */
   readDate(): Temporal.PlainDate {
     const days = this.zigzagDecode(this.readVarint());
     return _EPOCH_DATE.add({ days });
   }
 
   // PrimitiveType.TIME
+  /**
+   * Read a time from varint of microseconds since midnight.
+   * Size: 1-6 bytes.
+   */
   readTime(): Temporal.PlainTime {
     const micros = this.readVarint64();
     const hours = Number(micros / 3_600_000_000n);
@@ -508,18 +664,30 @@ export class BinaryReader {
   }
 
   // PrimitiveType.DURATION
+  /**
+   * Read a duration from zigzag-decoded varint of microseconds.
+   * Size: 1-10 bytes.
+   */
   readDuration(): Temporal.Duration {
     const micros = Number(this.zigzagDecode64(this.readVarint64()));
     return Temporal.Duration.from({ microseconds: micros });
   }
 
   // PrimitiveType.STRING
+  /**
+   * Read a UTF-8 string from varint length prefix + UTF-8 bytes.
+   * Size: 1-5 bytes (length) + string length in bytes.
+   */
   readString(): string {
     const bytes = this.readBytes();
     return this.textDecoder.decode(bytes);
   }
 
   // PrimitiveType.UUID
+  /**
+   * Read a UUID from 16 raw bytes.
+   * Size: 16 bytes.
+   */
   readUuid(): string {
     if (this.pos + 16 > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -533,12 +701,15 @@ export class BinaryReader {
     const hex = Array.from(bytes)
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-
     // format as UUID
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
   }
 
   // PrimitiveType.BYTES
+  /**
+   * Read raw bytes from varint length prefix + data bytes.
+   * Size: 1-5 bytes (length) + data length.
+   */
   readBytes(): Uint8Array {
     const length = this.readVarint();
     if (this.pos + length > this.buffer.length) {
@@ -550,6 +721,10 @@ export class BinaryReader {
   }
 
   // PrimitiveType.JSON
+  /**
+   * Read JSON from UTF-8 string with varint length prefix.
+   * Size: 1-5 bytes (length) + JSON string length in bytes.
+   */
   readJson(): any {
     return JSON.parse(this.readString());
   }

@@ -54,7 +54,7 @@ def generate_json_encoders() -> str:
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
     import_parts.append(
-        "import { JSON_OBJECT_ENCODERS, _JsonObjectEncoder, getObjectKey } from '@destack/encoder/json/generate';"
+        "import { JSON_OBJECT_ENCODERS, _JsonObjectEncoder, getObjectKey } from '@destack/encoder/json/core';"
     )
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
