@@ -19,12 +19,12 @@ from typing import (
 )
 
 import regex
-import structlog
 
 from destack.utils.base58 import base58_encode
+from destack.utils.log import get_logger
 from destack.utils.uuid import UUID
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 def reload_module(module: types.ModuleType):

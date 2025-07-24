@@ -5,9 +5,6 @@ from typing import Any, assert_never, cast
 
 import fastuuid
 import hypothesis
-import more_itertools
-import structlog
-from cachetools import cached
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
@@ -30,11 +27,14 @@ from destack.language import (
     icon,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_object_cls
+from destack.utils.cache import cached
+from destack.utils.itertools import flatten
+from destack.utils.log import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 ALL_DECLARED_PROPERTIES = tuple(
-    more_itertools.flatten(
+    flatten(
         (p for p in object_cls.__declared_properties__.values() if p.id is not None)
         for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values())
     )

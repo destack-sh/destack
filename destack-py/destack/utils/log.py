@@ -462,3 +462,8 @@ def _add_logging_level(
     setattr(logging, method_name, for_logging_module)
     setattr(logger_class, method_name, for_logger_class)
     setattr(logger_adapter, method_name, for_logger_adapter)
+
+
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    """Gets a logger for the given name."""
+    return structlog.get_logger(name)

@@ -11,9 +11,9 @@
     }
   },
   "scripts": {
-    "dev": "bun run --env-file ../.env.dev --env-file ../.env.dev.local src/cli/index.tsx",
+    "dev": "bun --env-file ../.env.dev --env-file ../.env.dev.local run src/cli/index.tsx",
     "build": "tsc",
-    "test": "bun test --env-file ../.env.dev --env-file ../.env.dev.local",
+    "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
     "check": "tsc --noEmit && biome check --write --unsafe src/",
     "fmt": "biome check --write --unsafe src/"
   },

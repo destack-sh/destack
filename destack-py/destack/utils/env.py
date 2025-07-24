@@ -4,7 +4,7 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Optional, cast
 
-import cachetools
+from destack.utils.cache import cached
 
 
 class Env(StrEnum):
@@ -23,7 +23,7 @@ def str_to_bool(value: str | None) -> bool:
     return value is not None and str(value).lower() in truthy_strs_lower
 
 
-@cachetools.cached({}, key=lambda key, *args, **kwargs: key)
+@cached({}, key=lambda key, *args, **kwargs: key)
 def get_from_env_maybe[T](
     key: str,
     *,

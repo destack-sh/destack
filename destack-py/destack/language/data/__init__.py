@@ -5,11 +5,8 @@ from .file import (
     MIME_TYPES_BY_FILE_FORMAT,
     File,
     FileFormat,
-    FileIn,
     FileRetentionMode,
     FileType,
-    download_file_batch,
-    upload_file_batch,
 )
 
 __all__ = [
@@ -19,9 +16,6 @@ __all__ = [
     "MIME_TYPE_BY_FORMAT",
     "File",
     "FileFormat",
-    "FileIn",
     "FileRetentionMode",
     "FileType",
-    "download_file_batch",
-    "upload_file_batch",
 ]

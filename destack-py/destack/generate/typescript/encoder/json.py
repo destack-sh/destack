@@ -4,9 +4,6 @@ import textwrap
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never
 
-import structlog
-from opentelemetry import trace
-
 from destack.language import (
     BinaryWriter,
     BuiltinObject,
@@ -24,7 +21,9 @@ from destack.language import (
     TypeDeclaration,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from destack.utils.log import get_logger
 from destack.utils.string import Casing, to_casing
+from destack.utils.telemetry import get_tracer
 
 if TYPE_CHECKING:
     pass
@@ -32,8 +31,8 @@ if TYPE_CHECKING:
 # ruff: noqa: FURB113, SIM114
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 type_ = type
 
 

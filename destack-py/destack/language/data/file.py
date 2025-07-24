@@ -1,19 +1,9 @@
-import base64
-import io
-import tempfile
-from collections.abc import Collection, Sequence
+from collections.abc import Sequence
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
-    Literal,
     Optional,
-    Union,
-    overload,
 )
-
-import structlog
-from opentelemetry import trace
-from PIL import Image
 
 from destack.language.core import (
     Enum,
@@ -31,10 +21,8 @@ from destack.utils.env import get_from_env
 from destack.utils.func import group_by
 
 if TYPE_CHECKING:
-    from destack.language import File, Session, Space
+    from destack.language import File, Space
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 FILE_HASH_LENGTH = 64  # 256 bits
 MAX_FILE_SIZE = get_from_env(
@@ -469,7 +457,6 @@ class File(Resource):
     _cached_get_url: Optional[str] = builtin_property_runtime(default=None)
     _cached_tmp_path: Optional[str] = builtin_property_runtime(default=None)
     _cached_content: Optional[bytes] = builtin_property_runtime(default=None)
-    _cached_image: Optional[Image.Image] = builtin_property_runtime(default=None)
 
     def get_original(self) -> "File | None":
         """The original file (if converted or self)."""
@@ -486,125 +473,3 @@ class File(Resource):
         original = self.get_original()
         assert original is not None, f"no original for {self!r}"
         return original
-
-    #
-    # Generic content
-    #
-
-    async def upload(self) -> "File":
-        """Uploads the file to the space (if not already uploaded)."""
-        raise NotImplementedError
-
-    @overload
-    async def download(self, *, include_content: Literal[True] = True) -> bytes: ...
-    @overload
-    async def download(self, *, include_content: Literal[False] = False) -> str: ...
-    async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
-        """Downloads the file from the source."""
-        assert isinstance(self, File), f"cannot download {self!r}"
-        if include_content:
-            if self._cached_content is not None:
-                return self._cached_content
-        elif self._cached_get_url is not None:
-            return self._cached_get_url
-        await download_file_batch([self], include_content=include_content, session=self._session)
-        if include_content:
-            assert self._cached_content is not None, f"content not ready for {self!r}"
-            return self._cached_content
-        else:
-            assert self._cached_get_url is not None, f"content not ready for {self!r}"
-            return self._cached_get_url
-
-    def to_tmp_file(self) -> str:
-        """Downloads the file to a temporary file."""
-        if self._cached_tmp_path is None:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_file.write(self.read_content())
-            assert isinstance(tmp_file.name, str), f"no path in tmp file {tmp_file!r} for {self!r}"
-            self._cached_tmp_path = tmp_file.name
-        return self._cached_tmp_path
-
-    def read_content(self) -> bytes:
-        """The full file content."""
-        if self.content is not None:
-            return self.content
-        elif self._cached_content is not None:
-            return self._cached_content
-        else:
-            raise ValueError(f"content not ready for {self!r}")
-
-    def read_content_b64(self) -> str:
-        """The full file content as base64."""
-        return base64.b64encode(self.read_content()).decode("utf-8")
-
-    def read_url(self) -> str:
-        """The URL to read the file from."""
-        if self.url is not None:
-            return self.url
-        elif self._cached_get_url is not None:
-            return self._cached_get_url
-        elif self.content is not None:
-            return f"data:{self.mime_type};base64,{self.read_content_b64()}"
-        else:
-            raise ValueError(f"read URL not available for {self!r}")
-
-    def _clear_cache(self):
-        """Clears the cached content and URL."""
-        self._cached_content = None
-        self._cached_get_url = None
-
-    #
-    # Text content
-    #
-
-    @property
-    def text(self) -> str:
-        """Gets the text content of the file."""
-        if self.type == FileType.TEXT or self.type == FileType.CODE:
-            return self.read_content().decode()
-        else:
-            raise ValueError(f"cannot get text content of {self!r}")
-
-    @property
-    def lines(self) -> list[str]:
-        """Gets the lines of the file."""
-        if self.type == FileType.TEXT or self.type == FileType.CODE:
-            return self.text.splitlines()
-        else:
-            raise ValueError(f"cannot get lines of {self!r}")
-
-    #
-    # Image content
-    #
-
-    @property
-    def image(self) -> Image.Image:
-        """Gets the image content of the file."""
-        if self.type == FileType.IMAGE:
-            if self._cached_image is None:
-                self._cached_image = Image.open(io.BytesIO(self.read_content()))
-            return self._cached_image
-        else:
-            raise ValueError(f"cannot get image content of {self!r}")
-
-
-@tracer.start_as_current_span("file.upload_batch")
-async def upload_file_batch(
-    files: list[File], file_contents: list[bytes], session: "Session | None" = None
-):
-    """Uploads the given Files to their Space."""
-    raise NotImplementedError
-
-
-@tracer.start_as_current_span("file.download_batch")
-async def download_file_batch(
-    file_refs: Sequence[File],
-    *,
-    include_content: bool | Collection[File],
-    session: "Session | None" = None,
-) -> list[File]:
-    """Downloads the given Files from their Space."""
-    raise NotImplementedError
-
-
-FileIn = Union[bytes, Image.Image]

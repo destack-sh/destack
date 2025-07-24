@@ -4,9 +4,6 @@ from datetime import UTC, date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
-import structlog
-from opentelemetry import trace
-
 from destack.language.core import (
     BuiltinObject,
     Cson,
@@ -28,6 +25,8 @@ from destack.language.registry import (
     get_builtin_type,
 )
 from destack.utils.code import exec_
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
@@ -39,8 +38,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 type_ = type
 
 

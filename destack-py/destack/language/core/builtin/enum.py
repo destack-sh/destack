@@ -5,8 +5,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from more_itertools import first
-
+from destack.utils.itertools import first
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:

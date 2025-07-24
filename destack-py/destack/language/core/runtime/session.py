@@ -5,9 +5,8 @@ from typing import (
     Any,
 )
 
-import structlog
-from opentelemetry import trace
-
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
 from ..builtin import (
@@ -29,8 +28,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class Session:

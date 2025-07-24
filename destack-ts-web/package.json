@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "preview": "vite preview",
-    "test": "bun test",
+    "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
     "build": "vite build",
     "check": "tsc --noEmit && biome check --write --unsafe src/",
     "format": "biome check --write --unsafe src/"

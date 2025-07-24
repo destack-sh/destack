@@ -7,10 +7,9 @@ from typing import (
     Union,
 )
 
-import structlog
-from opentelemetry import trace
-
 from destack.language.registry import ENUM_TYPE_BY_CLASS
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 
 from ..builtin import (
     PRIMITIVE_PY_TYPES,
@@ -37,8 +36,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 @builtin_enum(EnumType.STRING_FORMAT)
