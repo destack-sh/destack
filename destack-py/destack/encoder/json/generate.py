@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     pass
 
 
-# ruff: noqa: FURB113
+# ruff: noqa: FURB113, SIM114
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -206,11 +206,27 @@ def _generate_pack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64encode({value_expr}).decode()"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"str({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
+        elif prop.primitive_type in (
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.astimezone(UTC).isoformat()"
@@ -220,20 +236,13 @@ def _generate_pack_json_scalar(
             return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
-        elif prop.primitive_type in (
-            PrimitiveType.BOOLEAN,
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-            PrimitiveType.JSON,
-        ):
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"str({value_expr})"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"base64.b64encode({value_expr}).decode()"
+        elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
             assert_never(prop.primitive_type)
@@ -291,11 +300,27 @@ def _generate_unpack_json_scalar(
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64decode({value_expr})"
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"UUID({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
+        elif prop.primitive_type in (
+            PrimitiveType.SINT8,
+            PrimitiveType.SINT16,
+            PrimitiveType.SINT32,
+            PrimitiveType.SINT64,
+            PrimitiveType.SINT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return value_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"datetime.fromisoformat({value_expr})"
@@ -305,20 +330,12 @@ def _generate_unpack_json_scalar(
             return f"time.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
-        elif prop.primitive_type in (  # noqa: SIM114
-            PrimitiveType.BOOLEAN,
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ):
+        elif prop.primitive_type == PrimitiveType.STRING:
             return value_expr
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"UUID({value_expr})"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"base64.b64decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:

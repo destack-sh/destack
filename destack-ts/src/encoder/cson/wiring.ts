@@ -117,14 +117,17 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
     } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaToISOFormat(value as Temporal.Duration);
     } else if (
-      type.primitiveType == PrimitiveType.INT8 ||
-      type.primitiveType == PrimitiveType.INT16 ||
-      type.primitiveType == PrimitiveType.INT32 ||
-      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.SINT8 ||
+      type.primitiveType == PrimitiveType.SINT16 ||
+      type.primitiveType == PrimitiveType.SINT32 ||
+      type.primitiveType == PrimitiveType.SINT64 ||
+      type.primitiveType == PrimitiveType.SINT128 ||
       type.primitiveType == PrimitiveType.UINT8 ||
       type.primitiveType == PrimitiveType.UINT16 ||
       type.primitiveType == PrimitiveType.UINT32 ||
       type.primitiveType == PrimitiveType.UINT64 ||
+      type.primitiveType == PrimitiveType.UINT128 ||
+      type.primitiveType == PrimitiveType.FLOAT16 ||
       type.primitiveType == PrimitiveType.FLOAT32 ||
       type.primitiveType == PrimitiveType.FLOAT64
     ) {
@@ -182,19 +185,22 @@ function _unpackScalarCson(
     } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaFromISOFormat(value);
     } else if (
+      type.primitiveType == PrimitiveType.FLOAT16 ||
       type.primitiveType == PrimitiveType.FLOAT32 ||
       type.primitiveType == PrimitiveType.FLOAT64
     ) {
       return Number(value);
     } else if (
-      type.primitiveType == PrimitiveType.INT8 ||
-      type.primitiveType == PrimitiveType.INT16 ||
-      type.primitiveType == PrimitiveType.INT32 ||
-      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.SINT8 ||
+      type.primitiveType == PrimitiveType.SINT16 ||
+      type.primitiveType == PrimitiveType.SINT32 ||
+      type.primitiveType == PrimitiveType.SINT64 ||
+      type.primitiveType == PrimitiveType.SINT128 ||
       type.primitiveType == PrimitiveType.UINT8 ||
       type.primitiveType == PrimitiveType.UINT16 ||
       type.primitiveType == PrimitiveType.UINT32 ||
-      type.primitiveType == PrimitiveType.UINT64
+      type.primitiveType == PrimitiveType.UINT64 ||
+      type.primitiveType == PrimitiveType.UINT128
     ) {
       return Number(value);
     } else if (type.primitiveType == PrimitiveType.JSON) {

@@ -26,6 +26,11 @@
       "recommended": false,
       "correctness": {
         "noUnusedImports": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noImplicitAnyLet": "off",
+        "noDoubleEquals": "off"
       }
     }
   },
