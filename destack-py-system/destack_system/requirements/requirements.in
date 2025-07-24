@@ -1,5 +1,6 @@
 # run ./scripts/update-requirements.sh
 
+black==24.10.0
 fastuuid==0.12.0
 opentelemetry-exporter-otlp-proto-grpc==1.28.1
 opentelemetry-api==1.28.1
