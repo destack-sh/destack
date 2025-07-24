@@ -252,13 +252,15 @@ def test_float16():
     # test roundtrip with expected sizes
     value_to_bytes = {
         0.0: 1,  # zero optimization
-        1.0: 3,  # flag + float16
-        -1.0: 3,
+        -0.0: 1,  # zero optimization
+        float("inf"): 1,
+        float("-inf"): 1,
+        float("nan"): 1,
+        1.0: 2,  # sint8
+        -1.0: 2,  # sint8
         math.pi: 3,
         -math.pi: 3,
         65504.0: 3,  # max normal float16
-        float("inf"): 3,
-        float("-inf"): 3,
     }
 
     writer = BinaryWriter()
@@ -292,12 +294,14 @@ def test_float32():
     # test roundtrip with expected sizes
     value_to_bytes = {
         0.0: 1,  # zero optimization
-        1.0: 5,  # flag + float32
-        -1.0: 5,
+        -0.0: 1,  # zero optimization
+        float("inf"): 1,
+        float("-inf"): 1,
+        float("nan"): 1,
+        1.0: 2,  # sint16 (varint)
+        -1.0: 2,  # sint16 (varint)
         math.pi: 5,
         -math.pi: 5,
-        float("inf"): 5,
-        float("-inf"): 5,
     }
 
     writer = BinaryWriter()
@@ -322,12 +326,11 @@ def test_float64():
     writer.write_float64(0.0)
     assert len(writer.to_bytes()) == 1
 
-    # small integers should use varint encoding (1 flag + varint bytes)
+    # small integers should use sint16 varint encoding (1 flag + varint bytes)
     writer = BinaryWriter()
     writer.write_float64(42.0)
     data = writer.to_bytes()
-    assert len(data) == 2  # 1 flag + 1 varint byte for 84 (zigzag of 42)
-    assert data[0] == 1  # integer flag
+    assert len(data) == 2  # 1 varint byte for 84 (sint16 of 42)
 
     # large float should be 9 bytes (1 flag + 8 float)
     writer = BinaryWriter()
@@ -337,20 +340,22 @@ def test_float64():
     # test roundtrip with expected sizes
     value_to_bytes = {
         0.0: 1,  # zero optimization
-        1.0: 2,  # flag + varint (zigzag(1) = 2)
-        -1.0: 2,  # flag + varint (zigzag(-1) = 1)
-        42.0: 2,  # flag + varint (zigzag(42) = 84)
-        -42.0: 2,  # flag + varint (zigzag(-42) = 83)
-        1000.0: 3,  # flag + varint (zigzag(1000) = 2000)
-        -1000.0: 3,  # flag + varint (zigzag(-1000) = 1999)
-        2**53: 9,  # flag + varint for large number
-        -(2**53): 9,  # flag + varint for large number
-        math.pi: 9,  # flag + double
-        -math.pi: 9,  # flag + double
-        1e100: 9,  # flag + double
-        -1e100: 9,  # flag + double
-        float("inf"): 9,  # flag + double
-        float("-inf"): 9,  # flag + double
+        -0.0: 1,  # zero optimization
+        float("inf"): 1,  # float64
+        float("-inf"): 1,  # float64
+        float("nan"): 1,  # float64
+        1.0: 2,  # sint16 (varint)
+        -1.0: 2,  # sint16 (varint)
+        42.0: 2,  # sint16 (varint)
+        -42.0: 2,  # sint16 (varint)
+        1000.0: 3,  # sint16 (varint)
+        -1000.0: 3,  # sint16 (varint)
+        2**53: 9,  # sint32 (varint)
+        -(2**53): 9,  # sint32 (varint)
+        math.pi: 9,  # float64
+        -math.pi: 9,  # float64
+        1e100: 9,  # float64
+        -1e100: 9,  # float64
     }
 
     writer = BinaryWriter()
@@ -362,7 +367,10 @@ def test_float64():
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
         result = reader.read_float64()
-        assert result == pytest.approx(value)
+        if value != value:  # NaN check
+            assert result != result
+        else:
+            assert result == pytest.approx(value)
 
 
 def test_string():

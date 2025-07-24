@@ -38,12 +38,7 @@ def async_to_sync(func=None):
             if is_in_loop:
                 return func(*args, **kwargs)
             else:
-                try:
-                    import uvloop
-
-                    return uvloop.run(func(*args, **kwargs))
-                except ImportError:
-                    return asyncio.run(func(*args, **kwargs))
+                return asyncio.run(func(*args, **kwargs))
 
         return wrapped
 
