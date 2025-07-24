@@ -6,10 +6,8 @@ from typing import (
     cast,
 )
 
-import regex
-import structlog
-from opentelemetry import trace
-
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
 from ..builtin import Node, NodeReference
@@ -18,8 +16,8 @@ from .graph import Graph
 if TYPE_CHECKING:
     pass
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class Aliasing:
@@ -47,44 +45,7 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference, alias: str | None = None) -> str:
         """Adds the given nodes to the context of this renderer."""
-        # bail if already assigned
-        if obj.id in self._alias_by_node_id:
-            if alias is not None:
-                # ensure alias is set if explicitly given
-                self._node_by_alias[alias] = obj
-            return self._alias_by_node_id[obj.id]
-
-        # try to resolve node references
-        if isinstance(obj, NodeReference):
-            if (
-                resolved := self._graph.get(
-                    id=obj.id,
-                    space_id=obj.space_id,
-                    branch_id=obj.branch_id,
-                    snapshot_id=obj.snapshot_id,
-                )
-            ) is not None:
-                obj = resolved
-
-        # make new unique alias if needed
-        if alias is None:
-            alias = obj.metatype.camel_name if isinstance(obj, Node) else obj.type.camel_name
-            if alias in self._node_by_alias:
-                # bump digit at end to make alias unique
-                count = regex.search(r"\d+$", alias)
-                if count is None:
-                    alias = f"{alias}1"
-                    count = 1
-                else:
-                    count = int(count.group())
-                while alias in self._node_by_alias:
-                    count += 1
-                    alias = regex.sub(r"\d+$", str(count), alias)
-
-        self._alias_by_node_id[obj.id] = alias
-        self._node_by_alias[alias] = obj
-        self._node_by_id[obj.id] = obj
-        return alias
+        raise NotImplementedError
 
     def get(self, node: Node | NodeReference | UUID) -> str | None:
         """Gets the alias for the given node."""

@@ -1,7 +1,5 @@
 import pytest
 import pytest_asyncio
-import structlog
-from opentelemetry import trace
 
 from destack.test.conftest import _setup_test_env
 
@@ -12,9 +10,6 @@ _setup_test_env()
 from destack.graph import MemoryGraph
 from destack.language import REGION, Session, Space, Universe
 from destack.utils.uuid import uuid4
-
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

@@ -1,11 +1,12 @@
 from datetime import datetime
 from pathlib import Path
 
-import structlog
 import typer
 
+from destack.utils.log import get_logger
+
 app = typer.Typer(short_help="version management")
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 @app.callback(invoke_without_command=True)

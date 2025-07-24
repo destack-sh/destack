@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-import structlog
+from destack.utils.log import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 async def restart_on_file_changes(on_restart: Callable | None = None):

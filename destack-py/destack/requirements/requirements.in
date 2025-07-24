@@ -1,13 +1,4 @@
 # run ./scripts/update-requirements.sh
 
-bitarray==2.9.2
-cachetools==5.3.3
-more-itertools==10.2.0
-opentelemetry-api==1.28.1
-opentelemetry-sdk==1.28.1
-pillow==11.2.1
 regex==2024.11.6
-rich==14.0.0
-structlog==24.2.0
-typer==0.15.1
 xxhash==3.5.0

@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 # if not serving, default to ENVIRONMENT=dev
 if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
@@ -29,5 +28,4 @@ for path in Path.glob(Path(__file__).parent / "destack" / "cli", "*.py"):
         cli.add_typer(module.app, name=path.stem)
 
 if __name__ == "__main__":
-    console = Console()
     cli()

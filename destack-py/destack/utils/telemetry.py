@@ -4,7 +4,6 @@ from pathlib import Path
 from time import time_ns
 from typing import Any, Optional, cast
 
-import structlog
 from opentelemetry import baggage, context, metrics, trace
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from opentelemetry.sdk.metrics import MeterProvider
@@ -23,10 +22,11 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from destack.utils.uuid import UUID, uuid4
 
 from .env import ENV, IS_DEV, IS_TEST, get_from_env, get_from_env_maybe
-from .log import setup_logging
+from .log import get_logger, setup_logging
 
 setup_logging()  # ensure logging is setup first
-logger = structlog.get_logger(__name__)
+
+logger = get_logger(__name__)
 
 IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None
 VERSION = Path("version").read_text().strip()
@@ -193,3 +193,8 @@ Span.end = _PatchedSpan.end  # type: ignore
 
 
 setup_telemetry()
+
+
+def get_tracer(name: str) -> trace.Tracer:
+    """Gets a tracer for the given name."""
+    return trace.get_tracer(name)

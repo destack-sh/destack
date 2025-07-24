@@ -1,8 +1,9 @@
 from enum import IntEnum
 from typing import assert_never
 
-import cachetools
 import regex
+
+from .cache import cached
 
 
 class Casing(IntEnum):
@@ -40,7 +41,7 @@ def to_code_name(name: str) -> str:
         return name
 
 
-@cachetools.cached(cache={})
+@cached(cache={})
 def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
     """Turns a string into a valid Python identifier."""
     if casing == Casing.SNAKE:  # snake_case

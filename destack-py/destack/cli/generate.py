@@ -1,12 +1,11 @@
 import time
 
-import structlog
 import typer
-from opentelemetry import trace
 
+from destack.utils.log import get_logger
+
+logger = get_logger(__name__)
 app = typer.Typer()
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 
 @app.callback(invoke_without_command=True)

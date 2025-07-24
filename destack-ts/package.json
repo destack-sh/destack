@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "bun test",
+    "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
     "check": "tsc --noEmit && biome check --write --unsafe src/",
     "fmt": "biome check --write --unsafe src/"
   },

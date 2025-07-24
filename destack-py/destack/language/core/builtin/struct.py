@@ -9,11 +9,10 @@ from typing import (
     override,
 )
 
-import structlog
-from opentelemetry import trace
-
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.utils.func import get_superclasses
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 
 from .common import Encoding, EnumType, ObjectKind, PackedCache, StructType
 from .const import ENCODERS
@@ -35,8 +34,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 type_ = type
 
 

@@ -18,15 +18,14 @@ from typing import (
     final,
 )
 
-import structlog
-from opentelemetry import trace
-
 from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
+from destack.utils.log import get_logger
 from destack.utils.string import Casing, to_casing
+from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .common import (
@@ -66,8 +65,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 __is_finalized__ = False
 

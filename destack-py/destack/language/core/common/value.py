@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
-import structlog
-from opentelemetry import trace
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 
 from ..builtin import (
     ENCODERS,
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 type_ = type
 
 

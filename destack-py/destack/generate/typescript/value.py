@@ -3,9 +3,6 @@ import json
 import textwrap
 from typing import TYPE_CHECKING, Any, assert_never
 
-import structlog
-from opentelemetry import trace
-
 from destack.language import (
     Encoding,
     NodeReference,
@@ -18,6 +15,8 @@ from destack.language import (
     TypeDeclaration,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 
 if TYPE_CHECKING:
     pass
@@ -25,8 +24,8 @@ if TYPE_CHECKING:
 # ruff: noqa: SIM114
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 type_ = type
 
 
