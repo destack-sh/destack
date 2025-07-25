@@ -6,7 +6,6 @@ click==8.2.1
     # via
     #   black
     #   typer
-    #   uvicorn
 deprecated==1.2.18
     # via
     #   opentelemetry-api
@@ -18,8 +17,6 @@ googleapis-common-protos==1.70.0
     # via opentelemetry-exporter-otlp-proto-grpc
 grpcio==1.73.0
     # via opentelemetry-exporter-otlp-proto-grpc
-h11==0.16.0
-    # via uvicorn
 importlib-metadata==8.5.0
     # via opentelemetry-api
 markdown-it-py==3.0.0
@@ -48,8 +45,6 @@ opentelemetry-sdk==1.28.1
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-semantic-conventions==0.49b1
     # via opentelemetry-sdk
-orjson==3.10.18
-    # via -r destack-py-system/destack_system/requirements/requirements.in
 packaging==25.0
     # via black
 pathspec==0.12.1
@@ -62,8 +57,6 @@ protobuf==5.28.3
     #   opentelemetry-proto
 pygments==2.19.2
     # via rich
-regex==2024.11.6
-    # via -r destack-py/destack/requirements/requirements.in
 rich==14.0.0
     # via typer
 shellingham==1.5.4
@@ -76,8 +69,6 @@ typing-extensions==4.14.0
     # via
     #   opentelemetry-sdk
     #   typer
-uvicorn==0.23.2
-    # via -r destack-py-system/destack_system/requirements/requirements.in
 wrapt==1.17.2
     # via deprecated
 xxhash==3.5.0

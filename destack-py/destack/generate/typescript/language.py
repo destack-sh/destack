@@ -1005,7 +1005,7 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if (
+        if prop.primitive_type == PrimitiveType.NONE or (
             prop.primitive_type == PrimitiveType.BOOLEAN
             or prop.primitive_type
             in (
@@ -1137,7 +1137,9 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     """Generate a Typescript hash method for a single scalar property."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "1"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hashBool({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.SINT8,
@@ -1543,7 +1545,7 @@ def _get_type_dependencies(
                 else:
                     assert_never(node_type)
         else:
-            for node_type in type.node_types:
+            for node_type in type.node_types or ():
                 node_cls = NODE_CLASS_BY_TYPE[node_type]
                 dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
         if is_value:

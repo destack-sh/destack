@@ -107,8 +107,6 @@ python-dotenv==1.1.0
     # via -r destack-py/destack/requirements/dev.in
 pyyaml==6.0.2
     # via pre-commit
-regex==2024.11.6
-    # via -r destack-py/destack/requirements/requirements.in
 rich==14.0.0
     # via
     #   pytest-async-benchmark

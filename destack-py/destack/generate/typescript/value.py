@@ -48,7 +48,9 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
     """Generate a Typescript scalar value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"
-        if type.primitive_type == PrimitiveType.BOOLEAN:
+        if type.primitive_type == PrimitiveType.NONE:
+            return "null"
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return "true" if value else "false"
         elif type.primitive_type in (
             PrimitiveType.SINT8,

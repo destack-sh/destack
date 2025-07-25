@@ -202,7 +202,9 @@ def _generate_pack_json_scalar(
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "None"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
             PrimitiveType.SINT8,
@@ -310,7 +312,9 @@ def _generate_unpack_json_scalar(
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "None"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
             PrimitiveType.SINT8,

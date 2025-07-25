@@ -196,7 +196,9 @@ def _generate_pack_cson_scalar(
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if (
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "None"
+        elif (
             prop.primitive_type == PrimitiveType.BOOLEAN
             or prop.primitive_type
             in (
@@ -301,6 +303,8 @@ def _generate_unpack_cson_scalar(
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "None"
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (

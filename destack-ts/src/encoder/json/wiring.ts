@@ -97,6 +97,8 @@ function _packScalarJson(value: any, type: Type): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.NONE) {
+      return null;
     } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
       return value;
     } else if (type.primitiveType == PrimitiveType.STRING) {
@@ -157,6 +159,8 @@ function _unpackScalarJson(value: any, type: Type, _session: Session | null): an
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.NONE) {
+      return null;
     } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
       return value;
     } else if (type.primitiveType == PrimitiveType.BYTES) {

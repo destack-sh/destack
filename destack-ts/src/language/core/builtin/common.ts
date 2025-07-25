@@ -275,6 +275,7 @@ registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
  * PrimitiveType
  */
 export enum PrimitiveType {
+  NONE = 1,
   BOOLEAN = 2,
   SINT8 = 10,
   SINT16 = 11,

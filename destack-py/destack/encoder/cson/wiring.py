@@ -100,7 +100,9 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
     """Pack a scalar value to CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
-        if type.primitive_type == PrimitiveType.BOOLEAN:
+        if type.primitive_type == PrimitiveType.NONE:
+            return None
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value
         elif (
             type.primitive_type
@@ -160,7 +162,9 @@ def _unpack_scalar_cson(value: Cson, type: Type, session: "Session | None") -> A
     """Unpack a scalar value from CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
-        if type.primitive_type == PrimitiveType.BOOLEAN:
+        if type.primitive_type == PrimitiveType.NONE:
+            return None
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value
         elif type.primitive_type in (
             PrimitiveType.SINT8,

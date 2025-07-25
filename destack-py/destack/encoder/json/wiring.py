@@ -102,7 +102,9 @@ def _pack_scalar_json(value: Any, type: Type) -> Any:
     """Pack a scalar value to JSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
-        if type.primitive_type == PrimitiveType.BOOLEAN:
+        if type.primitive_type == PrimitiveType.NONE:
+            return None
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value
         elif (
             type.primitive_type
@@ -163,7 +165,9 @@ def _unpack_scalar_json(value: Any, type: Type, session: "Session | None") -> An
     """Unpack a scalar value from JSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
-        if type.primitive_type == PrimitiveType.BOOLEAN:
+        if type.primitive_type == PrimitiveType.NONE:
+            return None
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value
         elif type.primitive_type in (
             PrimitiveType.SINT8,

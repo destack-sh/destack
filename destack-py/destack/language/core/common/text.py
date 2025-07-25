@@ -1,8 +1,7 @@
+import re
 import textwrap
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional, assert_never
-
-import regex
 
 from ..builtin import (
     Enum,
@@ -166,10 +165,10 @@ MARKER_TO_FLAG = {
 }
 
 
-_MARKER_PATTERN = regex.compile(
+_MARKER_PATTERN = re.compile(
     r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
 )
-_LINK_PATTERN = regex.compile(
+_LINK_PATTERN = re.compile(
     r"(?:https?://)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:/\S*)?"
 )
 
