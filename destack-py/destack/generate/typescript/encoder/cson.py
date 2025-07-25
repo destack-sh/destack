@@ -230,25 +230,39 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f'  objectCson["{prop.id}"] = {value_expr};')
             lines.append("}")
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"if ({obj_cson}.length > 0) {{")
-        lines.append(f"  const {packed_name}: any[] = [];")
-        lines.append(f"  for (const item of {obj_cson}) {{")
         item_expr = _generate_pack_cson_scalar(prop, "item")
-        lines.append(f"    {packed_name}.push({item_expr});")
-        lines.append("  }")
-        lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {packed_name}: any[] = [];")
+            lines.append(f"for (const item of {obj_cson}) {{")
+            lines.append(f"  {packed_name}.push({item_expr});")
+            lines.append("}")
+            lines.append(f'objectCson["{prop.id}"] = {packed_name};')
+        else:
+            lines.append(f"if ({obj_cson} != null) {{")
+            lines.append(f"  const {packed_name}: any[] = [];")
+            lines.append(f"  for (const item of {obj_cson}) {{")
+            lines.append(f"    {packed_name}.push({item_expr});")
+            lines.append("  }")
+            lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
+            lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if (Object.keys({obj_cson}).length > 0) {{")
-        lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
-        lines.append(f"  for (const [key, value] of Object.entries({obj_cson})) {{")
         key_expr = _generate_pack_cson_scalar(prop.key_type, "key")
         value_expr = _generate_pack_cson_scalar(prop, "value")
-        lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
-        lines.append("  }")
-        lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
+            lines.append(f"for (const [key, value] of Object.entries({obj_cson})) {{")
+            lines.append(f"  {packed_name}[String({key_expr})] = {value_expr};")
+            lines.append("}")
+            lines.append(f'objectCson["{prop.id}"] = {packed_name};')
+        else:
+            lines.append(f"if ({obj_cson} != null) {{")
+            lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
+            lines.append(f"  for (const [key, value] of Object.entries({obj_cson})) {{")
+            lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
+            lines.append("  }")
+            lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
+            lines.append("}")
     else:
         assert_never(prop.cardinality)
 
@@ -276,23 +290,35 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
                 f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
             )
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"const {var_name}: any[] = [];")
-        lines.append(f"if ({data_cson} != undefined) {{")
-        lines.append(f"  for (const item of {data_cson}) {{")
         item_expr = _generate_unpack_cson_scalar(prop, "item")
-        lines.append(f"    {var_name}.push({item_expr})")
-        lines.append("  }")
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {var_name}: any[] = [];")
+            lines.append(f"for (const item of {data_cson}) {{")
+            lines.append(f"  {var_name}.push({item_expr})")
+            lines.append("}")
+        else:
+            lines.append(f"if ({data_cson} != undefined) {{")
+            lines.append(f"  const {var_name}: any[] = [];")
+            lines.append(f"  for (const item of {data_cson}) {{")
+            lines.append(f"    {var_name}.push({item_expr})")
+            lines.append("  }")
+            lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"const {var_name} = {{}} as any;")
-        lines.append(f"if ({data_cson} != undefined) {{")
-        lines.append(f"  for (const [key, value] of Object.entries({data_cson})) {{")
         key_expr = _generate_unpack_cson_scalar(prop.key_type, "key")
         value_expr = _generate_unpack_cson_scalar(prop, "value as any")
-        lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
-        lines.append("  }")
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {var_name} = {{}} as any;")
+            lines.append(f"for (const [key, value] of Object.entries({data_cson})) {{")
+            lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
+            lines.append("}")
+        else:
+            lines.append(f"if ({data_cson} != undefined) {{")
+            lines.append(f"  const {var_name} = {{}} as any;")
+            lines.append(f"  for (const [key, value] of Object.entries({data_cson})) {{")
+            lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
+            lines.append("  }")
+            lines.append("}")
     else:
         assert_never(prop.cardinality)
 

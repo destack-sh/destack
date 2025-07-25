@@ -240,25 +240,39 @@ def _generate_pack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f'  objectJson["{json_key}"] = {value_expr};')
             lines.append("}")
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"if ({obj_json}.length > 0) {{")
-        lines.append(f"  const {packed_name}: any[] = [];")
-        lines.append(f"  for (const item of {obj_json}) {{")
         item_expr = _generate_pack_json_scalar(prop, "item")
-        lines.append(f"    {packed_name}.push({item_expr});")
-        lines.append("  }")
-        lines.append(f'  objectJson["{json_key}"] = {packed_name};')
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {packed_name}: any[] = [];")
+            lines.append(f"for (const item of {obj_json}) {{")
+            lines.append(f"  {packed_name}.push({item_expr});")
+            lines.append("}")
+            lines.append(f'objectJson["{json_key}"] = {packed_name};')
+        else:
+            lines.append(f"if ({obj_json} != null) {{")
+            lines.append(f"  const {packed_name}: any[] = [];")
+            lines.append(f"  for (const item of {obj_json}) {{")
+            lines.append(f"    {packed_name}.push({item_expr});")
+            lines.append("  }")
+            lines.append(f'  objectJson["{json_key}"] = {packed_name};')
+            lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if (Object.keys({obj_json}).length > 0) {{")
-        lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
-        lines.append(f"  for (const [key, value] of Object.entries({obj_json})) {{")
         key_expr = _generate_pack_json_scalar(prop.key_type, "key")
         value_expr = _generate_pack_json_scalar(prop, "value")
-        lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
-        lines.append("  }")
-        lines.append(f'  objectJson["{json_key}"] = {packed_name};')
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
+            lines.append(f"for (const [key, value] of Object.entries({obj_json})) {{")
+            lines.append(f"  {packed_name}[String({key_expr})] = {value_expr};")
+            lines.append("}")
+            lines.append(f'objectJson["{json_key}"] = {packed_name};')
+        else:
+            lines.append(f"if ({obj_json} != null) {{")
+            lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
+            lines.append(f"  for (const [key, value] of Object.entries({obj_json})) {{")
+            lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
+            lines.append("  }")
+            lines.append(f'  objectJson["{json_key}"] = {packed_name};')
+            lines.append("}")
     else:
         assert_never(prop.cardinality)
 
@@ -286,23 +300,35 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
                 f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
             )
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"const {var_name}: any[] = [];")
-        lines.append(f"if ({data_json} != undefined) {{")
-        lines.append(f"  for (const item of {data_json}) {{")
         item_expr = _generate_unpack_json_scalar(prop, "item")
-        lines.append(f"    {var_name}.push({item_expr})")
-        lines.append("  }")
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {var_name}: any[] = [];")
+            lines.append(f"for (const item of {data_json}) {{")
+            lines.append(f"  {var_name}.push({item_expr})")
+            lines.append("}")
+        else:
+            lines.append(f"if ({data_json} != undefined) {{")
+            lines.append(f"  const {var_name}: any[] = [];")
+            lines.append(f"  for (const item of {data_json}) {{")
+            lines.append(f"    {var_name}.push({item_expr})")
+            lines.append("  }")
+            lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"const {var_name} = {{}} as any;")
-        lines.append(f"if ({data_json} != undefined) {{")
-        lines.append(f"  for (const [key, value] of Object.entries({data_json})) {{")
         key_expr = _generate_unpack_json_scalar(prop.key_type, "key")
         value_expr = _generate_unpack_json_scalar(prop, "value as any")
-        lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
-        lines.append("  }")
-        lines.append("}")
+        if prop.is_required:
+            lines.append(f"const {var_name} = {{}} as any;")
+            lines.append(f"for (const [key, value] of Object.entries({data_json})) {{")
+            lines.append(f"  {var_name}[{key_expr}] = {value_expr};")
+            lines.append("}")
+        else:
+            lines.append(f"if ({data_json} != undefined) {{")
+            lines.append(f"  const {var_name} = {{}} as any;")
+            lines.append(f"  for (const [key, value] of Object.entries({data_json})) {{")
+            lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
+            lines.append("  }")
+            lines.append("}")
     else:
         assert_never(prop.cardinality)
 

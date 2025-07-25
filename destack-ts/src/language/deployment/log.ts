@@ -248,14 +248,14 @@ export class LogEvent extends Event {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for LogEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`LogEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -268,14 +268,14 @@ export class LogEvent extends Event {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for LogEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`LogEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -283,14 +283,14 @@ export class LogEvent extends Event {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for LogEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`LogEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -308,26 +308,26 @@ export class LogEvent extends Event {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`LogEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`LogEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`LogEvent.status is required`);
     }
     this.status = _status;
@@ -337,17 +337,17 @@ export class LogEvent extends Event {
     }
     this.nodePtr = _node as NodeReference | null;
     let _content = options.content;
-    if (_content === null) {
+    if (_content == null) {
       throw new Error(`LogEvent.content is required`);
     }
     this.content = _content;
     let _attributes = options.attributes ?? null;
-    if (_attributes === null) {
+    if (_attributes == null) {
       _attributes = {};
     }
     this.attributes = _attributes;
     let _level = options.level;
-    if (_level === null) {
+    if (_level == null) {
       throw new Error(`LogEvent.level is required`);
     }
     this.level = _level;

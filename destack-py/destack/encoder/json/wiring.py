@@ -38,56 +38,62 @@ type_ = type
 def pack_json(value: Any, type: Type) -> Json:
     """Pack a generic typed value to a JSON object."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _pack_scalar_json(value, type)
+        if value is None:
+            return None
+        else:
+            return _pack_scalar_json(value, type)
     elif type.cardinality == TypeCardinality.LIST:
-        if not value:
-            return []
-        packed_list: list[Any] = []
-        for item in value:
-            packed_list.append(_pack_scalar_json(item, type))
-        return packed_list
+        if value is None:
+            return None
+        else:
+            packed_list: list[Any] = []
+            for item in value:
+                packed_list.append(_pack_scalar_json(item, type))
+            return packed_list
     elif type.cardinality == TypeCardinality.MAP:
-        if not value:
-            return {}
-        assert type.key_type is not None, f"no key type for {type!r}"
-        packed_map: dict[str, Any] = {}
-        for key, val in value.items():
-            # always use string keys in JSON
-            packed_key = str(_pack_scalar_json(key, type.key_type))
-            packed_val = _pack_scalar_json(val, type)
-            packed_map[packed_key] = packed_val
-        return packed_map
+        if value is None:
+            return None
+        else:
+            assert type.key_type is not None, f"no key type for {type!r}"
+            packed_map: dict[str, Any] = {}
+            for key, val in value.items():
+                # always use string keys in JSON
+                packed_key = str(_pack_scalar_json(key, type.key_type))
+                packed_val = _pack_scalar_json(val, type)
+                packed_map[packed_key] = packed_val
+            return packed_map
     else:
         assert_never(type.cardinality)
 
 
-def unpack_json(
-    value: Json,
-    type: Type,
-    session: "Session | None",
-) -> Any:
+def unpack_json(value: Json, type: Type, session: "Session | None") -> Any:
     """Unpack a JSON object to a generic typed value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_json(value, type, session)
+        if value is None:
+            return None
+        else:
+            return _unpack_scalar_json(value, type, session)
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
-            return []
-        unpacked_list = []
-        for item in value:
-            unpacked_list.append(_unpack_scalar_json(item, type, session))
-        return unpacked_list
+            return None
+        else:
+            unpacked_list = []
+            for item in value:
+                unpacked_list.append(_unpack_scalar_json(item, type, session))
+            return unpacked_list
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
-            return {}
-        unpacked_map = {}
-        assert isinstance(value, dict), f"expected dict for map type, got {type_(value)}"
-        for key, val in value.items():
-            unpacked_key = (
-                _unpack_scalar_json(key, type.key_type, session) if type.key_type else key
-            )
-            unpacked_val = _unpack_scalar_json(val, type, session)
-            unpacked_map[unpacked_key] = unpacked_val
-        return unpacked_map
+            return None
+        else:
+            unpacked_map = {}
+            assert isinstance(value, dict), f"expected dict for map type, got {type_(value)}"
+            for key, val in value.items():
+                unpacked_key = (
+                    _unpack_scalar_json(key, type.key_type, session) if type.key_type else key
+                )
+                unpacked_val = _unpack_scalar_json(val, type, session)
+                unpacked_map[unpacked_key] = unpacked_val
+            return unpacked_map
     else:
         assert_never(type.cardinality)
 

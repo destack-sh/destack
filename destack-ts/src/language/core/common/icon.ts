@@ -101,7 +101,7 @@ export class Icon extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Icon.type is required`);
     }
     this.type = _type;

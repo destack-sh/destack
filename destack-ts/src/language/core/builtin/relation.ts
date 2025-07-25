@@ -71,12 +71,12 @@ export class NodeDefinitionReference extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`NodeDefinitionReference.type is required`);
     }
     this.type = _type;
     let _nodeType = options.nodeType;
-    if (_nodeType === null) {
+    if (_nodeType == null) {
       throw new Error(`NodeDefinitionReference.nodeType is required`);
     }
     this.nodeType = _nodeType;
@@ -301,7 +301,7 @@ export class PropertyReference extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`PropertyReference.type is required`);
     }
     this.type = _type;
@@ -608,29 +608,29 @@ export class NodeReference extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`NodeReference.type is required`);
     }
     this.type = _type;
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`NodeReference.id is required`);
     }
     this.id = _id;
     let _spaceId = options.spaceId;
-    if (_spaceId === null) {
+    if (_spaceId == null) {
       throw new Error(`NodeReference.spaceId is required`);
     }
     this.spaceId = _spaceId;
     let _definitionId = options.definitionId ?? null;
     this.definitionId = _definitionId;
     let _branchId = options.branchId;
-    if (_branchId === null) {
+    if (_branchId == null) {
       throw new Error(`NodeReference.branchId is required`);
     }
     this.branchId = _branchId;
     let _snapshotId = options.snapshotId;
-    if (_snapshotId === null) {
+    if (_snapshotId == null) {
       throw new Error(`NodeReference.snapshotId is required`);
     }
     this.snapshotId = _snapshotId;
@@ -794,7 +794,7 @@ export class ObjectDefinitionReference extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`ObjectDefinitionReference.type is required`);
     }
     this.type = _type;
@@ -953,7 +953,7 @@ export class StructDefinitionReference extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`StructDefinitionReference.type is required`);
     }
     this.type = _type;
@@ -963,7 +963,7 @@ export class StructDefinitionReference extends StructFrozen {
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    if (_definition === null) {
+    if (_definition == null) {
       throw new Error(`StructDefinitionReference.definition is required`);
     }
     this.definitionPtr = _definition as NodeReference;

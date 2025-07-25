@@ -133,32 +133,32 @@ export class Stroke extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Stroke.type is required`);
     }
     this.type = _type;
     let _size = options.size;
-    if (_size === null) {
+    if (_size == null) {
       throw new Error(`Stroke.size is required`);
     }
     this.size = _size;
     let _thinning = options.thinning;
-    if (_thinning === null) {
+    if (_thinning == null) {
       throw new Error(`Stroke.thinning is required`);
     }
     this.thinning = _thinning;
     let _smoothing = options.smoothing;
-    if (_smoothing === null) {
+    if (_smoothing == null) {
       throw new Error(`Stroke.smoothing is required`);
     }
     this.smoothing = _smoothing;
     let _streamline = options.streamline;
-    if (_streamline === null) {
+    if (_streamline == null) {
       throw new Error(`Stroke.streamline is required`);
     }
     this.streamline = _streamline;
     let _easing = options.easing;
-    if (_easing === null) {
+    if (_easing == null) {
       throw new Error(`Stroke.easing is required`);
     }
     this.easing = _easing;
@@ -308,17 +308,17 @@ export class StrokeCap extends StructFrozen {
 
     /* properties */
     let _cap = options.cap;
-    if (_cap === null) {
+    if (_cap == null) {
       throw new Error(`StrokeCap.cap is required`);
     }
     this.cap = _cap;
     let _taper = options.taper;
-    if (_taper === null) {
+    if (_taper == null) {
       throw new Error(`StrokeCap.taper is required`);
     }
     this.taper = _taper;
     let _easing = options.easing;
-    if (_easing === null) {
+    if (_easing == null) {
       throw new Error(`StrokeCap.easing is required`);
     }
     this.easing = _easing;
@@ -441,37 +441,37 @@ export class StrokePoint extends StructFrozen {
 
     /* properties */
     let _point = options.point;
-    if (_point === null) {
+    if (_point == null) {
       throw new Error(`StrokePoint.point is required`);
     }
     this.point = _point;
     let _originalPoint = options.originalPoint;
-    if (_originalPoint === null) {
+    if (_originalPoint == null) {
       throw new Error(`StrokePoint.originalPoint is required`);
     }
     this.originalPoint = _originalPoint;
     let _pressure = options.pressure;
-    if (_pressure === null) {
+    if (_pressure == null) {
       throw new Error(`StrokePoint.pressure is required`);
     }
     this.pressure = _pressure;
     let _direction = options.direction;
-    if (_direction === null) {
+    if (_direction == null) {
       throw new Error(`StrokePoint.direction is required`);
     }
     this.direction = _direction;
     let _distance = options.distance;
-    if (_distance === null) {
+    if (_distance == null) {
       throw new Error(`StrokePoint.distance is required`);
     }
     this.distance = _distance;
     let _runningLength = options.runningLength;
-    if (_runningLength === null) {
+    if (_runningLength == null) {
       throw new Error(`StrokePoint.runningLength is required`);
     }
     this.runningLength = _runningLength;
     let _radius = options.radius;
-    if (_radius === null) {
+    if (_radius == null) {
       throw new Error(`StrokePoint.radius is required`);
     }
     this.radius = _radius;
@@ -586,7 +586,7 @@ export class StrokePath extends StructFrozen {
 
     /* properties */
     let _points = options.points ?? null;
-    if (_points === null) {
+    if (_points == null) {
       _points = [];
     }
     this.points = _points;
@@ -612,6 +612,7 @@ export class StrokePath extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -1122,22 +1123,22 @@ export class StrokeStyle extends Style {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for StrokeStyle`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`StrokeStyle.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`StrokeStyle.materialization is required`);
     }
     this.materialization = _materialization;
@@ -1150,14 +1151,14 @@ export class StrokeStyle extends Style {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for StrokeStyle`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`StrokeStyle.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1165,14 +1166,14 @@ export class StrokeStyle extends Style {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for StrokeStyle`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`StrokeStyle.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1194,23 +1195,23 @@ export class StrokeStyle extends Style {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "StrokeStyle";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`StrokeStyle.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`StrokeStyle.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -1229,32 +1230,32 @@ export class StrokeStyle extends Style {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`StrokeStyle.type is required`);
     }
     this._type = _type;
     let _size = options.size;
-    if (_size === null) {
+    if (_size == null) {
       throw new Error(`StrokeStyle.size is required`);
     }
     this._size = _size;
     let _thinning = options.thinning;
-    if (_thinning === null) {
+    if (_thinning == null) {
       throw new Error(`StrokeStyle.thinning is required`);
     }
     this._thinning = _thinning;
     let _smoothing = options.smoothing;
-    if (_smoothing === null) {
+    if (_smoothing == null) {
       throw new Error(`StrokeStyle.smoothing is required`);
     }
     this._smoothing = _smoothing;
     let _streamline = options.streamline;
-    if (_streamline === null) {
+    if (_streamline == null) {
       throw new Error(`StrokeStyle.streamline is required`);
     }
     this._streamline = _streamline;
     let _easing = options.easing;
-    if (_easing === null) {
+    if (_easing == null) {
       throw new Error(`StrokeStyle.easing is required`);
     }
     this._easing = _easing;
@@ -1360,6 +1361,7 @@ export class StrokeStyle extends Style {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

@@ -37,12 +37,12 @@ export class Vector2 extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector2.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector2.y is required`);
     }
     this.y = _y;
@@ -302,17 +302,17 @@ export class Vector3 extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector3.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector3.y is required`);
     }
     this.y = _y;
     let _z = options.z;
-    if (_z === null) {
+    if (_z == null) {
       throw new Error(`Vector3.z is required`);
     }
     this.z = _z;
@@ -609,22 +609,22 @@ export class Vector4 extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector4.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector4.y is required`);
     }
     this.y = _y;
     let _z = options.z;
-    if (_z === null) {
+    if (_z == null) {
       throw new Error(`Vector4.z is required`);
     }
     this.z = _z;
     let _w = options.w;
-    if (_w === null) {
+    if (_w == null) {
       throw new Error(`Vector4.w is required`);
     }
     this.w = _w;
@@ -930,12 +930,12 @@ export class Vector2i extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector2i.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector2i.y is required`);
     }
     this.y = _y;
@@ -1195,17 +1195,17 @@ export class Vector3i extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector3i.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector3i.y is required`);
     }
     this.y = _y;
     let _z = options.z;
-    if (_z === null) {
+    if (_z == null) {
       throw new Error(`Vector3i.z is required`);
     }
     this.z = _z;
@@ -1492,22 +1492,22 @@ export class Vector4i extends StructFrozen {
 
     /* properties */
     let _x = options.x;
-    if (_x === null) {
+    if (_x == null) {
       throw new Error(`Vector4i.x is required`);
     }
     this.x = _x;
     let _y = options.y;
-    if (_y === null) {
+    if (_y == null) {
       throw new Error(`Vector4i.y is required`);
     }
     this.y = _y;
     let _z = options.z;
-    if (_z === null) {
+    if (_z == null) {
       throw new Error(`Vector4i.z is required`);
     }
     this.z = _z;
     let _w = options.w;
-    if (_w === null) {
+    if (_w == null) {
       throw new Error(`Vector4i.w is required`);
     }
     this.w = _w;

@@ -367,14 +367,14 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for MembershipJoinedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`MembershipJoinedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -387,14 +387,14 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for MembershipJoinedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`MembershipJoinedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -402,14 +402,14 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for MembershipJoinedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`MembershipJoinedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -427,26 +427,26 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`MembershipJoinedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`MembershipJoinedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`MembershipJoinedEvent.status is required`);
     }
     this.status = _status;
@@ -454,7 +454,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`MembershipJoinedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -462,7 +462,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`MembershipJoinedEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -470,7 +470,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`MembershipJoinedEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -478,12 +478,12 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_role != null && _role.constructor.name !== "NodeReference") {
       _role = (_role as Node).toRef();
     }
-    if (_role === null) {
+    if (_role == null) {
       throw new Error(`MembershipJoinedEvent.role is required`);
     }
     this.rolePtr = _role as NodeReference;
     let _roleType = options.roleType;
-    if (_roleType === null) {
+    if (_roleType == null) {
       throw new Error(`MembershipJoinedEvent.roleType is required`);
     }
     this.roleType = _roleType;
@@ -860,14 +860,14 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for MembershipLeftEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`MembershipLeftEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -880,14 +880,14 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for MembershipLeftEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`MembershipLeftEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -895,14 +895,14 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for MembershipLeftEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`MembershipLeftEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -920,26 +920,26 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`MembershipLeftEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`MembershipLeftEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`MembershipLeftEvent.status is required`);
     }
     this.status = _status;
@@ -947,7 +947,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`MembershipLeftEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -955,7 +955,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`MembershipLeftEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -963,7 +963,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`MembershipLeftEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -1527,22 +1527,22 @@ export class Membership extends Entity implements IsOwnable {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Membership`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Membership.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Membership.materialization is required`);
     }
     this.materialization = _materialization;
@@ -1555,14 +1555,14 @@ export class Membership extends Entity implements IsOwnable {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Membership`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Membership.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1570,14 +1570,14 @@ export class Membership extends Entity implements IsOwnable {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Membership`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Membership.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1599,23 +1599,23 @@ export class Membership extends Entity implements IsOwnable {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Membership";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Membership.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Membership.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -1637,7 +1637,7 @@ export class Membership extends Entity implements IsOwnable {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`Membership.member is required`);
     }
     this._memberPtr = _member as NodeReference;
@@ -1714,6 +1714,7 @@ export class Membership extends Entity implements IsOwnable {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

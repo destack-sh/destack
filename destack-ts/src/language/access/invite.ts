@@ -367,14 +367,14 @@ export class InviteSentEvent extends InviteEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for InviteSentEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`InviteSentEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -387,14 +387,14 @@ export class InviteSentEvent extends InviteEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for InviteSentEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`InviteSentEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -402,14 +402,14 @@ export class InviteSentEvent extends InviteEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for InviteSentEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`InviteSentEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -427,26 +427,26 @@ export class InviteSentEvent extends InviteEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`InviteSentEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`InviteSentEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`InviteSentEvent.status is required`);
     }
     this.status = _status;
@@ -454,7 +454,7 @@ export class InviteSentEvent extends InviteEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`InviteSentEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -462,7 +462,7 @@ export class InviteSentEvent extends InviteEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`InviteSentEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -470,7 +470,7 @@ export class InviteSentEvent extends InviteEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`InviteSentEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -478,12 +478,12 @@ export class InviteSentEvent extends InviteEvent {
     if (_role != null && _role.constructor.name !== "NodeReference") {
       _role = (_role as Node).toRef();
     }
-    if (_role === null) {
+    if (_role == null) {
       throw new Error(`InviteSentEvent.role is required`);
     }
     this.rolePtr = _role as NodeReference;
     let _roleType = options.roleType;
-    if (_roleType === null) {
+    if (_roleType == null) {
       throw new Error(`InviteSentEvent.roleType is required`);
     }
     this.roleType = _roleType;
@@ -860,14 +860,14 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for InviteRescindedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`InviteRescindedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -880,14 +880,14 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for InviteRescindedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`InviteRescindedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -895,14 +895,14 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for InviteRescindedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`InviteRescindedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -920,26 +920,26 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`InviteRescindedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`InviteRescindedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`InviteRescindedEvent.status is required`);
     }
     this.status = _status;
@@ -947,7 +947,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`InviteRescindedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -955,7 +955,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`InviteRescindedEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -963,7 +963,7 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`InviteRescindedEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -1351,14 +1351,14 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for InviteAcceptedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`InviteAcceptedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1371,14 +1371,14 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for InviteAcceptedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`InviteAcceptedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1386,14 +1386,14 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for InviteAcceptedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`InviteAcceptedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1411,26 +1411,26 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`InviteAcceptedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`InviteAcceptedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`InviteAcceptedEvent.status is required`);
     }
     this.status = _status;
@@ -1438,7 +1438,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`InviteAcceptedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1446,7 +1446,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`InviteAcceptedEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -1454,7 +1454,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`InviteAcceptedEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -1462,12 +1462,12 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_role != null && _role.constructor.name !== "NodeReference") {
       _role = (_role as Node).toRef();
     }
-    if (_role === null) {
+    if (_role == null) {
       throw new Error(`InviteAcceptedEvent.role is required`);
     }
     this.rolePtr = _role as NodeReference;
     let _roleType = options.roleType;
-    if (_roleType === null) {
+    if (_roleType == null) {
       throw new Error(`InviteAcceptedEvent.roleType is required`);
     }
     this.roleType = _roleType;
@@ -1844,14 +1844,14 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for InviteRejectedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`InviteRejectedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1864,14 +1864,14 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for InviteRejectedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`InviteRejectedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1879,14 +1879,14 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for InviteRejectedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`InviteRejectedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1904,26 +1904,26 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`InviteRejectedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`InviteRejectedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`InviteRejectedEvent.status is required`);
     }
     this.status = _status;
@@ -1931,7 +1931,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`InviteRejectedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1939,7 +1939,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
     }
-    if (_joinable === null) {
+    if (_joinable == null) {
       throw new Error(`InviteRejectedEvent.joinable is required`);
     }
     this.joinablePtr = _joinable as NodeReference;
@@ -1947,7 +1947,7 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`InviteRejectedEvent.member is required`);
     }
     this.memberPtr = _member as NodeReference;
@@ -2511,22 +2511,22 @@ export class Invite extends Entity implements IsOwnable {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Invite`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Invite.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Invite.materialization is required`);
     }
     this.materialization = _materialization;
@@ -2539,14 +2539,14 @@ export class Invite extends Entity implements IsOwnable {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Invite`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Invite.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2554,14 +2554,14 @@ export class Invite extends Entity implements IsOwnable {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Invite`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Invite.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2583,23 +2583,23 @@ export class Invite extends Entity implements IsOwnable {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Invite";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Invite.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Invite.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -2621,7 +2621,7 @@ export class Invite extends Entity implements IsOwnable {
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
     }
-    if (_member === null) {
+    if (_member == null) {
       throw new Error(`Invite.member is required`);
     }
     this._memberPtr = _member as NodeReference;
@@ -2696,6 +2696,7 @@ export class Invite extends Entity implements IsOwnable {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

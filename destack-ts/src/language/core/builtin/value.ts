@@ -46,7 +46,7 @@ export class Value extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Value.type is required`);
     }
     this.type = _type;

@@ -23,30 +23,36 @@ import { Temporal } from "temporal-polyfill";
  */
 export function packCson(value: any, type: Type): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
-    return _packScalarCson(value, type);
+    if (value == null) {
+      return null;
+    } else {
+      return _packScalarCson(value, type);
+    }
   } else if (type.cardinality == TypeCardinality.LIST) {
-    if (!value) {
-      return [];
+    if (value == null) {
+      return null;
+    } else {
+      const packedList: any[] = [];
+      for (const item of value) {
+        packedList.push(_packScalarCson(item, type));
+      }
+      return packedList;
     }
-    const packedList: any[] = [];
-    for (const item of value) {
-      packedList.push(_packScalarCson(item, type));
-    }
-    return packedList;
   } else if (type.cardinality == TypeCardinality.MAP) {
-    if (!value) {
-      return {};
+    if (value == null) {
+      return null;
+    } else {
+      if (type.keyType === null) {
+        throw new Error(`no key type for ${type.repr()}`);
+      }
+      const packedMap: { [key: string]: any } = {};
+      for (const [key, val] of Object.entries(value)) {
+        const packedKey = _packScalarCson(key, type.keyType);
+        const packedVal = _packScalarCson(val, type);
+        packedMap[String(packedKey)] = packedVal;
+      }
+      return packedMap;
     }
-    if (type.keyType === null) {
-      throw new Error(`no key type for ${type.repr()}`);
-    }
-    const packedMap: { [key: string]: any } = {};
-    for (const [key, val] of Object.entries(value)) {
-      const packedKey = _packScalarCson(key, type.keyType);
-      const packedVal = _packScalarCson(val, type);
-      packedMap[String(packedKey)] = packedVal;
-    }
-    return packedMap;
   } else {
     assertNever(type.cardinality);
   }
@@ -67,25 +73,27 @@ export function unpackCson(
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _unpackScalarCson(value, type, options);
   } else if (type.cardinality == TypeCardinality.LIST) {
-    if (value === null) {
-      return [];
+    if (value == null) {
+      return null;
+    } else {
+      const unpackedList = [];
+      for (const item of value) {
+        unpackedList.push(_unpackScalarCson(item, type, options));
+      }
+      return unpackedList;
     }
-    const unpackedList = [];
-    for (const item of value) {
-      unpackedList.push(_unpackScalarCson(item, type, options));
-    }
-    return unpackedList;
   } else if (type.cardinality == TypeCardinality.MAP) {
-    if (value === null) {
-      return {};
+    if (value == null) {
+      return null;
+    } else {
+      const unpackedMap: { [key: string]: any } = {};
+      for (const [key, val] of Object.entries(value)) {
+        const unpackedKey = type.keyType ? _unpackScalarCson(key, type.keyType) : key;
+        const unpackedVal = _unpackScalarCson(val, type, options);
+        unpackedMap[unpackedKey] = unpackedVal;
+      }
+      return unpackedMap;
     }
-    const unpackedMap: { [key: string]: any } = {};
-    for (const [key, val] of Object.entries(value)) {
-      const unpackedKey = type.keyType ? _unpackScalarCson(key, type.keyType) : key;
-      const unpackedVal = _unpackScalarCson(val, type, options);
-      unpackedMap[unpackedKey] = unpackedVal;
-    }
-    return unpackedMap;
   } else {
     assertNever(type.cardinality);
   }

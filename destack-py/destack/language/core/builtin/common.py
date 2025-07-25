@@ -302,6 +302,7 @@ assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 class TypeCardinality(Enum):
     """The 'kind' of a Type."""
 
+    # TODO :Incomplete: support tuples, sets (?), (tagged) unions, .. in type system
     SCALAR = 1, "Scalar", "Single value"
     LIST = 2, "List", "List of values"
     # TUPLE

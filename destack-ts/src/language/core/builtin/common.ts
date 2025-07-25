@@ -383,7 +383,7 @@ export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Ma
 export enum Encoding {
   JSON = 1,
   CSON = 2,
-  KOMPAKT = 11,
+  KOMPAKT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

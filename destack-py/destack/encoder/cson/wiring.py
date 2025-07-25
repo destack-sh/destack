@@ -38,54 +38,60 @@ type_ = type
 def pack_cson(value: Any, type: Type) -> Cson:
     """Pack a generic typed value to a CSON object."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _pack_scalar_cson(value, type)
+        if value is None:
+            return None
+        else:
+            return _pack_scalar_cson(value, type)
     elif type.cardinality == TypeCardinality.LIST:
-        if not value:
-            return []
-        packed_list: list[Cson] = []
-        for item in value:
-            packed_list.append(_pack_scalar_cson(item, type))
-        return packed_list
+        if value is None:
+            return None
+        else:
+            packed_list: list[Cson] = []
+            for item in value:
+                packed_list.append(_pack_scalar_cson(item, type))
+            return packed_list
     elif type.cardinality == TypeCardinality.MAP:
-        if not value:
-            return {}
-        assert type.key_type is not None, f"no key type for {type!r}"
-        packed_map: dict[str, Cson] = {}
-        for key, val in value.items():
-            packed_key = _pack_scalar_cson(key, type.key_type)
-            packed_val = _pack_scalar_cson(val, type)
-            packed_map[str(packed_key)] = packed_val
-        return packed_map
+        if value is None:
+            return None
+        else:
+            assert type.key_type is not None, f"no key type for {type!r}"
+            packed_map: dict[str, Cson] = {}
+            for key, val in value.items():
+                packed_key = _pack_scalar_cson(key, type.key_type)
+                packed_val = _pack_scalar_cson(val, type)
+                packed_map[str(packed_key)] = packed_val
+            return packed_map
     else:
         assert_never(type.cardinality)
 
 
-def unpack_cson(
-    value: Cson,
-    type: Type,
-    session: "Session | None",
-) -> Any:
+def unpack_cson(value: Cson, type: Type, session: "Session | None") -> Any:
     """Unpack a CSON object to a generic typed value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return _unpack_scalar_cson(value, type, session)
+        if value is None:
+            return None
+        else:
+            return _unpack_scalar_cson(value, type, session)
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
-            return []
-        unpacked_list = []
-        for item in value:
-            unpacked_list.append(_unpack_scalar_cson(item, type, session))
-        return unpacked_list
+            return None
+        else:
+            unpacked_list = []
+            for item in value:
+                unpacked_list.append(_unpack_scalar_cson(item, type, session))
+            return unpacked_list
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
-            return {}
-        unpacked_map = {}
-        for key, val in value.items():
-            unpacked_key = (
-                _unpack_scalar_cson(key, type.key_type, session) if type.key_type else key
-            )
-            unpacked_val = _unpack_scalar_cson(val, type, session)
-            unpacked_map[unpacked_key] = unpacked_val
-        return unpacked_map
+            return None
+        else:
+            unpacked_map = {}
+            for key, val in value.items():
+                unpacked_key = (
+                    _unpack_scalar_cson(key, type.key_type, session) if type.key_type else key
+                )
+                unpacked_val = _unpack_scalar_cson(val, type, session)
+                unpacked_map[unpacked_key] = unpacked_val
+            return unpacked_map
     else:
         assert_never(type.cardinality)
 
@@ -150,11 +156,7 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_cson(
-    value: Cson,
-    type: Type,
-    session: "Session | None",
-) -> Any:
+def _unpack_scalar_cson(value: Cson, type: Type, session: "Session | None") -> Any:
     """Unpack a scalar value from CSON."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"

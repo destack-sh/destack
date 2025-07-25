@@ -549,15 +549,15 @@ export class BasicType extends StructFrozen {
 
     /* properties */
     let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
     }
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       throw new Error(`BasicType.cardinality is required`);
     }
     this.cardinality = _cardinality;
     let _scalarType = options.scalarType;
-    if (_scalarType === null) {
+    if (_scalarType == null) {
       throw new Error(`BasicType.scalarType is required`);
     }
     this.scalarType = _scalarType;
@@ -566,7 +566,7 @@ export class BasicType extends StructFrozen {
     let _enumType = options.enumType ?? null;
     this.enumType = _enumType;
     let _nodeTypes = options.nodeTypes ?? null;
-    if (_nodeTypes === null) {
+    if (_nodeTypes == null) {
       _nodeTypes = [];
     }
     this.nodeTypes = _nodeTypes;
@@ -610,6 +610,7 @@ export class BasicType extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.structType === other.structType)) {
       return false;
     }
@@ -874,6 +875,7 @@ export class Type extends BasicType {
         return false;
       }
     }
+
     if (!(this.structType === other.structType)) {
       return false;
     }

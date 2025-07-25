@@ -156,21 +156,33 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             value_expr = _generate_pack_cson_scalar(prop, prop_name)
             lines.append(f'    _object_cson["{prop.id}"] = {value_expr}')
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"if {obj_cson}:")
-        lines.append(f"    _packed_{prop_name} = []")
-        lines.append(f"    for _item in {obj_cson}:")
         item_expr = _generate_pack_cson_scalar(prop, "_item")
-        lines.append(f"        _packed_{prop_name}.append({item_expr})")
-        lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+        if prop.is_required:
+            lines.append(f"_packed_{prop_name} = []")
+            lines.append(f"for _item in {obj_cson}:")
+            lines.append(f"    _packed_{prop_name}.append({item_expr})")
+            lines.append(f'_object_cson["{prop.id}"] = _packed_{prop_name}')
+        else:
+            lines.append(f"if {obj_cson} is not None:")
+            lines.append(f"    _packed_{prop_name} = []")
+            lines.append(f"    for _item in {obj_cson}:")
+            lines.append(f"        _packed_{prop_name}.append({item_expr})")
+            lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if {obj_cson}:")
-        lines.append(f"    _packed_{prop_name} = {{}}")
-        lines.append(f"    for _key, _cson in {obj_cson}.items():")
         key_expr = _generate_pack_cson_scalar(prop.key_type, "_key")
         value_expr = _generate_pack_cson_scalar(prop, "_cson")
-        lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
-        lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+        if prop.is_required:
+            lines.append(f"_packed_{prop_name} = {{}}")
+            lines.append(f"for _key, _cson in {obj_cson}.items():")
+            lines.append(f"    _packed_{prop_name}[str({key_expr})] = {value_expr}")
+            lines.append(f'_object_cson["{prop.id}"] = _packed_{prop_name}')
+        else:
+            lines.append(f"if {obj_cson} is not None:")
+            lines.append(f"    _packed_{prop_name} = {{}}")
+            lines.append(f"    for _key, _cson in {obj_cson}.items():")
+            lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
+            lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
     else:
         assert_never(prop.cardinality)
 
@@ -249,19 +261,33 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
                 f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_cson}) is not None else None"
             )
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"_unpacked_{prop_name} = []")
-        lines.append(f"if {data_cson} is not None:")
-        lines.append(f"    for _item in {data_cson}:")
         item_expr = _generate_unpack_cson_scalar(prop, "_item")
-        lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
+        if prop.is_required:
+            lines.append(f"_unpacked_{prop_name} = []")
+            lines.append(f"for _item in {data_cson}:")
+            lines.append(f"    _unpacked_{prop_name}.append({item_expr})")
+        else:
+            lines.append(f"_unpacked_{prop_name} = []")
+            lines.append(f"if {data_cson} is not None:")
+            lines.append(f"    for _item in {data_cson}:")
+            lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"_unpacked_{prop_name} = {{}}")
-        lines.append(f"if {data_cson} is not None:")
-        lines.append(f"    for _key, _cson in {data_cson}.items():")
         key_expr = _generate_unpack_cson_scalar(prop.key_type, "_key")
         value_expr = _generate_unpack_cson_scalar(prop, "_cson")
-        lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
+        if prop.is_required:
+            lines.append(f"_unpacked_{prop_name} = {{}}")
+            lines.append(f"for _key, _cson in {data_cson}.items():")
+            lines.append(f"    _unpacked_{prop_name}[{key_expr}] = {value_expr}")
+            lines.append("else:")
+            lines.append(f"    _unpacked_{prop_name} = None")
+        else:
+            lines.append(f"if {data_cson} is not None:")
+            lines.append(f"    _unpacked_{prop_name} = {{}}")
+            lines.append(f"    for _key, _cson in {data_cson}.items():")
+            lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
+            lines.append("else:")
+            lines.append(f"    _unpacked_{prop_name} = None")
     else:
         assert_never(prop.cardinality)
 

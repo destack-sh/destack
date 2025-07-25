@@ -78,12 +78,12 @@ export class Line2D extends StructFrozen {
     let _stroke = options.stroke ?? null;
     this.stroke = _stroke;
     let _start = options.start;
-    if (_start === null) {
+    if (_start == null) {
       throw new Error(`Line2D.start is required`);
     }
     this.start = _start;
     let _end = options.end;
-    if (_end === null) {
+    if (_end == null) {
       throw new Error(`Line2D.end is required`);
     }
     this.end = _end;
@@ -657,22 +657,22 @@ export class LineShape2D extends Shape2D {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for LineShape2D`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`LineShape2D.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`LineShape2D.materialization is required`);
     }
     this.materialization = _materialization;
@@ -685,14 +685,14 @@ export class LineShape2D extends Shape2D {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for LineShape2D`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`LineShape2D.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -700,14 +700,14 @@ export class LineShape2D extends Shape2D {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for LineShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`LineShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -729,23 +729,23 @@ export class LineShape2D extends Shape2D {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "LineShape2D";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`LineShape2D.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`LineShape2D.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -780,12 +780,12 @@ export class LineShape2D extends Shape2D {
     let _stroke = options.stroke ?? null;
     this._stroke = _stroke;
     let _start = options.start;
-    if (_start === null) {
+    if (_start == null) {
       throw new Error(`LineShape2D.start is required`);
     }
     this._start = _start;
     let _end = options.end;
-    if (_end === null) {
+    if (_end == null) {
       throw new Error(`LineShape2D.end is required`);
     }
     this._end = _end;
@@ -897,6 +897,7 @@ export class LineShape2D extends Shape2D {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

@@ -483,9 +483,6 @@ class PropertyDeclaration(TypeDeclaration):
             else:
                 raise ValueError(f"unexpected object type: {object_type!r}")
 
-        # only scalar types can be optional
-        if not self.is_required and self.cardinality != TypeCardinality.SCALAR:
-            raise ValueError(f"non-scalar {self!r} cannot be optional")
         # parent must be optional
         if self.name == "parent" and self.is_required:
             raise ValueError(f"parent must be optional: {self!r}")
