@@ -279,17 +279,17 @@ export class NodeDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`NodeDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`NodeDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`NodeDefinition.name is required`);
     }
     this.name = _name;
@@ -298,149 +298,149 @@ export class NodeDefinition extends StructFrozen {
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
     let _isAbstract = options.isAbstract;
-    if (_isAbstract === null) {
+    if (_isAbstract == null) {
       throw new Error(`NodeDefinition.isAbstract is required`);
     }
     this.isAbstract = _isAbstract;
     let _isExtensible = options.isExtensible;
-    if (_isExtensible === null) {
+    if (_isExtensible == null) {
       throw new Error(`NodeDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _isFinal = options.isFinal;
-    if (_isFinal === null) {
+    if (_isFinal == null) {
       throw new Error(`NodeDefinition.isFinal is required`);
     }
     this.isFinal = _isFinal;
     let _isFrozen = options.isFrozen;
-    if (_isFrozen === null) {
+    if (_isFrozen == null) {
       throw new Error(`NodeDefinition.isFrozen is required`);
     }
     this.isFrozen = _isFrozen;
     let _properties = options.properties ?? null;
-    if (_properties === null) {
+    if (_properties == null) {
       _properties = [];
     }
     this.properties = _properties;
     let _indexes = options.indexes ?? null;
-    if (_indexes === null) {
+    if (_indexes == null) {
       _indexes = [];
     }
     this.indexes = _indexes;
     let _constraints = options.constraints ?? null;
-    if (_constraints === null) {
+    if (_constraints == null) {
       _constraints = [];
     }
     this.constraints = _constraints;
     let _permissions = options.permissions ?? null;
-    if (_permissions === null) {
+    if (_permissions == null) {
       _permissions = [];
     }
     this.permissions = _permissions;
     let _methods = options.methods ?? null;
-    if (_methods === null) {
+    if (_methods == null) {
       _methods = [];
     }
     this.methods = _methods;
     let _actions = options.actions ?? null;
-    if (_actions === null) {
+    if (_actions == null) {
       _actions = [];
     }
     this.actions = _actions;
     let _constants = options.constants ?? null;
-    if (_constants === null) {
+    if (_constants == null) {
       _constants = [];
     }
     this.constants = _constants;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
-    if (_extendedBy === null) {
+    if (_extendedBy == null) {
       _extendedBy = [];
     }
     this.extendedBy = _extendedBy;
     let _inherits = options.inherits ?? null;
-    if (_inherits === null) {
+    if (_inherits == null) {
       _inherits = [];
     }
     this.inherits = _inherits;
     let _inheritedBy = options.inheritedBy ?? null;
-    if (_inheritedBy === null) {
+    if (_inheritedBy == null) {
       _inheritedBy = [];
     }
     this.inheritedBy = _inheritedBy;
     let _traits = options.traits ?? null;
-    if (_traits === null) {
+    if (_traits == null) {
       _traits = [];
     }
     this.traits = _traits;
     let _selfTraits = options.selfTraits ?? null;
-    if (_selfTraits === null) {
+    if (_selfTraits == null) {
       _selfTraits = [];
     }
     this.selfTraits = _selfTraits;
     let _eventTypes = options.eventTypes ?? null;
-    if (_eventTypes === null) {
+    if (_eventTypes == null) {
       _eventTypes = [];
     }
     this.eventTypes = _eventTypes;
     let _selfEventTypes = options.selfEventTypes ?? null;
-    if (_selfEventTypes === null) {
+    if (_selfEventTypes == null) {
       _selfEventTypes = [];
     }
     this.selfEventTypes = _selfEventTypes;
     let _enumTypes = options.enumTypes ?? null;
-    if (_enumTypes === null) {
+    if (_enumTypes == null) {
       _enumTypes = [];
     }
     this.enumTypes = _enumTypes;
     let _selfEnumTypes = options.selfEnumTypes ?? null;
-    if (_selfEnumTypes === null) {
+    if (_selfEnumTypes == null) {
       _selfEnumTypes = [];
     }
     this.selfEnumTypes = _selfEnumTypes;
     let _parentTypes = options.parentTypes ?? null;
-    if (_parentTypes === null) {
+    if (_parentTypes == null) {
       _parentTypes = [];
     }
     this.parentTypes = _parentTypes;
     let _childTypes = options.childTypes ?? null;
-    if (_childTypes === null) {
+    if (_childTypes == null) {
       _childTypes = [];
     }
     this.childTypes = _childTypes;
     let _ancestorTypes = options.ancestorTypes ?? null;
-    if (_ancestorTypes === null) {
+    if (_ancestorTypes == null) {
       _ancestorTypes = [];
     }
     this.ancestorTypes = _ancestorTypes;
     let _descendantTypes = options.descendantTypes ?? null;
-    if (_descendantTypes === null) {
+    if (_descendantTypes == null) {
       _descendantTypes = [];
     }
     this.descendantTypes = _descendantTypes;
     let _expectedParentTypes = options.expectedParentTypes ?? null;
-    if (_expectedParentTypes === null) {
+    if (_expectedParentTypes == null) {
       _expectedParentTypes = [];
     }
     this.expectedParentTypes = _expectedParentTypes;
     let _expectedChildTypes = options.expectedChildTypes ?? null;
-    if (_expectedChildTypes === null) {
+    if (_expectedChildTypes == null) {
       _expectedChildTypes = [];
     }
     this.expectedChildTypes = _expectedChildTypes;
     let _expectedAncestorTypes = options.expectedAncestorTypes ?? null;
-    if (_expectedAncestorTypes === null) {
+    if (_expectedAncestorTypes == null) {
       _expectedAncestorTypes = [];
     }
     this.expectedAncestorTypes = _expectedAncestorTypes;
     let _expectedDescendantTypes = options.expectedDescendantTypes ?? null;
-    if (_expectedDescendantTypes === null) {
+    if (_expectedDescendantTypes == null) {
       _expectedDescendantTypes = [];
     }
     this.expectedDescendantTypes = _expectedDescendantTypes;
@@ -486,6 +486,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.isAbstract === other.isAbstract)) {
       return false;
     }
@@ -506,6 +507,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.indexes.length != other.indexes.length) {
       return false;
     }
@@ -514,6 +516,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.constraints.length != other.constraints.length) {
       return false;
     }
@@ -522,6 +525,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.permissions.length != other.permissions.length) {
       return false;
     }
@@ -530,6 +534,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.methods.length != other.methods.length) {
       return false;
     }
@@ -538,6 +543,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.actions.length != other.actions.length) {
       return false;
     }
@@ -546,6 +552,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.constants.length != other.constants.length) {
       return false;
     }
@@ -554,6 +561,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.baseType === other.baseType)) {
       return false;
     }
@@ -565,6 +573,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.inherits.length != other.inherits.length) {
       return false;
     }
@@ -573,6 +582,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.inheritedBy.length != other.inheritedBy.length) {
       return false;
     }
@@ -581,6 +591,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.traits.length != other.traits.length) {
       return false;
     }
@@ -589,6 +600,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfTraits.length != other.selfTraits.length) {
       return false;
     }
@@ -597,6 +609,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.eventTypes.length != other.eventTypes.length) {
       return false;
     }
@@ -605,6 +618,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfEventTypes.length != other.selfEventTypes.length) {
       return false;
     }
@@ -613,6 +627,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.enumTypes.length != other.enumTypes.length) {
       return false;
     }
@@ -621,6 +636,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfEnumTypes.length != other.selfEnumTypes.length) {
       return false;
     }
@@ -629,6 +645,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.parentTypes.length != other.parentTypes.length) {
       return false;
     }
@@ -637,6 +654,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.childTypes.length != other.childTypes.length) {
       return false;
     }
@@ -645,6 +663,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.ancestorTypes.length != other.ancestorTypes.length) {
       return false;
     }
@@ -653,6 +672,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.descendantTypes.length != other.descendantTypes.length) {
       return false;
     }
@@ -661,6 +681,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.expectedParentTypes.length != other.expectedParentTypes.length) {
       return false;
     }
@@ -669,6 +690,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.expectedChildTypes.length != other.expectedChildTypes.length) {
       return false;
     }
@@ -677,6 +699,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.expectedAncestorTypes.length != other.expectedAncestorTypes.length) {
       return false;
     }
@@ -685,6 +708,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.expectedDescendantTypes.length != other.expectedDescendantTypes.length) {
       return false;
     }
@@ -693,6 +717,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.domain === other.domain)) {
       return false;
     }
@@ -1030,17 +1055,17 @@ export class TraitDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`TraitDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`TraitDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`TraitDefinition.name is required`);
     }
     this.name = _name;
@@ -1049,52 +1074,52 @@ export class TraitDefinition extends StructFrozen {
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
     let _alias = options.alias;
-    if (_alias === null) {
+    if (_alias == null) {
       throw new Error(`TraitDefinition.alias is required`);
     }
     this.alias = _alias;
     let _isExtensible = options.isExtensible;
-    if (_isExtensible === null) {
+    if (_isExtensible == null) {
       throw new Error(`TraitDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _permissions = options.permissions ?? null;
-    if (_permissions === null) {
+    if (_permissions == null) {
       _permissions = [];
     }
     this.permissions = _permissions;
     let _selfTraits = options.selfTraits ?? null;
-    if (_selfTraits === null) {
+    if (_selfTraits == null) {
       _selfTraits = [];
     }
     this.selfTraits = _selfTraits;
     let _traits = options.traits ?? null;
-    if (_traits === null) {
+    if (_traits == null) {
       _traits = [];
     }
     this.traits = _traits;
     let _eventTypes = options.eventTypes ?? null;
-    if (_eventTypes === null) {
+    if (_eventTypes == null) {
       _eventTypes = [];
     }
     this.eventTypes = _eventTypes;
     let _selfEventTypes = options.selfEventTypes ?? null;
-    if (_selfEventTypes === null) {
+    if (_selfEventTypes == null) {
       _selfEventTypes = [];
     }
     this.selfEventTypes = _selfEventTypes;
     let _enumTypes = options.enumTypes ?? null;
-    if (_enumTypes === null) {
+    if (_enumTypes == null) {
       _enumTypes = [];
     }
     this.enumTypes = _enumTypes;
     let _selfEnumTypes = options.selfEnumTypes ?? null;
-    if (_selfEnumTypes === null) {
+    if (_selfEnumTypes == null) {
       _selfEnumTypes = [];
     }
     this.selfEnumTypes = _selfEnumTypes;
@@ -1138,6 +1163,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.alias === other.alias)) {
       return false;
     }
@@ -1152,6 +1178,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfTraits.length != other.selfTraits.length) {
       return false;
     }
@@ -1160,6 +1187,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.traits.length != other.traits.length) {
       return false;
     }
@@ -1168,6 +1196,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.eventTypes.length != other.eventTypes.length) {
       return false;
     }
@@ -1176,6 +1205,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfEventTypes.length != other.selfEventTypes.length) {
       return false;
     }
@@ -1184,6 +1214,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.enumTypes.length != other.enumTypes.length) {
       return false;
     }
@@ -1192,6 +1223,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfEnumTypes.length != other.selfEnumTypes.length) {
       return false;
     }
@@ -1200,6 +1232,7 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -1435,17 +1468,17 @@ export class StructDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`StructDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`StructDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`StructDefinition.name is required`);
     }
     this.name = _name;
@@ -1454,74 +1487,74 @@ export class StructDefinition extends StructFrozen {
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
     let _isFrozen = options.isFrozen;
-    if (_isFrozen === null) {
+    if (_isFrozen == null) {
       throw new Error(`StructDefinition.isFrozen is required`);
     }
     this.isFrozen = _isFrozen;
     let _isAbstract = options.isAbstract;
-    if (_isAbstract === null) {
+    if (_isAbstract == null) {
       throw new Error(`StructDefinition.isAbstract is required`);
     }
     this.isAbstract = _isAbstract;
     let _isExtensible = options.isExtensible;
-    if (_isExtensible === null) {
+    if (_isExtensible == null) {
       throw new Error(`StructDefinition.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
     let _properties = options.properties ?? null;
-    if (_properties === null) {
+    if (_properties == null) {
       _properties = [];
     }
     this.properties = _properties;
     let _methods = options.methods ?? null;
-    if (_methods === null) {
+    if (_methods == null) {
       _methods = [];
     }
     this.methods = _methods;
     let _actions = options.actions ?? null;
-    if (_actions === null) {
+    if (_actions == null) {
       _actions = [];
     }
     this.actions = _actions;
     let _constants = options.constants ?? null;
-    if (_constants === null) {
+    if (_constants == null) {
       _constants = [];
     }
     this.constants = _constants;
     let _tags = options.tags ?? null;
-    if (_tags === null) {
+    if (_tags == null) {
       _tags = [];
     }
     this.tags = _tags;
     let _baseType = options.baseType ?? null;
     this.baseType = _baseType;
     let _extendedBy = options.extendedBy ?? null;
-    if (_extendedBy === null) {
+    if (_extendedBy == null) {
       _extendedBy = [];
     }
     this.extendedBy = _extendedBy;
     let _inherits = options.inherits ?? null;
-    if (_inherits === null) {
+    if (_inherits == null) {
       _inherits = [];
     }
     this.inherits = _inherits;
     let _inheritedBy = options.inheritedBy ?? null;
-    if (_inheritedBy === null) {
+    if (_inheritedBy == null) {
       _inheritedBy = [];
     }
     this.inheritedBy = _inheritedBy;
     let _enumTypes = options.enumTypes ?? null;
-    if (_enumTypes === null) {
+    if (_enumTypes == null) {
       _enumTypes = [];
     }
     this.enumTypes = _enumTypes;
     let _selfEnumTypes = options.selfEnumTypes ?? null;
-    if (_selfEnumTypes === null) {
+    if (_selfEnumTypes == null) {
       _selfEnumTypes = [];
     }
     this.selfEnumTypes = _selfEnumTypes;
@@ -1565,6 +1598,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
     }
@@ -1582,6 +1616,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.methods.length != other.methods.length) {
       return false;
     }
@@ -1590,6 +1625,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.actions.length != other.actions.length) {
       return false;
     }
@@ -1598,6 +1634,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.constants.length != other.constants.length) {
       return false;
     }
@@ -1606,6 +1643,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.tags.length != other.tags.length) {
       return false;
     }
@@ -1614,6 +1652,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.baseType === other.baseType)) {
       return false;
     }
@@ -1625,6 +1664,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.inherits.length != other.inherits.length) {
       return false;
     }
@@ -1633,6 +1673,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.inheritedBy.length != other.inheritedBy.length) {
       return false;
     }
@@ -1641,6 +1682,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.enumTypes.length != other.enumTypes.length) {
       return false;
     }
@@ -1649,6 +1691,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.selfEnumTypes.length != other.selfEnumTypes.length) {
       return false;
     }
@@ -1657,6 +1700,7 @@ export class StructDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -1831,17 +1875,17 @@ export class EnumDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`EnumDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`EnumDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`EnumDefinition.name is required`);
     }
     this.name = _name;
@@ -1850,12 +1894,12 @@ export class EnumDefinition extends StructFrozen {
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
     let _options = options.options ?? null;
-    if (_options === null) {
+    if (_options == null) {
       _options = [];
     }
     this.options = _options;
@@ -1899,6 +1943,7 @@ export class EnumDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.options.length != other.options.length) {
       return false;
     }
@@ -1907,6 +1952,7 @@ export class EnumDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -2114,12 +2160,12 @@ export class PropertyDefinition extends Type {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`PropertyDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`PropertyDefinition.type is required`);
     }
     this.type = _type;
@@ -2128,17 +2174,17 @@ export class PropertyDefinition extends Type {
     let _description = options.description ?? null;
     this.description = _description;
     let _object = options.object;
-    if (_object === null) {
+    if (_object == null) {
       throw new Error(`PropertyDefinition.object is required`);
     }
     this.object = _object;
     let _originalObject = options.originalObject;
-    if (_originalObject === null) {
+    if (_originalObject == null) {
       throw new Error(`PropertyDefinition.originalObject is required`);
     }
     this.originalObject = _originalObject;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
@@ -2147,52 +2193,52 @@ export class PropertyDefinition extends Type {
     let _cascade = options.cascade ?? null;
     this.cascade = _cascade;
     let _isIdentity = options.isIdentity;
-    if (_isIdentity === null) {
+    if (_isIdentity == null) {
       throw new Error(`PropertyDefinition.isIdentity is required`);
     }
     this.isIdentity = _isIdentity;
     let _isUnique = options.isUnique;
-    if (_isUnique === null) {
+    if (_isUnique == null) {
       throw new Error(`PropertyDefinition.isUnique is required`);
     }
     this.isUnique = _isUnique;
     let _isReadonly = options.isReadonly;
-    if (_isReadonly === null) {
+    if (_isReadonly == null) {
       throw new Error(`PropertyDefinition.isReadonly is required`);
     }
     this.isReadonly = _isReadonly;
     let _isMain = options.isMain;
-    if (_isMain === null) {
+    if (_isMain == null) {
       throw new Error(`PropertyDefinition.isMain is required`);
     }
     this.isMain = _isMain;
     let _isWired = options.isWired;
-    if (_isWired === null) {
+    if (_isWired == null) {
       throw new Error(`PropertyDefinition.isWired is required`);
     }
     this.isWired = _isWired;
     let _isStored = options.isStored;
-    if (_isStored === null) {
+    if (_isStored == null) {
       throw new Error(`PropertyDefinition.isStored is required`);
     }
     this.isStored = _isStored;
     let _isRepr = options.isRepr;
-    if (_isRepr === null) {
+    if (_isRepr == null) {
       throw new Error(`PropertyDefinition.isRepr is required`);
     }
     this.isRepr = _isRepr;
     let _isHash = options.isHash;
-    if (_isHash === null) {
+    if (_isHash == null) {
       throw new Error(`PropertyDefinition.isHash is required`);
     }
     this.isHash = _isHash;
     let _isEq = options.isEq;
-    if (_isEq === null) {
+    if (_isEq == null) {
       throw new Error(`PropertyDefinition.isEq is required`);
     }
     this.isEq = _isEq;
     let _isInternal = options.isInternal;
-    if (_isInternal === null) {
+    if (_isInternal == null) {
       throw new Error(`PropertyDefinition.isInternal is required`);
     }
     this.isInternal = _isInternal;
@@ -2231,6 +2277,7 @@ export class PropertyDefinition extends Type {
         return false;
       }
     }
+
     if (!(this.edgeType === other.edgeType)) {
       return false;
     }
@@ -2318,6 +2365,7 @@ export class PropertyDefinition extends Type {
         return false;
       }
     }
+
     if (!(this.structType === other.structType)) {
       return false;
     }
@@ -2665,17 +2713,17 @@ export class OptionDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`OptionDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`OptionDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`OptionDefinition.name is required`);
     }
     this.name = _name;
@@ -2684,7 +2732,7 @@ export class OptionDefinition extends StructFrozen {
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
@@ -2728,6 +2776,7 @@ export class OptionDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -2834,24 +2883,24 @@ export class ConstantDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`ConstantDefinition.id is required`);
     }
     this.id = _id;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`ConstantDefinition.name is required`);
     }
     this.name = _name;
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
+    if (_taggings == null) {
       _taggings = [];
     }
     this.taggings = _taggings;
     let _value = options.value;
-    if (_value === null) {
+    if (_value == null) {
       throw new Error(`ConstantDefinition.value is required`);
     }
     this.value = _value;
@@ -2886,6 +2935,7 @@ export class ConstantDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!this.value.equals(other.value)) {
       return false;
     }
@@ -2979,12 +3029,12 @@ export class TagDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`TagDefinition.id is required`);
     }
     this.id = _id;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`TagDefinition.name is required`);
     }
     this.name = _name;
@@ -3115,29 +3165,29 @@ export class IndexDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`IndexDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`IndexDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`IndexDefinition.name is required`);
     }
     this.name = _name;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
-    if (_properties === null) {
+    if (_properties == null) {
       _properties = [];
     }
     this.properties = _properties;
     let _cover = options.cover ?? null;
-    if (_cover === null) {
+    if (_cover == null) {
       _cover = [];
     }
     this.cover = _cover;
@@ -3175,6 +3225,7 @@ export class IndexDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.cover.length != other.cover.length) {
       return false;
     }
@@ -3183,6 +3234,7 @@ export class IndexDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -3291,24 +3343,24 @@ export class ConstraintDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`ConstraintDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`ConstraintDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`ConstraintDefinition.name is required`);
     }
     this.name = _name;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
-    if (_properties === null) {
+    if (_properties == null) {
       _properties = [];
     }
     this.properties = _properties;
@@ -3346,6 +3398,7 @@ export class ConstraintDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -3437,12 +3490,12 @@ export class PermissionDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`PermissionDefinition.id is required`);
     }
     this.id = _id;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`PermissionDefinition.name is required`);
     }
     this.name = _name;

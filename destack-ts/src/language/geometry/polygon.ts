@@ -72,7 +72,7 @@ export class Polygon2D extends StructFrozen {
     let _stroke = options.stroke ?? null;
     this.stroke = _stroke;
     let _points = options.points ?? null;
-    if (_points === null) {
+    if (_points == null) {
       _points = [];
     }
     this.points = _points;
@@ -104,6 +104,7 @@ export class Polygon2D extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -634,22 +635,22 @@ export class PolygonShape2D extends Shape2D {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PolygonShape2D`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PolygonShape2D.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`PolygonShape2D.materialization is required`);
     }
     this.materialization = _materialization;
@@ -662,14 +663,14 @@ export class PolygonShape2D extends Shape2D {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PolygonShape2D`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PolygonShape2D.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -677,14 +678,14 @@ export class PolygonShape2D extends Shape2D {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PolygonShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PolygonShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -706,23 +707,23 @@ export class PolygonShape2D extends Shape2D {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "PolygonShape2D";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`PolygonShape2D.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`PolygonShape2D.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -757,7 +758,7 @@ export class PolygonShape2D extends Shape2D {
     let _stroke = options.stroke ?? null;
     this._stroke = _stroke;
     let _points = options.points ?? null;
-    if (_points === null) {
+    if (_points == null) {
       _points = [];
     }
     this._points = _points;
@@ -806,6 +807,7 @@ export class PolygonShape2D extends Shape2D {
         return false;
       }
     }
+
     if (
       (this._stroke == null) !== (other._stroke == null) ||
       (this._stroke != null && !this._stroke.equals(other._stroke))
@@ -871,6 +873,7 @@ export class PolygonShape2D extends Shape2D {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

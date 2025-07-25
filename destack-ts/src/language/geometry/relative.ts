@@ -154,12 +154,12 @@ export class Length extends StructFrozen {
 
     /* properties */
     let _unit = options.unit;
-    if (_unit === null) {
+    if (_unit == null) {
       throw new Error(`Length.unit is required`);
     }
     this.unit = _unit;
     let _value = options.value;
-    if (_value === null) {
+    if (_value == null) {
       throw new Error(`Length.value is required`);
     }
     this.value = _value;
@@ -273,7 +273,7 @@ export class Offset2 extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Offset2.type is required`);
     }
     this.type = _type;
@@ -438,10 +438,10 @@ export class Inset2 extends StructFrozen {
 
     /* properties */
     let _base = options.base ?? null;
-    if (_base === null) {
+    if (_base == null) {
       _base = 0;
     }
-    if (_base === null) {
+    if (_base == null) {
       throw new Error(`Inset2.base is required`);
     }
     this.base = _base;
@@ -594,10 +594,10 @@ export class Corner2 extends StructFrozen {
 
     /* properties */
     let _base = options.base ?? null;
-    if (_base === null) {
+    if (_base == null) {
       _base = 0;
     }
-    if (_base === null) {
+    if (_base == null) {
       throw new Error(`Corner2.base is required`);
     }
     this.base = _base;
@@ -738,10 +738,10 @@ export class Axis2 extends StructFrozen {
 
     /* properties */
     let _base = options.base ?? null;
-    if (_base === null) {
+    if (_base == null) {
       _base = 0;
     }
-    if (_base === null) {
+    if (_base == null) {
       throw new Error(`Axis2.base is required`);
     }
     this.base = _base;
@@ -872,10 +872,10 @@ export class Axis3 extends StructFrozen {
 
     /* properties */
     let _base = options.base ?? null;
-    if (_base === null) {
+    if (_base == null) {
       _base = 0;
     }
-    if (_base === null) {
+    if (_base == null) {
       throw new Error(`Axis3.base is required`);
     }
     this.base = _base;
@@ -1026,12 +1026,12 @@ export class Grid2 extends StructFrozen {
 
     /* properties */
     let _columns = options.columns;
-    if (_columns === null) {
+    if (_columns == null) {
       throw new Error(`Grid2.columns is required`);
     }
     this.columns = _columns;
     let _rows = options.rows;
-    if (_rows === null) {
+    if (_rows == null) {
       throw new Error(`Grid2.rows is required`);
     }
     this.rows = _rows;
@@ -1169,12 +1169,12 @@ export class GridSpan2 extends StructFrozen {
 
     /* properties */
     let _columns = options.columns;
-    if (_columns === null) {
+    if (_columns == null) {
       throw new Error(`GridSpan2.columns is required`);
     }
     this.columns = _columns;
     let _rows = options.rows;
-    if (_rows === null) {
+    if (_rows == null) {
       throw new Error(`GridSpan2.rows is required`);
     }
     this.rows = _rows;

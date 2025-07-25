@@ -328,14 +328,14 @@ export class TimerStartedEvent extends TimerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for TimerStartedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`TimerStartedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -348,14 +348,14 @@ export class TimerStartedEvent extends TimerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for TimerStartedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`TimerStartedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -363,14 +363,14 @@ export class TimerStartedEvent extends TimerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for TimerStartedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`TimerStartedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -388,26 +388,26 @@ export class TimerStartedEvent extends TimerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`TimerStartedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`TimerStartedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`TimerStartedEvent.status is required`);
     }
     this.status = _status;
@@ -415,7 +415,7 @@ export class TimerStartedEvent extends TimerEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`TimerStartedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -750,14 +750,14 @@ export class TimerPausedEvent extends TimerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for TimerPausedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`TimerPausedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -770,14 +770,14 @@ export class TimerPausedEvent extends TimerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for TimerPausedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`TimerPausedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -785,14 +785,14 @@ export class TimerPausedEvent extends TimerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for TimerPausedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`TimerPausedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -810,26 +810,26 @@ export class TimerPausedEvent extends TimerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`TimerPausedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`TimerPausedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`TimerPausedEvent.status is required`);
     }
     this.status = _status;
@@ -837,7 +837,7 @@ export class TimerPausedEvent extends TimerEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`TimerPausedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1172,14 +1172,14 @@ export class TimerResumedEvent extends TimerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for TimerResumedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`TimerResumedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1192,14 +1192,14 @@ export class TimerResumedEvent extends TimerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for TimerResumedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`TimerResumedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1207,14 +1207,14 @@ export class TimerResumedEvent extends TimerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for TimerResumedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`TimerResumedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1232,26 +1232,26 @@ export class TimerResumedEvent extends TimerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`TimerResumedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`TimerResumedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`TimerResumedEvent.status is required`);
     }
     this.status = _status;
@@ -1259,7 +1259,7 @@ export class TimerResumedEvent extends TimerEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`TimerResumedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1774,22 +1774,22 @@ export class Timer extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Timer`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Timer.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Timer.materialization is required`);
     }
     this.materialization = _materialization;
@@ -1802,14 +1802,14 @@ export class Timer extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Timer`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Timer.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1817,14 +1817,14 @@ export class Timer extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Timer`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Timer.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1846,23 +1846,23 @@ export class Timer extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Timer";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Timer.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Timer.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -1881,7 +1881,7 @@ export class Timer extends Entity {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Timer.type is required`);
     }
     this._type = _type;
@@ -1951,6 +1951,7 @@ export class Timer extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -2252,14 +2253,14 @@ export class TimerCompletedEvent extends TimerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for TimerCompletedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`TimerCompletedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2272,14 +2273,14 @@ export class TimerCompletedEvent extends TimerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for TimerCompletedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`TimerCompletedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2287,14 +2288,14 @@ export class TimerCompletedEvent extends TimerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for TimerCompletedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`TimerCompletedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2312,26 +2313,26 @@ export class TimerCompletedEvent extends TimerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`TimerCompletedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`TimerCompletedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`TimerCompletedEvent.status is required`);
     }
     this.status = _status;
@@ -2339,7 +2340,7 @@ export class TimerCompletedEvent extends TimerEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`TimerCompletedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -2674,14 +2675,14 @@ export class TimerCancelledEvent extends TimerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for TimerCancelledEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`TimerCancelledEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2694,14 +2695,14 @@ export class TimerCancelledEvent extends TimerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for TimerCancelledEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`TimerCancelledEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2709,14 +2710,14 @@ export class TimerCancelledEvent extends TimerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for TimerCancelledEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`TimerCancelledEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2734,26 +2735,26 @@ export class TimerCancelledEvent extends TimerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`TimerCancelledEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`TimerCancelledEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`TimerCancelledEvent.status is required`);
     }
     this.status = _status;
@@ -2761,7 +2762,7 @@ export class TimerCancelledEvent extends TimerEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`TimerCancelledEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;

@@ -75,12 +75,12 @@ export class MigrationDefinition extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`MigrationDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`MigrationDefinition.name is required`);
     }
     this.name = _name;
@@ -199,17 +199,17 @@ export class MigrationOperationDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`MigrationOperationDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`MigrationOperationDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`MigrationOperationDefinition.name is required`);
     }
     this.name = _name;
@@ -648,22 +648,22 @@ export class Migration extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Migration`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Migration.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Migration.materialization is required`);
     }
     this.materialization = _materialization;
@@ -676,14 +676,14 @@ export class Migration extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Migration`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Migration.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -691,14 +691,14 @@ export class Migration extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Migration`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Migration.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -720,23 +720,23 @@ export class Migration extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Migration";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Migration.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Migration.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -755,7 +755,7 @@ export class Migration extends Entity {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Migration.type is required`);
     }
     this._type = _type;
@@ -824,6 +824,7 @@ export class Migration extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -1274,22 +1275,22 @@ export class MigrationOperation extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for MigrationOperation`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`MigrationOperation.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`MigrationOperation.materialization is required`);
     }
     this.materialization = _materialization;
@@ -1302,14 +1303,14 @@ export class MigrationOperation extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for MigrationOperation`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`MigrationOperation.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1317,14 +1318,14 @@ export class MigrationOperation extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for MigrationOperation`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`MigrationOperation.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1346,23 +1347,23 @@ export class MigrationOperation extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "MigrationOperation";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`MigrationOperation.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`MigrationOperation.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -1437,6 +1438,7 @@ export class MigrationOperation extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

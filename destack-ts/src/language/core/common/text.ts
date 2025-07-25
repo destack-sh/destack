@@ -112,10 +112,10 @@ export class TextSpan extends StructFrozen {
 
     /* properties */
     let _type = options.type ?? null;
-    if (_type === null) {
+    if (_type == null) {
       _type = 1 /* TextSpanType.TEXT */;
     }
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`TextSpan.type is required`);
     }
     this.type = _type;
@@ -291,7 +291,7 @@ export class Text extends StructFrozen {
 
     /* properties */
     let _spans = options.spans ?? null;
-    if (_spans === null) {
+    if (_spans == null) {
       _spans = [];
     }
     this.spans = _spans;
@@ -327,6 +327,7 @@ export class Text extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.isBold === other.isBold)) {
       return false;
     }

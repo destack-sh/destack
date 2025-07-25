@@ -372,14 +372,14 @@ export class PointerDownEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerDownEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerDownEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -392,14 +392,14 @@ export class PointerDownEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerDownEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerDownEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -407,14 +407,14 @@ export class PointerDownEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerDownEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerDownEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -432,26 +432,26 @@ export class PointerDownEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerDownEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerDownEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerDownEvent.status is required`);
     }
     this.status = _status;
@@ -461,29 +461,29 @@ export class PointerDownEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerDownEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerDownEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerDownEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerDownEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerDownEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -890,14 +890,14 @@ export class PointerUpEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerUpEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerUpEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -910,14 +910,14 @@ export class PointerUpEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerUpEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerUpEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -925,14 +925,14 @@ export class PointerUpEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerUpEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerUpEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -950,26 +950,26 @@ export class PointerUpEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerUpEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerUpEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerUpEvent.status is required`);
     }
     this.status = _status;
@@ -979,29 +979,29 @@ export class PointerUpEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerUpEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerUpEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerUpEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerUpEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerUpEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -1408,14 +1408,14 @@ export class PointerMoveEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerMoveEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerMoveEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1428,14 +1428,14 @@ export class PointerMoveEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerMoveEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerMoveEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1443,14 +1443,14 @@ export class PointerMoveEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerMoveEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerMoveEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1468,26 +1468,26 @@ export class PointerMoveEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerMoveEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerMoveEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerMoveEvent.status is required`);
     }
     this.status = _status;
@@ -1497,29 +1497,29 @@ export class PointerMoveEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerMoveEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerMoveEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerMoveEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerMoveEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerMoveEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -1926,14 +1926,14 @@ export class PointerEnterEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerEnterEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerEnterEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1946,14 +1946,14 @@ export class PointerEnterEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerEnterEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerEnterEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1961,14 +1961,14 @@ export class PointerEnterEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerEnterEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerEnterEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1986,26 +1986,26 @@ export class PointerEnterEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerEnterEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerEnterEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerEnterEvent.status is required`);
     }
     this.status = _status;
@@ -2015,29 +2015,29 @@ export class PointerEnterEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerEnterEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerEnterEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerEnterEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerEnterEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerEnterEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -2444,14 +2444,14 @@ export class PointerOverEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerOverEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerOverEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2464,14 +2464,14 @@ export class PointerOverEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerOverEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerOverEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2479,14 +2479,14 @@ export class PointerOverEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerOverEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerOverEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2504,26 +2504,26 @@ export class PointerOverEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerOverEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerOverEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerOverEvent.status is required`);
     }
     this.status = _status;
@@ -2533,29 +2533,29 @@ export class PointerOverEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerOverEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerOverEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerOverEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerOverEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerOverEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -2962,14 +2962,14 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerLeaveEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerLeaveEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2982,14 +2982,14 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerLeaveEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerLeaveEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2997,14 +2997,14 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerLeaveEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerLeaveEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -3022,26 +3022,26 @@ export class PointerLeaveEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerLeaveEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerLeaveEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerLeaveEvent.status is required`);
     }
     this.status = _status;
@@ -3051,29 +3051,29 @@ export class PointerLeaveEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerLeaveEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerLeaveEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerLeaveEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerLeaveEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerLeaveEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -3480,14 +3480,14 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for PointerLongPressEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`PointerLongPressEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -3500,14 +3500,14 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for PointerLongPressEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`PointerLongPressEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -3515,14 +3515,14 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for PointerLongPressEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`PointerLongPressEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -3540,26 +3540,26 @@ export class PointerLongPressEvent extends PointerEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`PointerLongPressEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`PointerLongPressEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`PointerLongPressEvent.status is required`);
     }
     this.status = _status;
@@ -3569,29 +3569,29 @@ export class PointerLongPressEvent extends PointerEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`PointerLongPressEvent.position is required`);
     }
     this.position = _position;
     let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`PointerLongPressEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`PointerLongPressEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`PointerLongPressEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`PointerLongPressEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;

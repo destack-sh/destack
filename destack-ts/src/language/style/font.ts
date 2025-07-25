@@ -241,10 +241,10 @@ export class Font extends StructFrozen {
 
     /* properties */
     let _type = options.type ?? null;
-    if (_type === null) {
+    if (_type == null) {
       _type = 11 /* FontType.SANS */;
     }
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Font.type is required`);
     }
     this.type = _type;
@@ -254,19 +254,19 @@ export class Font extends StructFrozen {
     }
     this.stylePtr = _style as NodeReference | null;
     let _weight = options.weight ?? null;
-    if (_weight === null) {
+    if (_weight == null) {
       _weight = 400 /* FontWeight.NORMAL */;
     }
     this.weight = _weight;
     let _color = options.color ?? null;
     this.color = _color;
     let _size = options.size ?? null;
-    if (_size === null) {
+    if (_size == null) {
       _size = 16 /* FontSize.BASE */;
     }
     this.size = _size;
     let _align = options.align ?? null;
-    if (_align === null) {
+    if (_align == null) {
       _align = 1 /* TextAlign.LEFT */;
     }
     this.align = _align;
@@ -275,12 +275,12 @@ export class Font extends StructFrozen {
     let _letterSpacing = options.letterSpacing ?? null;
     this.letterSpacing = _letterSpacing;
     let _decoration = options.decoration ?? null;
-    if (_decoration === null) {
+    if (_decoration == null) {
       _decoration = 1 /* TextDecoration.NONE */;
     }
     this.decoration = _decoration;
     let _transform = options.transform ?? null;
-    if (_transform === null) {
+    if (_transform == null) {
       _transform = 1 /* TextTransform.NONE */;
     }
     this.transform = _transform;
@@ -907,22 +907,22 @@ export class FontStyle extends Style {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for FontStyle`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`FontStyle.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`FontStyle.materialization is required`);
     }
     this.materialization = _materialization;
@@ -935,14 +935,14 @@ export class FontStyle extends Style {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for FontStyle`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`FontStyle.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -950,14 +950,14 @@ export class FontStyle extends Style {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for FontStyle`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`FontStyle.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -979,23 +979,23 @@ export class FontStyle extends Style {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "FontStyle";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`FontStyle.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`FontStyle.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -1014,27 +1014,27 @@ export class FontStyle extends Style {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type ?? null;
-    if (_type === null) {
+    if (_type == null) {
       _type = 11 /* FontType.SANS */;
     }
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`FontStyle.type is required`);
     }
     this._type = _type;
     let _weight = options.weight ?? null;
-    if (_weight === null) {
+    if (_weight == null) {
       _weight = 400 /* FontWeight.NORMAL */;
     }
     this._weight = _weight;
     let _color = options.color ?? null;
     this._color = _color;
     let _size = options.size ?? null;
-    if (_size === null) {
+    if (_size == null) {
       _size = 16 /* FontSize.BASE */;
     }
     this._size = _size;
     let _align = options.align ?? null;
-    if (_align === null) {
+    if (_align == null) {
       _align = 1 /* TextAlign.LEFT */;
     }
     this._align = _align;
@@ -1043,12 +1043,12 @@ export class FontStyle extends Style {
     let _letterSpacing = options.letterSpacing ?? null;
     this._letterSpacing = _letterSpacing;
     let _decoration = options.decoration ?? null;
-    if (_decoration === null) {
+    if (_decoration == null) {
       _decoration = 1 /* TextDecoration.NONE */;
     }
     this._decoration = _decoration;
     let _transform = options.transform ?? null;
-    if (_transform === null) {
+    if (_transform == null) {
       _transform = 1 /* TextTransform.NONE */;
     }
     this._transform = _transform;
@@ -1145,6 +1145,7 @@ export class FontStyle extends Style {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

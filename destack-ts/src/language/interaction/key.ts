@@ -392,14 +392,14 @@ export class KeyDownEvent extends KeyEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for KeyDownEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`KeyDownEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -412,14 +412,14 @@ export class KeyDownEvent extends KeyEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for KeyDownEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`KeyDownEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -427,14 +427,14 @@ export class KeyDownEvent extends KeyEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for KeyDownEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`KeyDownEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -452,26 +452,26 @@ export class KeyDownEvent extends KeyEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`KeyDownEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`KeyDownEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`KeyDownEvent.status is required`);
     }
     this.status = _status;
@@ -481,42 +481,42 @@ export class KeyDownEvent extends KeyEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _key = options.key;
-    if (_key === null) {
+    if (_key == null) {
       throw new Error(`KeyDownEvent.key is required`);
     }
     this.key = _key;
     let _code = options.code;
-    if (_code === null) {
+    if (_code == null) {
       throw new Error(`KeyDownEvent.code is required`);
     }
     this.code = _code;
     let _isRepeat = options.isRepeat;
-    if (_isRepeat === null) {
+    if (_isRepeat == null) {
       throw new Error(`KeyDownEvent.isRepeat is required`);
     }
     this.isRepeat = _isRepeat;
     let _isRedacted = options.isRedacted;
-    if (_isRedacted === null) {
+    if (_isRedacted == null) {
       throw new Error(`KeyDownEvent.isRedacted is required`);
     }
     this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`KeyDownEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`KeyDownEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`KeyDownEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`KeyDownEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -936,14 +936,14 @@ export class KeyUpEvent extends KeyEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for KeyUpEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`KeyUpEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -956,14 +956,14 @@ export class KeyUpEvent extends KeyEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for KeyUpEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`KeyUpEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -971,14 +971,14 @@ export class KeyUpEvent extends KeyEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for KeyUpEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`KeyUpEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -996,26 +996,26 @@ export class KeyUpEvent extends KeyEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`KeyUpEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`KeyUpEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`KeyUpEvent.status is required`);
     }
     this.status = _status;
@@ -1025,42 +1025,42 @@ export class KeyUpEvent extends KeyEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _key = options.key;
-    if (_key === null) {
+    if (_key == null) {
       throw new Error(`KeyUpEvent.key is required`);
     }
     this.key = _key;
     let _code = options.code;
-    if (_code === null) {
+    if (_code == null) {
       throw new Error(`KeyUpEvent.code is required`);
     }
     this.code = _code;
     let _isRepeat = options.isRepeat;
-    if (_isRepeat === null) {
+    if (_isRepeat == null) {
       throw new Error(`KeyUpEvent.isRepeat is required`);
     }
     this.isRepeat = _isRepeat;
     let _isRedacted = options.isRedacted;
-    if (_isRedacted === null) {
+    if (_isRedacted == null) {
       throw new Error(`KeyUpEvent.isRedacted is required`);
     }
     this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`KeyUpEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`KeyUpEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`KeyUpEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`KeyUpEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
@@ -1480,14 +1480,14 @@ export class KeyPressEvent extends KeyEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for KeyPressEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`KeyPressEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1500,14 +1500,14 @@ export class KeyPressEvent extends KeyEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for KeyPressEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`KeyPressEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1515,14 +1515,14 @@ export class KeyPressEvent extends KeyEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for KeyPressEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`KeyPressEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1540,26 +1540,26 @@ export class KeyPressEvent extends KeyEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`KeyPressEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`KeyPressEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`KeyPressEvent.status is required`);
     }
     this.status = _status;
@@ -1569,42 +1569,42 @@ export class KeyPressEvent extends KeyEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _key = options.key;
-    if (_key === null) {
+    if (_key == null) {
       throw new Error(`KeyPressEvent.key is required`);
     }
     this.key = _key;
     let _code = options.code;
-    if (_code === null) {
+    if (_code == null) {
       throw new Error(`KeyPressEvent.code is required`);
     }
     this.code = _code;
     let _isRepeat = options.isRepeat;
-    if (_isRepeat === null) {
+    if (_isRepeat == null) {
       throw new Error(`KeyPressEvent.isRepeat is required`);
     }
     this.isRepeat = _isRepeat;
     let _isRedacted = options.isRedacted;
-    if (_isRedacted === null) {
+    if (_isRedacted == null) {
       throw new Error(`KeyPressEvent.isRedacted is required`);
     }
     this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
+    if (_shiftKey == null) {
       throw new Error(`KeyPressEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
-    if (_altKey === null) {
+    if (_altKey == null) {
       throw new Error(`KeyPressEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
+    if (_ctrlKey == null) {
       throw new Error(`KeyPressEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
-    if (_metaKey === null) {
+    if (_metaKey == null) {
       throw new Error(`KeyPressEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;

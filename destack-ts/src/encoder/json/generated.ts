@@ -370,13 +370,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -433,10 +431,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -520,13 +516,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -577,10 +571,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -664,13 +656,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -689,13 +679,11 @@ export function loadEncoders(): void {
       if (object._baseType != null) {
         objectJson["baseType"] = object._baseType.pack(1);
       }
-      if (object._selfTraits.length > 0) {
-        const packedSelfTraits: any[] = [];
-        for (const item of object._selfTraits) {
-          packedSelfTraits.push(item.pack(1));
-        }
-        objectJson["selfTraits"] = packedSelfTraits;
+      const packedSelfTraits: any[] = [];
+      for (const item of object._selfTraits) {
+        packedSelfTraits.push(item.pack(1));
       }
+      objectJson["selfTraits"] = packedSelfTraits;
       objectJson["isAbstract"] = object._isAbstract;
       return objectJson;
     }
@@ -714,12 +702,10 @@ export function loadEncoders(): void {
           ? (_NodeDefinitionReference.unpack(1, baseTypeValue, _session) as NodeDefinitionReference)
           : undefined;
       const unpackedSelfTraits: any[] = [];
-      if (objectJson["selfTraits"] != undefined) {
-        for (const item of objectJson["selfTraits"]) {
-          unpackedSelfTraits.push(
-            _NodeDefinitionReference.unpack(1, item, _session) as NodeDefinitionReference,
-          );
-        }
+      for (const item of objectJson["selfTraits"]) {
+        unpackedSelfTraits.push(
+          _NodeDefinitionReference.unpack(1, item, _session) as NodeDefinitionReference,
+        );
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -752,10 +738,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -971,13 +955,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1027,10 +1009,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1113,13 +1093,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1137,20 +1115,16 @@ export function loadEncoders(): void {
         objectJson["text"] = object._text.pack(1);
       }
       objectJson["cardinality"] = MethodCardinality[object._cardinality];
-      if (object._platforms.length > 0) {
-        const packedPlatforms: any[] = [];
-        for (const item of object._platforms) {
-          packedPlatforms.push(PlatformType[item]);
-        }
-        objectJson["platforms"] = packedPlatforms;
+      const packedPlatforms: any[] = [];
+      for (const item of object._platforms) {
+        packedPlatforms.push(PlatformType[item]);
       }
-      if (object._languages.length > 0) {
-        const packedLanguages: any[] = [];
-        for (const item of object._languages) {
-          packedLanguages.push(RuntimeLanguage[item]);
-        }
-        objectJson["languages"] = packedLanguages;
+      objectJson["platforms"] = packedPlatforms;
+      const packedLanguages: any[] = [];
+      for (const item of object._languages) {
+        packedLanguages.push(RuntimeLanguage[item]);
       }
+      objectJson["languages"] = packedLanguages;
       return objectJson;
     }
 
@@ -1162,16 +1136,12 @@ export function loadEncoders(): void {
       const unpackedText =
         textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
-      if (objectJson["platforms"] != undefined) {
-        for (const item of objectJson["platforms"]) {
-          unpackedPlatforms.push(PlatformType[item] as any);
-        }
+      for (const item of objectJson["platforms"]) {
+        unpackedPlatforms.push(PlatformType[item] as any);
       }
       const unpackedLanguages: any[] = [];
-      if (objectJson["languages"] != undefined) {
-        for (const item of objectJson["languages"]) {
-          unpackedLanguages.push(RuntimeLanguage[item] as any);
-        }
+      for (const item of objectJson["languages"]) {
+        unpackedLanguages.push(RuntimeLanguage[item] as any);
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -1204,10 +1174,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1295,13 +1263,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1319,20 +1285,16 @@ export function loadEncoders(): void {
         objectJson["text"] = object._text.pack(1);
       }
       objectJson["cardinality"] = MethodCardinality[object._cardinality];
-      if (object._platforms.length > 0) {
-        const packedPlatforms: any[] = [];
-        for (const item of object._platforms) {
-          packedPlatforms.push(PlatformType[item]);
-        }
-        objectJson["platforms"] = packedPlatforms;
+      const packedPlatforms: any[] = [];
+      for (const item of object._platforms) {
+        packedPlatforms.push(PlatformType[item]);
       }
-      if (object._languages.length > 0) {
-        const packedLanguages: any[] = [];
-        for (const item of object._languages) {
-          packedLanguages.push(RuntimeLanguage[item]);
-        }
-        objectJson["languages"] = packedLanguages;
+      objectJson["platforms"] = packedPlatforms;
+      const packedLanguages: any[] = [];
+      for (const item of object._languages) {
+        packedLanguages.push(RuntimeLanguage[item]);
       }
+      objectJson["languages"] = packedLanguages;
       return objectJson;
     }
 
@@ -1344,16 +1306,12 @@ export function loadEncoders(): void {
       const unpackedText =
         textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
-      if (objectJson["platforms"] != undefined) {
-        for (const item of objectJson["platforms"]) {
-          unpackedPlatforms.push(PlatformType[item] as any);
-        }
+      for (const item of objectJson["platforms"]) {
+        unpackedPlatforms.push(PlatformType[item] as any);
       }
       const unpackedLanguages: any[] = [];
-      if (objectJson["languages"] != undefined) {
-        for (const item of objectJson["languages"]) {
-          unpackedLanguages.push(RuntimeLanguage[item] as any);
-        }
+      for (const item of objectJson["languages"]) {
+        unpackedLanguages.push(RuntimeLanguage[item] as any);
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -1386,10 +1344,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1477,13 +1433,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1540,10 +1494,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1559,7 +1511,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJson["key"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[20200] as typeof CustomEnum)({
+      return new (NODE_CLASS_BY_TYPE[20300] as typeof CustomEnum)({
         icon: unpackedIcon,
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -1590,7 +1542,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(1, 20200)] = new CustomEnumJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 20300)] = new CustomEnumJsonEncoder();
 
   class CustomOptionJsonEncoder implements JsonObjectEncoder {
     packObject(object: CustomOption): any {
@@ -1627,13 +1579,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1690,10 +1640,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1777,13 +1725,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1797,13 +1743,11 @@ export function loadEncoders(): void {
         objectJson["key"] = object._key;
       }
       objectJson["type"] = IndexType[object._type];
-      if (object._properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object._properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.pack(1));
       }
+      objectJson["properties"] = packedProperties;
       return objectJson;
     }
 
@@ -1812,12 +1756,8 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -1850,10 +1790,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -1938,13 +1876,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -1958,13 +1894,11 @@ export function loadEncoders(): void {
         objectJson["key"] = object._key;
       }
       objectJson["type"] = ConstraintType[object._type];
-      if (object._properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object._properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.pack(1));
       }
+      objectJson["properties"] = packedProperties;
       return objectJson;
     }
 
@@ -1973,12 +1907,8 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -2011,10 +1941,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2099,13 +2027,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2161,10 +2087,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2249,13 +2173,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2305,10 +2227,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2391,13 +2311,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2484,10 +2402,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2503,7 +2419,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJson["key"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[20300] as typeof CustomProperty)({
+      return new (NODE_CLASS_BY_TYPE[20200] as typeof CustomProperty)({
         type: PropertyType[objectJson["type"]] as any,
         icon: unpackedIcon,
         valueType: _Type.unpack(1, objectJson["valueType"], _session) as Type,
@@ -2541,7 +2457,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(1, 20300)] = new CustomPropertyJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 20200)] = new CustomPropertyJsonEncoder();
 
   class SpaceJsonEncoder implements JsonObjectEncoder {
     packObject(object: Space): any {
@@ -2578,13 +2494,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2644,10 +2558,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2733,13 +2645,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2810,10 +2720,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -2898,13 +2806,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -2955,10 +2861,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -3042,13 +2946,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -3100,10 +3002,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -3484,13 +3384,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -3550,10 +3448,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -3951,13 +3847,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -4022,10 +3916,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -4267,13 +4159,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -4338,10 +4228,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -4575,13 +4463,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -4639,10 +4525,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5023,13 +4907,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -5089,10 +4971,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5178,13 +5058,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -5278,10 +5156,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5373,13 +5249,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -5452,10 +5326,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5542,13 +5414,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -5565,13 +5435,11 @@ export function loadEncoders(): void {
       if (object._angle != null) {
         objectJson["angle"] = Number(object._angle);
       }
-      if (object._stops.length > 0) {
-        const packedStops: any[] = [];
-        for (const item of object._stops) {
-          packedStops.push(item.pack(1));
-        }
-        objectJson["stops"] = packedStops;
+      const packedStops: any[] = [];
+      for (const item of object._stops) {
+        packedStops.push(item.pack(1));
       }
+      objectJson["stops"] = packedStops;
       if (object._centerAnchor != null) {
         objectJson["centerAnchor"] = object._centerAnchor.pack(1);
       }
@@ -5590,10 +5458,8 @@ export function loadEncoders(): void {
       const angleValue = objectJson["angle"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
-      if (objectJson["stops"] != undefined) {
-        for (const item of objectJson["stops"]) {
-          unpackedStops.push(_GradientStop.unpack(1, item, _session) as GradientStop);
-        }
+      for (const item of objectJson["stops"]) {
+        unpackedStops.push(_GradientStop.unpack(1, item, _session) as GradientStop);
       }
       const centerAnchorValue = objectJson["centerAnchor"];
       const unpackedCenterAnchor =
@@ -5634,10 +5500,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5725,13 +5589,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -5817,10 +5679,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -5909,13 +5769,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6018,10 +5876,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6113,13 +5969,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6176,10 +6030,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6263,13 +6115,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6350,10 +6200,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6443,13 +6291,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6520,10 +6366,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6614,13 +6458,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6670,10 +6512,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6756,13 +6596,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -6782,13 +6620,11 @@ export function loadEncoders(): void {
       if (object._duration != null) {
         objectJson["duration"] = Number(object._duration);
       }
-      if (object._ease.length > 0) {
-        const packedEase: any[] = [];
-        for (const item of object._ease) {
-          packedEase.push(Number(item));
-        }
-        objectJson["ease"] = packedEase;
+      const packedEase: any[] = [];
+      for (const item of object._ease) {
+        packedEase.push(Number(item));
       }
+      objectJson["ease"] = packedEase;
       if (object._stiffness != null) {
         objectJson["stiffness"] = Number(object._stiffness);
       }
@@ -6815,10 +6651,8 @@ export function loadEncoders(): void {
       const durationValue = objectJson["duration"];
       const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const unpackedEase: any[] = [];
-      if (objectJson["ease"] != undefined) {
-        for (const item of objectJson["ease"]) {
-          unpackedEase.push(Number(item));
-        }
+      for (const item of objectJson["ease"]) {
+        unpackedEase.push(Number(item));
       }
       const stiffnessValue = objectJson["stiffness"];
       const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : undefined;
@@ -6862,10 +6696,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -6957,13 +6789,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -7100,10 +6930,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -7201,13 +7029,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -7348,10 +7174,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -7452,13 +7276,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -7515,10 +7337,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -7596,13 +7416,11 @@ export function loadEncoders(): void {
         objectJson["node"] = object.nodePtr.pack(1);
       }
       objectJson["content"] = object.content;
-      if (Object.keys(object.attributes).length > 0) {
-        const packedAttributes: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object.attributes)) {
-          packedAttributes[String(key)] = value;
-        }
-        objectJson["attributes"] = packedAttributes;
+      const packedAttributes: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.attributes)) {
+        packedAttributes[String(key)] = value;
       }
+      objectJson["attributes"] = packedAttributes;
       objectJson["level"] = LogLevel[object.level];
       return objectJson;
     }
@@ -7610,10 +7428,8 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): LogEvent {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const unpackedAttributes = {} as any;
-      if (objectJson["attributes"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["attributes"])) {
-          unpackedAttributes[key] = value as any;
-        }
+      for (const [key, value] of Object.entries(objectJson["attributes"])) {
+        unpackedAttributes[key] = value as any;
       }
       const definitionPtrValue = objectJson["definition"];
       const unpackedDefinitionPtr =
@@ -8419,13 +8235,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -8537,10 +8351,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -8635,13 +8447,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -8749,10 +8559,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -8843,13 +8651,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -8959,10 +8765,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -9055,13 +8859,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -9098,13 +8900,11 @@ export function loadEncoders(): void {
       if (object._stroke != null) {
         objectJson["stroke"] = object._stroke.pack(1);
       }
-      if (object._points.length > 0) {
-        const packedPoints: any[] = [];
-        for (const item of object._points) {
-          packedPoints.push(item.pack(1));
-        }
-        objectJson["points"] = packedPoints;
+      const packedPoints: any[] = [];
+      for (const item of object._points) {
+        packedPoints.push(item.pack(1));
       }
+      objectJson["points"] = packedPoints;
       return objectJson;
     }
 
@@ -9115,10 +8915,8 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const unpackedPoints: any[] = [];
-      if (objectJson["points"] != undefined) {
-        for (const item of objectJson["points"]) {
-          unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
-        }
+      for (const item of objectJson["points"]) {
+        unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
@@ -9182,10 +8980,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -9277,13 +9073,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -9320,13 +9114,11 @@ export function loadEncoders(): void {
       if (object._stroke != null) {
         objectJson["stroke"] = object._stroke.pack(1);
       }
-      if (object._points.length > 0) {
-        const packedPoints: any[] = [];
-        for (const item of object._points) {
-          packedPoints.push(item.pack(1));
-        }
-        objectJson["points"] = packedPoints;
+      const packedPoints: any[] = [];
+      for (const item of object._points) {
+        packedPoints.push(item.pack(1));
       }
+      objectJson["points"] = packedPoints;
       return objectJson;
     }
 
@@ -9337,10 +9129,8 @@ export function loadEncoders(): void {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
       const unpackedPoints: any[] = [];
-      if (objectJson["points"] != undefined) {
-        for (const item of objectJson["points"]) {
-          unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
-        }
+      for (const item of objectJson["points"]) {
+        unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
@@ -9404,10 +9194,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -9499,13 +9287,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -9627,10 +9413,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -9723,13 +9507,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -9811,10 +9593,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -9905,13 +9685,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -9988,10 +9766,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -12323,13 +12099,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -12380,10 +12154,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -12467,13 +12239,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -12530,10 +12300,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -12977,13 +12745,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -13043,10 +12809,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -13131,13 +12895,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -13162,13 +12924,11 @@ export function loadEncoders(): void {
       if (object._targetPtr != null) {
         objectJson["target"] = object._targetPtr.pack(1);
       }
-      if (Object.keys(object._arguments).length > 0) {
-        const packedArguments: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._arguments)) {
-          packedArguments[String(key)] = value.pack(1);
-        }
-        objectJson["arguments"] = packedArguments;
+      const packedArguments: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._arguments)) {
+        packedArguments[String(key)] = value.pack(1);
       }
+      objectJson["arguments"] = packedArguments;
       return objectJson;
     }
 
@@ -13197,10 +12957,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, targetPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedArguments = {} as any;
-      if (objectJson["arguments"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["arguments"])) {
-          unpackedArguments[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["arguments"])) {
+        unpackedArguments[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -13233,10 +12991,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -13324,13 +13080,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -13387,10 +13141,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -13546,13 +13298,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -13609,10 +13359,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -13768,13 +13516,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -13831,10 +13577,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -13990,13 +13734,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -14064,10 +13806,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -14154,13 +13894,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -14411,10 +14149,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -14526,13 +14262,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -14783,10 +14517,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -14898,13 +14630,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -15100,10 +14830,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -15207,13 +14935,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -15404,10 +15130,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -15510,13 +15234,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -15767,10 +15489,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -15882,13 +15602,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -16094,10 +15812,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -16202,13 +15918,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -16273,10 +15987,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -16361,13 +16073,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -16417,10 +16127,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -16503,13 +16211,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -16559,10 +16265,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -17221,13 +16925,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -17286,10 +16988,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -17375,13 +17075,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -17432,10 +17130,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -17741,13 +17437,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -17797,10 +17491,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18099,13 +17791,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -18176,10 +17866,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18269,13 +17957,11 @@ export function loadEncoders(): void {
       if (object._browserVersion != null) {
         objectJson["browserVersion"] = object._browserVersion;
       }
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -18387,10 +18073,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18484,13 +18168,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -18541,10 +18223,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18628,13 +18308,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -18694,10 +18372,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18783,13 +18459,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -18840,10 +18514,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -18927,13 +18599,11 @@ export function loadEncoders(): void {
       }
       objectJson["name"] = object._name;
       objectJson["orderKey"] = object.orderKey;
-      if (Object.keys(object._customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object._customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       if (object._scriptPtr != null) {
         objectJson["script"] = object._scriptPtr.pack(1);
       }
@@ -19019,10 +18689,8 @@ export function loadEncoders(): void {
           ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
           : undefined;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       const scriptPtrValue = objectJson["script"];
       const unpackedScriptPtr =
@@ -19409,13 +19077,11 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      if (object.nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object.nodeTypes) {
-          packedNodeTypes.push(NodeType[item]);
-        }
-        objectJson["nodeTypes"] = packedNodeTypes;
+      const packedNodeTypes: any[] = [];
+      for (const item of object.nodeTypes) {
+        packedNodeTypes.push(NodeType[item]);
       }
+      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -19438,10 +19104,8 @@ export function loadEncoders(): void {
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
-      if (objectJson["nodeTypes"] != undefined) {
-        for (const item of objectJson["nodeTypes"]) {
-          unpackedNodeTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["nodeTypes"]) {
+        unpackedNodeTypes.push(NodeType[item] as any);
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -19483,13 +19147,11 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      if (object.nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object.nodeTypes) {
-          packedNodeTypes.push(NodeType[item]);
-        }
-        objectJson["nodeTypes"] = packedNodeTypes;
+      const packedNodeTypes: any[] = [];
+      for (const item of object.nodeTypes) {
+        packedNodeTypes.push(NodeType[item]);
       }
+      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -19562,10 +19224,8 @@ export function loadEncoders(): void {
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
-      if (objectJson["nodeTypes"] != undefined) {
-        for (const item of objectJson["nodeTypes"]) {
-          unpackedNodeTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["nodeTypes"]) {
+        unpackedNodeTypes.push(NodeType[item] as any);
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -19640,188 +19300,138 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       objectJson["isAbstract"] = object.isAbstract;
       objectJson["isExtensible"] = object.isExtensible;
       objectJson["isFinal"] = object.isFinal;
       objectJson["isFrozen"] = object.isFrozen;
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
-      if (object.indexes.length > 0) {
-        const packedIndexes: any[] = [];
-        for (const item of object.indexes) {
-          packedIndexes.push(item.pack(1));
-        }
-        objectJson["indexes"] = packedIndexes;
+      objectJson["properties"] = packedProperties;
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.pack(1));
       }
-      if (object.constraints.length > 0) {
-        const packedConstraints: any[] = [];
-        for (const item of object.constraints) {
-          packedConstraints.push(item.pack(1));
-        }
-        objectJson["constraints"] = packedConstraints;
+      objectJson["indexes"] = packedIndexes;
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.pack(1));
       }
-      if (object.permissions.length > 0) {
-        const packedPermissions: any[] = [];
-        for (const item of object.permissions) {
-          packedPermissions.push(item.pack(1));
-        }
-        objectJson["permissions"] = packedPermissions;
+      objectJson["constraints"] = packedConstraints;
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.pack(1));
       }
-      if (object.methods.length > 0) {
-        const packedMethods: any[] = [];
-        for (const item of object.methods) {
-          packedMethods.push(item.pack(1));
-        }
-        objectJson["methods"] = packedMethods;
+      objectJson["permissions"] = packedPermissions;
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.pack(1));
       }
-      if (object.actions.length > 0) {
-        const packedActions: any[] = [];
-        for (const item of object.actions) {
-          packedActions.push(item.pack(1));
-        }
-        objectJson["actions"] = packedActions;
+      objectJson["methods"] = packedMethods;
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.pack(1));
       }
-      if (object.constants.length > 0) {
-        const packedConstants: any[] = [];
-        for (const item of object.constants) {
-          packedConstants.push(item.pack(1));
-        }
-        objectJson["constants"] = packedConstants;
+      objectJson["actions"] = packedActions;
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.pack(1));
       }
+      objectJson["constants"] = packedConstants;
       if (object.baseType != null) {
         objectJson["baseType"] = NodeType[object.baseType];
       }
-      if (object.extendedBy.length > 0) {
-        const packedExtendedBy: any[] = [];
-        for (const item of object.extendedBy) {
-          packedExtendedBy.push(NodeType[item]);
-        }
-        objectJson["extendedBy"] = packedExtendedBy;
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(NodeType[item]);
       }
-      if (object.inherits.length > 0) {
-        const packedInherits: any[] = [];
-        for (const item of object.inherits) {
-          packedInherits.push(NodeType[item]);
-        }
-        objectJson["inherits"] = packedInherits;
+      objectJson["extendedBy"] = packedExtendedBy;
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(NodeType[item]);
       }
-      if (object.inheritedBy.length > 0) {
-        const packedInheritedBy: any[] = [];
-        for (const item of object.inheritedBy) {
-          packedInheritedBy.push(NodeType[item]);
-        }
-        objectJson["inheritedBy"] = packedInheritedBy;
+      objectJson["inherits"] = packedInherits;
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(NodeType[item]);
       }
-      if (object.traits.length > 0) {
-        const packedTraits: any[] = [];
-        for (const item of object.traits) {
-          packedTraits.push(TraitType[item]);
-        }
-        objectJson["traits"] = packedTraits;
+      objectJson["inheritedBy"] = packedInheritedBy;
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(TraitType[item]);
       }
-      if (object.selfTraits.length > 0) {
-        const packedSelfTraits: any[] = [];
-        for (const item of object.selfTraits) {
-          packedSelfTraits.push(TraitType[item]);
-        }
-        objectJson["selfTraits"] = packedSelfTraits;
+      objectJson["traits"] = packedTraits;
+      const packedSelfTraits: any[] = [];
+      for (const item of object.selfTraits) {
+        packedSelfTraits.push(TraitType[item]);
       }
-      if (object.eventTypes.length > 0) {
-        const packedEventTypes: any[] = [];
-        for (const item of object.eventTypes) {
-          packedEventTypes.push(NodeType[item]);
-        }
-        objectJson["eventTypes"] = packedEventTypes;
+      objectJson["selfTraits"] = packedSelfTraits;
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(NodeType[item]);
       }
-      if (object.selfEventTypes.length > 0) {
-        const packedSelfEventTypes: any[] = [];
-        for (const item of object.selfEventTypes) {
-          packedSelfEventTypes.push(NodeType[item]);
-        }
-        objectJson["selfEventTypes"] = packedSelfEventTypes;
+      objectJson["eventTypes"] = packedEventTypes;
+      const packedSelfEventTypes: any[] = [];
+      for (const item of object.selfEventTypes) {
+        packedSelfEventTypes.push(NodeType[item]);
       }
-      if (object.enumTypes.length > 0) {
-        const packedEnumTypes: any[] = [];
-        for (const item of object.enumTypes) {
-          packedEnumTypes.push(EnumType[item]);
-        }
-        objectJson["enumTypes"] = packedEnumTypes;
+      objectJson["selfEventTypes"] = packedSelfEventTypes;
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(EnumType[item]);
       }
-      if (object.selfEnumTypes.length > 0) {
-        const packedSelfEnumTypes: any[] = [];
-        for (const item of object.selfEnumTypes) {
-          packedSelfEnumTypes.push(EnumType[item]);
-        }
-        objectJson["selfEnumTypes"] = packedSelfEnumTypes;
+      objectJson["enumTypes"] = packedEnumTypes;
+      const packedSelfEnumTypes: any[] = [];
+      for (const item of object.selfEnumTypes) {
+        packedSelfEnumTypes.push(EnumType[item]);
       }
-      if (object.parentTypes.length > 0) {
-        const packedParentTypes: any[] = [];
-        for (const item of object.parentTypes) {
-          packedParentTypes.push(NodeType[item]);
-        }
-        objectJson["parentTypes"] = packedParentTypes;
+      objectJson["selfEnumTypes"] = packedSelfEnumTypes;
+      const packedParentTypes: any[] = [];
+      for (const item of object.parentTypes) {
+        packedParentTypes.push(NodeType[item]);
       }
-      if (object.childTypes.length > 0) {
-        const packedChildTypes: any[] = [];
-        for (const item of object.childTypes) {
-          packedChildTypes.push(NodeType[item]);
-        }
-        objectJson["childTypes"] = packedChildTypes;
+      objectJson["parentTypes"] = packedParentTypes;
+      const packedChildTypes: any[] = [];
+      for (const item of object.childTypes) {
+        packedChildTypes.push(NodeType[item]);
       }
-      if (object.ancestorTypes.length > 0) {
-        const packedAncestorTypes: any[] = [];
-        for (const item of object.ancestorTypes) {
-          packedAncestorTypes.push(NodeType[item]);
-        }
-        objectJson["ancestorTypes"] = packedAncestorTypes;
+      objectJson["childTypes"] = packedChildTypes;
+      const packedAncestorTypes: any[] = [];
+      for (const item of object.ancestorTypes) {
+        packedAncestorTypes.push(NodeType[item]);
       }
-      if (object.descendantTypes.length > 0) {
-        const packedDescendantTypes: any[] = [];
-        for (const item of object.descendantTypes) {
-          packedDescendantTypes.push(NodeType[item]);
-        }
-        objectJson["descendantTypes"] = packedDescendantTypes;
+      objectJson["ancestorTypes"] = packedAncestorTypes;
+      const packedDescendantTypes: any[] = [];
+      for (const item of object.descendantTypes) {
+        packedDescendantTypes.push(NodeType[item]);
       }
-      if (object.expectedParentTypes.length > 0) {
-        const packedExpectedParentTypes: any[] = [];
-        for (const item of object.expectedParentTypes) {
-          packedExpectedParentTypes.push(NodeType[item]);
-        }
-        objectJson["expectedParentTypes"] = packedExpectedParentTypes;
+      objectJson["descendantTypes"] = packedDescendantTypes;
+      const packedExpectedParentTypes: any[] = [];
+      for (const item of object.expectedParentTypes) {
+        packedExpectedParentTypes.push(NodeType[item]);
       }
-      if (object.expectedChildTypes.length > 0) {
-        const packedExpectedChildTypes: any[] = [];
-        for (const item of object.expectedChildTypes) {
-          packedExpectedChildTypes.push(NodeType[item]);
-        }
-        objectJson["expectedChildTypes"] = packedExpectedChildTypes;
+      objectJson["expectedParentTypes"] = packedExpectedParentTypes;
+      const packedExpectedChildTypes: any[] = [];
+      for (const item of object.expectedChildTypes) {
+        packedExpectedChildTypes.push(NodeType[item]);
       }
-      if (object.expectedAncestorTypes.length > 0) {
-        const packedExpectedAncestorTypes: any[] = [];
-        for (const item of object.expectedAncestorTypes) {
-          packedExpectedAncestorTypes.push(NodeType[item]);
-        }
-        objectJson["expectedAncestorTypes"] = packedExpectedAncestorTypes;
+      objectJson["expectedChildTypes"] = packedExpectedChildTypes;
+      const packedExpectedAncestorTypes: any[] = [];
+      for (const item of object.expectedAncestorTypes) {
+        packedExpectedAncestorTypes.push(NodeType[item]);
       }
-      if (object.expectedDescendantTypes.length > 0) {
-        const packedExpectedDescendantTypes: any[] = [];
-        for (const item of object.expectedDescendantTypes) {
-          packedExpectedDescendantTypes.push(NodeType[item]);
-        }
-        objectJson["expectedDescendantTypes"] = packedExpectedDescendantTypes;
+      objectJson["expectedAncestorTypes"] = packedExpectedAncestorTypes;
+      const packedExpectedDescendantTypes: any[] = [];
+      for (const item of object.expectedDescendantTypes) {
+        packedExpectedDescendantTypes.push(NodeType[item]);
       }
+      objectJson["expectedDescendantTypes"] = packedExpectedDescendantTypes;
       if (object.domain != null) {
         objectJson["domain"] = GraphDomain[object.domain];
       }
@@ -19843,165 +19453,113 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyDefinition.unpack(1, item, _session) as PropertyDefinition,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.unpack(1, item, _session) as PropertyDefinition,
+        );
       }
       const unpackedIndexes: any[] = [];
-      if (objectJson["indexes"] != undefined) {
-        for (const item of objectJson["indexes"]) {
-          unpackedIndexes.push(_IndexDefinition.unpack(1, item, _session) as IndexDefinition);
-        }
+      for (const item of objectJson["indexes"]) {
+        unpackedIndexes.push(_IndexDefinition.unpack(1, item, _session) as IndexDefinition);
       }
       const unpackedConstraints: any[] = [];
-      if (objectJson["constraints"] != undefined) {
-        for (const item of objectJson["constraints"]) {
-          unpackedConstraints.push(
-            _ConstraintDefinition.unpack(1, item, _session) as ConstraintDefinition,
-          );
-        }
+      for (const item of objectJson["constraints"]) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.unpack(1, item, _session) as ConstraintDefinition,
+        );
       }
       const unpackedPermissions: any[] = [];
-      if (objectJson["permissions"] != undefined) {
-        for (const item of objectJson["permissions"]) {
-          unpackedPermissions.push(
-            _PermissionDefinition.unpack(1, item, _session) as PermissionDefinition,
-          );
-        }
+      for (const item of objectJson["permissions"]) {
+        unpackedPermissions.push(
+          _PermissionDefinition.unpack(1, item, _session) as PermissionDefinition,
+        );
       }
       const unpackedMethods: any[] = [];
-      if (objectJson["methods"] != undefined) {
-        for (const item of objectJson["methods"]) {
-          unpackedMethods.push(_MethodDefinition.unpack(1, item, _session) as MethodDefinition);
-        }
+      for (const item of objectJson["methods"]) {
+        unpackedMethods.push(_MethodDefinition.unpack(1, item, _session) as MethodDefinition);
       }
       const unpackedActions: any[] = [];
-      if (objectJson["actions"] != undefined) {
-        for (const item of objectJson["actions"]) {
-          unpackedActions.push(_ActionDefinition.unpack(1, item, _session) as ActionDefinition);
-        }
+      for (const item of objectJson["actions"]) {
+        unpackedActions.push(_ActionDefinition.unpack(1, item, _session) as ActionDefinition);
       }
       const unpackedConstants: any[] = [];
-      if (objectJson["constants"] != undefined) {
-        for (const item of objectJson["constants"]) {
-          unpackedConstants.push(
-            _ConstantDefinition.unpack(1, item, _session) as ConstantDefinition,
-          );
-        }
+      for (const item of objectJson["constants"]) {
+        unpackedConstants.push(_ConstantDefinition.unpack(1, item, _session) as ConstantDefinition);
       }
       const baseTypeValue = objectJson["baseType"];
       const unpackedBaseType =
         baseTypeValue != undefined ? (NodeType[baseTypeValue] as any) : undefined;
       const unpackedExtendedBy: any[] = [];
-      if (objectJson["extendedBy"] != undefined) {
-        for (const item of objectJson["extendedBy"]) {
-          unpackedExtendedBy.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["extendedBy"]) {
+        unpackedExtendedBy.push(NodeType[item] as any);
       }
       const unpackedInherits: any[] = [];
-      if (objectJson["inherits"] != undefined) {
-        for (const item of objectJson["inherits"]) {
-          unpackedInherits.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["inherits"]) {
+        unpackedInherits.push(NodeType[item] as any);
       }
       const unpackedInheritedBy: any[] = [];
-      if (objectJson["inheritedBy"] != undefined) {
-        for (const item of objectJson["inheritedBy"]) {
-          unpackedInheritedBy.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["inheritedBy"]) {
+        unpackedInheritedBy.push(NodeType[item] as any);
       }
       const unpackedTraits: any[] = [];
-      if (objectJson["traits"] != undefined) {
-        for (const item of objectJson["traits"]) {
-          unpackedTraits.push(TraitType[item] as any);
-        }
+      for (const item of objectJson["traits"]) {
+        unpackedTraits.push(TraitType[item] as any);
       }
       const unpackedSelfTraits: any[] = [];
-      if (objectJson["selfTraits"] != undefined) {
-        for (const item of objectJson["selfTraits"]) {
-          unpackedSelfTraits.push(TraitType[item] as any);
-        }
+      for (const item of objectJson["selfTraits"]) {
+        unpackedSelfTraits.push(TraitType[item] as any);
       }
       const unpackedEventTypes: any[] = [];
-      if (objectJson["eventTypes"] != undefined) {
-        for (const item of objectJson["eventTypes"]) {
-          unpackedEventTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["eventTypes"]) {
+        unpackedEventTypes.push(NodeType[item] as any);
       }
       const unpackedSelfEventTypes: any[] = [];
-      if (objectJson["selfEventTypes"] != undefined) {
-        for (const item of objectJson["selfEventTypes"]) {
-          unpackedSelfEventTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["selfEventTypes"]) {
+        unpackedSelfEventTypes.push(NodeType[item] as any);
       }
       const unpackedEnumTypes: any[] = [];
-      if (objectJson["enumTypes"] != undefined) {
-        for (const item of objectJson["enumTypes"]) {
-          unpackedEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["enumTypes"]) {
+        unpackedEnumTypes.push(EnumType[item] as any);
       }
       const unpackedSelfEnumTypes: any[] = [];
-      if (objectJson["selfEnumTypes"] != undefined) {
-        for (const item of objectJson["selfEnumTypes"]) {
-          unpackedSelfEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["selfEnumTypes"]) {
+        unpackedSelfEnumTypes.push(EnumType[item] as any);
       }
       const unpackedParentTypes: any[] = [];
-      if (objectJson["parentTypes"] != undefined) {
-        for (const item of objectJson["parentTypes"]) {
-          unpackedParentTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["parentTypes"]) {
+        unpackedParentTypes.push(NodeType[item] as any);
       }
       const unpackedChildTypes: any[] = [];
-      if (objectJson["childTypes"] != undefined) {
-        for (const item of objectJson["childTypes"]) {
-          unpackedChildTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["childTypes"]) {
+        unpackedChildTypes.push(NodeType[item] as any);
       }
       const unpackedAncestorTypes: any[] = [];
-      if (objectJson["ancestorTypes"] != undefined) {
-        for (const item of objectJson["ancestorTypes"]) {
-          unpackedAncestorTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["ancestorTypes"]) {
+        unpackedAncestorTypes.push(NodeType[item] as any);
       }
       const unpackedDescendantTypes: any[] = [];
-      if (objectJson["descendantTypes"] != undefined) {
-        for (const item of objectJson["descendantTypes"]) {
-          unpackedDescendantTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["descendantTypes"]) {
+        unpackedDescendantTypes.push(NodeType[item] as any);
       }
       const unpackedExpectedParentTypes: any[] = [];
-      if (objectJson["expectedParentTypes"] != undefined) {
-        for (const item of objectJson["expectedParentTypes"]) {
-          unpackedExpectedParentTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["expectedParentTypes"]) {
+        unpackedExpectedParentTypes.push(NodeType[item] as any);
       }
       const unpackedExpectedChildTypes: any[] = [];
-      if (objectJson["expectedChildTypes"] != undefined) {
-        for (const item of objectJson["expectedChildTypes"]) {
-          unpackedExpectedChildTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["expectedChildTypes"]) {
+        unpackedExpectedChildTypes.push(NodeType[item] as any);
       }
       const unpackedExpectedAncestorTypes: any[] = [];
-      if (objectJson["expectedAncestorTypes"] != undefined) {
-        for (const item of objectJson["expectedAncestorTypes"]) {
-          unpackedExpectedAncestorTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["expectedAncestorTypes"]) {
+        unpackedExpectedAncestorTypes.push(NodeType[item] as any);
       }
       const unpackedExpectedDescendantTypes: any[] = [];
-      if (objectJson["expectedDescendantTypes"] != undefined) {
-        for (const item of objectJson["expectedDescendantTypes"]) {
-          unpackedExpectedDescendantTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["expectedDescendantTypes"]) {
+        unpackedExpectedDescendantTypes.push(NodeType[item] as any);
       }
       const domainValue = objectJson["domain"];
       const unpackedDomain =
@@ -20064,64 +19622,48 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       objectJson["alias"] = object.alias;
       objectJson["isExtensible"] = object.isExtensible;
-      if (object.permissions.length > 0) {
-        const packedPermissions: any[] = [];
-        for (const item of object.permissions) {
-          packedPermissions.push(item.pack(1));
-        }
-        objectJson["permissions"] = packedPermissions;
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.pack(1));
       }
-      if (object.selfTraits.length > 0) {
-        const packedSelfTraits: any[] = [];
-        for (const item of object.selfTraits) {
-          packedSelfTraits.push(TraitType[item]);
-        }
-        objectJson["selfTraits"] = packedSelfTraits;
+      objectJson["permissions"] = packedPermissions;
+      const packedSelfTraits: any[] = [];
+      for (const item of object.selfTraits) {
+        packedSelfTraits.push(TraitType[item]);
       }
-      if (object.traits.length > 0) {
-        const packedTraits: any[] = [];
-        for (const item of object.traits) {
-          packedTraits.push(TraitType[item]);
-        }
-        objectJson["traits"] = packedTraits;
+      objectJson["selfTraits"] = packedSelfTraits;
+      const packedTraits: any[] = [];
+      for (const item of object.traits) {
+        packedTraits.push(TraitType[item]);
       }
-      if (object.eventTypes.length > 0) {
-        const packedEventTypes: any[] = [];
-        for (const item of object.eventTypes) {
-          packedEventTypes.push(NodeType[item]);
-        }
-        objectJson["eventTypes"] = packedEventTypes;
+      objectJson["traits"] = packedTraits;
+      const packedEventTypes: any[] = [];
+      for (const item of object.eventTypes) {
+        packedEventTypes.push(NodeType[item]);
       }
-      if (object.selfEventTypes.length > 0) {
-        const packedSelfEventTypes: any[] = [];
-        for (const item of object.selfEventTypes) {
-          packedSelfEventTypes.push(NodeType[item]);
-        }
-        objectJson["selfEventTypes"] = packedSelfEventTypes;
+      objectJson["eventTypes"] = packedEventTypes;
+      const packedSelfEventTypes: any[] = [];
+      for (const item of object.selfEventTypes) {
+        packedSelfEventTypes.push(NodeType[item]);
       }
-      if (object.enumTypes.length > 0) {
-        const packedEnumTypes: any[] = [];
-        for (const item of object.enumTypes) {
-          packedEnumTypes.push(EnumType[item]);
-        }
-        objectJson["enumTypes"] = packedEnumTypes;
+      objectJson["selfEventTypes"] = packedSelfEventTypes;
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(EnumType[item]);
       }
-      if (object.selfEnumTypes.length > 0) {
-        const packedSelfEnumTypes: any[] = [];
-        for (const item of object.selfEnumTypes) {
-          packedSelfEnumTypes.push(EnumType[item]);
-        }
-        objectJson["selfEnumTypes"] = packedSelfEnumTypes;
+      objectJson["enumTypes"] = packedEnumTypes;
+      const packedSelfEnumTypes: any[] = [];
+      for (const item of object.selfEnumTypes) {
+        packedSelfEnumTypes.push(EnumType[item]);
       }
+      objectJson["selfEnumTypes"] = packedSelfEnumTypes;
       return objectJson;
     }
 
@@ -20134,54 +19676,38 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       const unpackedPermissions: any[] = [];
-      if (objectJson["permissions"] != undefined) {
-        for (const item of objectJson["permissions"]) {
-          unpackedPermissions.push(
-            _PermissionDefinition.unpack(1, item, _session) as PermissionDefinition,
-          );
-        }
+      for (const item of objectJson["permissions"]) {
+        unpackedPermissions.push(
+          _PermissionDefinition.unpack(1, item, _session) as PermissionDefinition,
+        );
       }
       const unpackedSelfTraits: any[] = [];
-      if (objectJson["selfTraits"] != undefined) {
-        for (const item of objectJson["selfTraits"]) {
-          unpackedSelfTraits.push(TraitType[item] as any);
-        }
+      for (const item of objectJson["selfTraits"]) {
+        unpackedSelfTraits.push(TraitType[item] as any);
       }
       const unpackedTraits: any[] = [];
-      if (objectJson["traits"] != undefined) {
-        for (const item of objectJson["traits"]) {
-          unpackedTraits.push(TraitType[item] as any);
-        }
+      for (const item of objectJson["traits"]) {
+        unpackedTraits.push(TraitType[item] as any);
       }
       const unpackedEventTypes: any[] = [];
-      if (objectJson["eventTypes"] != undefined) {
-        for (const item of objectJson["eventTypes"]) {
-          unpackedEventTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["eventTypes"]) {
+        unpackedEventTypes.push(NodeType[item] as any);
       }
       const unpackedSelfEventTypes: any[] = [];
-      if (objectJson["selfEventTypes"] != undefined) {
-        for (const item of objectJson["selfEventTypes"]) {
-          unpackedSelfEventTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["selfEventTypes"]) {
+        unpackedSelfEventTypes.push(NodeType[item] as any);
       }
       const unpackedEnumTypes: any[] = [];
-      if (objectJson["enumTypes"] != undefined) {
-        for (const item of objectJson["enumTypes"]) {
-          unpackedEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["enumTypes"]) {
+        unpackedEnumTypes.push(EnumType[item] as any);
       }
       const unpackedSelfEnumTypes: any[] = [];
-      if (objectJson["selfEnumTypes"] != undefined) {
-        for (const item of objectJson["selfEnumTypes"]) {
-          unpackedSelfEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["selfEnumTypes"]) {
+        unpackedSelfEnumTypes.push(EnumType[item] as any);
       }
       return new (STRUCT_CLASS_BY_TYPE[14] as typeof TraitDefinition)({
         type: TraitType[objectJson["type"]] as any,
@@ -20220,89 +19746,67 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       objectJson["isFrozen"] = object.isFrozen;
       objectJson["isAbstract"] = object.isAbstract;
       objectJson["isExtensible"] = object.isExtensible;
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
-      if (object.methods.length > 0) {
-        const packedMethods: any[] = [];
-        for (const item of object.methods) {
-          packedMethods.push(item.pack(1));
-        }
-        objectJson["methods"] = packedMethods;
+      objectJson["properties"] = packedProperties;
+      const packedMethods: any[] = [];
+      for (const item of object.methods) {
+        packedMethods.push(item.pack(1));
       }
-      if (object.actions.length > 0) {
-        const packedActions: any[] = [];
-        for (const item of object.actions) {
-          packedActions.push(item.pack(1));
-        }
-        objectJson["actions"] = packedActions;
+      objectJson["methods"] = packedMethods;
+      const packedActions: any[] = [];
+      for (const item of object.actions) {
+        packedActions.push(item.pack(1));
       }
-      if (object.constants.length > 0) {
-        const packedConstants: any[] = [];
-        for (const item of object.constants) {
-          packedConstants.push(item.pack(1));
-        }
-        objectJson["constants"] = packedConstants;
+      objectJson["actions"] = packedActions;
+      const packedConstants: any[] = [];
+      for (const item of object.constants) {
+        packedConstants.push(item.pack(1));
       }
-      if (object.tags.length > 0) {
-        const packedTags: any[] = [];
-        for (const item of object.tags) {
-          packedTags.push(item.pack(1));
-        }
-        objectJson["tags"] = packedTags;
+      objectJson["constants"] = packedConstants;
+      const packedTags: any[] = [];
+      for (const item of object.tags) {
+        packedTags.push(item.pack(1));
       }
+      objectJson["tags"] = packedTags;
       if (object.baseType != null) {
         objectJson["baseType"] = StructType[object.baseType];
       }
-      if (object.extendedBy.length > 0) {
-        const packedExtendedBy: any[] = [];
-        for (const item of object.extendedBy) {
-          packedExtendedBy.push(StructType[item]);
-        }
-        objectJson["extendedBy"] = packedExtendedBy;
+      const packedExtendedBy: any[] = [];
+      for (const item of object.extendedBy) {
+        packedExtendedBy.push(StructType[item]);
       }
-      if (object.inherits.length > 0) {
-        const packedInherits: any[] = [];
-        for (const item of object.inherits) {
-          packedInherits.push(StructType[item]);
-        }
-        objectJson["inherits"] = packedInherits;
+      objectJson["extendedBy"] = packedExtendedBy;
+      const packedInherits: any[] = [];
+      for (const item of object.inherits) {
+        packedInherits.push(StructType[item]);
       }
-      if (object.inheritedBy.length > 0) {
-        const packedInheritedBy: any[] = [];
-        for (const item of object.inheritedBy) {
-          packedInheritedBy.push(StructType[item]);
-        }
-        objectJson["inheritedBy"] = packedInheritedBy;
+      objectJson["inherits"] = packedInherits;
+      const packedInheritedBy: any[] = [];
+      for (const item of object.inheritedBy) {
+        packedInheritedBy.push(StructType[item]);
       }
-      if (object.enumTypes.length > 0) {
-        const packedEnumTypes: any[] = [];
-        for (const item of object.enumTypes) {
-          packedEnumTypes.push(EnumType[item]);
-        }
-        objectJson["enumTypes"] = packedEnumTypes;
+      objectJson["inheritedBy"] = packedInheritedBy;
+      const packedEnumTypes: any[] = [];
+      for (const item of object.enumTypes) {
+        packedEnumTypes.push(EnumType[item]);
       }
-      if (object.selfEnumTypes.length > 0) {
-        const packedSelfEnumTypes: any[] = [];
-        for (const item of object.selfEnumTypes) {
-          packedSelfEnumTypes.push(EnumType[item]);
-        }
-        objectJson["selfEnumTypes"] = packedSelfEnumTypes;
+      objectJson["enumTypes"] = packedEnumTypes;
+      const packedSelfEnumTypes: any[] = [];
+      for (const item of object.selfEnumTypes) {
+        packedSelfEnumTypes.push(EnumType[item]);
       }
+      objectJson["selfEnumTypes"] = packedSelfEnumTypes;
       return objectJson;
     }
 
@@ -20319,77 +19823,53 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyDefinition.unpack(1, item, _session) as PropertyDefinition,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.unpack(1, item, _session) as PropertyDefinition,
+        );
       }
       const unpackedMethods: any[] = [];
-      if (objectJson["methods"] != undefined) {
-        for (const item of objectJson["methods"]) {
-          unpackedMethods.push(_MethodDefinition.unpack(1, item, _session) as MethodDefinition);
-        }
+      for (const item of objectJson["methods"]) {
+        unpackedMethods.push(_MethodDefinition.unpack(1, item, _session) as MethodDefinition);
       }
       const unpackedActions: any[] = [];
-      if (objectJson["actions"] != undefined) {
-        for (const item of objectJson["actions"]) {
-          unpackedActions.push(_ActionDefinition.unpack(1, item, _session) as ActionDefinition);
-        }
+      for (const item of objectJson["actions"]) {
+        unpackedActions.push(_ActionDefinition.unpack(1, item, _session) as ActionDefinition);
       }
       const unpackedConstants: any[] = [];
-      if (objectJson["constants"] != undefined) {
-        for (const item of objectJson["constants"]) {
-          unpackedConstants.push(
-            _ConstantDefinition.unpack(1, item, _session) as ConstantDefinition,
-          );
-        }
+      for (const item of objectJson["constants"]) {
+        unpackedConstants.push(_ConstantDefinition.unpack(1, item, _session) as ConstantDefinition);
       }
       const unpackedTags: any[] = [];
-      if (objectJson["tags"] != undefined) {
-        for (const item of objectJson["tags"]) {
-          unpackedTags.push(_TagDefinition.unpack(1, item, _session) as TagDefinition);
-        }
+      for (const item of objectJson["tags"]) {
+        unpackedTags.push(_TagDefinition.unpack(1, item, _session) as TagDefinition);
       }
       const baseTypeValue = objectJson["baseType"];
       const unpackedBaseType =
         baseTypeValue != undefined ? (StructType[baseTypeValue] as any) : undefined;
       const unpackedExtendedBy: any[] = [];
-      if (objectJson["extendedBy"] != undefined) {
-        for (const item of objectJson["extendedBy"]) {
-          unpackedExtendedBy.push(StructType[item] as any);
-        }
+      for (const item of objectJson["extendedBy"]) {
+        unpackedExtendedBy.push(StructType[item] as any);
       }
       const unpackedInherits: any[] = [];
-      if (objectJson["inherits"] != undefined) {
-        for (const item of objectJson["inherits"]) {
-          unpackedInherits.push(StructType[item] as any);
-        }
+      for (const item of objectJson["inherits"]) {
+        unpackedInherits.push(StructType[item] as any);
       }
       const unpackedInheritedBy: any[] = [];
-      if (objectJson["inheritedBy"] != undefined) {
-        for (const item of objectJson["inheritedBy"]) {
-          unpackedInheritedBy.push(StructType[item] as any);
-        }
+      for (const item of objectJson["inheritedBy"]) {
+        unpackedInheritedBy.push(StructType[item] as any);
       }
       const unpackedEnumTypes: any[] = [];
-      if (objectJson["enumTypes"] != undefined) {
-        for (const item of objectJson["enumTypes"]) {
-          unpackedEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["enumTypes"]) {
+        unpackedEnumTypes.push(EnumType[item] as any);
       }
       const unpackedSelfEnumTypes: any[] = [];
-      if (objectJson["selfEnumTypes"] != undefined) {
-        for (const item of objectJson["selfEnumTypes"]) {
-          unpackedSelfEnumTypes.push(EnumType[item] as any);
-        }
+      for (const item of objectJson["selfEnumTypes"]) {
+        unpackedSelfEnumTypes.push(EnumType[item] as any);
       }
       return new (STRUCT_CLASS_BY_TYPE[15] as typeof StructDefinition)({
         type: StructType[objectJson["type"]] as any,
@@ -20433,20 +19913,16 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
-      if (object.options.length > 0) {
-        const packedOptions: any[] = [];
-        for (const item of object.options) {
-          packedOptions.push(item.pack(1));
-        }
-        objectJson["options"] = packedOptions;
+      objectJson["taggings"] = packedTaggings;
+      const packedOptions: any[] = [];
+      for (const item of object.options) {
+        packedOptions.push(item.pack(1));
       }
+      objectJson["options"] = packedOptions;
       return objectJson;
     }
 
@@ -20459,16 +19935,12 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       const unpackedOptions: any[] = [];
-      if (objectJson["options"] != undefined) {
-        for (const item of objectJson["options"]) {
-          unpackedOptions.push(_OptionDefinition.unpack(1, item, _session) as OptionDefinition);
-        }
+      for (const item of objectJson["options"]) {
+        unpackedOptions.push(_OptionDefinition.unpack(1, item, _session) as OptionDefinition);
       }
       return new (STRUCT_CLASS_BY_TYPE[17] as typeof EnumDefinition)({
         type: EnumType[objectJson["type"]] as any,
@@ -20500,13 +19972,11 @@ export function loadEncoders(): void {
       }
       objectJson["object"] = object.object.pack(1);
       objectJson["originalObject"] = object.originalObject.pack(1);
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       objectJson["cardinality"] = TypeCardinality[object.cardinality];
       objectJson["scalarType"] = ScalarType[object.scalarType];
       if (object.primitiveType != null) {
@@ -20515,13 +19985,11 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      if (object.nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object.nodeTypes) {
-          packedNodeTypes.push(NodeType[item]);
-        }
-        objectJson["nodeTypes"] = packedNodeTypes;
+      const packedNodeTypes: any[] = [];
+      for (const item of object.nodeTypes) {
+        packedNodeTypes.push(NodeType[item]);
       }
+      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -20581,10 +20049,8 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       const edgeTypeValue = objectJson["edgeType"];
       const unpackedEdgeType =
@@ -20628,10 +20094,8 @@ export function loadEncoders(): void {
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
       const unpackedNodeTypes: any[] = [];
-      if (objectJson["nodeTypes"] != undefined) {
-        for (const item of objectJson["nodeTypes"]) {
-          unpackedNodeTypes.push(NodeType[item] as any);
-        }
+      for (const item of objectJson["nodeTypes"]) {
+        unpackedNodeTypes.push(NodeType[item] as any);
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -20707,13 +20171,11 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       return objectJson;
     }
 
@@ -20725,10 +20187,8 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       return new (STRUCT_CLASS_BY_TYPE[20] as typeof OptionDefinition)({
         id: Number(objectJson["id"]),
@@ -20754,13 +20214,11 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(Number(item));
-        }
-        objectJson["taggings"] = packedTaggings;
+      const packedTaggings: any[] = [];
+      for (const item of object.taggings) {
+        packedTaggings.push(Number(item));
       }
+      objectJson["taggings"] = packedTaggings;
       objectJson["value"] = object.value.pack(1);
       return objectJson;
     }
@@ -20770,10 +20228,8 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
-      if (objectJson["taggings"] != undefined) {
-        for (const item of objectJson["taggings"]) {
-          unpackedTaggings.push(Number(item));
-        }
+      for (const item of objectJson["taggings"]) {
+        unpackedTaggings.push(Number(item));
       }
       return new (STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition)({
         id: Number(objectJson["id"]),
@@ -20826,20 +20282,16 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
-      if (object.cover.length > 0) {
-        const packedCover: any[] = [];
-        for (const item of object.cover) {
-          packedCover.push(item.pack(1));
-        }
-        objectJson["cover"] = packedCover;
+      objectJson["properties"] = packedProperties;
+      const packedCover: any[] = [];
+      for (const item of object.cover) {
+        packedCover.push(item.pack(1));
       }
+      objectJson["cover"] = packedCover;
       return objectJson;
     }
 
@@ -20848,18 +20300,12 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       const unpackedCover: any[] = [];
-      if (objectJson["cover"] != undefined) {
-        for (const item of objectJson["cover"]) {
-          unpackedCover.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
-        }
+      for (const item of objectJson["cover"]) {
+        unpackedCover.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       return new (STRUCT_CLASS_BY_TYPE[30100] as typeof IndexDefinition)({
         id: Number(objectJson["id"]),
@@ -20886,13 +20332,11 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
+      objectJson["properties"] = packedProperties;
       return objectJson;
     }
 
@@ -20901,12 +20345,8 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       return new (STRUCT_CLASS_BY_TYPE[30200] as typeof ConstraintDefinition)({
         id: Number(objectJson["id"]),
@@ -20959,28 +20399,22 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
+      objectJson["properties"] = packedProperties;
       objectJson["cardinality"] = MethodCardinality[object.cardinality];
-      if (object.platforms.length > 0) {
-        const packedPlatforms: any[] = [];
-        for (const item of object.platforms) {
-          packedPlatforms.push(PlatformType[item]);
-        }
-        objectJson["platforms"] = packedPlatforms;
+      const packedPlatforms: any[] = [];
+      for (const item of object.platforms) {
+        packedPlatforms.push(PlatformType[item]);
       }
-      if (object.languages.length > 0) {
-        const packedLanguages: any[] = [];
-        for (const item of object.languages) {
-          packedLanguages.push(RuntimeLanguage[item]);
-        }
-        objectJson["languages"] = packedLanguages;
+      objectJson["platforms"] = packedPlatforms;
+      const packedLanguages: any[] = [];
+      for (const item of object.languages) {
+        packedLanguages.push(RuntimeLanguage[item]);
       }
+      objectJson["languages"] = packedLanguages;
       return objectJson;
     }
 
@@ -20989,24 +20423,16 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       const unpackedPlatforms: any[] = [];
-      if (objectJson["platforms"] != undefined) {
-        for (const item of objectJson["platforms"]) {
-          unpackedPlatforms.push(PlatformType[item] as any);
-        }
+      for (const item of objectJson["platforms"]) {
+        unpackedPlatforms.push(PlatformType[item] as any);
       }
       const unpackedLanguages: any[] = [];
-      if (objectJson["languages"] != undefined) {
-        for (const item of objectJson["languages"]) {
-          unpackedLanguages.push(RuntimeLanguage[item] as any);
-        }
+      for (const item of objectJson["languages"]) {
+        unpackedLanguages.push(RuntimeLanguage[item] as any);
       }
       return new (STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition)({
         id: Number(objectJson["id"]),
@@ -21035,28 +20461,22 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectJson["description"] = object.description;
       }
-      if (object.properties.length > 0) {
-        const packedProperties: any[] = [];
-        for (const item of object.properties) {
-          packedProperties.push(item.pack(1));
-        }
-        objectJson["properties"] = packedProperties;
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.pack(1));
       }
+      objectJson["properties"] = packedProperties;
       objectJson["cardinality"] = MethodCardinality[object.cardinality];
-      if (object.platforms.length > 0) {
-        const packedPlatforms: any[] = [];
-        for (const item of object.platforms) {
-          packedPlatforms.push(PlatformType[item]);
-        }
-        objectJson["platforms"] = packedPlatforms;
+      const packedPlatforms: any[] = [];
+      for (const item of object.platforms) {
+        packedPlatforms.push(PlatformType[item]);
       }
-      if (object.languages.length > 0) {
-        const packedLanguages: any[] = [];
-        for (const item of object.languages) {
-          packedLanguages.push(RuntimeLanguage[item]);
-        }
-        objectJson["languages"] = packedLanguages;
+      objectJson["platforms"] = packedPlatforms;
+      const packedLanguages: any[] = [];
+      for (const item of object.languages) {
+        packedLanguages.push(RuntimeLanguage[item]);
       }
+      objectJson["languages"] = packedLanguages;
       return objectJson;
     }
 
@@ -21065,24 +20485,16 @@ export function loadEncoders(): void {
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectJson["properties"] != undefined) {
-        for (const item of objectJson["properties"]) {
-          unpackedProperties.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["properties"]) {
+        unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       const unpackedPlatforms: any[] = [];
-      if (objectJson["platforms"] != undefined) {
-        for (const item of objectJson["platforms"]) {
-          unpackedPlatforms.push(PlatformType[item] as any);
-        }
+      for (const item of objectJson["platforms"]) {
+        unpackedPlatforms.push(PlatformType[item] as any);
       }
       const unpackedLanguages: any[] = [];
-      if (objectJson["languages"] != undefined) {
-        for (const item of objectJson["languages"]) {
-          unpackedLanguages.push(RuntimeLanguage[item] as any);
-        }
+      for (const item of objectJson["languages"]) {
+        unpackedLanguages.push(RuntimeLanguage[item] as any);
       }
       return new (STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition)({
         id: Number(objectJson["id"]),
@@ -21408,25 +20820,19 @@ export function loadEncoders(): void {
     packObject(object: Select): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "SELECT";
-      if (object.attributes.length > 0) {
-        const packedAttributes: any[] = [];
-        for (const item of object.attributes) {
-          packedAttributes.push(item.pack(1));
-        }
-        objectJson["attributes"] = packedAttributes;
+      const packedAttributes: any[] = [];
+      for (const item of object.attributes) {
+        packedAttributes.push(item.pack(1));
       }
+      objectJson["attributes"] = packedAttributes;
       return objectJson;
     }
 
     unpackObject(objectJson: any, _session: Session | null): Select {
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedAttributes: any[] = [];
-      if (objectJson["attributes"] != undefined) {
-        for (const item of objectJson["attributes"]) {
-          unpackedAttributes.push(
-            _PropertyReference.unpack(1, item, _session) as PropertyReference,
-          );
-        }
+      for (const item of objectJson["attributes"]) {
+        unpackedAttributes.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
       }
       return new (STRUCT_CLASS_BY_TYPE[206] as typeof Select)({
         attributes: unpackedAttributes,
@@ -21476,13 +20882,11 @@ export function loadEncoders(): void {
       objectJson["domain"] = GraphDomain[object.domain];
       objectJson["name"] = object.name;
       objectJson["definition"] = object.definition.pack(1);
-      if (object.subqueries.length > 0) {
-        const packedSubqueries: any[] = [];
-        for (const item of object.subqueries) {
-          packedSubqueries.push(item.pack(1));
-        }
-        objectJson["subqueries"] = packedSubqueries;
+      const packedSubqueries: any[] = [];
+      for (const item of object.subqueries) {
+        packedSubqueries.push(item.pack(1));
       }
+      objectJson["subqueries"] = packedSubqueries;
       if (object.join != null) {
         objectJson["join"] = object.join.pack(1);
       }
@@ -21495,23 +20899,19 @@ export function loadEncoders(): void {
       if (object.having != null) {
         objectJson["having"] = object.having.pack(1);
       }
-      if (object.groupBy.length > 0) {
-        const packedGroupBy: any[] = [];
-        for (const item of object.groupBy) {
-          packedGroupBy.push(item.pack(1));
-        }
-        objectJson["groupBy"] = packedGroupBy;
+      const packedGroupBy: any[] = [];
+      for (const item of object.groupBy) {
+        packedGroupBy.push(item.pack(1));
       }
+      objectJson["groupBy"] = packedGroupBy;
       if (object.aggregation != null) {
         objectJson["aggregation"] = object.aggregation.pack(1);
       }
-      if (object.sort.length > 0) {
-        const packedSort: any[] = [];
-        for (const item of object.sort) {
-          packedSort.push(item.pack(1));
-        }
-        objectJson["sort"] = packedSort;
+      const packedSort: any[] = [];
+      for (const item of object.sort) {
+        packedSort.push(item.pack(1));
       }
+      objectJson["sort"] = packedSort;
       if (object.limit != null) {
         objectJson["limit"] = Number(object.limit);
       }
@@ -21531,10 +20931,8 @@ export function loadEncoders(): void {
       const _Select = STRUCT_CLASS_BY_TYPE[206] as typeof Select;
       const _Query = STRUCT_CLASS_BY_TYPE[300] as typeof Query;
       const unpackedSubqueries: any[] = [];
-      if (objectJson["subqueries"] != undefined) {
-        for (const item of objectJson["subqueries"]) {
-          unpackedSubqueries.push(_Query.unpack(1, item, _session) as Query);
-        }
+      for (const item of objectJson["subqueries"]) {
+        unpackedSubqueries.push(_Query.unpack(1, item, _session) as Query);
       }
       const joinValue = objectJson["join"];
       const unpackedJoin =
@@ -21553,10 +20951,8 @@ export function loadEncoders(): void {
           ? (_Condition.unpack(1, havingValue, _session) as Condition)
           : undefined;
       const unpackedGroupBy: any[] = [];
-      if (objectJson["groupBy"] != undefined) {
-        for (const item of objectJson["groupBy"]) {
-          unpackedGroupBy.push(_Expression.unpack(1, item, _session) as Expression);
-        }
+      for (const item of objectJson["groupBy"]) {
+        unpackedGroupBy.push(_Expression.unpack(1, item, _session) as Expression);
       }
       const aggregationValue = objectJson["aggregation"];
       const unpackedAggregation =
@@ -21564,10 +20960,8 @@ export function loadEncoders(): void {
           ? (_Aggregation.unpack(1, aggregationValue, _session) as Aggregation)
           : undefined;
       const unpackedSort: any[] = [];
-      if (objectJson["sort"] != undefined) {
-        for (const item of objectJson["sort"]) {
-          unpackedSort.push(_Sort.unpack(1, item, _session) as Sort);
-        }
+      for (const item of objectJson["sort"]) {
+        unpackedSort.push(_Sort.unpack(1, item, _session) as Sort);
       }
       const limitValue = objectJson["limit"];
       const unpackedLimit = limitValue != undefined ? Number(limitValue) : undefined;
@@ -21606,13 +21000,11 @@ export function loadEncoders(): void {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DATUM";
       objectJson["definition"] = object.definitionPtr.pack(1);
-      if (Object.keys(object.customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object.customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       return objectJson;
     }
 
@@ -21620,10 +21012,8 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       return new (STRUCT_CLASS_BY_TYPE[2] as typeof Datum)({
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
@@ -21641,13 +21031,11 @@ export function loadEncoders(): void {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "DATUM_MUTABLE";
       objectJson["definition"] = object.definitionPtr.pack(1);
-      if (Object.keys(object.customValues).length > 0) {
-        const packedCustomValues: { [key: string]: any } = {} as any;
-        for (const [key, value] of Object.entries(object.customValues)) {
-          packedCustomValues[String(key)] = value.pack(1);
-        }
-        objectJson["customValues"] = packedCustomValues;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
       }
+      objectJson["customValues"] = packedCustomValues;
       return objectJson;
     }
 
@@ -21655,10 +21043,8 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const unpackedCustomValues = {} as any;
-      if (objectJson["customValues"] != undefined) {
-        for (const [key, value] of Object.entries(objectJson["customValues"])) {
-          unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-        }
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
       }
       return new (STRUCT_CLASS_BY_TYPE[3] as typeof DatumMutable)({
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
@@ -21746,13 +21132,11 @@ export function loadEncoders(): void {
     packObject(object: Text): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TEXT";
-      if (object.spans.length > 0) {
-        const packedSpans: any[] = [];
-        for (const item of object.spans) {
-          packedSpans.push(item.pack(1));
-        }
-        objectJson["spans"] = packedSpans;
+      const packedSpans: any[] = [];
+      for (const item of object.spans) {
+        packedSpans.push(item.pack(1));
       }
+      objectJson["spans"] = packedSpans;
       if (object.isBold != null) {
         objectJson["isBold"] = object.isBold;
       }
@@ -21774,10 +21158,8 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Text {
       const _TextSpan = STRUCT_CLASS_BY_TYPE[400021] as typeof TextSpan;
       const unpackedSpans: any[] = [];
-      if (objectJson["spans"] != undefined) {
-        for (const item of objectJson["spans"]) {
-          unpackedSpans.push(_TextSpan.unpack(1, item, _session) as TextSpan);
-        }
+      for (const item of objectJson["spans"]) {
+        unpackedSpans.push(_TextSpan.unpack(1, item, _session) as TextSpan);
       }
       const isBoldValue = objectJson["isBold"];
       const unpackedIsBold = isBoldValue != undefined ? isBoldValue : undefined;
@@ -21941,13 +21323,11 @@ export function loadEncoders(): void {
       if (object.angle != null) {
         objectJson["angle"] = Number(object.angle);
       }
-      if (object.stops.length > 0) {
-        const packedStops: any[] = [];
-        for (const item of object.stops) {
-          packedStops.push(item.pack(1));
-        }
-        objectJson["stops"] = packedStops;
+      const packedStops: any[] = [];
+      for (const item of object.stops) {
+        packedStops.push(item.pack(1));
       }
+      objectJson["stops"] = packedStops;
       if (object.centerAnchor != null) {
         objectJson["centerAnchor"] = object.centerAnchor.pack(1);
       }
@@ -21966,10 +21346,8 @@ export function loadEncoders(): void {
       const angleValue = objectJson["angle"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
-      if (objectJson["stops"] != undefined) {
-        for (const item of objectJson["stops"]) {
-          unpackedStops.push(_GradientStop.unpack(1, item, _session) as GradientStop);
-        }
+      for (const item of objectJson["stops"]) {
+        unpackedStops.push(_GradientStop.unpack(1, item, _session) as GradientStop);
       }
       const centerAnchorValue = objectJson["centerAnchor"];
       const unpackedCenterAnchor =
@@ -22326,23 +21704,19 @@ export function loadEncoders(): void {
     packObject(object: StrokePath): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "STROKE_PATH";
-      if (object.points.length > 0) {
-        const packedPoints: any[] = [];
-        for (const item of object.points) {
-          packedPoints.push(item.pack(1));
-        }
-        objectJson["points"] = packedPoints;
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.pack(1));
       }
+      objectJson["points"] = packedPoints;
       return objectJson;
     }
 
     unpackObject(objectJson: any, _session: Session | null): StrokePath {
       const _StrokePoint = STRUCT_CLASS_BY_TYPE[2101103] as typeof StrokePoint;
       const unpackedPoints: any[] = [];
-      if (objectJson["points"] != undefined) {
-        for (const item of objectJson["points"]) {
-          unpackedPoints.push(_StrokePoint.unpack(1, item, _session) as StrokePoint);
-        }
+      for (const item of objectJson["points"]) {
+        unpackedPoints.push(_StrokePoint.unpack(1, item, _session) as StrokePoint);
       }
       return new (STRUCT_CLASS_BY_TYPE[2101102] as typeof StrokePath)({
         points: unpackedPoints,
@@ -22368,13 +21742,11 @@ export function loadEncoders(): void {
       if (object.duration != null) {
         objectJson["duration"] = Number(object.duration);
       }
-      if (object.ease.length > 0) {
-        const packedEase: any[] = [];
-        for (const item of object.ease) {
-          packedEase.push(Number(item));
-        }
-        objectJson["ease"] = packedEase;
+      const packedEase: any[] = [];
+      for (const item of object.ease) {
+        packedEase.push(Number(item));
       }
+      objectJson["ease"] = packedEase;
       if (object.stiffness != null) {
         objectJson["stiffness"] = Number(object.stiffness);
       }
@@ -22405,10 +21777,8 @@ export function loadEncoders(): void {
       const durationValue = objectJson["duration"];
       const unpackedDuration = durationValue != undefined ? Number(durationValue) : undefined;
       const unpackedEase: any[] = [];
-      if (objectJson["ease"] != undefined) {
-        for (const item of objectJson["ease"]) {
-          unpackedEase.push(Number(item));
-        }
+      for (const item of objectJson["ease"]) {
+        unpackedEase.push(Number(item));
       }
       const stiffnessValue = objectJson["stiffness"];
       const unpackedStiffness = stiffnessValue != undefined ? Number(stiffnessValue) : undefined;
@@ -22657,13 +22027,11 @@ export function loadEncoders(): void {
       if (object.stroke != null) {
         objectJson["stroke"] = object.stroke.pack(1);
       }
-      if (object.points.length > 0) {
-        const packedPoints: any[] = [];
-        for (const item of object.points) {
-          packedPoints.push(item.pack(1));
-        }
-        objectJson["points"] = packedPoints;
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.pack(1));
       }
+      objectJson["points"] = packedPoints;
       return objectJson;
     }
 
@@ -22674,10 +22042,8 @@ export function loadEncoders(): void {
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
-      if (objectJson["points"] != undefined) {
-        for (const item of objectJson["points"]) {
-          unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
-        }
+      for (const item of objectJson["points"]) {
+        unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
       return new (STRUCT_CLASS_BY_TYPE[2411600] as typeof Path2D)({
         stroke: unpackedStroke,
@@ -22697,13 +22063,11 @@ export function loadEncoders(): void {
       if (object.stroke != null) {
         objectJson["stroke"] = object.stroke.pack(1);
       }
-      if (object.points.length > 0) {
-        const packedPoints: any[] = [];
-        for (const item of object.points) {
-          packedPoints.push(item.pack(1));
-        }
-        objectJson["points"] = packedPoints;
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.pack(1));
       }
+      objectJson["points"] = packedPoints;
       return objectJson;
     }
 
@@ -22714,10 +22078,8 @@ export function loadEncoders(): void {
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
-      if (objectJson["points"] != undefined) {
-        for (const item of objectJson["points"]) {
-          unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
-        }
+      for (const item of objectJson["points"]) {
+        unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
       return new (STRUCT_CLASS_BY_TYPE[2411500] as typeof Polygon2D)({
         stroke: unpackedStroke,
@@ -23247,70 +22609,70 @@ export function loadEncoders(): void {
       if (object.weekStart != null) {
         objectJson["weekStart"] = DayOfWeek[object.weekStart];
       }
-      if (object.bySetPos.length > 0) {
+      if (object.bySetPos != null) {
         const packedBySetPos: any[] = [];
         for (const item of object.bySetPos) {
           packedBySetPos.push(Number(item));
         }
         objectJson["bySetPos"] = packedBySetPos;
       }
-      if (object.byMonth.length > 0) {
+      if (object.byMonth != null) {
         const packedByMonth: any[] = [];
         for (const item of object.byMonth) {
           packedByMonth.push(Month[item]);
         }
         objectJson["byMonth"] = packedByMonth;
       }
-      if (object.byMonthDay.length > 0) {
+      if (object.byMonthDay != null) {
         const packedByMonthDay: any[] = [];
         for (const item of object.byMonthDay) {
           packedByMonthDay.push(Number(item));
         }
         objectJson["byMonthDay"] = packedByMonthDay;
       }
-      if (object.byYearDay.length > 0) {
+      if (object.byYearDay != null) {
         const packedByYearDay: any[] = [];
         for (const item of object.byYearDay) {
           packedByYearDay.push(Number(item));
         }
         objectJson["byYearDay"] = packedByYearDay;
       }
-      if (object.byEaster.length > 0) {
+      if (object.byEaster != null) {
         const packedByEaster: any[] = [];
         for (const item of object.byEaster) {
           packedByEaster.push(Number(item));
         }
         objectJson["byEaster"] = packedByEaster;
       }
-      if (object.byWeekNo.length > 0) {
+      if (object.byWeekNo != null) {
         const packedByWeekNo: any[] = [];
         for (const item of object.byWeekNo) {
           packedByWeekNo.push(Number(item));
         }
         objectJson["byWeekNo"] = packedByWeekNo;
       }
-      if (object.byWeekDay.length > 0) {
+      if (object.byWeekDay != null) {
         const packedByWeekDay: any[] = [];
         for (const item of object.byWeekDay) {
           packedByWeekDay.push(DayOfWeek[item]);
         }
         objectJson["byWeekDay"] = packedByWeekDay;
       }
-      if (object.byHour.length > 0) {
+      if (object.byHour != null) {
         const packedByHour: any[] = [];
         for (const item of object.byHour) {
           packedByHour.push(Number(item));
         }
         objectJson["byHour"] = packedByHour;
       }
-      if (object.byMinute.length > 0) {
+      if (object.byMinute != null) {
         const packedByMinute: any[] = [];
         for (const item of object.byMinute) {
           packedByMinute.push(Number(item));
         }
         objectJson["byMinute"] = packedByMinute;
       }
-      if (object.bySecond.length > 0) {
+      if (object.bySecond != null) {
         const packedBySecond: any[] = [];
         for (const item of object.bySecond) {
           packedBySecond.push(Number(item));
@@ -23336,62 +22698,62 @@ export function loadEncoders(): void {
       const weekStartValue = objectJson["weekStart"];
       const unpackedWeekStart =
         weekStartValue != undefined ? (DayOfWeek[weekStartValue] as any) : undefined;
-      const unpackedBySetPos: any[] = [];
       if (objectJson["bySetPos"] != undefined) {
+        const unpackedBySetPos: any[] = [];
         for (const item of objectJson["bySetPos"]) {
           unpackedBySetPos.push(Number(item));
         }
       }
-      const unpackedByMonth: any[] = [];
       if (objectJson["byMonth"] != undefined) {
+        const unpackedByMonth: any[] = [];
         for (const item of objectJson["byMonth"]) {
           unpackedByMonth.push(Month[item] as any);
         }
       }
-      const unpackedByMonthDay: any[] = [];
       if (objectJson["byMonthDay"] != undefined) {
+        const unpackedByMonthDay: any[] = [];
         for (const item of objectJson["byMonthDay"]) {
           unpackedByMonthDay.push(Number(item));
         }
       }
-      const unpackedByYearDay: any[] = [];
       if (objectJson["byYearDay"] != undefined) {
+        const unpackedByYearDay: any[] = [];
         for (const item of objectJson["byYearDay"]) {
           unpackedByYearDay.push(Number(item));
         }
       }
-      const unpackedByEaster: any[] = [];
       if (objectJson["byEaster"] != undefined) {
+        const unpackedByEaster: any[] = [];
         for (const item of objectJson["byEaster"]) {
           unpackedByEaster.push(Number(item));
         }
       }
-      const unpackedByWeekNo: any[] = [];
       if (objectJson["byWeekNo"] != undefined) {
+        const unpackedByWeekNo: any[] = [];
         for (const item of objectJson["byWeekNo"]) {
           unpackedByWeekNo.push(Number(item));
         }
       }
-      const unpackedByWeekDay: any[] = [];
       if (objectJson["byWeekDay"] != undefined) {
+        const unpackedByWeekDay: any[] = [];
         for (const item of objectJson["byWeekDay"]) {
           unpackedByWeekDay.push(DayOfWeek[item] as any);
         }
       }
-      const unpackedByHour: any[] = [];
       if (objectJson["byHour"] != undefined) {
+        const unpackedByHour: any[] = [];
         for (const item of objectJson["byHour"]) {
           unpackedByHour.push(Number(item));
         }
       }
-      const unpackedByMinute: any[] = [];
       if (objectJson["byMinute"] != undefined) {
+        const unpackedByMinute: any[] = [];
         for (const item of objectJson["byMinute"]) {
           unpackedByMinute.push(Number(item));
         }
       }
-      const unpackedBySecond: any[] = [];
       if (objectJson["bySecond"] != undefined) {
+        const unpackedBySecond: any[] = [];
         for (const item of objectJson["bySecond"]) {
           unpackedBySecond.push(Number(item));
         }

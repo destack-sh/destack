@@ -108,52 +108,52 @@ export class Schedule extends Struct {
   /**
    * Schedule.bySetPos
    */
-  bySetPos: readonly UInt32[];
+  bySetPos: readonly UInt32[] | null;
 
   /**
    * Schedule.byMonth
    */
-  byMonth: readonly Month[];
+  byMonth: readonly Month[] | null;
 
   /**
    * Schedule.byMonthDay
    */
-  byMonthDay: readonly UInt8[];
+  byMonthDay: readonly UInt8[] | null;
 
   /**
    * Schedule.byYearDay
    */
-  byYearDay: readonly UInt16[];
+  byYearDay: readonly UInt16[] | null;
 
   /**
    * Schedule.byEaster
    */
-  byEaster: readonly UInt8[];
+  byEaster: readonly UInt8[] | null;
 
   /**
    * Schedule.byWeekNo
    */
-  byWeekNo: readonly UInt8[];
+  byWeekNo: readonly UInt8[] | null;
 
   /**
    * Schedule.byWeekDay
    */
-  byWeekDay: readonly DayOfWeek[];
+  byWeekDay: readonly DayOfWeek[] | null;
 
   /**
    * Schedule.byHour
    */
-  byHour: readonly UInt8[];
+  byHour: readonly UInt8[] | null;
 
   /**
    * Schedule.byMinute
    */
-  byMinute: readonly UInt8[];
+  byMinute: readonly UInt8[] | null;
 
   /**
    * Schedule.bySecond
    */
-  bySecond: readonly UInt8[];
+  bySecond: readonly UInt8[] | null;
 
   constructor(options: {
     frequency: ScheduleFrequency;
@@ -162,16 +162,16 @@ export class Schedule extends Struct {
     end?: Datetime | null;
     count?: UInt32 | null;
     weekStart?: DayOfWeek | null;
-    bySetPos?: readonly UInt32[];
-    byMonth?: readonly Month[];
-    byMonthDay?: readonly UInt8[];
-    byYearDay?: readonly UInt16[];
-    byEaster?: readonly UInt8[];
-    byWeekNo?: readonly UInt8[];
-    byWeekDay?: readonly DayOfWeek[];
-    byHour?: readonly UInt8[];
-    byMinute?: readonly UInt8[];
-    bySecond?: readonly UInt8[];
+    bySetPos?: readonly UInt32[] | null;
+    byMonth?: readonly Month[] | null;
+    byMonthDay?: readonly UInt8[] | null;
+    byYearDay?: readonly UInt16[] | null;
+    byEaster?: readonly UInt8[] | null;
+    byWeekNo?: readonly UInt8[] | null;
+    byWeekDay?: readonly DayOfWeek[] | null;
+    byHour?: readonly UInt8[] | null;
+    byMinute?: readonly UInt8[] | null;
+    bySecond?: readonly UInt8[] | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -182,15 +182,15 @@ export class Schedule extends Struct {
 
     /* properties */
     let _frequency = options.frequency;
-    if (_frequency === null) {
+    if (_frequency == null) {
       throw new Error(`Schedule.frequency is required`);
     }
     this.frequency = _frequency;
     let _interval = options.interval ?? null;
-    if (_interval === null) {
+    if (_interval == null) {
       _interval = 1;
     }
-    if (_interval === null) {
+    if (_interval == null) {
       throw new Error(`Schedule.interval is required`);
     }
     this.interval = _interval;
@@ -203,54 +203,24 @@ export class Schedule extends Struct {
     let _weekStart = options.weekStart ?? null;
     this.weekStart = _weekStart;
     let _bySetPos = options.bySetPos ?? null;
-    if (_bySetPos === null) {
-      _bySetPos = [];
-    }
     this.bySetPos = _bySetPos;
     let _byMonth = options.byMonth ?? null;
-    if (_byMonth === null) {
-      _byMonth = [];
-    }
     this.byMonth = _byMonth;
     let _byMonthDay = options.byMonthDay ?? null;
-    if (_byMonthDay === null) {
-      _byMonthDay = [];
-    }
     this.byMonthDay = _byMonthDay;
     let _byYearDay = options.byYearDay ?? null;
-    if (_byYearDay === null) {
-      _byYearDay = [];
-    }
     this.byYearDay = _byYearDay;
     let _byEaster = options.byEaster ?? null;
-    if (_byEaster === null) {
-      _byEaster = [];
-    }
     this.byEaster = _byEaster;
     let _byWeekNo = options.byWeekNo ?? null;
-    if (_byWeekNo === null) {
-      _byWeekNo = [];
-    }
     this.byWeekNo = _byWeekNo;
     let _byWeekDay = options.byWeekDay ?? null;
-    if (_byWeekDay === null) {
-      _byWeekDay = [];
-    }
     this.byWeekDay = _byWeekDay;
     let _byHour = options.byHour ?? null;
-    if (_byHour === null) {
-      _byHour = [];
-    }
     this.byHour = _byHour;
     let _byMinute = options.byMinute ?? null;
-    if (_byMinute === null) {
-      _byMinute = [];
-    }
     this.byMinute = _byMinute;
     let _bySecond = options.bySecond ?? null;
-    if (_bySecond === null) {
-      _bySecond = [];
-    }
     this.bySecond = _bySecond;
 
     /* identity */
@@ -279,6 +249,9 @@ export class Schedule extends Struct {
     if (!(this.weekStart === other.weekStart)) {
       return false;
     }
+    if (this.bySetPos == null) {
+      return other.bySetPos == null;
+    }
     if (this.bySetPos.length != other.bySetPos.length) {
       return false;
     }
@@ -286,6 +259,10 @@ export class Schedule extends Struct {
       if (!(this.bySetPos[i] === other.bySetPos[i])) {
         return false;
       }
+    }
+
+    if (this.byMonth == null) {
+      return other.byMonth == null;
     }
     if (this.byMonth.length != other.byMonth.length) {
       return false;
@@ -295,6 +272,10 @@ export class Schedule extends Struct {
         return false;
       }
     }
+
+    if (this.byMonthDay == null) {
+      return other.byMonthDay == null;
+    }
     if (this.byMonthDay.length != other.byMonthDay.length) {
       return false;
     }
@@ -302,6 +283,10 @@ export class Schedule extends Struct {
       if (!(this.byMonthDay[i] === other.byMonthDay[i])) {
         return false;
       }
+    }
+
+    if (this.byYearDay == null) {
+      return other.byYearDay == null;
     }
     if (this.byYearDay.length != other.byYearDay.length) {
       return false;
@@ -311,6 +296,10 @@ export class Schedule extends Struct {
         return false;
       }
     }
+
+    if (this.byEaster == null) {
+      return other.byEaster == null;
+    }
     if (this.byEaster.length != other.byEaster.length) {
       return false;
     }
@@ -318,6 +307,10 @@ export class Schedule extends Struct {
       if (!(this.byEaster[i] === other.byEaster[i])) {
         return false;
       }
+    }
+
+    if (this.byWeekNo == null) {
+      return other.byWeekNo == null;
     }
     if (this.byWeekNo.length != other.byWeekNo.length) {
       return false;
@@ -327,6 +320,10 @@ export class Schedule extends Struct {
         return false;
       }
     }
+
+    if (this.byWeekDay == null) {
+      return other.byWeekDay == null;
+    }
     if (this.byWeekDay.length != other.byWeekDay.length) {
       return false;
     }
@@ -334,6 +331,10 @@ export class Schedule extends Struct {
       if (!(this.byWeekDay[i] === other.byWeekDay[i])) {
         return false;
       }
+    }
+
+    if (this.byHour == null) {
+      return other.byHour == null;
     }
     if (this.byHour.length != other.byHour.length) {
       return false;
@@ -343,6 +344,10 @@ export class Schedule extends Struct {
         return false;
       }
     }
+
+    if (this.byMinute == null) {
+      return other.byMinute == null;
+    }
     if (this.byMinute.length != other.byMinute.length) {
       return false;
     }
@@ -350,6 +355,10 @@ export class Schedule extends Struct {
       if (!(this.byMinute[i] === other.byMinute[i])) {
         return false;
       }
+    }
+
+    if (this.bySecond == null) {
+      return other.bySecond == null;
     }
     if (this.bySecond.length != other.bySecond.length) {
       return false;
@@ -359,6 +368,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
+
     return true;
   }
 

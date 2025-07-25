@@ -381,13 +381,14 @@ if {self_name} is None:
 if {self_name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
 
-        # init list/map if unset
-        if prop.cardinality == TypeCardinality.LIST:
-            method_body_lines.append(f"""\
+        # init list/map if unset and required
+        if prop.is_required:
+            if prop.cardinality == TypeCardinality.LIST:
+                method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
-        elif prop.cardinality == TypeCardinality.MAP:
-            method_body_lines.append(f"""\
+            elif prop.cardinality == TypeCardinality.MAP:
+                method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
 
@@ -669,29 +670,59 @@ if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.
 if (self.{prop_name} is None) != (other.{prop_name} is None) or (self.{prop_name} is not None and not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")})):
     return False"""
     elif prop.cardinality == TypeCardinality.LIST:
-        # list (always required)
-        return f"""\
-if len(self.{prop_name}) != len(other.{prop_name}):
-    return False
+        main_cmp = f"""\
 for i in range(len(self.{prop_name})):
     if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}[i]", other_val=f"other.{prop_name}[i]")}):
-        return False"""
+        return False
+"""
+        # list
+        if prop.is_required:
+            return f"""\
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+{main_cmp}
+"""
+        else:
+            return f"""\
+if self.{prop_name} is None:
+    return other.{prop_name} is None
+if other.{prop_name} is None:
+    return False
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+{main_cmp}
+"""
     elif prop.cardinality == TypeCardinality.MAP:
-        # map (always required)
+        # map
         if prop.scalar_type in (
             ScalarType.STRUCT,
             ScalarType.NODE_REFERENCE,
             ScalarType.NODE_VALUE,
         ):
             # maps with complex values need key-by-key comparison
-            return f"""\
-if len(self.{prop_name}) != len(other.{prop_name}):
-    return False
+            main_cmp = f"""\
 for key in self.{prop_name}:
     if key not in other.{prop_name}:
         return False
     if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}[key]", other_val=f"other.{prop_name}[key]")}):
-        return False"""
+        return False
+"""
+            if prop.is_required:
+                return f"""\
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+{main_cmp}
+"""
+            else:
+                return f"""\
+if self.{prop_name} is None:
+    return other.{prop_name} is None
+if other.{prop_name} is None:
+    return False
+if len(self.{prop_name}) != len(other.{prop_name}):
+    return False
+{main_cmp}
+"""
         else:
             # maps with primitive/enum values can use direct comparison
             return f"""\

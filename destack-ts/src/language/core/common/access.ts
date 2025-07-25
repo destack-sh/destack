@@ -341,22 +341,22 @@ export class Permission extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Permission`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Permission.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Permission.materialization is required`);
     }
     this.materialization = _materialization;
@@ -369,14 +369,14 @@ export class Permission extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Permission`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Permission.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -384,14 +384,14 @@ export class Permission extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Permission`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Permission.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -413,23 +413,23 @@ export class Permission extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Permission";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Permission.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Permission.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -504,6 +504,7 @@ export class Permission extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

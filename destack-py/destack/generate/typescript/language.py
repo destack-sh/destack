@@ -170,11 +170,17 @@ def _generate_type(prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: b
         if not prop.is_required:
             type_str = f"{type_str} | null"
     elif prop.cardinality == TypeCardinality.LIST:
-        type_str = f"readonly {type_str}[]"
+        if not prop.is_required:
+            type_str = f"readonly {type_str}[] | null"
+        else:
+            type_str = f"readonly {type_str}[]"
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key_type for {prop!r}"
         key_type_str = _generate_type_scalar(prop.key_type)
-        type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }}"
+        if not prop.is_required:
+            type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }} | null"
+        else:
+            type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }}"
     else:
         assert_never(prop.cardinality)
     return type_str
@@ -191,7 +197,6 @@ def _generate_property(
 ) -> str:
     """
     Generate a Property definition.
-    NOTE :Cleanup: typescript SDK generate_property is a bit of a mess
     """
 
     prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -476,15 +481,16 @@ if (_{ts_name_in} != null && _{ts_name_in}.constructor.name !== "NodeReference")
     _{ts_name_in} = (_{ts_name_in} as Node).toRef();
 }}""")
 
-        # init non-scalars if unset
-        if prop.cardinality == TypeCardinality.LIST:
-            body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+        # init non-scalars if unset and required
+        if prop.is_required:
+            if prop.cardinality == TypeCardinality.LIST:
+                body_parts.append(f"""\
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = [];
 }}""")
-        elif prop.cardinality == TypeCardinality.MAP:
-            body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+            elif prop.cardinality == TypeCardinality.MAP:
+                body_parts.append(f"""\
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = {{}};
 }}""")
 
@@ -492,7 +498,7 @@ if (_{ts_name_in} === null) {{
         if prop.default is not UNSET and prop.default is not None:
             default_str = generate_value(prop, prop.default)
             body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = {default_str};
 }}""")
 
@@ -500,79 +506,79 @@ if (_{ts_name_in} === null) {{
         if prop.default_factory is not None:
             if prop.default_factory == ValueFactory.UUID4:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = uuid4();
 }}""")
             elif prop.default_factory == ValueFactory.UUID7:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = uuid7();
 }}""")
             elif prop.default_factory == ValueFactory.NOW:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
 }}""")
             elif prop.default_factory == ValueFactory.EPOCH:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this._session.epoch;
 }}""")
             elif prop.default_factory == ValueFactory.ACTOR:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this._session.actorPtr;
 }}""")
             elif prop.default_factory == ValueFactory.CLIENT:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this._session.clientPtr;
 }}""")
             elif prop.default_factory == ValueFactory.CLIENT_NONCE:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this._session.clientNonce;
 }}""")
             elif prop.default_factory == ValueFactory.REGION:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this._session.region;
 }}""")
             elif prop.default_factory == ValueFactory.SELF:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = this.toRef();
 }}""")
             elif prop.default_factory == ValueFactory.SPACE:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = ACTIVE_SPACE.get()
-    if (_{ts_name_in} === null) {{
+    if (_{ts_name_in} == null) {{
         throw new Error(`no active Space for {cls.__name__}`);
     }}
     _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
             elif prop.default_factory == ValueFactory.BRANCH:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = ACTIVE_BRANCH.get();
-    if (_{ts_name_in} === null) {{
+    if (_{ts_name_in} == null) {{
         throw new Error(`no active Branch for {cls.__name__}`);
     }}
     _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
             elif prop.default_factory == ValueFactory.SNAPSHOT:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = ACTIVE_SNAPSHOT.get();
-    if (_{ts_name_in} === null) {{
+    if (_{ts_name_in} == null) {{
         throw new Error(`no active Snapshot for {cls.__name__}`);
     }}
     _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
             elif prop.default_factory == ValueFactory.NAME:
                 body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     _{ts_name_in} = "{cls.__name__}";
 }}""")
             else:
@@ -581,7 +587,7 @@ if (_{ts_name_in} === null) {{
         # raise on missing value
         if prop.is_required and prop.cardinality == TypeCardinality.SCALAR:
             body_parts.append(f"""\
-if (_{ts_name_in} === null) {{
+if (_{ts_name_in} == null) {{
     throw new Error(`{cls.__name__}.{ts_name_in} is required`);
 }}""")
 
@@ -742,17 +748,31 @@ repr(): string {{
         elif prop.cardinality == TypeCardinality.LIST:
             scalar_repr = _get_scalar_repr(prop, "_item")
             list_expr = f"this.{prop_name}.map(_item => {scalar_repr}).join(', ')"
-            repr_parts_lines.append(f"if (this.{prop_name}.length > 0) {{")
-            repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
-            repr_parts_lines.append("}")
+            if prop.is_required:
+                repr_parts_lines.append(f"if (this.{prop_name}.length > 0) {{")
+                repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
+                repr_parts_lines.append("}")
+            else:
+                repr_parts_lines.append(
+                    f"if (this.{prop_name} != null && this.{prop_name}.length > 0) {{"
+                )
+                repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
+                repr_parts_lines.append("}")
         elif prop.cardinality == TypeCardinality.MAP:
             assert prop.key_type is not None, f"{prop!r} has no key type"
             key_repr = _get_scalar_repr(prop.key_type, "k")
             value_repr = _get_scalar_repr(prop, "v")
             map_expr = f"'{{' + Object.entries(this.{prop_name}).map(([k, v]) => `${{{key_repr}}}: ${{{value_repr}}}`).join(', ') + '}}'"
-            repr_parts_lines.append(f"if (Object.keys(this.{prop_name}).length > 0) {{")
-            repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
-            repr_parts_lines.append("}")
+            if prop.is_required:
+                repr_parts_lines.append(f"if (Object.keys(this.{prop_name}).length > 0) {{")
+                repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
+                repr_parts_lines.append("}")
+            else:
+                repr_parts_lines.append(
+                    f"if (this.{prop_name} != null && Object.keys(this.{prop_name}).length > 0) {{"
+                )
+                repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
+                repr_parts_lines.append("}")
         else:
             assert_never(prop.cardinality)
     # wrap in repr
@@ -913,28 +933,39 @@ if ((this.{prop_name} == null) !== (other.{prop_name} == null) || (this.{prop_na
   return false;
 }}"""
     elif prop.cardinality == TypeCardinality.LIST:
-        # list (always required)
-        return f"""\
-if (this.{prop_name}.length != other.{prop_name}.length) {{
-  return false;
-}}
+        # list
+        main_cmp = f"""\
 for (let i = 0; i < this.{prop_name}.length; i++) {{
   if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[i]", other_val=f"other.{prop_name}[i]")})) {{
     return false;
   }}
 }}"""
+        if prop.is_required:
+            return f"""\
+if (this.{prop_name}.length != other.{prop_name}.length) {{
+  return false;
+}}
+{main_cmp}
+"""
+        else:
+            return f"""\
+if (this.{prop_name} == null) {{
+  return other.{prop_name} == null;
+}}
+if (this.{prop_name}.length != other.{prop_name}.length) {{
+  return false;
+}}
+{main_cmp}
+"""
     elif prop.cardinality == TypeCardinality.MAP:
-        # map (always required)
+        # map
         if prop.scalar_type in (
             ScalarType.STRUCT,
             ScalarType.NODE_REFERENCE,
             ScalarType.NODE_VALUE,
         ):
             # maps with complex values need key-by-key comparison
-            return f"""\
-if (Object.keys(this.{prop_name}).length !== Object.keys(other.{prop_name}).length) {{
-  return false;
-}}
+            main_cmp = f"""\
 for (const key in this.{prop_name}) {{
   if (!(key in other.{prop_name})) {{
     return false;
@@ -943,6 +974,23 @@ for (const key in this.{prop_name}) {{
     return false;
   }}
 }}"""
+            if prop.is_required:
+                return f"""\
+if (Object.keys(this.{prop_name}).length !== Object.keys(other.{prop_name}).length) {{
+  return false;
+}}
+{main_cmp}
+"""
+            else:
+                return f"""\
+if (this.{prop_name} == null) {{
+  return other.{prop_name} == null;
+}}
+if (Object.keys(this.{prop_name}).length !== Object.keys(other.{prop_name}).length) {{
+  return false;
+}}
+{main_cmp}
+"""
         else:
             # maps with primitive/enum values can use direct comparison
             return f"""\

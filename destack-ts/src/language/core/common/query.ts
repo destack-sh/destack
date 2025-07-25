@@ -65,12 +65,12 @@ export class Function extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Function.type is required`);
     }
     this.type = _type;
     let _left = options.left;
-    if (_left === null) {
+    if (_left == null) {
       throw new Error(`Function.left is required`);
     }
     this.left = _left;
@@ -191,12 +191,12 @@ export class Condition extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Condition.type is required`);
     }
     this.type = _type;
     let _left = options.left;
-    if (_left === null) {
+    if (_left == null) {
       throw new Error(`Condition.left is required`);
     }
     this.left = _left;
@@ -343,7 +343,7 @@ export class Aggregation extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Aggregation.type is required`);
     }
     this.type = _type;
@@ -477,7 +477,7 @@ export class Expression extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Expression.type is required`);
     }
     this.type = _type;
@@ -683,12 +683,12 @@ export class Sort extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Sort.type is required`);
     }
     this.type = _type;
     let _by = options.by;
-    if (_by === null) {
+    if (_by == null) {
       throw new Error(`Sort.by is required`);
     }
     this.by = _by;
@@ -794,7 +794,7 @@ export class Select extends StructFrozen {
 
     /* properties */
     let _attributes = options.attributes ?? null;
-    if (_attributes === null) {
+    if (_attributes == null) {
       _attributes = [];
     }
     this.attributes = _attributes;
@@ -820,6 +820,7 @@ export class Select extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -917,15 +918,15 @@ export class Join extends StructFrozen {
 
     /* properties */
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Join.type is required`);
     }
     this.type = _type;
     let _recursive = options.recursive ?? null;
-    if (_recursive === null) {
+    if (_recursive == null) {
       _recursive = false;
     }
-    if (_recursive === null) {
+    if (_recursive == null) {
       throw new Error(`Join.recursive is required`);
     }
     this.recursive = _recursive;
@@ -1133,35 +1134,35 @@ export class Query<T extends Node = Node> extends StructFrozen {
 
     /* properties */
     let _id = options.id ?? null;
-    if (_id === null) {
+    if (_id == null) {
       _id = uuid4();
     }
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`Query.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Query.type is required`);
     }
     this.type = _type;
     let _domain = options.domain;
-    if (_domain === null) {
+    if (_domain == null) {
       throw new Error(`Query.domain is required`);
     }
     this.domain = _domain;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Query.name is required`);
     }
     this.name = _name;
     let _definition = options.definition;
-    if (_definition === null) {
+    if (_definition == null) {
       throw new Error(`Query.definition is required`);
     }
     this.definition = _definition;
     let _subqueries = options.subqueries ?? null;
-    if (_subqueries === null) {
+    if (_subqueries == null) {
       _subqueries = [];
     }
     this.subqueries = _subqueries;
@@ -1174,14 +1175,14 @@ export class Query<T extends Node = Node> extends StructFrozen {
     let _having = options.having ?? null;
     this.having = _having;
     let _groupBy = options.groupBy ?? null;
-    if (_groupBy === null) {
+    if (_groupBy == null) {
       _groupBy = [];
     }
     this.groupBy = _groupBy;
     let _aggregation = options.aggregation ?? null;
     this.aggregation = _aggregation;
     let _sort = options.sort ?? null;
-    if (_sort === null) {
+    if (_sort == null) {
       _sort = [];
     }
     this.sort = _sort;
@@ -1226,6 +1227,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
+
     if (
       (this.join == null) !== (other.join == null) ||
       (this.join != null && !this.join.equals(other.join))
@@ -1258,6 +1260,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
+
     if (
       (this.aggregation == null) !== (other.aggregation == null) ||
       (this.aggregation != null && !this.aggregation.equals(other.aggregation))
@@ -1272,6 +1275,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.limit === other.limit)) {
       return false;
     }

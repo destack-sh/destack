@@ -346,14 +346,14 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for SanctionRequestedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`SanctionRequestedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -366,14 +366,14 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for SanctionRequestedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`SanctionRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -381,14 +381,14 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for SanctionRequestedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`SanctionRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -406,26 +406,26 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`SanctionRequestedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`SanctionRequestedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`SanctionRequestedEvent.status is required`);
     }
     this.status = _status;
@@ -433,7 +433,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`SanctionRequestedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -441,7 +441,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
     if (_target != null && _target.constructor.name !== "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    if (_target === null) {
+    if (_target == null) {
       throw new Error(`SanctionRequestedEvent.target is required`);
     }
     this.targetPtr = _target as NodeReference;
@@ -793,14 +793,14 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for SanctionGrantedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`SanctionGrantedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -813,14 +813,14 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for SanctionGrantedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`SanctionGrantedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -828,14 +828,14 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for SanctionGrantedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`SanctionGrantedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -853,26 +853,26 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`SanctionGrantedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`SanctionGrantedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`SanctionGrantedEvent.status is required`);
     }
     this.status = _status;
@@ -880,7 +880,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`SanctionGrantedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -888,7 +888,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
     if (_target != null && _target.constructor.name !== "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    if (_target === null) {
+    if (_target == null) {
       throw new Error(`SanctionGrantedEvent.target is required`);
     }
     this.targetPtr = _target as NodeReference;
@@ -1240,14 +1240,14 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for SanctionRevokedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`SanctionRevokedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1260,14 +1260,14 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for SanctionRevokedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`SanctionRevokedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1275,14 +1275,14 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for SanctionRevokedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`SanctionRevokedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1300,26 +1300,26 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`SanctionRevokedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`SanctionRevokedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`SanctionRevokedEvent.status is required`);
     }
     this.status = _status;
@@ -1327,7 +1327,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`SanctionRevokedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1335,7 +1335,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
     if (_target != null && _target.constructor.name !== "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    if (_target === null) {
+    if (_target == null) {
       throw new Error(`SanctionRevokedEvent.target is required`);
     }
     this.targetPtr = _target as NodeReference;
@@ -1687,14 +1687,14 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for SanctionExpiredEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`SanctionExpiredEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1707,14 +1707,14 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for SanctionExpiredEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`SanctionExpiredEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1722,14 +1722,14 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for SanctionExpiredEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`SanctionExpiredEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1747,26 +1747,26 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`SanctionExpiredEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`SanctionExpiredEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`SanctionExpiredEvent.status is required`);
     }
     this.status = _status;
@@ -1774,7 +1774,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`SanctionExpiredEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1782,7 +1782,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
     if (_target != null && _target.constructor.name !== "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    if (_target === null) {
+    if (_target == null) {
       throw new Error(`SanctionExpiredEvent.target is required`);
     }
     this.targetPtr = _target as NodeReference;
@@ -2328,22 +2328,22 @@ export class Sanction extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Sanction`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Sanction.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Sanction.materialization is required`);
     }
     this.materialization = _materialization;
@@ -2356,14 +2356,14 @@ export class Sanction extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Sanction`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Sanction.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2371,14 +2371,14 @@ export class Sanction extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Sanction`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Sanction.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2400,23 +2400,23 @@ export class Sanction extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Sanction";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Sanction.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Sanction.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -2435,7 +2435,7 @@ export class Sanction extends Entity {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Sanction.type is required`);
     }
     this._type = _type;
@@ -2445,7 +2445,7 @@ export class Sanction extends Entity {
     if (_target != null && _target.constructor.name !== "NodeReference") {
       _target = (_target as Node).toRef();
     }
-    if (_target === null) {
+    if (_target == null) {
       throw new Error(`Sanction.target is required`);
     }
     this._targetPtr = _target as NodeReference;
@@ -2515,6 +2515,7 @@ export class Sanction extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

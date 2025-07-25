@@ -316,14 +316,14 @@ export class DragStartEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DragStartEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DragStartEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -336,14 +336,14 @@ export class DragStartEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DragStartEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DragStartEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -351,14 +351,14 @@ export class DragStartEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DragStartEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DragStartEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -376,26 +376,26 @@ export class DragStartEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DragStartEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DragStartEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DragStartEvent.status is required`);
     }
     this.status = _status;
@@ -405,7 +405,7 @@ export class DragStartEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DragStartEvent.position is required`);
     }
     this.position = _position;
@@ -753,14 +753,14 @@ export class DragEndEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DragEndEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DragEndEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -773,14 +773,14 @@ export class DragEndEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DragEndEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DragEndEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -788,14 +788,14 @@ export class DragEndEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DragEndEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DragEndEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -813,26 +813,26 @@ export class DragEndEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DragEndEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DragEndEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DragEndEvent.status is required`);
     }
     this.status = _status;
@@ -842,7 +842,7 @@ export class DragEndEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DragEndEvent.position is required`);
     }
     this.position = _position;
@@ -1190,14 +1190,14 @@ export class DragOverEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DragOverEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DragOverEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1210,14 +1210,14 @@ export class DragOverEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DragOverEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DragOverEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1225,14 +1225,14 @@ export class DragOverEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DragOverEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DragOverEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1250,26 +1250,26 @@ export class DragOverEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DragOverEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DragOverEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DragOverEvent.status is required`);
     }
     this.status = _status;
@@ -1279,7 +1279,7 @@ export class DragOverEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DragOverEvent.position is required`);
     }
     this.position = _position;
@@ -1627,14 +1627,14 @@ export class DragEnterEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DragEnterEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DragEnterEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1647,14 +1647,14 @@ export class DragEnterEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DragEnterEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DragEnterEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1662,14 +1662,14 @@ export class DragEnterEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DragEnterEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DragEnterEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1687,26 +1687,26 @@ export class DragEnterEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DragEnterEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DragEnterEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DragEnterEvent.status is required`);
     }
     this.status = _status;
@@ -1716,7 +1716,7 @@ export class DragEnterEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DragEnterEvent.position is required`);
     }
     this.position = _position;
@@ -2064,14 +2064,14 @@ export class DragLeaveEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DragLeaveEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DragLeaveEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2084,14 +2084,14 @@ export class DragLeaveEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DragLeaveEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DragLeaveEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2099,14 +2099,14 @@ export class DragLeaveEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DragLeaveEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DragLeaveEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2124,26 +2124,26 @@ export class DragLeaveEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DragLeaveEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DragLeaveEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DragLeaveEvent.status is required`);
     }
     this.status = _status;
@@ -2153,7 +2153,7 @@ export class DragLeaveEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DragLeaveEvent.position is required`);
     }
     this.position = _position;
@@ -2501,14 +2501,14 @@ export class DropEvent extends DragEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for DropEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`DropEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2521,14 +2521,14 @@ export class DropEvent extends DragEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for DropEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`DropEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2536,14 +2536,14 @@ export class DropEvent extends DragEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for DropEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`DropEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2561,26 +2561,26 @@ export class DropEvent extends DragEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`DropEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`DropEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`DropEvent.status is required`);
     }
     this.status = _status;
@@ -2590,7 +2590,7 @@ export class DropEvent extends DragEvent {
     }
     this.nodePtr = _node as NodeReference | null;
     let _position = options.position;
-    if (_position === null) {
+    if (_position == null) {
       throw new Error(`DropEvent.position is required`);
     }
     this.position = _position;

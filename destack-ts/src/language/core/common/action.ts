@@ -43,6 +43,7 @@ export class ActionDefinition extends MethodDefinition {
         return false;
       }
     }
+
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
@@ -54,6 +55,7 @@ export class ActionDefinition extends MethodDefinition {
         return false;
       }
     }
+
     if (this.languages.length != other.languages.length) {
       return false;
     }
@@ -62,6 +64,7 @@ export class ActionDefinition extends MethodDefinition {
         return false;
       }
     }
+
     return true;
   }
 
@@ -154,6 +157,7 @@ export class Action extends Method implements IsRunnable {
         return false;
       }
     }
+
     if (this._languages.length != other._languages.length) {
       return false;
     }
@@ -162,6 +166,7 @@ export class Action extends Method implements IsRunnable {
         return false;
       }
     }
+
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -182,6 +187,7 @@ export class Action extends Method implements IsRunnable {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

@@ -568,22 +568,22 @@ export class Machine extends Resource {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Machine`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Machine.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Machine.materialization is required`);
     }
     this.materialization = _materialization;
@@ -596,14 +596,14 @@ export class Machine extends Resource {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Machine`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Machine.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -611,14 +611,14 @@ export class Machine extends Resource {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Machine`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Machine.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -640,23 +640,23 @@ export class Machine extends Resource {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Machine";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Machine.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Machine.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -675,20 +675,20 @@ export class Machine extends Resource {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type ?? null;
-    if (_type === null) {
+    if (_type == null) {
       _type = 10 /* MachineType.RUNTIME */;
     }
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Machine.type is required`);
     }
     this._type = _type;
     let _region = options.region ?? null;
     this._region = _region;
     let _version = options.version ?? null;
-    if (_version === null) {
+    if (_version == null) {
       _version = "2025.07.25.1";
     }
-    if (_version === null) {
+    if (_version == null) {
       throw new Error(`Machine.version is required`);
     }
     this._version = _version;
@@ -699,42 +699,42 @@ export class Machine extends Resource {
     let _imageId = options.imageId ?? null;
     this._imageId = _imageId;
     let _cpu = options.cpu ?? null;
-    if (_cpu === null) {
+    if (_cpu == null) {
       _cpu = 1.0;
     }
-    if (_cpu === null) {
+    if (_cpu == null) {
       throw new Error(`Machine.cpu is required`);
     }
     this._cpu = _cpu;
     let _ram = options.ram ?? null;
-    if (_ram === null) {
+    if (_ram == null) {
       _ram = 1.0;
     }
-    if (_ram === null) {
+    if (_ram == null) {
       throw new Error(`Machine.ram is required`);
     }
     this._ram = _ram;
     let _width = options.width ?? null;
-    if (_width === null) {
+    if (_width == null) {
       _width = 1280;
     }
-    if (_width === null) {
+    if (_width == null) {
       throw new Error(`Machine.width is required`);
     }
     this._width = _width;
     let _height = options.height ?? null;
-    if (_height === null) {
+    if (_height == null) {
       _height = 960;
     }
-    if (_height === null) {
+    if (_height == null) {
       throw new Error(`Machine.height is required`);
     }
     this._height = _height;
     let _isHeadless = options.isHeadless ?? null;
-    if (_isHeadless === null) {
+    if (_isHeadless == null) {
       _isHeadless = false;
     }
-    if (_isHeadless === null) {
+    if (_isHeadless == null) {
       throw new Error(`Machine.isHeadless is required`);
     }
     this._isHeadless = _isHeadless;
@@ -826,6 +826,7 @@ export class Machine extends Resource {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

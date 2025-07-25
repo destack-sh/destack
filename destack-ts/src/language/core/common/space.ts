@@ -667,18 +667,18 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = this.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Space.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Space.materialization is required`);
     }
     this.materialization = _materialization;
@@ -691,14 +691,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Space`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Space.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -706,14 +706,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Space`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Space.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -735,23 +735,23 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Space";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Space.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Space.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -770,7 +770,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     let _key = options.key ?? null;
     this._key = _key;
     let _slug = options.slug;
-    if (_slug === null) {
+    if (_slug == null) {
       throw new Error(`Space.slug is required`);
     }
     this._slug = _slug;
@@ -780,7 +780,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     this._handlePtr = _handle as NodeReference | null;
     let _region = options.region;
-    if (_region === null) {
+    if (_region == null) {
       throw new Error(`Space.region is required`);
     }
     this._region = _region;
@@ -851,6 +851,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

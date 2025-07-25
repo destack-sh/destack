@@ -352,14 +352,14 @@ export class RunStartedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunStartedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunStartedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -372,14 +372,14 @@ export class RunStartedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunStartedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunStartedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -387,14 +387,14 @@ export class RunStartedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunStartedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunStartedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -412,26 +412,26 @@ export class RunStartedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunStartedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunStartedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunStartedEvent.status is required`);
     }
     this.status = _status;
@@ -439,7 +439,7 @@ export class RunStartedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunStartedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -798,14 +798,14 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunPauseRequestedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunPauseRequestedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -818,14 +818,14 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunPauseRequestedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunPauseRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -833,14 +833,14 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunPauseRequestedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunPauseRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -858,26 +858,26 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunPauseRequestedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunPauseRequestedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunPauseRequestedEvent.status is required`);
     }
     this.status = _status;
@@ -885,7 +885,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunPauseRequestedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1244,14 +1244,14 @@ export class RunPausedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunPausedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunPausedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1264,14 +1264,14 @@ export class RunPausedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunPausedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunPausedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1279,14 +1279,14 @@ export class RunPausedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunPausedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunPausedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1304,26 +1304,26 @@ export class RunPausedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunPausedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunPausedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunPausedEvent.status is required`);
     }
     this.status = _status;
@@ -1331,7 +1331,7 @@ export class RunPausedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunPausedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -1690,14 +1690,14 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunResumeRequestedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunResumeRequestedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -1710,14 +1710,14 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunResumeRequestedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunResumeRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -1725,14 +1725,14 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunResumeRequestedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunResumeRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -1750,26 +1750,26 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunResumeRequestedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunResumeRequestedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunResumeRequestedEvent.status is required`);
     }
     this.status = _status;
@@ -1777,7 +1777,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunResumeRequestedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -2136,14 +2136,14 @@ export class RunResumedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunResumedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunResumedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2156,14 +2156,14 @@ export class RunResumedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunResumedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunResumedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2171,14 +2171,14 @@ export class RunResumedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunResumedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunResumedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2196,26 +2196,26 @@ export class RunResumedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunResumedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunResumedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunResumedEvent.status is required`);
     }
     this.status = _status;
@@ -2223,7 +2223,7 @@ export class RunResumedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunResumedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -2582,14 +2582,14 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunStopRequestedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunStopRequestedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -2602,14 +2602,14 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunStopRequestedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunStopRequestedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -2617,14 +2617,14 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunStopRequestedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunStopRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -2642,26 +2642,26 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunStopRequestedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunStopRequestedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunStopRequestedEvent.status is required`);
     }
     this.status = _status;
@@ -2669,7 +2669,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunStopRequestedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -3028,14 +3028,14 @@ export class RunFailedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunFailedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunFailedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -3048,14 +3048,14 @@ export class RunFailedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunFailedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunFailedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -3063,14 +3063,14 @@ export class RunFailedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunFailedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunFailedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -3088,26 +3088,26 @@ export class RunFailedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunFailedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunFailedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunFailedEvent.status is required`);
     }
     this.status = _status;
@@ -3115,7 +3115,7 @@ export class RunFailedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunFailedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;
@@ -3474,14 +3474,14 @@ export class RunCompletedEvent extends RunEvent {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for RunCompletedEvent`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`RunCompletedEvent.space is required`);
     }
     this.spacePtr = _space as NodeReference;
@@ -3494,14 +3494,14 @@ export class RunCompletedEvent extends RunEvent {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for RunCompletedEvent`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`RunCompletedEvent.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -3509,14 +3509,14 @@ export class RunCompletedEvent extends RunEvent {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for RunCompletedEvent`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`RunCompletedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -3534,26 +3534,26 @@ export class RunCompletedEvent extends RunEvent {
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
-    if (_client === null) {
+    if (_client == null) {
       _client = this._session.clientPtr;
     }
-    if (_client === null) {
+    if (_client == null) {
       throw new Error(`RunCompletedEvent.client is required`);
     }
     this.clientPtr = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
     }
-    if (_clientNonce === null) {
+    if (_clientNonce == null) {
       throw new Error(`RunCompletedEvent.clientNonce is required`);
     }
     this.clientNonce = _clientNonce;
     let _status = options.status ?? null;
-    if (_status === null) {
+    if (_status == null) {
       _status = 1 /* EventStatus.PENDING */;
     }
-    if (_status === null) {
+    if (_status == null) {
       throw new Error(`RunCompletedEvent.status is required`);
     }
     this.status = _status;
@@ -3561,7 +3561,7 @@ export class RunCompletedEvent extends RunEvent {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    if (_node === null) {
+    if (_node == null) {
       throw new Error(`RunCompletedEvent.node is required`);
     }
     this.nodePtr = _node as NodeReference;

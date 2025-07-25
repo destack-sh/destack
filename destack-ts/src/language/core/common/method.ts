@@ -93,42 +93,42 @@ export class MethodDefinition extends StructFrozen {
 
     /* properties */
     let _id = options.id;
-    if (_id === null) {
+    if (_id == null) {
       throw new Error(`MethodDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`MethodDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`MethodDefinition.name is required`);
     }
     this.name = _name;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
-    if (_properties === null) {
+    if (_properties == null) {
       _properties = [];
     }
     this.properties = _properties;
     let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       _cardinality = 1 /* MethodCardinality.UNARY */;
     }
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       throw new Error(`MethodDefinition.cardinality is required`);
     }
     this.cardinality = _cardinality;
     let _platforms = options.platforms ?? null;
-    if (_platforms === null) {
+    if (_platforms == null) {
       _platforms = [];
     }
     this.platforms = _platforms;
     let _languages = options.languages ?? null;
-    if (_languages === null) {
+    if (_languages == null) {
       _languages = [];
     }
     this.languages = _languages;
@@ -166,6 +166,7 @@ export class MethodDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
@@ -177,6 +178,7 @@ export class MethodDefinition extends StructFrozen {
         return false;
       }
     }
+
     if (this.languages.length != other.languages.length) {
       return false;
     }
@@ -185,6 +187,7 @@ export class MethodDefinition extends StructFrozen {
         return false;
       }
     }
+
     return true;
   }
 
@@ -657,22 +660,22 @@ export class Method extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for Method`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`Method.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`Method.materialization is required`);
     }
     this.materialization = _materialization;
@@ -685,14 +688,14 @@ export class Method extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for Method`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`Method.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -700,14 +703,14 @@ export class Method extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for Method`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`Method.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -729,23 +732,23 @@ export class Method extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "Method";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`Method.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`Method.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -764,27 +767,27 @@ export class Method extends Entity {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type;
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`Method.type is required`);
     }
     this._type = _type;
     let _text = options.text ?? null;
     this._text = _text;
     let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       _cardinality = 1 /* MethodCardinality.UNARY */;
     }
-    if (_cardinality === null) {
+    if (_cardinality == null) {
       throw new Error(`Method.cardinality is required`);
     }
     this._cardinality = _cardinality;
     let _platforms = options.platforms ?? null;
-    if (_platforms === null) {
+    if (_platforms == null) {
       _platforms = [];
     }
     this._platforms = _platforms;
     let _languages = options.languages ?? null;
-    if (_languages === null) {
+    if (_languages == null) {
       _languages = [];
     }
     this._languages = _languages;
@@ -843,6 +846,7 @@ export class Method extends Entity {
         return false;
       }
     }
+
     if (this._languages.length != other._languages.length) {
       return false;
     }
@@ -851,6 +855,7 @@ export class Method extends Entity {
         return false;
       }
     }
+
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -871,6 +876,7 @@ export class Method extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }

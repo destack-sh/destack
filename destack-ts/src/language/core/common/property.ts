@@ -18,7 +18,7 @@ import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/regis
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:20300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20200 ==== */
 /**
  * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
@@ -481,22 +481,22 @@ export class CustomProperty extends Entity {
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       _space = ACTIVE_SPACE.get();
-      if (_space === null) {
+      if (_space == null) {
         throw new Error(`no active Space for CustomProperty`);
       }
       _space = _space.toRef();
     }
-    if (_space === null) {
+    if (_space == null) {
       throw new Error(`CustomProperty.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
+    if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
     }
-    if (_materialization === null) {
+    if (_materialization == null) {
       throw new Error(`CustomProperty.materialization is required`);
     }
     this.materialization = _materialization;
@@ -509,14 +509,14 @@ export class CustomProperty extends Entity {
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
+      if (_branch == null) {
         throw new Error(`no active Branch for CustomProperty`);
       }
       _branch = _branch.toRef();
     }
-    if (_branch === null) {
+    if (_branch == null) {
       throw new Error(`CustomProperty.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
@@ -524,14 +524,14 @@ export class CustomProperty extends Entity {
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
+      if (_snapshot == null) {
         throw new Error(`no active Snapshot for CustomProperty`);
       }
       _snapshot = _snapshot.toRef();
     }
-    if (_snapshot === null) {
+    if (_snapshot == null) {
       throw new Error(`CustomProperty.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
@@ -553,23 +553,23 @@ export class CustomProperty extends Entity {
     }
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
-    if (_name === null) {
+    if (_name == null) {
       _name = "CustomProperty";
     }
-    if (_name === null) {
+    if (_name == null) {
       throw new Error(`CustomProperty.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       _orderKey = "a0";
     }
-    if (_orderKey === null) {
+    if (_orderKey == null) {
       throw new Error(`CustomProperty.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
+    if (_customValues == null) {
       _customValues = {};
     }
     this._customValues = _customValues;
@@ -588,17 +588,17 @@ export class CustomProperty extends Entity {
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type ?? null;
-    if (_type === null) {
+    if (_type == null) {
       _type = 1 /* PropertyType.MEMBER */;
     }
-    if (_type === null) {
+    if (_type == null) {
       throw new Error(`CustomProperty.type is required`);
     }
     this._type = _type;
     let _icon = options.icon ?? null;
     this._icon = _icon;
     let _valueType = options.valueType;
-    if (_valueType === null) {
+    if (_valueType == null) {
       throw new Error(`CustomProperty.valueType is required`);
     }
     this._valueType = _valueType;
@@ -696,6 +696,7 @@ export class CustomProperty extends Entity {
         return false;
       }
     }
+
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -903,4 +904,4 @@ export class CustomProperty extends Entity {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
-/* ==== DESTACK_GENERATED_END:NODE:20300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20200 ==== */
