@@ -1191,16 +1191,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         assert_never(prop.scalar_type)
 
 
-def _generate_validate(cls: type[BuiltinObject]) -> str:
-    """Generate a Typescript validate method."""
-    validate_str = """\
-validate(): void {
-  throw new Error("not implemented");
-}
-"""
-    return validate_str
-
-
 def _generate_ref(cls: type["Node"]) -> str:
     """Generate a Typescript toRef method."""
 
@@ -1326,8 +1316,6 @@ def _generate_struct(definition: StructDefinition) -> str:
         struct_parts.append(repr_str)
         hash_str = _generate_hash(struct_cls)
         struct_parts.append(hash_str)
-        validate_str = _generate_validate(struct_cls)
-        struct_parts.append(validate_str)
 
     if definition.base_type is None or definition.base_type == StructType.STRUCT:
         base_cls_name = "Struct" if not definition.is_frozen else "StructFrozen"
@@ -1468,8 +1456,6 @@ def _generate_node(definition: NodeDefinition) -> str:
         node_parts.append(equals_str)
         hash_str = _generate_hash(node_cls)
         node_parts.append(hash_str)
-        validate_str = _generate_validate(node_cls)
-        node_parts.append(validate_str)
         to_ref_str = _generate_ref(node_cls)
         node_parts.append(to_ref_str)
         path_str = _generate_path(node_cls)

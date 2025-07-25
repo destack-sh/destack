@@ -191,12 +191,12 @@ def finalize():
 
     # generate meta info
     from destack.language.core import (
+        BasicType,
         EnumDefinition,
         NodeDefinition,
         ScalarType,
         StructDefinition,
         TraitDefinition,
-        Type,
         TypeCardinality,
     )
 
@@ -218,7 +218,7 @@ def finalize():
 
     # index node scalar types
     for node_type in NodeType:
-        scalar_type = Type(
+        scalar_type = BasicType(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_VALUE,
             node_types=[node_type],
