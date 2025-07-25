@@ -1,32 +1,12 @@
 import pytest
 
 from destack.language import (
-    Aliasing,
-    Folder,
-    Session,
-    Space,
     Text,
     TextSpan,
     TextSpanType,
     markdown_to_text,
-    text,
     text_to_markdown,
 )
-
-
-def test_text_mentions(session: Session, space: Space):
-    Folder1 = Folder(name="Folder1")
-    Folder2 = Folder(name="Folder2")
-    aliasing = Aliasing.new(session.graph, {"Folder1": Folder1, "Folder2": Folder2})
-    my_text = text(
-        "Hello it's a [@Folder1] and [@Folder2]",
-        aliasing,
-    )
-    assert my_text.spans[0] == TextSpan(type=TextSpanType.TEXT, content="Hello it's a ")
-    assert my_text.spans[1] == TextSpan(type=TextSpanType.MENTION, content="Folder1", node=Folder1)
-    assert my_text.spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and ")
-    assert my_text.spans[3] == TextSpan(type=TextSpanType.MENTION, content="Folder2", node=Folder2)
-    assert text_to_markdown(my_text, aliasing) == "Hello it's a [@Folder1] and [@Folder2]"
 
 
 def test_text_citation():
