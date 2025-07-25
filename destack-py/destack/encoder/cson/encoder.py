@@ -2,6 +2,7 @@ import json
 from typing import Any, ClassVar, override
 
 from destack.language.core import (
+    BasicType,
     BinaryReader,
     BinaryWriter,
     BuiltinObject,
@@ -12,7 +13,6 @@ from destack.language.core import (
     ObjectKind,
     Session,
     StructType,
-    Type,
 )
 
 from .generate import CSON_OBJECT_ENCODERS
@@ -76,16 +76,16 @@ class CsonEncoder(Encoder[Cson]):
     @override
     def pack_value(
         self,
+        type: BasicType,
         value: Any,
-        type: Type,
     ) -> Cson:
         return pack_cson(value, type)
 
     @override
     def pack_value_binary(
         self,
+        type: BasicType,
         value: Any,
-        type: Type,
         writer: BinaryWriter,
     ) -> None:
         writer.write_bytes(pack_cson(value, type).encode("utf-8"))
@@ -93,7 +93,7 @@ class CsonEncoder(Encoder[Cson]):
     @override
     def unpack_value(
         self,
-        type: Type,
+        type: BasicType,
         value: Cson,
         session: Session | None,
     ) -> Any:
@@ -102,7 +102,7 @@ class CsonEncoder(Encoder[Cson]):
     @override
     def unpack_value_binary(
         self,
-        type: Type,
+        type: BasicType,
         reader: BinaryReader,
         session: Session | None,
     ) -> Any:

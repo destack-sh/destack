@@ -27,9 +27,9 @@ from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
-    _resolve_trait_type,
     builtin_property,
     builtin_property_runtime,
+    resolve_trait_type,
 )
 
 if TYPE_CHECKING:
@@ -92,11 +92,11 @@ def builtin_node(
         self_traits: list[TraitType] = []
         inherits: list[NodeType] = []
         for base in cls.__bases__:
-            if trait := _resolve_trait_type(base.__name__):
+            if trait := resolve_trait_type(base.__name__):
                 if trait not in self_traits:
                     self_traits.append(trait)
         for superclass in get_superclasses(cls):
-            if trait := _resolve_trait_type(superclass.__name__):
+            if trait := resolve_trait_type(superclass.__name__):
                 if trait not in traits:
                     traits.append(trait)
             elif isinstance(base_type := getattr(superclass, "metatype", None), NodeType):

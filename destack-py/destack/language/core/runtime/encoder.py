@@ -5,7 +5,7 @@ from ..builtin import BuiltinObject, Encoding, NodeType, ObjectKind, StructType
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
-    from destack.language.core import Session, Type
+    from destack.language.core import BasicType, Session
 
 
 class Encoder[T: Any = Any](ABC):
@@ -59,8 +59,8 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def pack_value(
         self,
+        type: "BasicType",
         value: Any,
-        type: "Type",
     ) -> T:
         """Pack a value into some encoded format."""
         raise NotImplementedError
@@ -68,8 +68,8 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def pack_value_binary(
         self,
+        type: "BasicType",
         value: Any,
-        type: "Type",
         writer: "BinaryWriter",
     ) -> None:
         """Pack a value into the byte representation of its encoded format."""
@@ -78,7 +78,7 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def unpack_value(
         self,
-        type: "Type",
+        type: "BasicType",
         value: T,
         session: "Session | None",
     ) -> Any:
@@ -88,7 +88,7 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def unpack_value_binary(
         self,
-        type: "Type",
+        type: "BasicType",
         reader: "BinaryReader",
         session: "Session | None",
     ) -> Any:

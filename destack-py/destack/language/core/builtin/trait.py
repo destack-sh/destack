@@ -13,7 +13,7 @@ from destack.utils.func import get_superclasses
 
 from .builtin import EnumType, NodeType, TraitType
 from .object import BuiltinObject, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS, _resolve_trait_type
+from .property import _PROPERTY_SPECIFIERS, resolve_trait_type
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -71,13 +71,13 @@ def builtin_trait(
         traits: list[TraitType] = []
         self_traits: list[TraitType] = []
         for base in cls.__bases__:
-            if trait := _resolve_trait_type(base.__name__):
+            if trait := resolve_trait_type(base.__name__):
                 if trait not in self_traits:
                     self_traits.append(trait)
         for superclass in get_superclasses(cls):
             if superclass is cls:
                 continue
-            if trait := _resolve_trait_type(superclass.__name__):
+            if trait := resolve_trait_type(superclass.__name__):
                 if trait not in traits:
                     traits.append(trait)
         cls.__traits__ = tuple(traits)

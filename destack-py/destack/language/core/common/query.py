@@ -20,7 +20,6 @@ from ..builtin import (
     builtin_enum,
     builtin_property,
     builtin_struct,
-    to_value,
 )
 
 if TYPE_CHECKING:
@@ -126,7 +125,7 @@ class Condition(StructFrozen):
             value_type = attribute.to_type()
             if type in (ConditionalType.IN, ConditionalType.NOT_IN):
                 value_type = value_type.clone(cardinality=TypeCardinality.LIST)
-            right = Expression.of(to_value(value, value_type))
+            right = Expression.of(Value.wrap(value, value_type))
             return Condition(type=type, left=left, right=right)
         else:
             return Condition(type=type, left=left)

@@ -147,6 +147,7 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
     obj_cson = f"_object.{prop_name}"
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_pack_cson_scalar(prop, obj_cson)
@@ -155,8 +156,11 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"if ({prop_name} := {obj_cson}) is not None:")
             value_expr = _generate_pack_cson_scalar(prop, prop_name)
             lines.append(f'    _object_cson["{prop.id}"] = {value_expr}')
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_pack_cson_scalar(prop, "_item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_pack_cson_scalar(prop.value_type, "_item")
         if prop.is_required:
             lines.append(f"_packed_{prop_name} = []")
             lines.append(f"for _item in {obj_cson}:")
@@ -168,10 +172,17 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"    for _item in {obj_cson}:")
             lines.append(f"        _packed_{prop_name}.append({item_expr})")
             lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot pack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_pack_cson_scalar(prop.key_type, "_key")
-        value_expr = _generate_pack_cson_scalar(prop, "_cson")
+        value_expr = _generate_pack_cson_scalar(prop.value_type, "_cson")
         if prop.is_required:
             lines.append(f"_packed_{prop_name} = {{}}")
             lines.append(f"for _key, _cson in {obj_cson}.items():")
@@ -183,6 +194,7 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"    for _key, _cson in {obj_cson}.items():")
             lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
             lines.append(f'    _object_cson["{prop.id}"] = _packed_{prop_name}')
+
     else:
         assert_never(prop.cardinality)
 
@@ -193,6 +205,7 @@ def _generate_pack_cson_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
@@ -243,6 +256,10 @@ def _generate_pack_cson_scalar(
         return f"{value_expr}.value"
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack(Encoding.CSON)"
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot pack literal: {prop!r}")
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot pack union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
@@ -253,6 +270,7 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
     data_cson = f'_object_cson.get("{prop.id}")'
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_unpack_cson_scalar(prop, data_cson)
@@ -262,8 +280,11 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(
                 f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_cson}) is not None else None"
             )
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_unpack_cson_scalar(prop, "_item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_unpack_cson_scalar(prop.value_type, "_item")
         if prop.is_required:
             lines.append(f"_unpacked_{prop_name} = []")
             lines.append(f"for _item in {data_cson}:")
@@ -273,10 +294,17 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"if {data_cson} is not None:")
             lines.append(f"    for _item in {data_cson}:")
             lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot unpack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_unpack_cson_scalar(prop.key_type, "_key")
-        value_expr = _generate_unpack_cson_scalar(prop, "_cson")
+        value_expr = _generate_unpack_cson_scalar(prop.value_type, "_cson")
         if prop.is_required:
             lines.append(f"_unpacked_{prop_name} = {{}}")
             lines.append(f"for _key, _cson in {data_cson}.items():")
@@ -290,6 +318,7 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
             lines.append("else:")
             lines.append(f"    _unpacked_{prop_name} = None")
+
     else:
         assert_never(prop.cardinality)
 
@@ -300,6 +329,7 @@ def _generate_unpack_cson_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
@@ -359,6 +389,10 @@ def _generate_unpack_cson_scalar(
         return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack(Encoding.CSON, {value_expr}, _session)"
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot unpack literal: {prop!r}")
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot unpack union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 

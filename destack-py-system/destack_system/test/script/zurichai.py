@@ -17,6 +17,16 @@ from .scaffold import *  # noqa: F403
 SECRET = script.field("secret_key", 1, str)
 
 # ===============================================
+# ZurichAI/MeetupMembership [Entity]
+# ===============================================
+
+
+@entity
+class MeetupMembership(Membership):
+    pass
+
+
+# ===============================================
 # ZurichAI/MeetupSeries [Entity]
 # ===============================================
 

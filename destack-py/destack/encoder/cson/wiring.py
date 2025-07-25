@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language.core import (
+    BasicType,
     BuiltinObject,
     Cson,
     Encoding,
@@ -10,7 +11,6 @@ from destack.language.core import (
     NodeType,
     PrimitiveType,
     ScalarType,
-    Type,
     TypeCardinality,
 )
 from destack.language.registry import (
@@ -35,69 +35,96 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def pack_cson(value: Any, type: Type) -> Cson:
+def pack_cson(type: BasicType, value: Any) -> Cson:
     """Pack a generic typed value to a CSON object."""
+
+    # scalar
     if type.cardinality == TypeCardinality.SCALAR:
         if value is None:
             return None
         else:
-            return _pack_scalar_cson(value, type)
+            return _pack_scalar_cson(type, value)
+
+    # list
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
             return None
         else:
+            assert type.value_type is not None, f"no value type for {type!r}"
             packed_list: list[Cson] = []
             for item in value:
-                packed_list.append(_pack_scalar_cson(item, type))
+                packed_list.append(_pack_scalar_cson(type.value_type, item))
             return packed_list
+
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot pack tuple: {type!r}")
+
+    # map
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
             return None
         else:
             assert type.key_type is not None, f"no key type for {type!r}"
+            assert type.value_type is not None, f"no value type for {type!r}"
             packed_map: dict[str, Cson] = {}
             for key, val in value.items():
-                packed_key = _pack_scalar_cson(key, type.key_type)
-                packed_val = _pack_scalar_cson(val, type)
+                packed_key = _pack_scalar_cson(type.key_type, key)
+                packed_val = _pack_scalar_cson(type.value_type, val)
                 packed_map[str(packed_key)] = packed_val
             return packed_map
+
     else:
         assert_never(type.cardinality)
 
 
-def unpack_cson(value: Cson, type: Type, session: "Session | None") -> Any:
+def unpack_cson(type: BasicType, value: Cson, session: "Session | None") -> Any:
     """Unpack a CSON object to a generic typed value."""
+
+    # scalar
     if type.cardinality == TypeCardinality.SCALAR:
         if value is None:
             return None
         else:
-            return _unpack_scalar_cson(value, type, session)
+            return _unpack_scalar_cson(type, value, session)
+
+    # list
     elif type.cardinality == TypeCardinality.LIST:
         if value is None:
             return None
         else:
+            assert type.value_type is not None, f"no value type for {type!r}"
             unpacked_list = []
             for item in value:
-                unpacked_list.append(_unpack_scalar_cson(item, type, session))
+                unpacked_list.append(_unpack_scalar_cson(type.value_type, item, session))
             return unpacked_list
+
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot unpack tuple: {type!r}")
+
+    # map
     elif type.cardinality == TypeCardinality.MAP:
         if value is None:
             return None
         else:
+            assert type.key_type is not None, f"no key type for {type!r}"
+            assert type.value_type is not None, f"no value type for {type!r}"
             unpacked_map = {}
             for key, val in value.items():
                 unpacked_key = (
-                    _unpack_scalar_cson(key, type.key_type, session) if type.key_type else key
+                    _unpack_scalar_cson(type.key_type, key, session) if type.key_type else key
                 )
-                unpacked_val = _unpack_scalar_cson(val, type, session)
+                unpacked_val = _unpack_scalar_cson(type.value_type, val, session)
                 unpacked_map[unpacked_key] = unpacked_val
             return unpacked_map
     else:
         assert_never(type.cardinality)
 
 
-def _pack_scalar_cson(value: Any, type: Type) -> Cson:
+def _pack_scalar_cson(type: BasicType, value: Any) -> Cson:
     """Pack a scalar value to CSON."""
+    assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.NONE:
@@ -154,12 +181,17 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
             f"expected BuiltinObject for {type!r}, got {value!r}"
         )
         return value.pack(Encoding.CSON)
+    elif type.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot pack literal: {type!r}")
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot pack union: {type!r}")
     else:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_cson(value: Cson, type: Type, session: "Session | None") -> Any:
+def _unpack_scalar_cson(type: BasicType, value: Cson, session: "Session | None") -> Any:
     """Unpack a scalar value from CSON."""
+    assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.NONE:
@@ -217,6 +249,10 @@ def _unpack_scalar_cson(value: Cson, type: Type, session: "Session | None") -> A
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.unpack(Encoding.CSON, value, session)
+        return struct_cls.unpack(Encoding.CSON, value, session)  #
+    elif type.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot unpack literal: {type!r}")
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot unpack union: {type!r}")
     else:
         assert_never(type.scalar_type)
