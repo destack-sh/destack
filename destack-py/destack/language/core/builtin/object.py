@@ -833,7 +833,9 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     """Generate a hash method for a single scalar property."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "1"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hash_bool({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.SINT8,

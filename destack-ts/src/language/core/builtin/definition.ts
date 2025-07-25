@@ -2128,7 +2128,7 @@ export class PropertyDefinition extends Type {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeTypes?: readonly NodeType[];
+    nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
     keyType?: Type | null;
     literalValue?: Value | null;
@@ -2357,6 +2357,9 @@ export class PropertyDefinition extends Type {
     if (!(this.enumType === other.enumType)) {
       return false;
     }
+    if (this.nodeTypes == null) {
+      return other.nodeTypes == null;
+    }
     if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
     }
@@ -2406,7 +2409,7 @@ export class PropertyDefinition extends Type {
       if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeTypes.length > 0) {
+      if (this.nodeTypes != null && this.nodeTypes.length > 0) {
         propertyReprs.push(
           `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
         );

@@ -28,6 +28,7 @@ class Value(StructFrozen):
     """
 
     type: Type = builtin_property(100, is_repr=True)
+    # nocheckin: Value.value should be KOMPAKT
     value: Cson | None = builtin_property(110, default=None)
 
     _unpacked_value: Any | None = builtin_property_runtime()

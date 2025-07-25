@@ -18870,11 +18870,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectCson["113"] = object.enumType;
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(item);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(item);
+        }
+        objectCson["114"] = packedNodeTypes;
       }
-      objectCson["114"] = packedNodeTypes;
       if (object.structType != null) {
         objectCson["115"] = object.structType;
       }
@@ -18895,9 +18897,14 @@ export function loadEncoders(): void {
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
       const enumTypeValue = objectCson["113"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectCson["114"]) {
-        unpackedNodeTypes.push(Number(item));
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectCson["114"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectCson["114"]) {
+          unpackedNodeTypes.push(Number(item));
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectCson["115"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
@@ -18938,11 +18945,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectCson["113"] = object.enumType;
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(item);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(item);
+        }
+        objectCson["114"] = packedNodeTypes;
       }
-      objectCson["114"] = packedNodeTypes;
       if (object.structType != null) {
         objectCson["115"] = object.structType;
       }
@@ -19014,9 +19023,14 @@ export function loadEncoders(): void {
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
       const enumTypeValue = objectCson["113"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectCson["114"]) {
-        unpackedNodeTypes.push(Number(item));
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectCson["114"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectCson["114"]) {
+          unpackedNodeTypes.push(Number(item));
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectCson["115"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
@@ -19772,11 +19786,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectCson["113"] = object.enumType;
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(item);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(item);
+        }
+        objectCson["114"] = packedNodeTypes;
       }
-      objectCson["114"] = packedNodeTypes;
       if (object.structType != null) {
         objectCson["115"] = object.structType;
       }
@@ -19878,9 +19894,14 @@ export function loadEncoders(): void {
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
       const enumTypeValue = objectCson["113"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectCson["114"]) {
-        unpackedNodeTypes.push(Number(item));
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectCson["114"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectCson["114"]) {
+          unpackedNodeTypes.push(Number(item));
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectCson["115"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
@@ -22475,65 +22496,95 @@ export function loadEncoders(): void {
       const unpackedCount = countValue != undefined ? Number(countValue) : undefined;
       const weekStartValue = objectCson["113"];
       const unpackedWeekStart = weekStartValue != undefined ? Number(weekStartValue) : undefined;
+      let unpackedBySetPos: any[] | undefined;
       if (objectCson["114"] != undefined) {
-        const unpackedBySetPos: any[] = [];
+        unpackedBySetPos = [];
         for (const item of objectCson["114"]) {
           unpackedBySetPos.push(Number(item));
         }
+      } else {
+        unpackedBySetPos = undefined;
       }
+      let unpackedByMonth: any[] | undefined;
       if (objectCson["115"] != undefined) {
-        const unpackedByMonth: any[] = [];
+        unpackedByMonth = [];
         for (const item of objectCson["115"]) {
           unpackedByMonth.push(Number(item));
         }
+      } else {
+        unpackedByMonth = undefined;
       }
+      let unpackedByMonthDay: any[] | undefined;
       if (objectCson["116"] != undefined) {
-        const unpackedByMonthDay: any[] = [];
+        unpackedByMonthDay = [];
         for (const item of objectCson["116"]) {
           unpackedByMonthDay.push(Number(item));
         }
+      } else {
+        unpackedByMonthDay = undefined;
       }
+      let unpackedByYearDay: any[] | undefined;
       if (objectCson["117"] != undefined) {
-        const unpackedByYearDay: any[] = [];
+        unpackedByYearDay = [];
         for (const item of objectCson["117"]) {
           unpackedByYearDay.push(Number(item));
         }
+      } else {
+        unpackedByYearDay = undefined;
       }
+      let unpackedByEaster: any[] | undefined;
       if (objectCson["118"] != undefined) {
-        const unpackedByEaster: any[] = [];
+        unpackedByEaster = [];
         for (const item of objectCson["118"]) {
           unpackedByEaster.push(Number(item));
         }
+      } else {
+        unpackedByEaster = undefined;
       }
+      let unpackedByWeekNo: any[] | undefined;
       if (objectCson["119"] != undefined) {
-        const unpackedByWeekNo: any[] = [];
+        unpackedByWeekNo = [];
         for (const item of objectCson["119"]) {
           unpackedByWeekNo.push(Number(item));
         }
+      } else {
+        unpackedByWeekNo = undefined;
       }
+      let unpackedByWeekDay: any[] | undefined;
       if (objectCson["120"] != undefined) {
-        const unpackedByWeekDay: any[] = [];
+        unpackedByWeekDay = [];
         for (const item of objectCson["120"]) {
           unpackedByWeekDay.push(Number(item));
         }
+      } else {
+        unpackedByWeekDay = undefined;
       }
+      let unpackedByHour: any[] | undefined;
       if (objectCson["121"] != undefined) {
-        const unpackedByHour: any[] = [];
+        unpackedByHour = [];
         for (const item of objectCson["121"]) {
           unpackedByHour.push(Number(item));
         }
+      } else {
+        unpackedByHour = undefined;
       }
+      let unpackedByMinute: any[] | undefined;
       if (objectCson["122"] != undefined) {
-        const unpackedByMinute: any[] = [];
+        unpackedByMinute = [];
         for (const item of objectCson["122"]) {
           unpackedByMinute.push(Number(item));
         }
+      } else {
+        unpackedByMinute = undefined;
       }
+      let unpackedBySecond: any[] | undefined;
       if (objectCson["123"] != undefined) {
-        const unpackedBySecond: any[] = [];
+        unpackedBySecond = [];
         for (const item of objectCson["123"]) {
           unpackedBySecond.push(Number(item));
         }
+      } else {
+        unpackedBySecond = undefined;
       }
       return new (STRUCT_CLASS_BY_TYPE[700001] as typeof Schedule)({
         frequency: Number(objectCson["101"]),

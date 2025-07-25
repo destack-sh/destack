@@ -510,7 +510,7 @@ export class BasicType extends StructFrozen {
   /**
    * Node types of this Type (if it's a node reference value).
    */
-  readonly nodeTypes: readonly NodeType[];
+  readonly nodeTypes: readonly NodeType[] | null;
 
   /**
    * Struct type of this Type (if it's a struct value).
@@ -532,7 +532,7 @@ export class BasicType extends StructFrozen {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeTypes?: readonly NodeType[];
+    nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
     keyType?: Type | null;
     literalValue?: Value | null;
@@ -566,9 +566,6 @@ export class BasicType extends StructFrozen {
     let _enumType = options.enumType ?? null;
     this.enumType = _enumType;
     let _nodeTypes = options.nodeTypes ?? null;
-    if (_nodeTypes == null) {
-      _nodeTypes = [];
-    }
     this.nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this.structType = _structType;
@@ -601,6 +598,9 @@ export class BasicType extends StructFrozen {
     }
     if (!(this.enumType === other.enumType)) {
       return false;
+    }
+    if (this.nodeTypes == null) {
+      return other.nodeTypes == null;
     }
     if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
@@ -640,7 +640,7 @@ export class BasicType extends StructFrozen {
       if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeTypes.length > 0) {
+      if (this.nodeTypes != null && this.nodeTypes.length > 0) {
         propertyReprs.push(
           `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
         );
@@ -784,7 +784,7 @@ export class Type extends BasicType {
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
-    nodeTypes?: readonly NodeType[];
+    nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
     keyType?: Type | null;
     literalValue?: Value | null;
@@ -867,6 +867,9 @@ export class Type extends BasicType {
     if (!(this.enumType === other.enumType)) {
       return false;
     }
+    if (this.nodeTypes == null) {
+      return other.nodeTypes == null;
+    }
     if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
     }
@@ -905,7 +908,7 @@ export class Type extends BasicType {
       if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeTypes.length > 0) {
+      if (this.nodeTypes != null && this.nodeTypes.length > 0) {
         propertyReprs.push(
           `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
         );

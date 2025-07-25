@@ -302,12 +302,12 @@ assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 class TypeCardinality(Enum):
     """The 'kind' of a Type."""
 
-    # TODO :Incomplete: support tuples, sets (?), (tagged) unions, .. in type system
-    SCALAR = 1, "Scalar", "Single value"
-    LIST = 2, "List", "List of values"
+    # nocheckin :Incomplete: support tuples, sets (?), (tagged) unions, .. in type system
+    SCALAR = 1, "Scalar", "Single value of some type"
+    LIST = 2, "List", "List of homogeneous values"
     # TUPLE
     # SET?
-    MAP = 5, "Map", "Map of keys to values"
+    MAP = 5, "Map", "Map of primitive keys to any values"
     # UNION = 6
 
 
@@ -360,7 +360,7 @@ class PrimitiveType(Enum):
     """
 
     # :PrimitiveType
-    # NULL/NONE?L
+    NONE = 1, "Null", "Null value", "fas fa-null"
     BOOLEAN = (
         2,
         "Boolean",

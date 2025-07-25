@@ -19077,11 +19077,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(NodeType[item]);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(NodeType[item]);
+        }
+        objectJson["nodeTypes"] = packedNodeTypes;
       }
-      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -19103,9 +19105,14 @@ export function loadEncoders(): void {
       const enumTypeValue = objectJson["enumType"];
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectJson["nodeTypes"]) {
-        unpackedNodeTypes.push(NodeType[item] as any);
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectJson["nodeTypes"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectJson["nodeTypes"]) {
+          unpackedNodeTypes.push(NodeType[item] as any);
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -19147,11 +19154,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(NodeType[item]);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(NodeType[item]);
+        }
+        objectJson["nodeTypes"] = packedNodeTypes;
       }
-      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -19223,9 +19232,14 @@ export function loadEncoders(): void {
       const enumTypeValue = objectJson["enumType"];
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectJson["nodeTypes"]) {
-        unpackedNodeTypes.push(NodeType[item] as any);
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectJson["nodeTypes"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectJson["nodeTypes"]) {
+          unpackedNodeTypes.push(NodeType[item] as any);
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -19985,11 +19999,13 @@ export function loadEncoders(): void {
       if (object.enumType != null) {
         objectJson["enumType"] = EnumType[object.enumType];
       }
-      const packedNodeTypes: any[] = [];
-      for (const item of object.nodeTypes) {
-        packedNodeTypes.push(NodeType[item]);
+      if (object.nodeTypes != null) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(NodeType[item]);
+        }
+        objectJson["nodeTypes"] = packedNodeTypes;
       }
-      objectJson["nodeTypes"] = packedNodeTypes;
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
@@ -20093,9 +20109,14 @@ export function loadEncoders(): void {
       const enumTypeValue = objectJson["enumType"];
       const unpackedEnumType =
         enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      for (const item of objectJson["nodeTypes"]) {
-        unpackedNodeTypes.push(NodeType[item] as any);
+      let unpackedNodeTypes: any[] | undefined;
+      if (objectJson["nodeTypes"] != undefined) {
+        unpackedNodeTypes = [];
+        for (const item of objectJson["nodeTypes"]) {
+          unpackedNodeTypes.push(NodeType[item] as any);
+        }
+      } else {
+        unpackedNodeTypes = undefined;
       }
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
@@ -22698,65 +22719,95 @@ export function loadEncoders(): void {
       const weekStartValue = objectJson["weekStart"];
       const unpackedWeekStart =
         weekStartValue != undefined ? (DayOfWeek[weekStartValue] as any) : undefined;
+      let unpackedBySetPos: any[] | undefined;
       if (objectJson["bySetPos"] != undefined) {
-        const unpackedBySetPos: any[] = [];
+        unpackedBySetPos = [];
         for (const item of objectJson["bySetPos"]) {
           unpackedBySetPos.push(Number(item));
         }
+      } else {
+        unpackedBySetPos = undefined;
       }
+      let unpackedByMonth: any[] | undefined;
       if (objectJson["byMonth"] != undefined) {
-        const unpackedByMonth: any[] = [];
+        unpackedByMonth = [];
         for (const item of objectJson["byMonth"]) {
           unpackedByMonth.push(Month[item] as any);
         }
+      } else {
+        unpackedByMonth = undefined;
       }
+      let unpackedByMonthDay: any[] | undefined;
       if (objectJson["byMonthDay"] != undefined) {
-        const unpackedByMonthDay: any[] = [];
+        unpackedByMonthDay = [];
         for (const item of objectJson["byMonthDay"]) {
           unpackedByMonthDay.push(Number(item));
         }
+      } else {
+        unpackedByMonthDay = undefined;
       }
+      let unpackedByYearDay: any[] | undefined;
       if (objectJson["byYearDay"] != undefined) {
-        const unpackedByYearDay: any[] = [];
+        unpackedByYearDay = [];
         for (const item of objectJson["byYearDay"]) {
           unpackedByYearDay.push(Number(item));
         }
+      } else {
+        unpackedByYearDay = undefined;
       }
+      let unpackedByEaster: any[] | undefined;
       if (objectJson["byEaster"] != undefined) {
-        const unpackedByEaster: any[] = [];
+        unpackedByEaster = [];
         for (const item of objectJson["byEaster"]) {
           unpackedByEaster.push(Number(item));
         }
+      } else {
+        unpackedByEaster = undefined;
       }
+      let unpackedByWeekNo: any[] | undefined;
       if (objectJson["byWeekNo"] != undefined) {
-        const unpackedByWeekNo: any[] = [];
+        unpackedByWeekNo = [];
         for (const item of objectJson["byWeekNo"]) {
           unpackedByWeekNo.push(Number(item));
         }
+      } else {
+        unpackedByWeekNo = undefined;
       }
+      let unpackedByWeekDay: any[] | undefined;
       if (objectJson["byWeekDay"] != undefined) {
-        const unpackedByWeekDay: any[] = [];
+        unpackedByWeekDay = [];
         for (const item of objectJson["byWeekDay"]) {
           unpackedByWeekDay.push(DayOfWeek[item] as any);
         }
+      } else {
+        unpackedByWeekDay = undefined;
       }
+      let unpackedByHour: any[] | undefined;
       if (objectJson["byHour"] != undefined) {
-        const unpackedByHour: any[] = [];
+        unpackedByHour = [];
         for (const item of objectJson["byHour"]) {
           unpackedByHour.push(Number(item));
         }
+      } else {
+        unpackedByHour = undefined;
       }
+      let unpackedByMinute: any[] | undefined;
       if (objectJson["byMinute"] != undefined) {
-        const unpackedByMinute: any[] = [];
+        unpackedByMinute = [];
         for (const item of objectJson["byMinute"]) {
           unpackedByMinute.push(Number(item));
         }
+      } else {
+        unpackedByMinute = undefined;
       }
+      let unpackedBySecond: any[] | undefined;
       if (objectJson["bySecond"] != undefined) {
-        const unpackedBySecond: any[] = [];
+        unpackedBySecond = [];
         for (const item of objectJson["bySecond"]) {
           unpackedBySecond.push(Number(item));
         }
+      } else {
+        unpackedBySecond = undefined;
       }
       return new (STRUCT_CLASS_BY_TYPE[700001] as typeof Schedule)({
         frequency: ScheduleFrequency[objectJson["frequency"]] as any,

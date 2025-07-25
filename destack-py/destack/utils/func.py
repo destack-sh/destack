@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import json
 import math
+import re
 import secrets
 import sys
 import types
@@ -17,8 +18,6 @@ from typing import (
     Any,
     Callable,
 )
-
-import regex
 
 from destack.utils.base58 import base58_encode
 from destack.utils.log import get_logger
@@ -370,8 +369,8 @@ def decode_b64vlq(value: str) -> int:
     return result
 
 
-def re_search_or_error(pattern: str, string: str) -> regex.Match[str]:
-    match = regex.search(pattern, string)
+def re_search_or_error(pattern: str, string: str) -> re.Match[str]:
+    match = re.search(pattern, string)
     if match is None:
         raise ValueError(f"no match for {pattern!r} in {string!r}")
     return match
@@ -406,7 +405,7 @@ class dualmethod:  # noqa: N801
 
 
 def sanitize_connection_url(url: str) -> str:
-    return regex.sub(r":[^@]+@", ":*****@", url)
+    return re.sub(r":[^@]+@", ":*****@", url)
 
 
 def generate_access_token(length: int) -> str:

@@ -104,6 +104,8 @@ function _packScalarCson(value: any, type: Type): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.NONE) {
+      return null;
     } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
       return value;
     } else if (type.primitiveType == PrimitiveType.STRING) {
@@ -172,6 +174,8 @@ function _unpackScalarCson(
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
+    } else if (type.primitiveType == PrimitiveType.NONE) {
+      return null;
     } else if (type.primitiveType == PrimitiveType.BOOLEAN) {
       return value;
     } else if (type.primitiveType == PrimitiveType.BYTES) {

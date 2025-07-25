@@ -98,9 +98,6 @@ class CollectionConstraint(StructFrozen):
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 
-# nocheckin :Incomplete: (tagged) Union / sum types?
-
-
 @builtin_struct(StructType.BASIC_TYPE, frozen=True)
 class BasicType(StructFrozen):
     """A basic Type in the type system."""
@@ -126,7 +123,7 @@ class BasicType(StructFrozen):
         is_repr=True,
         description="Enum type of this Type (if it's an enum value).",
     )
-    node_types: list[NodeType] = builtin_property(
+    node_types: list[NodeType] | None = builtin_property(
         114,
         is_repr=True,
         description="Node types of this Type (if it's a node reference value).",

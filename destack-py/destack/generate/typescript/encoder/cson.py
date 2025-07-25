@@ -297,11 +297,14 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"  {var_name}.push({item_expr})")
             lines.append("}")
         else:
+            lines.append(f"let {var_name}: any[] | undefined;")
             lines.append(f"if ({data_cson} != undefined) {{")
-            lines.append(f"  const {var_name}: any[] = [];")
+            lines.append(f"  {var_name} = [];")
             lines.append(f"  for (const item of {data_cson}) {{")
             lines.append(f"    {var_name}.push({item_expr})")
             lines.append("  }")
+            lines.append("} else {")
+            lines.append(f"  {var_name} = undefined;")
             lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
@@ -313,11 +316,14 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
             lines.append("}")
         else:
+            lines.append(f"let {var_name}: {{{key_expr}: any}} | undefined;")
             lines.append(f"if ({data_cson} != undefined) {{")
-            lines.append(f"  const {var_name} = {{}} as any;")
+            lines.append(f"  {var_name} = {{}} as any;")
             lines.append(f"  for (const [key, value] of Object.entries({data_cson})) {{")
             lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
             lines.append("  }")
+            lines.append("} else {")
+            lines.append(f"  {var_name} = undefined;")
             lines.append("}")
     else:
         assert_never(prop.cardinality)
@@ -331,7 +337,9 @@ def _generate_pack_cson_scalar(
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "null"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
             PrimitiveType.SINT8,
@@ -387,7 +395,9 @@ def _generate_unpack_cson_scalar(
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.BOOLEAN:
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "null"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"Boolean({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.SINT8,
