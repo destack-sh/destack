@@ -46,7 +46,6 @@ if TYPE_CHECKING:
         Sort,
         Type,
         TypeConstraint,
-        TypeFormat,
     )
 
 type_ = type
@@ -130,7 +129,6 @@ class TypeDeclaration:
 
     default: Any = UNSET
     default_factory: ValueFactory | None = None
-    format: "TypeFormat | None" = None
     constraint: "TypeConstraint | None" = None
 
     def _to_type(self) -> "Type":
@@ -138,9 +136,7 @@ class TypeDeclaration:
         from .type import (
             CollectionConstraint,
             NumberConstraint,
-            NumberFormat,
             StringConstraint,
-            StringFormat,
             Type,
         )
         from .value import to_value
@@ -167,17 +163,6 @@ class TypeDeclaration:
                 collection_constraint = self.constraint
             else:
                 assert_never(self.constraint)
-
-        # format
-        if self.format is not None:
-            if isinstance(self.format, StringFormat):
-                assert string_constraint is None, f"conflicting string constraint: {self!r}"
-                string_constraint = StringConstraint(format=self.format)
-            elif isinstance(self.format, NumberFormat):
-                assert number_constraint is None, f"conflicting number constraint: {self!r}"
-                number_constraint = NumberConstraint(format=self.format)
-            else:
-                assert_never(self.format)
 
         # type
         type_obj = Type(
@@ -639,7 +624,6 @@ def builtin_property(
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
     primitive_type: PrimitiveType | None = UNSET,
-    format: "TypeFormat | None" = None,
     constraint: "TypeConstraint | None" = None,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
@@ -660,7 +644,6 @@ def builtin_property(
         default=default,
         default_factory=default_factory,
         primitive_type=primitive_type,
-        format=format,
         constraint=constraint,
         edge_type=edge_type,
         cascade=cascade,

@@ -2068,7 +2068,7 @@ export function loadEncoders(): void {
     packObject(object: Migration): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "MIGRATION";
-      objectJson["id"] = Number(object._id);
+      objectJson["id"] = object.id;
       if (object.parentPtr != null) {
         objectJson["parent"] = object.parentPtr.pack(1);
       }
@@ -2181,7 +2181,6 @@ export function loadEncoders(): void {
       const keyValue = objectJson["key"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[31000] as typeof Migration)({
-        id: Number(objectJson["id"]),
         type: MigrationType[objectJson["type"]] as any,
         description: unpackedDescription,
         parent: unpackedParentPtr,
@@ -2206,6 +2205,7 @@ export function loadEncoders(): void {
         isExtensible: unpackedIsExtensible,
         source: unpackedSourcePtr,
         key: unpackedKey,
+        id: objectJson["id"],
         space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
         _session,
       });

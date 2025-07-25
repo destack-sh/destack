@@ -41,7 +41,6 @@ class MigrationDefinition(StructFrozen):
 class Migration(Entity):
     """Migration of an Entity."""
 
-    id: UInt32 = builtin_property(2, is_repr=True)
     type: MigrationType = builtin_property(100, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
 

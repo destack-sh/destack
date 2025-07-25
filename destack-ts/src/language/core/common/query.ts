@@ -1,10 +1,5 @@
-import {
-  EnumType,
-  GraphDomain,
-  NodeType,
-  StructType,
-  TypeCardinality,
-} from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/builtin";
+import { GraphDomain, TypeCardinality } from "@destack/language/core/builtin/common";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, type Node } from "@destack/language/core/builtin/node";
@@ -16,7 +11,7 @@ import type {
 } from "@destack/language/core/builtin/relation";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/builtin/type";
-import type { Boolean, String, UInt32, UUID } from "@destack/language/core/builtin/types";
+import type { UInt32, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import { toValue } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
@@ -898,7 +893,7 @@ export class Join extends StructFrozen {
   /**
    * Join.recursive
    */
-  readonly recursive: Boolean;
+  readonly recursive: boolean;
 
   /**
    * Join.on
@@ -907,7 +902,7 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    recursive?: Boolean;
+    recursive?: boolean;
     on?: Condition | null;
     _session?: Session | null;
     _hash?: number | null;
@@ -1007,7 +1002,6 @@ export class Join extends StructFrozen {
     options?: {
       definition?: NodeType | NodeClass | NodeReference;
       recursive?: boolean;
-      depth?: number | null;
       on?: Condition | null;
     },
   ): Join {
@@ -1017,7 +1011,6 @@ export class Join extends StructFrozen {
     return new Join({
       type: joinType,
       recursive: options?.recursive ?? false,
-      depth: options?.depth ?? null,
       on: options?.on ?? null,
     });
   }
@@ -1054,7 +1047,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /**
    * Name for this subquery. Should be unique within the parent Query.
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * The Node definition this Query is about.
@@ -1115,7 +1108,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     id?: UUID;
     type: QueryType;
     domain: GraphDomain;
-    name: String;
+    name: string;
     definition: NodeDefinitionReference;
     subqueries?: readonly Query[];
     join?: Join | null;

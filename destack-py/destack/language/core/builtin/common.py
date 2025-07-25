@@ -288,23 +288,25 @@ class EdgeDirection(Enum):
 
 @builtin_enum(EnumType.ENCODING)
 class Encoding(Enum):
-    """The encoding scheme."""
+    """Encoding scheme."""
 
     JSON = 1, "JSON", "JSON encoding"
     CSON = 2, "CSON", "Constant folded JSON encoding"
-    KOMPAKT = 11, "KOMPAKT", "KOMPAKT encoding"
-    # CUSTOM, ...
+    KOMPAKT = 3, "KOMPAKT", "KOMPAKT encoding"
+
+
+assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 
 
 @builtin_enum(EnumType.TYPE_CARDINALITY)
 class TypeCardinality(Enum):
     """The 'kind' of a Type."""
 
-    SCALAR = 1
-    LIST = 2
+    SCALAR = 1, "Scalar", "Single value"
+    LIST = 2, "List", "List of values"
     # TUPLE
     # SET?
-    MAP = 5
+    MAP = 5, "Map", "Map of keys to values"
     # UNION = 6
 
 
@@ -315,11 +317,36 @@ assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :E
 class ScalarType(Enum):
     """The type of a scalar."""
 
-    PRIMITIVE = 1
-    ENUM = 2
-    NODE_REFERENCE = 3
-    NODE_VALUE = 4
-    STRUCT = 5
+    PRIMITIVE = (
+        1,
+        "Primitive",
+        "Primitive value (boolean, number, time, string, etc.)",
+        "fas fa-hashtag",
+    )
+    ENUM = (
+        2,
+        "Enum",
+        "Enum value (enumeration of options)",
+        "fas fa-shapes",
+    )
+    NODE_REFERENCE = (
+        3,
+        "NodeReference",
+        "Reference to a Node (NodeReference)",
+        "fas fa-link",
+    )
+    NODE_VALUE = (
+        4,
+        "NodeValue",
+        "Value of a Node",
+        "fas fa-link",
+    )
+    STRUCT = (
+        5,
+        "Struct",
+        "Struct value (structured data)",
+        "fas fa-shapes",
+    )
 
 
 assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
@@ -331,38 +358,149 @@ class PrimitiveType(Enum):
     A fundamental scalar data type.
     """
 
+    # :PrimitiveType
     # NULL/NONE?L
-    BOOLEAN = 2, "Boolean", "Boolean flag", "fas fa-toggle-large-on"
+    BOOLEAN = (
+        2,
+        "Boolean",
+        "Boolean flag (True or False)",
+        "fas fa-toggle-large-on",
+    )
     # integer
-    SINT8 = 10, "SInt8", "8-bit signed integer", "fas fa-tally"
-    SINT16 = 11, "SInt16", "16-bit signed integer", "fas fa-tally"
-    SINT32 = 12, "SInt32", "32-bit signed integer", "fas fa-tally"
-    SINT64 = 13, "SInt64", "64-bit signed integer", "fas fa-tally"
-    SINT128 = 14, "SInt128", "128-bit signed integer", "fas fa-tally"
-    UINT8 = 15, "UInt8", "8-bit unsigned integer", "fas fa-tally"
-    UINT16 = 16, "UInt16", "16-bit unsigned integer", "fas fa-tally"
-    UINT32 = 17, "UInt32", "32-bit unsigned integer", "fas fa-tally"
-    UINT64 = 18, "UInt64", "64-bit unsigned integer", "fas fa-tally"
-    UINT128 = 19, "UInt128", "128-bit unsigned integer", "fas fa-tally"
+    SINT8 = (
+        10,
+        "SInt8",
+        "8-bit signed integer (-128 to 127)",
+        "fas fa-tally",
+    )
+    SINT16 = (
+        11,
+        "SInt16",
+        "16-bit signed integer (-32768 to 32767)",
+        "fas fa-tally",
+    )
+    SINT32 = (
+        12,
+        "SInt32",
+        "32-bit signed integer (-2147483648 to 2147483647)",
+        "fas fa-tally",
+    )
+    SINT64 = (
+        13,
+        "SInt64",
+        "64-bit signed integer (-9223372036854775808 to 9223372036854775807)",
+        "fas fa-tally",
+    )
+    SINT128 = (
+        14,
+        "SInt128",
+        "128-bit signed integer (-170141183460469231731687303715884105728 to 170141183460469231731687303715884105727)",
+        "fas fa-tally",
+    )
+    UINT8 = (
+        15,
+        "UInt8",
+        "8-bit unsigned integer (0 to 255)",
+        "fas fa-tally",
+    )
+    UINT16 = (
+        16,
+        "UInt16",
+        "16-bit unsigned integer (0 to 65535)",
+        "fas fa-tally",
+    )
+    UINT32 = (
+        17,
+        "UInt32",
+        "32-bit unsigned integer (0 to 4294967295)",
+        "fas fa-tally",
+    )
+    UINT64 = (
+        18,
+        "UInt64",
+        "64-bit unsigned integer (0 to 18446744073709551615)",
+        "fas fa-tally",
+    )
+    UINT128 = (
+        19,
+        "UInt128",
+        "128-bit unsigned integer (0 to 340282366920938463463374607431768211455)",
+        "fas fa-tally",
+    )
     # float
-    FLOAT16 = 21, "Float16", "16-bit half-precision float", "fas fa-hashtag"
-    FLOAT32 = 22, "Float32", "32-bit single-precision float", "fas fa-hashtag"
-    FLOAT64 = 23, "Float64", "64-bit double-precision float", "fas fa-hashtag"
+    FLOAT16 = (
+        21,
+        "Float16",
+        "16-bit half-precision float (±65504)",
+        "fas fa-hashtag",
+    )
+    FLOAT32 = (
+        22,
+        "Float32",
+        "32-bit single-precision float (±3.4028234663852886e+38)",
+        "fas fa-hashtag",
+    )
+    FLOAT64 = (
+        23,
+        "Float64",
+        "64-bit double-precision float (±1.7976931348623157e+308)",
+        "fas fa-hashtag",
+    )
     # complex, other numeric, ...?
     # time
-    DATETIME = 30, "Datetime", "Date & time (with timezone)", "fas fa-calendar-days"
-    DATE = 31, "Date", "Date", "fas fa-calendar-days"
-    TIME = 32, "Time", "Time", "fas fa-clock"
-    DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
+    DATETIME = (
+        30,
+        "Datetime",
+        "Datetime (microsecond precision, with timezone)",
+        "fas fa-calendar-days",
+    )
+    DATE = (
+        31,
+        "Date",
+        "Date (day precision, no timezone)",
+        "fas fa-calendar-days",
+    )
+    TIME = (
+        32,
+        "Time",
+        "Time (microsecond precision, no timezone)",
+        "fas fa-clock",
+    )
+    DURATION = (
+        33,
+        "Duration",
+        "Duration (microsecond precision)",
+        "fas fa-stopwatch",
+    )
     # string
-    STRING = 40, "String", "Plain text", "fas fa-font-case"
-    UUID = 41, "UUID", "UUID", "fas fa-fingerprint"
-    BYTES = 42, "Bytes", "Binary data", "fas fa-file-lines"
+    STRING = (
+        40,
+        "String",
+        "Plain text",
+        "fas fa-font-case",
+    )
+    UUID = (
+        41,
+        "UUID",
+        "Universally unique identifier (UUID4 or UUID7, 16 bytes)",
+        "fas fa-fingerprint",
+    )
+    BYTES = (
+        42,
+        "Bytes",
+        "Binary data (arbitrary bytes)",
+        "fas fa-file-lines",
+    )
     # VECTOR?
-    JSON = 45, "JSON", "JSON", "fas fa-brackets-curly"
+    JSON = (
+        45,
+        "JSON",
+        "JSON (arbitrary JSON data)",
+        "fas fa-brackets-curly",
+    )
 
 
-assert max(PrimitiveType) < 256, "PrimitiveType must be less than 256"  # for :Encoding
+assert max(PrimitiveType) < 64, "PrimitiveType must be less than 64"  # for :Encoding
 
 
 PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {

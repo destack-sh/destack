@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.CUSTOM_PROPERTY)
-class CustomProperty(
-    Entity,
-):
+class CustomProperty(Entity):
     """
     A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
     """

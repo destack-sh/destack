@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   Float32,
@@ -9,7 +8,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -234,10 +232,6 @@ export class Color extends StructFrozen {
     return new Color({ type: ColorType.RGB, x: r, y: g, z: b, alpha: a });
   }
 
-  static fromHue(hue: ColorHue, shade?: ColorShade | null): Color {
-    return new Color({ type: ColorType.BUILTIN, hue, shade });
-  }
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
@@ -427,20 +421,20 @@ export class ColorStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -491,7 +485,7 @@ export class ColorStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -511,15 +505,15 @@ export class ColorStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * ColorStyle.type
@@ -683,13 +677,13 @@ export class ColorStyle extends Style {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type: ColorType;
     hue?: ColorHue | null;
     shade?: ColorShade | null;
@@ -1111,9 +1105,6 @@ export class ColorStyle extends Style {
     return new ColorStyle({
       name: options.name,
       type: options.color.type,
-      hue: options.color.hue,
-      shade: options.color.shade,
-      intent: options.color.intent,
       x: options.color.x,
       y: options.color.y,
       z: options.color.z,
@@ -1127,19 +1118,6 @@ export class ColorStyle extends Style {
       name: options.name,
       color: Color.fromHex(options.hex),
       dark: options.dark ? Color.fromHex(options.dark) : null,
-    });
-  }
-
-  static fromHue(options: {
-    name: string;
-    hue: ColorHue;
-    shade?: ColorShade | null;
-    darkShade?: ColorShade | null;
-  }): ColorStyle {
-    return ColorStyle.fromColor({
-      name: options.name,
-      color: Color.fromHue(options.hue, options.shade ?? null),
-      dark: options.darkShade ? Color.fromHue(options.hue, options.darkShade) : null,
     });
   }
 

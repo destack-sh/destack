@@ -1,5 +1,4 @@
-import type { Entity, Event } from "@destack/language/core/builtin";
-import type { NodeType } from "@destack/language/core/builtin/common";
+import type { Entity, Event, NodeType } from "@destack/language/core/builtin";
 
 /**
  * A Graph is a collection of Nodes from one or multiple Spaces (across time).

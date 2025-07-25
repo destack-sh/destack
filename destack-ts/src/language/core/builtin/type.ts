@@ -1,17 +1,15 @@
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/builtin";
 import {
-  EnumType,
-  NodeType,
   PRIMITIVE_TYPE_BY_JS_TYPE_NAME,
   PrimitiveType,
   ScalarType,
-  StructType,
   TypeCardinality,
   type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Boolean, Float32, String, UInt32 } from "@destack/language/core/builtin/types";
+import type { Float32, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -153,23 +151,23 @@ export class StringConstraint extends StructFrozen {
   /**
    * StringConstraint.regex
    */
-  readonly regex: String | null;
+  readonly regex: string | null;
 
   /**
    * StringConstraint.startsWith
    */
-  readonly startsWith: String | null;
+  readonly startsWith: string | null;
 
   /**
    * StringConstraint.endsWith
    */
-  readonly endsWith: String | null;
+  readonly endsWith: string | null;
 
   constructor(options: {
     format?: StringFormat | null;
-    regex?: String | null;
-    startsWith?: String | null;
-    endsWith?: String | null;
+    regex?: string | null;
+    startsWith?: string | null;
+    endsWith?: string | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -778,7 +776,7 @@ export class Type extends BasicType {
   /**
    * Type.isRequired
    */
-  readonly isRequired: Boolean | null;
+  readonly isRequired: boolean | null;
 
   constructor(options: {
     cardinality?: TypeCardinality;
@@ -794,7 +792,7 @@ export class Type extends BasicType {
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    isRequired?: Boolean | null;
+    isRequired?: boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

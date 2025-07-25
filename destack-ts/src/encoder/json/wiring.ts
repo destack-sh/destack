@@ -1,16 +1,13 @@
 import { BuiltinObject } from "@destack/language/core/builtin";
+import { type NodeType, StructType } from "@destack/language/core/builtin/builtin";
 import {
   Encoding,
-  type NodeType,
   PrimitiveType,
   ScalarType,
-  StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Type } from "@destack/language/core/builtin/type";
-import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
@@ -25,7 +22,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Pack a generic typed value to a JSON object.
  */
-export function packJson(value: any, type: Type | PropertyDefinition | CustomProperty): any {
+export function packJson(value: any, type: Type): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _packScalarJson(value, type);
   } else if (type.cardinality == TypeCardinality.LIST) {
@@ -59,11 +56,7 @@ export function packJson(value: any, type: Type | PropertyDefinition | CustomPro
 /**
  * Unpack a JSON object to a generic typed value.
  */
-export function unpackJson(
-  value: any,
-  type: Type | PropertyDefinition | CustomProperty,
-  _session: Session | null,
-): any {
+export function unpackJson(value: any, type: Type, _session: Session | null): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _unpackScalarJson(value, type, _session);
   } else if (type.cardinality == TypeCardinality.LIST) {
@@ -92,7 +85,7 @@ export function unpackJson(
 }
 
 /** Pack a scalar value to a JSON object. */
-function _packScalarJson(value: any, type: Type | PropertyDefinition | CustomProperty): any {
+function _packScalarJson(value: any, type: Type): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
@@ -152,11 +145,7 @@ function _packScalarJson(value: any, type: Type | PropertyDefinition | CustomPro
 }
 
 /** Unpack a JSON object to a scalar value. */
-function _unpackScalarJson(
-  value: any,
-  type: Type | PropertyDefinition | CustomProperty,
-  _session: Session | null,
-): any {
+function _unpackScalarJson(value: any, type: Type, _session: Session | null): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);

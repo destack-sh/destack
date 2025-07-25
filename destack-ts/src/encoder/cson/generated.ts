@@ -1977,7 +1977,7 @@ export function loadEncoders(): void {
     packObject(object: Migration): any {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 31000;
-      objectCson["2"] = object._id;
+      objectCson["2"] = object.id;
       if (object.parentPtr != null) {
         objectCson["3"] = object.parentPtr.pack(2);
       }
@@ -2091,7 +2091,6 @@ export function loadEncoders(): void {
       const keyValue = objectCson["85"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[31000] as typeof Migration)({
-        id: Number(objectCson["2"]),
         type: Number(objectCson["100"]),
         description: unpackedDescription,
         parent: unpackedParentPtr,
@@ -2116,6 +2115,7 @@ export function loadEncoders(): void {
         isExtensible: unpackedIsExtensible,
         source: unpackedSourcePtr,
         key: unpackedKey,
+        id: objectCson["2"],
         space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
         _session,
       });

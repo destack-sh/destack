@@ -1,9 +1,5 @@
-import {
-  NodeType,
-  type PlatformType,
-  type RuntimeLanguage,
-  StructType,
-} from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
+import type { PlatformType, RuntimeLanguage } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
@@ -12,14 +8,7 @@ import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type {
-  Boolean,
-  Datetime,
-  String,
-  UInt16,
-  UInt128,
-  UUID,
-} from "@destack/language/core/builtin/types";
+import type { Datetime, UInt16, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Text } from "@destack/language/core/common/text";
@@ -55,12 +44,12 @@ export class MethodDefinition extends StructFrozen {
   /**
    * MethodDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * MethodDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * MethodDefinition.properties
@@ -85,8 +74,8 @@ export class MethodDefinition extends StructFrozen {
   constructor(options: {
     id: UInt16;
     type: MethodType;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     properties?: readonly PropertyReference[];
     cardinality?: MethodCardinality;
     platforms?: readonly PlatformType[];
@@ -440,20 +429,20 @@ export class Method extends Entity {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -504,7 +493,7 @@ export class Method extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -524,15 +513,15 @@ export class Method extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Method.type
@@ -632,13 +621,13 @@ export class Method extends Entity {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type: MethodType;
     text?: Text | null;
     cardinality?: MethodCardinality;

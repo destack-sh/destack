@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   NodeClass,
@@ -7,7 +6,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -215,20 +213,20 @@ export class Client extends Entity {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * Client.browserVersion
@@ -236,15 +234,15 @@ export class Client extends Entity {
   /**
    * Client.browserVersion
    */
-  get browserVersion(): String | null {
+  get browserVersion(): string | null {
     return this._browserVersion;
   }
-  set browserVersion(value: String | null) {
+  set browserVersion(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["browser_version"];
     this._session.updateSetProperty(this, prop, value);
     this._browserVersion = value;
   }
-  _browserVersion: String | null;
+  _browserVersion: string | null;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -295,7 +293,7 @@ export class Client extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -315,15 +313,15 @@ export class Client extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Client.type
@@ -407,15 +405,15 @@ export class Client extends Entity {
   /**
    * Client.accessToken
    */
-  get accessToken(): String | null {
+  get accessToken(): string | null {
     return this._accessToken;
   }
-  set accessToken(value: String | null) {
+  set accessToken(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["access_token"];
     this._session.updateSetProperty(this, prop, value);
     this._accessToken = value;
   }
-  _accessToken: String | null;
+  _accessToken: string | null;
 
   /**
    * Client.seenAt
@@ -455,15 +453,15 @@ export class Client extends Entity {
   /**
    * Client.deviceType
    */
-  get deviceType(): String | null {
+  get deviceType(): string | null {
     return this._deviceType;
   }
-  set deviceType(value: String | null) {
+  set deviceType(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["device_type"];
     this._session.updateSetProperty(this, prop, value);
     this._deviceType = value;
   }
-  _deviceType: String | null;
+  _deviceType: string | null;
 
   /**
    * Client.deviceName
@@ -471,15 +469,15 @@ export class Client extends Entity {
   /**
    * Client.deviceName
    */
-  get deviceName(): String | null {
+  get deviceName(): string | null {
     return this._deviceName;
   }
-  set deviceName(value: String | null) {
+  set deviceName(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["device_name"];
     this._session.updateSetProperty(this, prop, value);
     this._deviceName = value;
   }
-  _deviceName: String | null;
+  _deviceName: string | null;
 
   /**
    * Client.operatingSystem
@@ -487,15 +485,15 @@ export class Client extends Entity {
   /**
    * Client.operatingSystem
    */
-  get operatingSystem(): String | null {
+  get operatingSystem(): string | null {
     return this._operatingSystem;
   }
-  set operatingSystem(value: String | null) {
+  set operatingSystem(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["operating_system"];
     this._session.updateSetProperty(this, prop, value);
     this._operatingSystem = value;
   }
-  _operatingSystem: String | null;
+  _operatingSystem: string | null;
 
   /**
    * Client.browserName
@@ -503,15 +501,15 @@ export class Client extends Entity {
   /**
    * Client.browserName
    */
-  get browserName(): String | null {
+  get browserName(): string | null {
     return this._browserName;
   }
-  set browserName(value: String | null) {
+  set browserName(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["browser_name"];
     this._session.updateSetProperty(this, prop, value);
     this._browserName = value;
   }
-  _browserName: String | null;
+  _browserName: string | null;
 
   constructor(options: {
     id?: UUID;
@@ -531,24 +529,24 @@ export class Client extends Entity {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
-    browserVersion?: String | null;
+    name?: string;
+    orderKey?: string;
+    browserVersion?: string | null;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type: ClientType;
     machine?: Machine | NodeReference | null;
     user?: User | NodeReference | null;
-    accessToken?: String | null;
+    accessToken?: string | null;
     seenAt?: Datetime | null;
     loggedInAt?: Datetime | null;
-    deviceType?: String | null;
-    deviceName?: String | null;
-    operatingSystem?: String | null;
-    browserName?: String | null;
+    deviceType?: string | null;
+    deviceName?: string | null;
+    operatingSystem?: string | null;
+    browserName?: string | null;
     _session?: Session | null;
   }) {
     /* super */

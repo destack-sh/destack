@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   Icon,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -142,13 +140,13 @@ export abstract class Metric extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -173,7 +171,7 @@ export abstract class Metric extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -187,8 +185,8 @@ export abstract class Metric extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Metric.icon
@@ -488,20 +486,20 @@ export class GaugeMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -552,7 +550,7 @@ export class GaugeMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -572,15 +570,15 @@ export class GaugeMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Metric.icon
@@ -616,13 +614,13 @@ export class GaugeMetric extends Metric {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -1543,20 +1541,20 @@ export class CounterMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1607,7 +1605,7 @@ export class CounterMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1627,15 +1625,15 @@ export class CounterMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Metric.icon
@@ -1671,13 +1669,13 @@ export class CounterMetric extends Metric {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -2598,20 +2596,20 @@ export class HistogramMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2662,7 +2660,7 @@ export class HistogramMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2682,15 +2680,15 @@ export class HistogramMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Metric.icon
@@ -2726,13 +2724,13 @@ export class HistogramMetric extends Metric {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {

@@ -6,7 +6,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
 } from "@destack/language/core";
@@ -198,12 +197,12 @@ export class LogEvent extends Event {
   /**
    * LogEvent.content
    */
-  readonly content: String;
+  readonly content: string;
 
   /**
    * LogEvent.attributes
    */
-  readonly attributes: { readonly [key: String]: Json };
+  readonly attributes: { readonly [key: string]: Json };
 
   /**
    * LogEvent.level
@@ -227,8 +226,8 @@ export class LogEvent extends Event {
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Node | NodeReference | null;
-    content: String;
-    attributes?: { readonly [key: String]: Json };
+    content: string;
+    attributes?: { readonly [key: string]: Json };
     level: LogLevel;
     _session?: Session | null;
   }) {

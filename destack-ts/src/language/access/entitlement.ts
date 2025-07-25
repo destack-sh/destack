@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   NodeClass,
@@ -7,7 +6,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -2126,20 +2124,20 @@ export class Entitlement extends Entity {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2190,7 +2188,7 @@ export class Entitlement extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2210,15 +2208,15 @@ export class Entitlement extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Entitlement.type
@@ -2296,13 +2294,13 @@ export class Entitlement extends Entity {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type: EntitlementType;
     expiresAt?: Datetime | null;
     target: Entity | NodeReference;

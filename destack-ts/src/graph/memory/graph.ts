@@ -1,5 +1,4 @@
-import type { Entity, Event } from "@destack/language/core/builtin";
-import type { NodeType } from "@destack/language/core/builtin/common";
+import type { Entity, Event, NodeType } from "@destack/language/core/builtin";
 import { Graph } from "@destack/language/core/runtime/graph";
 
 /** A Graph that stores Nodes in memory. */

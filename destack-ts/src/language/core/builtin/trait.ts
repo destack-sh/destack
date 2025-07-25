@@ -1,4 +1,4 @@
-import { TraitType } from "@destack/language/core/builtin/common";
+import { TraitType } from "@destack/language/core/builtin/builtin";
 import type {
   PropertyDefinition,
   TraitDefinition,

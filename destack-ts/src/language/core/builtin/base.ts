@@ -1,18 +1,12 @@
+import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Region } from "@destack/language/core/builtin/common";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsOrdered, IsOwnable } from "@destack/language/core/builtin/trait";
-import type {
-  Boolean,
-  Datetime,
-  String,
-  UInt128,
-  UUID,
-} from "@destack/language/core/builtin/types";
+import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
@@ -135,13 +129,13 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -166,7 +160,7 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -180,8 +174,8 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -302,13 +296,13 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -333,7 +327,7 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -347,8 +341,8 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Resource.region
@@ -477,13 +471,13 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -508,7 +502,7 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -522,8 +516,8 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Variant.icon
@@ -725,20 +719,20 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -789,7 +783,7 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -809,15 +803,15 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Tag.icon
@@ -853,13 +847,13 @@ export class Tag extends Entity implements IsOrdered {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -1356,20 +1350,20 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1420,7 +1414,7 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1440,15 +1434,15 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Tagging.tag
@@ -1494,13 +1488,13 @@ export class Tagging extends Entity implements IsOrdered {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     tag: Tag | NodeReference;
     _session?: Session | null;
   }) {
@@ -1925,13 +1919,13 @@ export abstract class Entity2D extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1956,7 +1950,7 @@ export abstract class Entity2D extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1970,8 +1964,8 @@ export abstract class Entity2D extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Entity2D.position
@@ -2154,13 +2148,13 @@ export abstract class Entity3D extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2185,7 +2179,7 @@ export abstract class Entity3D extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2199,8 +2193,8 @@ export abstract class Entity3D extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Entity3D.position

@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   Float32,
@@ -132,22 +131,22 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * PointerEvent.shiftKey
    */
-  declare readonly shiftKey: Boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare readonly altKey: Boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare readonly ctrlKey: Boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare readonly metaKey: Boolean;
+  declare readonly metaKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -314,22 +313,22 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -350,10 +349,10 @@ export class PointerDownEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -832,22 +831,22 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -868,10 +867,10 @@ export class PointerUpEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1350,22 +1349,22 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -1386,10 +1385,10 @@ export class PointerMoveEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1868,22 +1867,22 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -1904,10 +1903,10 @@ export class PointerEnterEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -2386,22 +2385,22 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -2422,10 +2421,10 @@ export class PointerOverEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -2904,22 +2903,22 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -2940,10 +2939,10 @@ export class PointerLeaveEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -3422,22 +3421,22 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -3458,10 +3457,10 @@ export class PointerLongPressEvent extends PointerEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */

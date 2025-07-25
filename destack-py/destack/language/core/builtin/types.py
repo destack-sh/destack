@@ -3,6 +3,7 @@ from typing import Any
 
 from destack.utils.uuid import UUID
 
+# :PrimitiveType
 type Boolean = bool
 # integer
 type SInt8 = int

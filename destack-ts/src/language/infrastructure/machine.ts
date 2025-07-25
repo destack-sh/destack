@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   Float32,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt32,
   UInt128,
   UUID,
@@ -240,20 +238,20 @@ export class Machine extends Resource {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -304,7 +302,7 @@ export class Machine extends Resource {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -324,15 +322,15 @@ export class Machine extends Resource {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Machine.type
@@ -372,15 +370,15 @@ export class Machine extends Resource {
   /**
    * Machine.version
    */
-  get version(): String {
+  get version(): string {
     return this._version;
   }
-  set version(value: String) {
+  set version(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["version"];
     this._session.updateSetProperty(this, prop, value);
     this._version = value;
   }
-  _version: String;
+  _version: string;
 
   /**
    * Machine.externalName
@@ -388,15 +386,15 @@ export class Machine extends Resource {
   /**
    * Machine.externalName
    */
-  get externalName(): String | null {
+  get externalName(): string | null {
     return this._externalName;
   }
-  set externalName(value: String | null) {
+  set externalName(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["external_name"];
     this._session.updateSetProperty(this, prop, value);
     this._externalName = value;
   }
-  _externalName: String | null;
+  _externalName: string | null;
 
   /**
    * Machine.externalId
@@ -404,15 +402,15 @@ export class Machine extends Resource {
   /**
    * Machine.externalId
    */
-  get externalId(): String | null {
+  get externalId(): string | null {
     return this._externalId;
   }
-  set externalId(value: String | null) {
+  set externalId(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["external_id"];
     this._session.updateSetProperty(this, prop, value);
     this._externalId = value;
   }
-  _externalId: String | null;
+  _externalId: string | null;
 
   /**
    * Machine.imageId
@@ -420,15 +418,15 @@ export class Machine extends Resource {
   /**
    * Machine.imageId
    */
-  get imageId(): String | null {
+  get imageId(): string | null {
     return this._imageId;
   }
-  set imageId(value: String | null) {
+  set imageId(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["image_id"];
     this._session.updateSetProperty(this, prop, value);
     this._imageId = value;
   }
-  _imageId: String | null;
+  _imageId: string | null;
 
   /**
    * vCPU count
@@ -500,15 +498,15 @@ export class Machine extends Resource {
   /**
    * Machine.isHeadless
    */
-  get isHeadless(): Boolean {
+  get isHeadless(): boolean {
     return this._isHeadless;
   }
-  set isHeadless(value: Boolean) {
+  set isHeadless(value: boolean) {
     const prop = (this.constructor as NodeClass).__properties__["is_headless"];
     this._session.updateSetProperty(this, prop, value);
     this._isHeadless = value;
   }
-  _isHeadless: Boolean;
+  _isHeadless: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -528,24 +526,24 @@ export class Machine extends Resource {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type?: MachineType;
     region?: Region | null;
-    version?: String;
-    externalName?: String | null;
-    externalId?: String | null;
-    imageId?: String | null;
+    version?: string;
+    externalName?: string | null;
+    externalId?: string | null;
+    imageId?: string | null;
     cpu?: Float32;
     ram?: Float32;
     width?: UInt32;
     height?: UInt32;
-    isHeadless?: Boolean;
+    isHeadless?: boolean;
     _session?: Session | null;
   }) {
     /* super */

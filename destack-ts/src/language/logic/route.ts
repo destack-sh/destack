@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   IsOrdered,
@@ -8,7 +7,6 @@ import type {
   NodeReference,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -128,13 +126,13 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -159,7 +157,7 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -173,8 +171,8 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

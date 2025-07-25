@@ -1,4 +1,4 @@
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Entity } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { NodeReference } from "@destack/language/core/builtin/relation";

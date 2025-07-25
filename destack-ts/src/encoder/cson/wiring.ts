@@ -1,16 +1,12 @@
-import { BuiltinObject } from "@destack/language/core/builtin";
+import { BuiltinObject, type NodeType, StructType } from "@destack/language/core/builtin";
 import {
   Encoding,
-  type NodeType,
   PrimitiveType,
   ScalarType,
-  StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Type } from "@destack/language/core/builtin/type";
-import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
@@ -25,7 +21,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Pack a generic typed value to a CSON object.
  */
-export function packCson(value: any, type: Type | PropertyDefinition | CustomProperty): any {
+export function packCson(value: any, type: Type): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _packScalarCson(value, type);
   } else if (type.cardinality == TypeCardinality.LIST) {
@@ -61,7 +57,7 @@ export function packCson(value: any, type: Type | PropertyDefinition | CustomPro
  */
 export function unpackCson(
   value: any,
-  type: Type | PropertyDefinition | CustomProperty,
+  type: Type,
   options?: {
     _session?: Session | null;
     _graph?: any | null;
@@ -96,7 +92,7 @@ export function unpackCson(
 }
 
 /** Pack a scalar value to a CSON object. */
-function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomProperty): any {
+function _packScalarCson(value: any, type: Type): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
@@ -158,7 +154,7 @@ function _packScalarCson(value: any, type: Type | PropertyDefinition | CustomPro
 /** Unpack a CSON object to a scalar value. */
 function _unpackScalarCson(
   value: any,
-  type: Type | PropertyDefinition | CustomProperty,
+  type: Type,
   options?: {
     _session?: Session | null;
     _graph?: any | null;

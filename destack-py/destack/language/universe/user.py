@@ -8,7 +8,6 @@ from destack.language.core import (
     IsActor,
     IsFollowable,
     NodeType,
-    StringFormat,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -51,7 +50,7 @@ class User(
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
-    email: str | None = builtin_property(130, format=StringFormat.EMAIL, is_unique=True)
+    email: str | None = builtin_property(130, is_unique=True)
     password_salt: Optional[bytes] = builtin_property(131, is_eq=False)
     password_hash: Optional[bytes] = builtin_property(132, is_eq=False)
     # challenges?
