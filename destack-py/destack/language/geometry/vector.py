@@ -2,6 +2,8 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Float32,
+    SInt32,
     StructFrozen,
     StructType,
     builtin_method,
@@ -17,12 +19,12 @@ if TYPE_CHECKING:
 class Vector2(StructFrozen):
     """A 2D floating point Vector."""
 
-    x: float = builtin_property(
+    x: Float32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector2.",
     )
-    y: float = builtin_property(
+    y: Float32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector2.",
@@ -162,17 +164,17 @@ class Vector2(StructFrozen):
 class Vector3(StructFrozen):
     """A 3D floating point vector."""
 
-    x: float = builtin_property(
+    x: Float32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector3.",
     )
-    y: float = builtin_property(
+    y: Float32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector3.",
     )
-    z: float = builtin_property(
+    z: Float32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector3.",
@@ -317,22 +319,22 @@ class Vector3(StructFrozen):
 class Vector4(StructFrozen):
     """A 4D floating point vector."""
 
-    x: float = builtin_property(
+    x: Float32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4.",
     )
-    y: float = builtin_property(
+    y: Float32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4.",
     )
-    z: float = builtin_property(
+    z: Float32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4.",
     )
-    w: float = builtin_property(
+    w: Float32 = builtin_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4.",
@@ -480,12 +482,12 @@ class Vector4(StructFrozen):
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
-    x: int = builtin_property(
+    x: SInt32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector2i.",
     )
-    y: int = builtin_property(
+    y: SInt32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector2i.",
@@ -621,17 +623,17 @@ class Vector2i(StructFrozen):
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
-    x: int = builtin_property(
+    x: SInt32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector3i.",
     )
-    y: int = builtin_property(
+    y: SInt32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector3i.",
     )
-    z: int = builtin_property(
+    z: SInt32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector3i.",
@@ -776,22 +778,22 @@ class Vector3i(StructFrozen):
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 
-    x: int = builtin_property(
+    x: SInt32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4i.",
     )
-    y: int = builtin_property(
+    y: SInt32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4i.",
     )
-    z: int = builtin_property(
+    z: SInt32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4i.",
     )
-    w: int = builtin_property(
+    w: SInt32 = builtin_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4i.",

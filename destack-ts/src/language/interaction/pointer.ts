@@ -1,4 +1,15 @@
-import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
+import type {
+  Boolean,
+  Branch,
+  Datetime,
+  Float32,
+  NodeReference,
+  Session,
+  Snapshot,
+  Space,
+  UInt128,
+  UUID,
+} from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -63,12 +74,12 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -85,17 +96,17 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -116,27 +127,27 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * PointerEvent.pressure
    */
-  declare readonly pressure: number | null;
+  declare readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  declare readonly shiftKey: boolean;
+  declare readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare readonly altKey: boolean;
+  declare readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare readonly ctrlKey: boolean;
+  declare readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare readonly metaKey: boolean;
+  declare readonly metaKey: Boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -227,12 +238,12 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -261,17 +272,17 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -298,51 +309,51 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -745,12 +756,12 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -779,17 +790,17 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -816,51 +827,51 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1263,12 +1274,12 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1297,17 +1308,17 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1334,51 +1345,51 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1781,12 +1792,12 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1815,17 +1826,17 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1852,51 +1863,51 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -2299,12 +2310,12 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2333,17 +2344,17 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2370,51 +2381,51 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -2817,12 +2828,12 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2851,17 +2862,17 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2888,51 +2899,51 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -3335,12 +3346,12 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -3369,17 +3380,17 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -3406,51 +3417,51 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number | null;
+  readonly pressure: Float32 | null;
 
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
     position: Vector2;
-    pressure?: number | null;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    pressure?: Float32 | null;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */

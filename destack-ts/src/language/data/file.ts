@@ -1,10 +1,20 @@
 import type {
+  Boolean,
   Branch,
+  Bytes,
+  Datetime,
+  Duration,
+  Float32,
   NodeClass,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt32,
+  UInt64,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -19,7 +29,6 @@ import {
   NodeType,
   type Region,
   Resource,
-  type ResourceStatus,
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
@@ -269,12 +278,12 @@ export class File extends Resource {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -291,12 +300,12 @@ export class File extends Resource {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -315,7 +324,7 @@ export class File extends Resource {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -353,20 +362,20 @@ export class File extends Resource {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -374,15 +383,15 @@ export class File extends Resource {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -417,7 +426,7 @@ export class File extends Resource {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -437,15 +446,15 @@ export class File extends Resource {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * File.type
@@ -462,22 +471,6 @@ export class File extends Resource {
     this._type = value;
   }
   _type: FileType;
-
-  /**
-   * Resource.status
-   */
-  /**
-   * Resource.status
-   */
-  get status(): ResourceStatus | null {
-    return this._status;
-  }
-  set status(value: ResourceStatus | null) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: ResourceStatus | null;
 
   /**
    * Resource.region
@@ -501,15 +494,15 @@ export class File extends Resource {
   /**
    * File.mimeType
    */
-  get mimeType(): string | null {
+  get mimeType(): String | null {
     return this._mimeType;
   }
-  set mimeType(value: string | null) {
+  set mimeType(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["mime_type"];
     this._session.updateSetProperty(this, prop, value);
     this._mimeType = value;
   }
-  _mimeType: string | null;
+  _mimeType: String | null;
 
   /**
    * File.format
@@ -533,15 +526,15 @@ export class File extends Resource {
   /**
    * File.size
    */
-  get size(): number | null {
+  get size(): UInt64 | null {
     return this._size;
   }
-  set size(value: number | null) {
+  set size(value: UInt64 | null) {
     const prop = (this.constructor as NodeClass).__properties__["size"];
     this._session.updateSetProperty(this, prop, value);
     this._size = value;
   }
-  _size: number | null;
+  _size: UInt64 | null;
 
   /**
    * File.sha256
@@ -549,15 +542,15 @@ export class File extends Resource {
   /**
    * File.sha256
    */
-  get sha256(): string | null {
+  get sha256(): String | null {
     return this._sha256;
   }
-  set sha256(value: string | null) {
+  set sha256(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["sha256"];
     this._session.updateSetProperty(this, prop, value);
     this._sha256 = value;
   }
-  _sha256: string | null;
+  _sha256: String | null;
 
   /**
    * File.width
@@ -565,15 +558,15 @@ export class File extends Resource {
   /**
    * File.width
    */
-  get width(): number | null {
+  get width(): UInt32 | null {
     return this._width;
   }
-  set width(value: number | null) {
+  set width(value: UInt32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["width"];
     this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
-  _width: number | null;
+  _width: UInt32 | null;
 
   /**
    * File.height
@@ -581,15 +574,15 @@ export class File extends Resource {
   /**
    * File.height
    */
-  get height(): number | null {
+  get height(): UInt32 | null {
     return this._height;
   }
-  set height(value: number | null) {
+  set height(value: UInt32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["height"];
     this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
-  _height: number | null;
+  _height: UInt32 | null;
 
   /**
    * File.aspectRatio
@@ -597,15 +590,15 @@ export class File extends Resource {
   /**
    * File.aspectRatio
    */
-  get aspectRatio(): number | null {
+  get aspectRatio(): Float32 | null {
     return this._aspectRatio;
   }
-  set aspectRatio(value: number | null) {
+  set aspectRatio(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["aspect_ratio"];
     this._session.updateSetProperty(this, prop, value);
     this._aspectRatio = value;
   }
-  _aspectRatio: number | null;
+  _aspectRatio: Float32 | null;
 
   /**
    * File.codec
@@ -613,15 +606,15 @@ export class File extends Resource {
   /**
    * File.codec
    */
-  get codec(): string | null {
+  get codec(): String | null {
     return this._codec;
   }
-  set codec(value: string | null) {
+  set codec(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["codec"];
     this._session.updateSetProperty(this, prop, value);
     this._codec = value;
   }
-  _codec: string | null;
+  _codec: String | null;
 
   /**
    * File.duration
@@ -629,15 +622,15 @@ export class File extends Resource {
   /**
    * File.duration
    */
-  get duration(): Temporal.Duration | null {
+  get duration(): Duration | null {
     return this._duration;
   }
-  set duration(value: Temporal.Duration | null) {
+  set duration(value: Duration | null) {
     const prop = (this.constructor as NodeClass).__properties__["duration"];
     this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
-  _duration: Temporal.Duration | null;
+  _duration: Duration | null;
 
   /**
    * File.url
@@ -645,15 +638,15 @@ export class File extends Resource {
   /**
    * File.url
    */
-  get url(): string | null {
+  get url(): String | null {
     return this._url;
   }
-  set url(value: string | null) {
+  set url(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["url"];
     this._session.updateSetProperty(this, prop, value);
     this._url = value;
   }
-  _url: string | null;
+  _url: String | null;
 
   /**
    * File.contentUrl
@@ -661,15 +654,15 @@ export class File extends Resource {
   /**
    * File.contentUrl
    */
-  get contentUrl(): string | null {
+  get contentUrl(): String | null {
     return this._contentUrl;
   }
-  set contentUrl(value: string | null) {
+  set contentUrl(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["content_url"];
     this._session.updateSetProperty(this, prop, value);
     this._contentUrl = value;
   }
-  _contentUrl: string | null;
+  _contentUrl: String | null;
 
   /**
    * File.thumbnailUrl
@@ -677,15 +670,15 @@ export class File extends Resource {
   /**
    * File.thumbnailUrl
    */
-  get thumbnailUrl(): string | null {
+  get thumbnailUrl(): String | null {
     return this._thumbnailUrl;
   }
-  set thumbnailUrl(value: string | null) {
+  set thumbnailUrl(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["thumbnail_url"];
     this._session.updateSetProperty(this, prop, value);
     this._thumbnailUrl = value;
   }
-  _thumbnailUrl: string | null;
+  _thumbnailUrl: String | null;
 
   /**
    * File.faviconUrl
@@ -693,15 +686,15 @@ export class File extends Resource {
   /**
    * File.faviconUrl
    */
-  get faviconUrl(): string | null {
+  get faviconUrl(): String | null {
     return this._faviconUrl;
   }
-  set faviconUrl(value: string | null) {
+  set faviconUrl(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["favicon_url"];
     this._session.updateSetProperty(this, prop, value);
     this._faviconUrl = value;
   }
-  _faviconUrl: string | null;
+  _faviconUrl: String | null;
 
   /**
    * File.thumbnailWidth
@@ -709,15 +702,15 @@ export class File extends Resource {
   /**
    * File.thumbnailWidth
    */
-  get thumbnailWidth(): number | null {
+  get thumbnailWidth(): UInt32 | null {
     return this._thumbnailWidth;
   }
-  set thumbnailWidth(value: number | null) {
+  set thumbnailWidth(value: UInt32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["thumbnail_width"];
     this._session.updateSetProperty(this, prop, value);
     this._thumbnailWidth = value;
   }
-  _thumbnailWidth: number | null;
+  _thumbnailWidth: UInt32 | null;
 
   /**
    * File.thumbnailHeight
@@ -725,15 +718,15 @@ export class File extends Resource {
   /**
    * File.thumbnailHeight
    */
-  get thumbnailHeight(): number | null {
+  get thumbnailHeight(): UInt32 | null {
     return this._thumbnailHeight;
   }
-  set thumbnailHeight(value: number | null) {
+  set thumbnailHeight(value: UInt32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["thumbnail_height"];
     this._session.updateSetProperty(this, prop, value);
     this._thumbnailHeight = value;
   }
-  _thumbnailHeight: number | null;
+  _thumbnailHeight: UInt32 | null;
 
   /**
    * File.content
@@ -741,18 +734,18 @@ export class File extends Resource {
   /**
    * File.content
    */
-  get content(): Uint8Array | null {
+  get content(): Bytes | null {
     return this._content;
   }
-  set content(value: Uint8Array | null) {
+  set content(value: Bytes | null) {
     const prop = (this.constructor as NodeClass).__properties__["content"];
     this._session.updateSetProperty(this, prop, value);
     this._content = value;
   }
-  _content: Uint8Array | null;
+  _content: Bytes | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -761,40 +754,39 @@ export class File extends Resource {
     snapshot?: Snapshot | NodeReference;
     precededBy?: File | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: FileType;
-    status?: ResourceStatus | null;
     region?: Region | null;
-    mimeType?: string | null;
+    mimeType?: String | null;
     format?: FileFormat | null;
-    size?: number | null;
-    sha256?: string | null;
-    width?: number | null;
-    height?: number | null;
-    aspectRatio?: number | null;
-    codec?: string | null;
-    duration?: Temporal.Duration | null;
-    url?: string | null;
-    contentUrl?: string | null;
-    thumbnailUrl?: string | null;
-    faviconUrl?: string | null;
-    thumbnailWidth?: number | null;
-    thumbnailHeight?: number | null;
-    content?: Uint8Array | null;
+    size?: UInt64 | null;
+    sha256?: String | null;
+    width?: UInt32 | null;
+    height?: UInt32 | null;
+    aspectRatio?: Float32 | null;
+    codec?: String | null;
+    duration?: Duration | null;
+    url?: String | null;
+    contentUrl?: String | null;
+    thumbnailUrl?: String | null;
+    faviconUrl?: String | null;
+    thumbnailWidth?: UInt32 | null;
+    thumbnailHeight?: UInt32 | null;
+    content?: Bytes | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -930,8 +922,6 @@ export class File extends Resource {
       throw new Error(`File.type is required`);
     }
     this._type = _type;
-    let _status = options.status ?? null;
-    this._status = _status;
     let _region = options.region ?? null;
     this._region = _region;
     let _mimeType = options.mimeType ?? null;
@@ -1059,9 +1049,6 @@ export class File extends Resource {
     if (!(this._content === other._content)) {
       return false;
     }
-    if (!(this._status === other._status)) {
-      return false;
-    }
     if (!(this._region === other._region)) {
       return false;
     }
@@ -1157,9 +1144,6 @@ export class File extends Resource {
     }
     if (this._content != null) {
       h = (h * 31 + hashBytes(this._content)) & 0xffffffff;
-    }
-    if (this._status != null) {
-      h = (h * 31 + this._status) & 0xffffffff;
     }
     if (this._region != null) {
       h = (h * 31 + this._region) & 0xffffffff;

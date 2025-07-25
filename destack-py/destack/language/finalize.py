@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable
 
 from destack.utils.env import IS_DEV, IS_TEST
 
-from .core.builtin.common import (
+from .core.builtin.builtin import (
     ENUM_TYPES,
     EnumType,
     NodeType,

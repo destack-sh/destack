@@ -1,8 +1,16 @@
-import type { Branch, EventStatus, NodeReference, Snapshot, Space } from "@destack/language/core";
+import type {
+  Branch,
+  Datetime,
+  EventStatus,
+  NodeReference,
+  Snapshot,
+  Space,
+  UInt128,
+  UUID,
+} from "@destack/language/core";
 import { type Entity, Event, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client } from "@destack/language/universe";
-import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000000 ==== */
 /**
@@ -50,12 +58,12 @@ export abstract class InputEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -72,17 +80,17 @@ export abstract class InputEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).

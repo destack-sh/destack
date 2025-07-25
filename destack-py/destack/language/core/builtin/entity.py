@@ -13,11 +13,16 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import INTEGER_ZERO, get_order_key
 from destack.utils.uuid import UUID
 
-from .common import EnumType, GraphDomain, TraitType, ValueFactory
+from .builtin import (
+    EnumType,
+    NodeType,
+    TraitType,
+)
+from .common import GraphDomain, UInt128, ValueFactory
 from .const import UNSET
 from .enum import Enum, builtin_enum
 from .meta import PermissionDeclaration, TagDeclaration, builtin_method
-from .node import Node, NodeType, builtin_node
+from .node import Node, builtin_node
 from .property import (
     PropertyDeclaration,
     builtin_property,
@@ -176,7 +181,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_epoch: int = builtin_property(
+    created_epoch: UInt128 = builtin_property(
         21,
         is_internal=True,
         is_eq=False,
@@ -202,7 +207,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_epoch: int = builtin_property(
+    updated_epoch: UInt128 = builtin_property(
         24,
         is_internal=True,
         is_eq=False,

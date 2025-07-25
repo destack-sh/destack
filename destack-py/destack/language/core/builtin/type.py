@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
+    TypeAliasType,
     Union,
 )
 
@@ -11,16 +12,16 @@ from destack.language.registry import ENUM_TYPE_BY_CLASS
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
+from .builtin import EnumType, NodeType, StructType
 from .common import (
     PRIMITIVE_PY_TYPES,
-    PRIMITIVE_TYPE_BY_PY_TYPE,
+    PRIMITIVE_TYPE_BY_ANNOTATION,
     Enum,
-    EnumType,
-    NodeType,
+    Float32,
     PrimitiveType,
     ScalarType,
-    StructType,
     TypeCardinality,
+    UInt32,
     ValueFactory,
     builtin_enum,
 )
@@ -81,19 +82,18 @@ class NumberConstraint(StructFrozen):
     """The constraint of a number."""
 
     format: Optional[NumberFormat] = builtin_property(40)
-    min_value: Optional[float] = builtin_property(41)
-    max_value: Optional[float] = builtin_property(42)
-    step_value: Optional[float] = builtin_property(43)
-    precision: Optional[int] = builtin_property(44)  # for decimals
-    scale: Optional[int] = builtin_property(45)  # for decimals
+    min_value: Optional[Float32] = builtin_property(41)
+    max_value: Optional[Float32] = builtin_property(42)
+    step_value: Optional[Float32] = builtin_property(43)
+    # precision/scale? (for decimals)
 
 
 @builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
 class CollectionConstraint(StructFrozen):
     """The constraint of a collection."""
 
-    min_length: Optional[int] = builtin_property(41)
-    max_length: Optional[int] = builtin_property(42)
+    min_length: Optional[UInt32] = builtin_property(41)
+    max_length: Optional[UInt32] = builtin_property(42)
 
 
 TypeFormat = Union[NumberFormat, StringFormat]
@@ -108,24 +108,55 @@ class BasicType(StructFrozen):
     """A basic Type in the type system."""
 
     cardinality: TypeCardinality = builtin_property(
-        110, default=TypeCardinality.SCALAR, is_repr=True
+        110,
+        default=TypeCardinality.SCALAR,
+        is_repr=True,
+        description="Cardinality of this Type (scalar, list, map, etc.)",
     )
-    scalar_type: ScalarType = builtin_property(111, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
-    enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
-    node_types: list[NodeType] = builtin_property(114, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
-
-    value: Optional["Value"] = builtin_property(120, is_repr=True)
+    scalar_type: ScalarType = builtin_property(
+        111,
+        is_repr=True,
+        description="Scalar value type of this Type (primitive, enum, node, struct, etc..).",
+    )
+    primitive_type: Optional[PrimitiveType] = builtin_property(
+        112,
+        is_repr=True,
+        description="Primitive type of this Type (if it's a primitive value).",
+    )
+    enum_type: Optional[EnumType] = builtin_property(
+        113,
+        is_repr=True,
+        description="Enum type of this Type (if it's an enum value).",
+    )
+    node_types: list[NodeType] = builtin_property(
+        114,
+        is_repr=True,
+        description="Node types of this Type (if it's a node reference value).",
+    )
+    struct_type: Optional[StructType] = builtin_property(
+        115,
+        is_repr=True,
+        description="Struct type of this Type (if it's a struct value).",
+    )
+    key_type: Optional["Type"] = builtin_property(
+        117,
+        is_repr=True,
+        description="Key type of this Type (if it's a map value).",
+    )
+    literal_value: Optional["Value"] = builtin_property(
+        120,
+        is_repr=True,
+        description="Value of this Type (if it's a literal value).",
+    )
 
 
 @builtin_struct(StructType.TYPE, frozen=True)
 class Type(BasicType):
     """A full Type in the type system."""
 
-    # meta
-    value_factory: Optional[ValueFactory] = builtin_property(150)
+    # default
+    default_value: Optional["Value"] = builtin_property(150)
+    default_factory: Optional[ValueFactory] = builtin_property(151)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = builtin_property(160)
@@ -134,7 +165,6 @@ class Type(BasicType):
 
     # flags
     is_required: bool | None = builtin_property(170)
-    is_main: bool | None = builtin_property(171)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
@@ -172,8 +202,8 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=ScalarType.ENUM,
             enum_type=ENUM_TYPE_BY_CLASS[type(value_or_type)],
         )
-    elif isinstance(value_or_type, type) and (
-        primitive_type := PRIMITIVE_TYPE_BY_PY_TYPE.get(value_or_type)
+    elif isinstance(value_or_type, (type, TypeAliasType)) and (
+        primitive_type := PRIMITIVE_TYPE_BY_ANNOTATION.get(value_or_type)
     ):
         return Type(
             cardinality=TypeCardinality.SCALAR,
@@ -184,7 +214,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PRIMITIVE_TYPE_BY_PY_TYPE[type(value_or_type)],
+            primitive_type=PRIMITIVE_TYPE_BY_ANNOTATION[type(value_or_type)],
         )
 
     # collections

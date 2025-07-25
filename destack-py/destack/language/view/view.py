@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity2D,
     Event,
+    Float32,
     NodeType,
     builtin_node,
     builtin_property,
@@ -59,7 +60,7 @@ class View(Entity2D):
 
     # visibility
     is_visible: Optional[bool] = builtin_property(130, tags=("visibility",))
-    opacity: Optional[float] = builtin_property(131, tags=("visibility",))
+    opacity: Optional[Float32] = builtin_property(131, tags=("visibility",))
 
     # style
     fill: Optional["Fill"] = builtin_property(

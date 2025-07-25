@@ -1,12 +1,19 @@
 import type { Transition } from "@destack/language/animation/transition";
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Duration,
+  Float32,
   NodeClass,
   NodeReference,
   PackedCache,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -133,7 +140,7 @@ export class Effect extends StructFrozen {
   /**
    * Effect.opacity
    */
-  readonly opacity: number | null;
+  readonly opacity: Float32 | null;
 
   /**
    * Effect.offset
@@ -143,7 +150,7 @@ export class Effect extends StructFrozen {
   /**
    * Effect.scale
    */
-  readonly scale: number | null;
+  readonly scale: Float32 | null;
 
   /**
    * Effect.rotate
@@ -158,27 +165,27 @@ export class Effect extends StructFrozen {
   /**
    * Effect.perspective
    */
-  readonly perspective: number | null;
+  readonly perspective: Float32 | null;
 
   /**
    * Effect.delay
    */
-  readonly delay: Temporal.Duration | null;
+  readonly delay: Duration | null;
 
   /**
    * Effect.duration
    */
-  readonly duration: number | null;
+  readonly duration: Float32 | null;
 
   /**
    * Effect.threshold
    */
-  readonly threshold: number | null;
+  readonly threshold: Float32 | null;
 
   /**
    * Effect.once
    */
-  readonly once: boolean | null;
+  readonly once: Boolean | null;
 
   /**
    * Effect.repeat
@@ -203,16 +210,16 @@ export class Effect extends StructFrozen {
   constructor(options: {
     type: EffectType;
     style?: EffectStyle | NodeReference | null;
-    opacity?: number | null;
+    opacity?: Float32 | null;
     offset?: Vector2 | null;
-    scale?: number | null;
+    scale?: Float32 | null;
     rotate?: Axis3 | null;
     skew?: Vector2 | null;
-    perspective?: number | null;
-    delay?: Temporal.Duration | null;
-    duration?: number | null;
-    threshold?: number | null;
-    once?: boolean | null;
+    perspective?: Float32 | null;
+    delay?: Duration | null;
+    duration?: Float32 | null;
+    threshold?: Float32 | null;
+    once?: Boolean | null;
     repeat?: RepeatType | null;
     split?: TextSplitType | null;
     offscreen?: OffscreenBehavior | null;
@@ -590,12 +597,12 @@ export class EffectStyle extends Style {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -612,12 +619,12 @@ export class EffectStyle extends Style {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -636,7 +643,7 @@ export class EffectStyle extends Style {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -674,20 +681,20 @@ export class EffectStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -695,15 +702,15 @@ export class EffectStyle extends Style {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -738,7 +745,7 @@ export class EffectStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -758,15 +765,15 @@ export class EffectStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * EffectStyle.type
@@ -790,15 +797,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.opacity
    */
-  get opacity(): number | null {
+  get opacity(): Float32 | null {
     return this._opacity;
   }
-  set opacity(value: number | null) {
+  set opacity(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["opacity"];
     this._session.updateSetProperty(this, prop, value);
     this._opacity = value;
   }
-  _opacity: number | null;
+  _opacity: Float32 | null;
 
   /**
    * EffectStyle.offset
@@ -822,15 +829,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.scale
    */
-  get scale(): number | null {
+  get scale(): Float32 | null {
     return this._scale;
   }
-  set scale(value: number | null) {
+  set scale(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["scale"];
     this._session.updateSetProperty(this, prop, value);
     this._scale = value;
   }
-  _scale: number | null;
+  _scale: Float32 | null;
 
   /**
    * EffectStyle.rotate
@@ -870,15 +877,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.perspective
    */
-  get perspective(): number | null {
+  get perspective(): Float32 | null {
     return this._perspective;
   }
-  set perspective(value: number | null) {
+  set perspective(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["perspective"];
     this._session.updateSetProperty(this, prop, value);
     this._perspective = value;
   }
-  _perspective: number | null;
+  _perspective: Float32 | null;
 
   /**
    * EffectStyle.delay
@@ -886,15 +893,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.delay
    */
-  get delay(): Temporal.Duration | null {
+  get delay(): Duration | null {
     return this._delay;
   }
-  set delay(value: Temporal.Duration | null) {
+  set delay(value: Duration | null) {
     const prop = (this.constructor as NodeClass).__properties__["delay"];
     this._session.updateSetProperty(this, prop, value);
     this._delay = value;
   }
-  _delay: Temporal.Duration | null;
+  _delay: Duration | null;
 
   /**
    * EffectStyle.duration
@@ -902,15 +909,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.duration
    */
-  get duration(): number | null {
+  get duration(): Float32 | null {
     return this._duration;
   }
-  set duration(value: number | null) {
+  set duration(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["duration"];
     this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
-  _duration: number | null;
+  _duration: Float32 | null;
 
   /**
    * EffectStyle.threshold
@@ -918,15 +925,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.threshold
    */
-  get threshold(): number | null {
+  get threshold(): Float32 | null {
     return this._threshold;
   }
-  set threshold(value: number | null) {
+  set threshold(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["threshold"];
     this._session.updateSetProperty(this, prop, value);
     this._threshold = value;
   }
-  _threshold: number | null;
+  _threshold: Float32 | null;
 
   /**
    * EffectStyle.once
@@ -934,15 +941,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.once
    */
-  get once(): boolean | null {
+  get once(): Boolean | null {
     return this._once;
   }
-  set once(value: boolean | null) {
+  set once(value: Boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["once"];
     this._session.updateSetProperty(this, prop, value);
     this._once = value;
   }
-  _once: boolean | null;
+  _once: Boolean | null;
 
   /**
    * EffectStyle.repeat
@@ -1009,7 +1016,7 @@ export class EffectStyle extends Style {
   _transition: Transition | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -1018,32 +1025,32 @@ export class EffectStyle extends Style {
     snapshot?: Snapshot | NodeReference;
     precededBy?: EffectStyle | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: EffectType;
-    opacity?: number | null;
+    opacity?: Float32 | null;
     offset?: Vector2 | null;
-    scale?: number | null;
+    scale?: Float32 | null;
     rotate?: Axis3 | null;
     skew?: Vector2 | null;
-    perspective?: number | null;
-    delay?: Temporal.Duration | null;
-    duration?: number | null;
-    threshold?: number | null;
-    once?: boolean | null;
+    perspective?: Float32 | null;
+    delay?: Duration | null;
+    duration?: Float32 | null;
+    threshold?: Float32 | null;
+    once?: Boolean | null;
     repeat?: RepeatType | null;
     split?: TextSplitType | null;
     offscreen?: OffscreenBehavior | null;

@@ -8,9 +8,12 @@ from typing import (
 from destack.language.core import (
     Enum,
     EnumType,
+    Float32,
     NodeType,
     PrimitiveType,
     Resource,
+    UInt32,
+    UInt64,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -435,11 +438,11 @@ class File(Resource):
     # meta
     mime_type: str | None = builtin_property(120, is_repr=True)
     format: FileFormat | None = builtin_property(121, is_repr=True)
-    size: int | None = builtin_property(122, primitive_type=PrimitiveType.SINT64, is_repr=True)
+    size: UInt64 | None = builtin_property(122, primitive_type=PrimitiveType.SINT64, is_repr=True)
     sha256: str | None = builtin_property(123)
-    width: int | None = builtin_property(124)
-    height: int | None = builtin_property(125)
-    aspect_ratio: float | None = builtin_property(126)
+    width: UInt32 | None = builtin_property(124)
+    height: UInt32 | None = builtin_property(125)
+    aspect_ratio: Float32 | None = builtin_property(126)
     codec: str | None = builtin_property(127)
     duration: Optional[timedelta] = builtin_property(128)
 
@@ -448,8 +451,8 @@ class File(Resource):
     content_url: str | None = builtin_property(131)  # if external
     thumbnail_url: str | None = builtin_property(132)  # if external
     favicon_url: str | None = builtin_property(133)
-    thumbnail_width: int | None = builtin_property(134)
-    thumbnail_height: int | None = builtin_property(135)
+    thumbnail_width: UInt32 | None = builtin_property(134)
+    thumbnail_height: UInt32 | None = builtin_property(135)
     content: bytes | None = builtin_property(136)
 
     # cached content

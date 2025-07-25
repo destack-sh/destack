@@ -2325,62 +2325,21 @@ export function loadEncoders(): void {
       if (object._icon != null) {
         objectCson["102"] = object._icon.pack(2);
       }
-      objectCson["110"] = object._cardinality;
-      objectCson["111"] = object._scalarType;
-      if (object._primitiveType != null) {
-        objectCson["112"] = object._primitiveType;
-      }
-      if (object._enumType != null) {
-        objectCson["113"] = object._enumType;
-      }
-      if (object._nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object._nodeTypes) {
-          packedNodeTypes.push(item);
-        }
-        objectCson["114"] = packedNodeTypes;
-      }
-      if (object._structType != null) {
-        objectCson["115"] = object._structType;
-      }
-      if (object._keyType != null) {
-        objectCson["117"] = object._keyType.pack(2);
-      }
-      if (object._value != null) {
-        objectCson["120"] = object._value.pack(2);
-      }
-      if (object._valueFactory != null) {
-        objectCson["121"] = object._valueFactory;
-      }
-      if (object._collectionConstraint != null) {
-        objectCson["130"] = object._collectionConstraint.pack(2);
-      }
-      if (object._stringConstraint != null) {
-        objectCson["131"] = object._stringConstraint.pack(2);
-      }
-      if (object._numberConstraint != null) {
-        objectCson["132"] = object._numberConstraint.pack(2);
-      }
+      objectCson["110"] = object._valueType.pack(2);
       if (object._edgeType != null) {
         objectCson["140"] = object._edgeType;
       }
       if (object._cascade != null) {
         objectCson["141"] = object._cascade;
       }
-      if (object._isRequired != null) {
-        objectCson["150"] = object._isRequired;
-      }
       if (object._isUnique != null) {
-        objectCson["151"] = object._isUnique;
-      }
-      if (object._isComputed != null) {
-        objectCson["152"] = object._isComputed;
+        objectCson["201"] = object._isUnique;
       }
       if (object._isReadonly != null) {
-        objectCson["153"] = object._isReadonly;
+        objectCson["202"] = object._isReadonly;
       }
       if (object._isMain != null) {
-        objectCson["154"] = object._isMain;
+        objectCson["203"] = object._isMain;
       }
       return objectCson;
     }
@@ -2388,71 +2347,21 @@ export function loadEncoders(): void {
     unpackObject(objectCson: any, _session: Session | null): CustomProperty {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
-      const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
-      const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
-      const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
       const unpackedIcon =
         iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const primitiveTypeValue = objectCson["112"];
-      const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
-      const enumTypeValue = objectCson["113"];
-      const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      if (objectCson["114"] != undefined) {
-        for (const item of objectCson["114"]) {
-          unpackedNodeTypes.push(Number(item));
-        }
-      }
-      const structTypeValue = objectCson["115"];
-      const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["117"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectCson["120"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
-      const valueFactoryValue = objectCson["121"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
-      const collectionConstraintValue = objectCson["130"];
-      const unpackedCollectionConstraint =
-        collectionConstraintValue != undefined
-          ? (_CollectionConstraint.unpack(
-              2,
-              collectionConstraintValue,
-              _session,
-            ) as CollectionConstraint)
-          : undefined;
-      const stringConstraintValue = objectCson["131"];
-      const unpackedStringConstraint =
-        stringConstraintValue != undefined
-          ? (_StringConstraint.unpack(2, stringConstraintValue, _session) as StringConstraint)
-          : undefined;
-      const numberConstraintValue = objectCson["132"];
-      const unpackedNumberConstraint =
-        numberConstraintValue != undefined
-          ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
-          : undefined;
       const edgeTypeValue = objectCson["140"];
       const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : undefined;
       const cascadeValue = objectCson["141"];
       const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : undefined;
-      const isRequiredValue = objectCson["150"];
-      const unpackedIsRequired =
-        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const isUniqueValue = objectCson["151"];
+      const isUniqueValue = objectCson["201"];
       const unpackedIsUnique = isUniqueValue != undefined ? Boolean(isUniqueValue) : undefined;
-      const isComputedValue = objectCson["152"];
-      const unpackedIsComputed =
-        isComputedValue != undefined ? Boolean(isComputedValue) : undefined;
-      const isReadonlyValue = objectCson["153"];
+      const isReadonlyValue = objectCson["202"];
       const unpackedIsReadonly =
         isReadonlyValue != undefined ? Boolean(isReadonlyValue) : undefined;
-      const isMainValue = objectCson["154"];
+      const isMainValue = objectCson["203"];
       const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -2508,23 +2417,10 @@ export function loadEncoders(): void {
       return new (NODE_CLASS_BY_TYPE[20300] as typeof CustomProperty)({
         type: Number(objectCson["100"]),
         icon: unpackedIcon,
-        cardinality: Number(objectCson["110"]),
-        scalarType: Number(objectCson["111"]),
-        primitiveType: unpackedPrimitiveType,
-        enumType: unpackedEnumType,
-        nodeTypes: unpackedNodeTypes,
-        structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        value: unpackedValue,
-        valueFactory: unpackedValueFactory,
-        collectionConstraint: unpackedCollectionConstraint,
-        stringConstraint: unpackedStringConstraint,
-        numberConstraint: unpackedNumberConstraint,
+        valueType: _Type.unpack(2, objectCson["110"], _session) as Type,
         edgeType: unpackedEdgeType,
         cascade: unpackedCascade,
-        isRequired: unpackedIsRequired,
         isUnique: unpackedIsUnique,
-        isComputed: unpackedIsComputed,
         isReadonly: unpackedIsReadonly,
         isMain: unpackedIsMain,
         parent: unpackedParentPtr,
@@ -7213,9 +7109,6 @@ export function loadEncoders(): void {
         objectCson["85"] = object._key;
       }
       objectCson["100"] = object._type;
-      if (object._status != null) {
-        objectCson["110"] = object._status;
-      }
       if (object._region != null) {
         objectCson["111"] = object._region;
       }
@@ -7314,8 +7207,6 @@ export function loadEncoders(): void {
         thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : undefined;
       const contentValue = objectCson["136"];
       const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : undefined;
-      const statusValue = objectCson["110"];
-      const unpackedStatus = statusValue != undefined ? Number(statusValue) : undefined;
       const regionValue = objectCson["111"];
       const unpackedRegion = regionValue != undefined ? Number(regionValue) : undefined;
       const definitionPtrValue = objectCson["11"];
@@ -7383,7 +7274,6 @@ export function loadEncoders(): void {
         thumbnailWidth: unpackedThumbnailWidth,
         thumbnailHeight: unpackedThumbnailHeight,
         content: unpackedContent,
-        status: unpackedStatus,
         region: unpackedRegion,
         materialization: Number(objectCson["10"]),
         definition: unpackedDefinitionPtr,
@@ -9731,9 +9621,6 @@ export function loadEncoders(): void {
       if (object._icon != null) {
         objectCson["102"] = object._icon.pack(2);
       }
-      if (object._status != null) {
-        objectCson["110"] = object._status;
-      }
       if (object._region != null) {
         objectCson["111"] = object._region;
       }
@@ -9766,8 +9653,6 @@ export function loadEncoders(): void {
       const connectionUrlValue = objectCson["204"];
       const unpackedConnectionUrl =
         connectionUrlValue != undefined ? connectionUrlValue : undefined;
-      const statusValue = objectCson["110"];
-      const unpackedStatus = statusValue != undefined ? Number(statusValue) : undefined;
       const regionValue = objectCson["111"];
       const unpackedRegion = regionValue != undefined ? Number(regionValue) : undefined;
       const parentPtrValue = objectCson["3"];
@@ -9829,7 +9714,6 @@ export function loadEncoders(): void {
         customSchemaName: unpackedCustomSchemaName,
         tenancy: Number(objectCson["203"]),
         connectionUrl: unpackedConnectionUrl,
-        status: unpackedStatus,
         region: unpackedRegion,
         parent: unpackedParentPtr,
         materialization: Number(objectCson["10"]),
@@ -9917,9 +9801,6 @@ export function loadEncoders(): void {
         objectCson["85"] = object._key;
       }
       objectCson["100"] = object._type;
-      if (object._status != null) {
-        objectCson["110"] = object._status;
-      }
       if (object._region != null) {
         objectCson["111"] = object._region;
       }
@@ -9950,8 +9831,6 @@ export function loadEncoders(): void {
       const unpackedExternalId = externalIdValue != undefined ? externalIdValue : undefined;
       const imageIdValue = objectCson["123"];
       const unpackedImageId = imageIdValue != undefined ? imageIdValue : undefined;
-      const statusValue = objectCson["110"];
-      const unpackedStatus = statusValue != undefined ? Number(statusValue) : undefined;
       const regionValue = objectCson["111"];
       const unpackedRegion = regionValue != undefined ? Number(regionValue) : undefined;
       const parentPtrValue = objectCson["3"];
@@ -10016,7 +9895,6 @@ export function loadEncoders(): void {
         width: Number(objectCson["132"]),
         height: Number(objectCson["133"]),
         isHeadless: Boolean(objectCson["134"]),
-        status: unpackedStatus,
         region: unpackedRegion,
         parent: unpackedParentPtr,
         materialization: Number(objectCson["10"]),
@@ -15226,15 +15104,6 @@ export function loadEncoders(): void {
       if (object._value != null) {
         objectCson["250"] = object._value;
       }
-      if (object._minValue != null) {
-        objectCson["251"] = object._minValue;
-      }
-      if (object._maxValue != null) {
-        objectCson["252"] = object._maxValue;
-      }
-      if (object._step != null) {
-        objectCson["253"] = object._step;
-      }
       return objectCson;
     }
 
@@ -15250,12 +15119,6 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const valueValue = objectCson["250"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
-      const minValueValue = objectCson["251"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
-      const maxValueValue = objectCson["252"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
-      const stepValue = objectCson["253"];
-      const unpackedStep = stepValue != undefined ? Number(stepValue) : undefined;
       const widthValue = objectCson["120"];
       const unpackedWidth =
         widthValue != undefined ? (_Length.unpack(2, widthValue, _session) as Length) : undefined;
@@ -15381,9 +15244,6 @@ export function loadEncoders(): void {
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1810200] as typeof SliderInputView)({
         value: unpackedValue,
-        minValue: unpackedMinValue,
-        maxValue: unpackedMaxValue,
-        step: unpackedStep,
         width: unpackedWidth,
         height: unpackedHeight,
         minWidth: unpackedMinWidth,
@@ -19276,12 +19136,6 @@ export function loadEncoders(): void {
       if (object.stepValue != null) {
         objectCson["43"] = object.stepValue;
       }
-      if (object.precision != null) {
-        objectCson["44"] = object.precision;
-      }
-      if (object.scale != null) {
-        objectCson["45"] = object.scale;
-      }
       return objectCson;
     }
 
@@ -19294,17 +19148,11 @@ export function loadEncoders(): void {
       const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
       const stepValueValue = objectCson["43"];
       const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
-      const precisionValue = objectCson["44"];
-      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : undefined;
-      const scaleValue = objectCson["45"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
         format: unpackedFormat,
         minValue: unpackedMinValue,
         maxValue: unpackedMaxValue,
         stepValue: unpackedStepValue,
-        precision: unpackedPrecision,
-        scale: unpackedScale,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -19367,8 +19215,8 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectCson["117"] = object.keyType.pack(2);
       }
-      if (object.value != null) {
-        objectCson["120"] = object.value.pack(2);
+      if (object.literalValue != null) {
+        objectCson["120"] = object.literalValue.pack(2);
       }
       return objectCson;
     }
@@ -19392,9 +19240,11 @@ export function loadEncoders(): void {
       const keyTypeValue = objectCson["117"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectCson["120"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectCson["120"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
         cardinality: Number(objectCson["110"]),
         scalarType: Number(objectCson["111"]),
@@ -19403,7 +19253,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -19437,11 +19287,14 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectCson["117"] = object.keyType.pack(2);
       }
-      if (object.value != null) {
-        objectCson["120"] = object.value.pack(2);
+      if (object.literalValue != null) {
+        objectCson["120"] = object.literalValue.pack(2);
       }
-      if (object.valueFactory != null) {
-        objectCson["150"] = object.valueFactory;
+      if (object.defaultValue != null) {
+        objectCson["150"] = object.defaultValue.pack(2);
+      }
+      if (object.defaultFactory != null) {
+        objectCson["151"] = object.defaultFactory;
       }
       if (object.collectionConstraint != null) {
         objectCson["160"] = object.collectionConstraint.pack(2);
@@ -19455,9 +19308,6 @@ export function loadEncoders(): void {
       if (object.isRequired != null) {
         objectCson["170"] = object.isRequired;
       }
-      if (object.isMain != null) {
-        objectCson["171"] = object.isMain;
-      }
       return objectCson;
     }
 
@@ -19467,9 +19317,14 @@ export function loadEncoders(): void {
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-      const valueFactoryValue = objectCson["150"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
+      const defaultValueValue = objectCson["150"];
+      const unpackedDefaultValue =
+        defaultValueValue != undefined
+          ? (_Value.unpack(2, defaultValueValue, _session) as Value)
+          : undefined;
+      const defaultFactoryValue = objectCson["151"];
+      const unpackedDefaultFactory =
+        defaultFactoryValue != undefined ? Number(defaultFactoryValue) : undefined;
       const collectionConstraintValue = objectCson["160"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -19492,8 +19347,6 @@ export function loadEncoders(): void {
       const isRequiredValue = objectCson["170"];
       const unpackedIsRequired =
         isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const isMainValue = objectCson["171"];
-      const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
       const primitiveTypeValue = objectCson["112"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -19510,16 +19363,18 @@ export function loadEncoders(): void {
       const keyTypeValue = objectCson["117"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectCson["120"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectCson["120"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
-        valueFactory: unpackedValueFactory,
+        defaultValue: unpackedDefaultValue,
+        defaultFactory: unpackedDefaultFactory,
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
-        isMain: unpackedIsMain,
         cardinality: Number(objectCson["110"]),
         scalarType: Number(objectCson["111"]),
         primitiveType: unpackedPrimitiveType,
@@ -19527,7 +19382,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20460,11 +20315,14 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectCson["117"] = object.keyType.pack(2);
       }
-      if (object.value != null) {
-        objectCson["120"] = object.value.pack(2);
+      if (object.literalValue != null) {
+        objectCson["120"] = object.literalValue.pack(2);
       }
-      if (object.valueFactory != null) {
-        objectCson["150"] = object.valueFactory;
+      if (object.defaultValue != null) {
+        objectCson["150"] = object.defaultValue.pack(2);
+      }
+      if (object.defaultFactory != null) {
+        objectCson["151"] = object.defaultFactory;
       }
       if (object.collectionConstraint != null) {
         objectCson["160"] = object.collectionConstraint.pack(2);
@@ -20478,9 +20336,6 @@ export function loadEncoders(): void {
       if (object.isRequired != null) {
         objectCson["170"] = object.isRequired;
       }
-      if (object.isMain != null) {
-        objectCson["171"] = object.isMain;
-      }
       if (object.edgeType != null) {
         objectCson["190"] = object.edgeType;
       }
@@ -20490,6 +20345,7 @@ export function loadEncoders(): void {
       objectCson["200"] = object.isIdentity;
       objectCson["201"] = object.isUnique;
       objectCson["202"] = object.isReadonly;
+      objectCson["203"] = object.isMain;
       objectCson["210"] = object.isWired;
       objectCson["211"] = object.isStored;
       objectCson["212"] = object.isRepr;
@@ -20521,9 +20377,14 @@ export function loadEncoders(): void {
       const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : undefined;
       const cascadeValue = objectCson["191"];
       const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : undefined;
-      const valueFactoryValue = objectCson["150"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
+      const defaultValueValue = objectCson["150"];
+      const unpackedDefaultValue =
+        defaultValueValue != undefined
+          ? (_Value.unpack(2, defaultValueValue, _session) as Value)
+          : undefined;
+      const defaultFactoryValue = objectCson["151"];
+      const unpackedDefaultFactory =
+        defaultFactoryValue != undefined ? Number(defaultFactoryValue) : undefined;
       const collectionConstraintValue = objectCson["160"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -20546,8 +20407,6 @@ export function loadEncoders(): void {
       const isRequiredValue = objectCson["170"];
       const unpackedIsRequired =
         isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const isMainValue = objectCson["171"];
-      const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
       const primitiveTypeValue = objectCson["112"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -20564,9 +20423,11 @@ export function loadEncoders(): void {
       const keyTypeValue = objectCson["117"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectCson["120"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectCson["120"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: Number(objectCson["100"]),
         id: Number(objectCson["2"]),
@@ -20588,18 +20449,19 @@ export function loadEncoders(): void {
         isIdentity: Boolean(objectCson["200"]),
         isUnique: Boolean(objectCson["201"]),
         isReadonly: Boolean(objectCson["202"]),
+        isMain: Boolean(objectCson["203"]),
         isWired: Boolean(objectCson["210"]),
         isStored: Boolean(objectCson["211"]),
         isRepr: Boolean(objectCson["212"]),
         isHash: Boolean(objectCson["213"]),
         isEq: Boolean(objectCson["214"]),
         isInternal: Boolean(objectCson["215"]),
-        valueFactory: unpackedValueFactory,
+        defaultValue: unpackedDefaultValue,
+        defaultFactory: unpackedDefaultFactory,
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
-        isMain: unpackedIsMain,
         cardinality: Number(objectCson["110"]),
         scalarType: Number(objectCson["111"]),
         primitiveType: unpackedPrimitiveType,
@@ -20607,7 +20469,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -21366,26 +21228,20 @@ export function loadEncoders(): void {
       objectCson["1"] = 202;
       objectCson["100"] = object.type;
       objectCson["102"] = object.recursive;
-      if (object.depth != null) {
-        objectCson["103"] = object.depth;
-      }
       if (object.on != null) {
-        objectCson["104"] = object.on.pack(2);
+        objectCson["103"] = object.on.pack(2);
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): Join {
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
-      const depthValue = objectCson["103"];
-      const unpackedDepth = depthValue != undefined ? Number(depthValue) : undefined;
-      const onValue = objectCson["104"];
+      const onValue = objectCson["103"];
       const unpackedOn =
         onValue != undefined ? (_Condition.unpack(2, onValue, _session) as Condition) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
         type: Number(objectCson["100"]),
         recursive: Boolean(objectCson["102"]),
-        depth: unpackedDepth,
         on: unpackedOn,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
@@ -21743,15 +21599,6 @@ export function loadEncoders(): void {
       if (object.stylePtr != null) {
         objectCson["101"] = object.stylePtr.pack(2);
       }
-      if (object.hue != null) {
-        objectCson["102"] = object.hue;
-      }
-      if (object.shade != null) {
-        objectCson["103"] = object.shade;
-      }
-      if (object.intent != null) {
-        objectCson["104"] = object.intent;
-      }
       if (object.x != null) {
         objectCson["105"] = object.x;
       }
@@ -21774,12 +21621,6 @@ export function loadEncoders(): void {
         stylePtrValue != undefined
           ? (_NodeReference.unpack(2, stylePtrValue, _session) as NodeReference)
           : undefined;
-      const hueValue = objectCson["102"];
-      const unpackedHue = hueValue != undefined ? Number(hueValue) : undefined;
-      const shadeValue = objectCson["103"];
-      const unpackedShade = shadeValue != undefined ? Number(shadeValue) : undefined;
-      const intentValue = objectCson["104"];
-      const unpackedIntent = intentValue != undefined ? Number(intentValue) : undefined;
       const xValue = objectCson["105"];
       const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectCson["106"];
@@ -21791,9 +21632,6 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2100300] as typeof Color)({
         type: Number(objectCson["100"]),
         style: unpackedStylePtr,
-        hue: unpackedHue,
-        shade: unpackedShade,
-        intent: unpackedIntent,
         x: unpackedX,
         y: unpackedY,
         z: unpackedZ,

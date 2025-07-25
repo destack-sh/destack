@@ -1,4 +1,15 @@
-import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
+import type {
+  Branch,
+  Datetime,
+  Json,
+  NodeReference,
+  Session,
+  Snapshot,
+  Space,
+  String,
+  UInt128,
+  UUID,
+} from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -121,12 +132,12 @@ export class LogEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -155,17 +166,17 @@ export class LogEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -187,12 +198,12 @@ export class LogEvent extends Event {
   /**
    * LogEvent.content
    */
-  readonly content: string;
+  readonly content: String;
 
   /**
    * LogEvent.attributes
    */
-  readonly attributes: { readonly [key: string]: any };
+  readonly attributes: { readonly [key: String]: Json };
 
   /**
    * LogEvent.level
@@ -200,24 +211,24 @@ export class LogEvent extends Event {
   readonly level: LogLevel;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Node | NodeReference | null;
-    content: string;
-    attributes?: { readonly [key: string]: any };
+    content: String;
+    attributes?: { readonly [key: String]: Json };
     level: LogLevel;
     _session?: Session | null;
   }) {

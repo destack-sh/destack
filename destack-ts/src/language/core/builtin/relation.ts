@@ -4,13 +4,14 @@ import {
   NodeType,
   StructType,
   TraitType,
-} from "@destack/language/core/builtin/common";
+} from "@destack/language/core/builtin/builtin";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import type { UInt8, UUID } from "@destack/language/core/builtin/types";
 import type { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
@@ -268,7 +269,7 @@ export class PropertyReference extends StructFrozen {
   /**
    * id of the builtin Property
    */
-  readonly id: number | null;
+  readonly id: UInt8 | null;
 
   /**
    * custom Property of a custom Node or Struct
@@ -290,7 +291,7 @@ export class PropertyReference extends StructFrozen {
     nodeType?: NodeType | null;
     traitType?: TraitType | null;
     structType?: StructType | null;
-    id?: number | null;
+    id?: UInt8 | null;
     customProperty?: CustomProperty | NodeReference | null;
     _session?: Session | null;
     _hash?: number | null;
@@ -564,27 +565,27 @@ export class NodeReference extends StructFrozen {
   /**
    * The unique id of the Node.
    */
-  readonly id: string;
+  readonly id: UUID;
 
   /**
    * The id of the Space the Node belonged to.
    */
-  readonly spaceId: string;
+  readonly spaceId: UUID;
 
   /**
    * The id of the Node definition.
    */
-  readonly definitionId: string | null;
+  readonly definitionId: UUID | null;
 
   /**
    * The id of the Branch the Node belonged to (when it was referenced).
    */
-  readonly branchId: string;
+  readonly branchId: UUID;
 
   /**
    * The id of the Snapshot the Node belonged to (when it was referenced).
    */
-  readonly snapshotId: string;
+  readonly snapshotId: UUID;
 
   /**
    * The type of the Store the Node came from.
@@ -593,11 +594,11 @@ export class NodeReference extends StructFrozen {
 
   constructor(options: {
     type: NodeType;
-    id: string;
-    spaceId: string;
-    definitionId?: string | null;
-    branchId: string;
-    snapshotId: string;
+    id: UUID;
+    spaceId: UUID;
+    definitionId?: UUID | null;
+    branchId: UUID;
+    snapshotId: UUID;
     storeKey?: GraphKey | null;
     _session?: Session | null;
     _hash?: number | null;

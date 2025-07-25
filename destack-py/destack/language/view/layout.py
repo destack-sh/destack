@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import NodeType, builtin_node, builtin_property
+from destack.language.core import Float32, NodeType, builtin_node, builtin_property
 
 from .view import View
 
@@ -39,5 +39,5 @@ class LayoutView(View):
     padding: Optional["Inset2"] = builtin_property(155, tags=("layout",))
     grid: Optional["Grid2"] = builtin_property(156, tags=("layout",))
     grid_span: Optional["GridSpan2"] = builtin_property(157, tags=("layout",))
-    aspect_ratio: Optional[float] = builtin_property(158, tags=("layout",))
+    aspect_ratio: Optional[Float32] = builtin_property(158, tags=("layout",))
     is_wrap: Optional[bool] = builtin_property(159, tags=("layout",))

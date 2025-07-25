@@ -62,19 +62,23 @@ import type {
   Variant,
 } from "@destack/language/core/builtin/base";
 import type {
+  EnumType,
+  NodeType,
+  ObjectKind,
+  StructType,
+  TraitType,
+  UniverseCategory,
+} from "@destack/language/core/builtin/builtin";
+import type {
   CascadeAction,
   ClientType,
   Cloud,
   EdgeDirection,
   EdgeType,
   Encoding,
-  EnumType,
   EnvironmentType,
   GraphDomain,
   GraphKey,
-  ModeType,
-  NodeType,
-  ObjectKind,
   OperatingSystem,
   PlatformType,
   PrimitiveType,
@@ -82,16 +86,11 @@ import type {
   Region,
   RegionArea,
   RegionContinent,
-  ResourceStatus,
   RoleType,
   RuntimeLanguage,
   ScalarType,
-  StructType,
   Tenancy,
-  ToolType,
-  TraitType,
   TypeCardinality,
-  UniverseCategory,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
@@ -713,8 +712,6 @@ export type EnumTypeMapping = {
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;
   [EnumType.ENVIRONMENT_TYPE]: EnvironmentType;
-  [EnumType.MODE_TYPE]: ModeType;
-  [EnumType.TOOL_TYPE]: ToolType;
   [EnumType.CLOUD]: Cloud;
   [EnumType.REGION_CONTINENT]: RegionContinent;
   [EnumType.REGION_AREA]: RegionArea;
@@ -723,12 +720,11 @@ export type EnumTypeMapping = {
   [EnumType.CASCADE_ACTION]: CascadeAction;
   [EnumType.EDGE_DIRECTION]: EdgeDirection;
   [EnumType.ENCODING]: Encoding;
-  [EnumType.PRIMITIVE_TYPE]: PrimitiveType;
   [EnumType.TYPE_CARDINALITY]: TypeCardinality;
   [EnumType.SCALAR_TYPE]: ScalarType;
+  [EnumType.PRIMITIVE_TYPE]: PrimitiveType;
   [EnumType.VALUE_FACTORY]: ValueFactory;
   [EnumType.ROLE_TYPE]: RoleType;
-  [EnumType.RESOURCE_STATUS]: ResourceStatus;
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.CONSTRAINT_TYPE]: ConstraintType;

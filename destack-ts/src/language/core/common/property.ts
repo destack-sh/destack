@@ -1,26 +1,23 @@
 import {
   type CascadeAction,
   type EdgeType,
-  EnumType,
   NodeType,
-  PrimitiveType,
   type PropertyType,
-  ScalarType,
   StructType,
-  TypeCardinality,
-  type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { Type } from "@destack/language/core/builtin/type";
 import type {
-  CollectionConstraint,
-  NumberConstraint,
-  StringConstraint,
-  Type,
-} from "@destack/language/core/builtin/type";
+  Boolean,
+  Datetime,
+  String,
+  UInt128,
+  UUID,
+} from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
@@ -132,12 +129,12 @@ export class CustomProperty extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -154,12 +151,12 @@ export class CustomProperty extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -178,7 +175,7 @@ export class CustomProperty extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -216,20 +213,20 @@ export class CustomProperty extends Entity {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -237,15 +234,15 @@ export class CustomProperty extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -280,7 +277,7 @@ export class CustomProperty extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -300,21 +297,21 @@ export class CustomProperty extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
-   * CustomProperty.type
+   * Where in the parent Entity this Property resides.
    */
   /**
-   * CustomProperty.type
+   * Where in the parent Entity this Property resides.
    */
   get type(): PropertyType {
     return this._type;
@@ -343,196 +340,20 @@ export class CustomProperty extends Entity {
   _icon: Icon | null;
 
   /**
-   * CustomProperty.cardinality
+   * The actual Type of this custom Property.
    */
   /**
-   * CustomProperty.cardinality
+   * The actual Type of this custom Property.
    */
-  get cardinality(): TypeCardinality {
-    return this._cardinality;
+  get valueType(): Type {
+    return this._valueType;
   }
-  set cardinality(value: TypeCardinality) {
-    const prop = (this.constructor as NodeClass).__properties__["cardinality"];
+  set valueType(value: Type) {
+    const prop = (this.constructor as NodeClass).__properties__["value_type"];
     this._session.updateSetProperty(this, prop, value);
-    this._cardinality = value;
+    this._valueType = value;
   }
-  _cardinality: TypeCardinality;
-
-  /**
-   * CustomProperty.scalarType
-   */
-  /**
-   * CustomProperty.scalarType
-   */
-  get scalarType(): ScalarType {
-    return this._scalarType;
-  }
-  set scalarType(value: ScalarType) {
-    const prop = (this.constructor as NodeClass).__properties__["scalar_type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._scalarType = value;
-  }
-  _scalarType: ScalarType;
-
-  /**
-   * CustomProperty.primitiveType
-   */
-  /**
-   * CustomProperty.primitiveType
-   */
-  get primitiveType(): PrimitiveType | null {
-    return this._primitiveType;
-  }
-  set primitiveType(value: PrimitiveType | null) {
-    const prop = (this.constructor as NodeClass).__properties__["primitive_type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._primitiveType = value;
-  }
-  _primitiveType: PrimitiveType | null;
-
-  /**
-   * CustomProperty.enumType
-   */
-  /**
-   * CustomProperty.enumType
-   */
-  get enumType(): EnumType | null {
-    return this._enumType;
-  }
-  set enumType(value: EnumType | null) {
-    const prop = (this.constructor as NodeClass).__properties__["enum_type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._enumType = value;
-  }
-  _enumType: EnumType | null;
-
-  /**
-   * CustomProperty.nodeTypes
-   */
-  /**
-   * CustomProperty.nodeTypes
-   */
-  get nodeTypes(): readonly NodeType[] {
-    return this._nodeTypes;
-  }
-  set nodeTypes(value: readonly NodeType[]) {
-    const prop = (this.constructor as NodeClass).__properties__["node_types"];
-    this._session.updateSetProperty(this, prop, value);
-    this._nodeTypes = value;
-  }
-  _nodeTypes: readonly NodeType[];
-
-  /**
-   * CustomProperty.structType
-   */
-  /**
-   * CustomProperty.structType
-   */
-  get structType(): StructType | null {
-    return this._structType;
-  }
-  set structType(value: StructType | null) {
-    const prop = (this.constructor as NodeClass).__properties__["struct_type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._structType = value;
-  }
-  _structType: StructType | null;
-
-  /**
-   * CustomProperty.keyType
-   */
-  /**
-   * CustomProperty.keyType
-   */
-  get keyType(): Type | null {
-    return this._keyType;
-  }
-  set keyType(value: Type | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key_type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._keyType = value;
-  }
-  _keyType: Type | null;
-
-  /**
-   * CustomProperty.value
-   */
-  /**
-   * CustomProperty.value
-   */
-  get value(): Value | null {
-    return this._value;
-  }
-  set value(value: Value | null) {
-    const prop = (this.constructor as NodeClass).__properties__["value"];
-    this._session.updateSetProperty(this, prop, value);
-    this._value = value;
-  }
-  _value: Value | null;
-
-  /**
-   * CustomProperty.valueFactory
-   */
-  /**
-   * CustomProperty.valueFactory
-   */
-  get valueFactory(): ValueFactory | null {
-    return this._valueFactory;
-  }
-  set valueFactory(value: ValueFactory | null) {
-    const prop = (this.constructor as NodeClass).__properties__["value_factory"];
-    this._session.updateSetProperty(this, prop, value);
-    this._valueFactory = value;
-  }
-  _valueFactory: ValueFactory | null;
-
-  /**
-   * CustomProperty.collectionConstraint
-   */
-  /**
-   * CustomProperty.collectionConstraint
-   */
-  get collectionConstraint(): CollectionConstraint | null {
-    return this._collectionConstraint;
-  }
-  set collectionConstraint(value: CollectionConstraint | null) {
-    const prop = (this.constructor as NodeClass).__properties__["collection_constraint"];
-    this._session.updateSetProperty(this, prop, value);
-    this._collectionConstraint = value;
-  }
-  _collectionConstraint: CollectionConstraint | null;
-
-  /**
-   * CustomProperty.stringConstraint
-   */
-  /**
-   * CustomProperty.stringConstraint
-   */
-  get stringConstraint(): StringConstraint | null {
-    return this._stringConstraint;
-  }
-  set stringConstraint(value: StringConstraint | null) {
-    const prop = (this.constructor as NodeClass).__properties__["string_constraint"];
-    this._session.updateSetProperty(this, prop, value);
-    this._stringConstraint = value;
-  }
-  _stringConstraint: StringConstraint | null;
-
-  /**
-   * CustomProperty.numberConstraint
-   */
-  /**
-   * CustomProperty.numberConstraint
-   */
-  get numberConstraint(): NumberConstraint | null {
-    return this._numberConstraint;
-  }
-  set numberConstraint(value: NumberConstraint | null) {
-    const prop = (this.constructor as NodeClass).__properties__["number_constraint"];
-    this._session.updateSetProperty(this, prop, value);
-    this._numberConstraint = value;
-  }
-  _numberConstraint: NumberConstraint | null;
+  _valueType: Type;
 
   /**
    * CustomProperty.edgeType
@@ -567,52 +388,20 @@ export class CustomProperty extends Entity {
   _cascade: CascadeAction | null;
 
   /**
-   * Whether this property must be set.
-   */
-  /**
-   * Whether this property must be set.
-   */
-  get isRequired(): boolean | null {
-    return this._isRequired;
-  }
-  set isRequired(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_required"];
-    this._session.updateSetProperty(this, prop, value);
-    this._isRequired = value;
-  }
-  _isRequired: boolean | null;
-
-  /**
    * Whether this property must have a unique value.
    */
   /**
    * Whether this property must have a unique value.
    */
-  get isUnique(): boolean | null {
+  get isUnique(): Boolean | null {
     return this._isUnique;
   }
-  set isUnique(value: boolean | null) {
+  set isUnique(value: Boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_unique"];
     this._session.updateSetProperty(this, prop, value);
     this._isUnique = value;
   }
-  _isUnique: boolean | null;
-
-  /**
-   * Whether this property is computed.
-   */
-  /**
-   * Whether this property is computed.
-   */
-  get isComputed(): boolean | null {
-    return this._isComputed;
-  }
-  set isComputed(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_computed"];
-    this._session.updateSetProperty(this, prop, value);
-    this._isComputed = value;
-  }
-  _isComputed: boolean | null;
+  _isUnique: Boolean | null;
 
   /**
    * Whether this property is read-only.
@@ -620,34 +409,34 @@ export class CustomProperty extends Entity {
   /**
    * Whether this property is read-only.
    */
-  get isReadonly(): boolean | null {
+  get isReadonly(): Boolean | null {
     return this._isReadonly;
   }
-  set isReadonly(value: boolean | null) {
+  set isReadonly(value: Boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_readonly"];
     this._session.updateSetProperty(this, prop, value);
     this._isReadonly = value;
   }
-  _isReadonly: boolean | null;
+  _isReadonly: Boolean | null;
 
   /**
-   * Whether this property is the main property of the object.
+   * Whether this property is the main property of the entity.
    */
   /**
-   * Whether this property is the main property of the object.
+   * Whether this property is the main property of the entity.
    */
-  get isMain(): boolean | null {
+  get isMain(): Boolean | null {
     return this._isMain;
   }
-  set isMain(value: boolean | null) {
+  set isMain(value: Boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_main"];
     this._session.updateSetProperty(this, prop, value);
     this._isMain = value;
   }
-  _isMain: boolean | null;
+  _isMain: Boolean | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -656,42 +445,29 @@ export class CustomProperty extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: CustomProperty | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type?: PropertyType;
     icon?: Icon | null;
-    cardinality?: TypeCardinality;
-    scalarType: ScalarType;
-    primitiveType?: PrimitiveType | null;
-    enumType?: EnumType | null;
-    nodeTypes?: readonly NodeType[];
-    structType?: StructType | null;
-    keyType?: Type | null;
-    value?: Value | null;
-    valueFactory?: ValueFactory | null;
-    collectionConstraint?: CollectionConstraint | null;
-    stringConstraint?: StringConstraint | null;
-    numberConstraint?: NumberConstraint | null;
+    valueType: Type;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
-    isRequired?: boolean | null;
-    isUnique?: boolean | null;
-    isComputed?: boolean | null;
-    isReadonly?: boolean | null;
-    isMain?: boolean | null;
+    isUnique?: Boolean | null;
+    isReadonly?: Boolean | null;
+    isMain?: Boolean | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -832,52 +608,17 @@ export class CustomProperty extends Entity {
     this._type = _type;
     let _icon = options.icon ?? null;
     this._icon = _icon;
-    let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
-      _cardinality = 1 /* TypeCardinality.SCALAR */;
+    let _valueType = options.valueType;
+    if (_valueType === null) {
+      throw new Error(`CustomProperty.valueType is required`);
     }
-    if (_cardinality === null) {
-      throw new Error(`CustomProperty.cardinality is required`);
-    }
-    this._cardinality = _cardinality;
-    let _scalarType = options.scalarType;
-    if (_scalarType === null) {
-      throw new Error(`CustomProperty.scalarType is required`);
-    }
-    this._scalarType = _scalarType;
-    let _primitiveType = options.primitiveType ?? null;
-    this._primitiveType = _primitiveType;
-    let _enumType = options.enumType ?? null;
-    this._enumType = _enumType;
-    let _nodeTypes = options.nodeTypes ?? null;
-    if (_nodeTypes === null) {
-      _nodeTypes = [];
-    }
-    this._nodeTypes = _nodeTypes;
-    let _structType = options.structType ?? null;
-    this._structType = _structType;
-    let _keyType = options.keyType ?? null;
-    this._keyType = _keyType;
-    let _value = options.value ?? null;
-    this._value = _value;
-    let _valueFactory = options.valueFactory ?? null;
-    this._valueFactory = _valueFactory;
-    let _collectionConstraint = options.collectionConstraint ?? null;
-    this._collectionConstraint = _collectionConstraint;
-    let _stringConstraint = options.stringConstraint ?? null;
-    this._stringConstraint = _stringConstraint;
-    let _numberConstraint = options.numberConstraint ?? null;
-    this._numberConstraint = _numberConstraint;
+    this._valueType = _valueType;
     let _edgeType = options.edgeType ?? null;
     this._edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
     this._cascade = _cascade;
-    let _isRequired = options.isRequired ?? null;
-    this._isRequired = _isRequired;
     let _isUnique = options.isUnique ?? null;
     this._isUnique = _isUnique;
-    let _isComputed = options.isComputed ?? null;
-    this._isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
     this._isReadonly = _isReadonly;
     let _isMain = options.isMain ?? null;
@@ -928,61 +669,7 @@ export class CustomProperty extends Entity {
     ) {
       return false;
     }
-    if (!(this._cardinality === other._cardinality)) {
-      return false;
-    }
-    if (!(this._scalarType === other._scalarType)) {
-      return false;
-    }
-    if (!(this._primitiveType === other._primitiveType)) {
-      return false;
-    }
-    if (!(this._enumType === other._enumType)) {
-      return false;
-    }
-    if (this._nodeTypes.length != other._nodeTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this._nodeTypes.length; i++) {
-      if (!(this._nodeTypes[i] === other._nodeTypes[i])) {
-        return false;
-      }
-    }
-    if (!(this._structType === other._structType)) {
-      return false;
-    }
-    if (
-      (this._keyType == null) !== (other._keyType == null) ||
-      (this._keyType != null && !this._keyType.equals(other._keyType))
-    ) {
-      return false;
-    }
-    if (
-      (this._value == null) !== (other._value == null) ||
-      (this._value != null && !this._value.equals(other._value))
-    ) {
-      return false;
-    }
-    if (!(this._valueFactory === other._valueFactory)) {
-      return false;
-    }
-    if (
-      (this._collectionConstraint == null) !== (other._collectionConstraint == null) ||
-      (this._collectionConstraint != null &&
-        !this._collectionConstraint.equals(other._collectionConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this._stringConstraint == null) !== (other._stringConstraint == null) ||
-      (this._stringConstraint != null && !this._stringConstraint.equals(other._stringConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this._numberConstraint == null) !== (other._numberConstraint == null) ||
-      (this._numberConstraint != null && !this._numberConstraint.equals(other._numberConstraint))
-    ) {
+    if (!this._valueType.equals(other._valueType)) {
       return false;
     }
     if (!(this._edgeType === other._edgeType)) {
@@ -991,13 +678,7 @@ export class CustomProperty extends Entity {
     if (!(this._cascade === other._cascade)) {
       return false;
     }
-    if (!(this._isRequired === other._isRequired)) {
-      return false;
-    }
     if (!(this._isUnique === other._isUnique)) {
-      return false;
-    }
-    if (!(this._isComputed === other._isComputed)) {
       return false;
     }
     if (!(this._isReadonly === other._isReadonly)) {
@@ -1051,54 +732,15 @@ export class CustomProperty extends Entity {
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this._cardinality) & 0xffffffff;
-    h = (h * 31 + this._scalarType) & 0xffffffff;
-    if (this._primitiveType != null) {
-      h = (h * 31 + this._primitiveType) & 0xffffffff;
-    }
-    if (this._enumType != null) {
-      h = (h * 31 + this._enumType) & 0xffffffff;
-    }
-    if (this._nodeTypes && this._nodeTypes.length > 0) {
-      for (const _item of this._nodeTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    if (this._structType != null) {
-      h = (h * 31 + this._structType) & 0xffffffff;
-    }
-    if (this._keyType != null) {
-      h = (h * 31 + this._keyType.hash()) & 0xffffffff;
-    }
-    if (this._value != null) {
-      h = (h * 31 + this._value.hash()) & 0xffffffff;
-    }
-    if (this._valueFactory != null) {
-      h = (h * 31 + this._valueFactory) & 0xffffffff;
-    }
-    if (this._collectionConstraint != null) {
-      h = (h * 31 + this._collectionConstraint.hash()) & 0xffffffff;
-    }
-    if (this._stringConstraint != null) {
-      h = (h * 31 + this._stringConstraint.hash()) & 0xffffffff;
-    }
-    if (this._numberConstraint != null) {
-      h = (h * 31 + this._numberConstraint.hash()) & 0xffffffff;
-    }
+    h = (h * 31 + this._valueType.hash()) & 0xffffffff;
     if (this._edgeType != null) {
       h = (h * 31 + this._edgeType) & 0xffffffff;
     }
     if (this._cascade != null) {
       h = (h * 31 + this._cascade) & 0xffffffff;
     }
-    if (this._isRequired != null) {
-      h = (h * 31 + hashBool(this._isRequired)) & 0xffffffff;
-    }
     if (this._isUnique != null) {
       h = (h * 31 + hashBool(this._isUnique)) & 0xffffffff;
-    }
-    if (this._isComputed != null) {
-      h = (h * 31 + hashBool(this._isComputed)) & 0xffffffff;
     }
     if (this._isReadonly != null) {
       h = (h * 31 + hashBool(this._isReadonly)) & 0xffffffff;
@@ -1186,23 +828,6 @@ export class CustomProperty extends Entity {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
-    propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
-    if (this.primitiveType != null) {
-      propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
-    }
-    if (this.enumType != null) {
-      propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
-    }
-    if (this.nodeTypes.length > 0) {
-      propertyReprs.push(`nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`);
-    }
-    if (this.structType != null) {
-      propertyReprs.push(`structType=${StructType[this.structType]}`);
-    }
-    if (this.keyType != null) {
-      propertyReprs.push(`keyType=${this.keyType.repr()}`);
-    }
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }

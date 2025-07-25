@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING, Optional, assert_never
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Enum,
     EnumType,
+    Float32,
     NodeType,
     StructFrozen,
     StructType,
@@ -92,22 +93,15 @@ class Color(StructFrozen):
 
     type: ColorType = builtin_property(100, is_repr=True)
     style: Optional["ColorStyle"] = builtin_property(101, is_repr=True)
-    hue: Optional[ColorHue] = builtin_property(102, is_repr=True)
-    shade: Optional[ColorShade] = builtin_property(103, is_repr=True)
-    intent: Optional[ColorIntent] = builtin_property(104, is_repr=True)
-    x: Optional[float] = builtin_property(105, is_repr=True)
-    y: Optional[float] = builtin_property(106, is_repr=True)
-    z: Optional[float] = builtin_property(107, is_repr=True)
-    alpha: Optional[float] = builtin_property(108, is_repr=True)
+    x: Optional[Float32] = builtin_property(105, is_repr=True)
+    y: Optional[Float32] = builtin_property(106, is_repr=True)
+    z: Optional[Float32] = builtin_property(107, is_repr=True)
+    alpha: Optional[Float32] = builtin_property(108, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
         r, g, b, a = hex_to_rgb(hex)
         return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
-
-    @staticmethod
-    def from_hue(hue: ColorHue, shade: ColorShade | None = None) -> "Color":
-        return Color(type=ColorType.BUILTIN, hue=hue, shade=shade)
 
 
 @builtin_node(NodeType.COLOR_STYLE)
@@ -118,10 +112,10 @@ class ColorStyle(Style):
     hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
     shade: Optional[ColorShade] = builtin_property(201, is_repr=True)
     intent: Optional[ColorIntent] = builtin_property(202, is_repr=True)
-    x: Optional[float] = builtin_property(203, is_repr=True)
-    y: Optional[float] = builtin_property(204, is_repr=True)
-    z: Optional[float] = builtin_property(205, is_repr=True)
-    alpha: Optional[float] = builtin_property(206, is_repr=True)
+    x: Optional[Float32] = builtin_property(203, is_repr=True)
+    y: Optional[Float32] = builtin_property(204, is_repr=True)
+    z: Optional[Float32] = builtin_property(205, is_repr=True)
+    alpha: Optional[Float32] = builtin_property(206, is_repr=True)
     dark: Color | None = builtin_property(207)
 
     @staticmethod
@@ -129,8 +123,6 @@ class ColorStyle(Style):
         return ColorStyle(
             type=color.type,
             name=name,
-            hue=color.hue,
-            shade=color.shade,
             x=color.x,
             y=color.y,
             z=color.z,
@@ -145,36 +137,6 @@ class ColorStyle(Style):
             Color.from_hex(hex),
             Color.from_hex(dark) if dark else None,
         )
-
-    @staticmethod
-    def from_hue(
-        name: str,
-        hue: ColorHue,
-        shade: ColorShade | None = None,
-        dark_shade: ColorShade | None = None,
-    ) -> "ColorStyle":
-        return ColorStyle.from_color(
-            name,
-            Color.from_hue(hue, shade),
-            Color.from_hue(hue, dark_shade) if dark_shade else None,
-        )
-
-
-ColorIn = Color | ColorHue | ColorStyle | str
-
-
-def to_color(color: ColorIn) -> Color:
-    if isinstance(color, Color):
-        return color
-    elif isinstance(color, ColorHue):
-        return Color(type=ColorType.BUILTIN, hue=color)
-    elif isinstance(color, ColorStyle):
-        return Color(type=ColorType.BUILTIN, style=color)
-    elif isinstance(color, str):
-        r, g, b, a = hex_to_rgb(color)
-        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
-    else:
-        assert_never(color)
 
 
 #

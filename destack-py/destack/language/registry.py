@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, assert_never
 
-from .core.builtin.common import (
+from .core.builtin.builtin import (
     EnumType,
     NodeType,
     StructType,

@@ -2,7 +2,6 @@ from .border import Border, BorderStyle, BorderType
 from .color import (
     Color,
     ColorHue,
-    ColorIn,
     ColorIntent,
     ColorShade,
     ColorStyle,
@@ -13,7 +12,6 @@ from .color import (
     p3_to_rgb,
     rgb_to_hsl,
     rgb_to_p3,
-    to_color,
 )
 from .fill import Fill, FillPosition, FillSize, FillStyle, FillType
 from .font import (
@@ -37,7 +35,6 @@ __all__ = [
     "BorderType",
     "Color",
     "ColorHue",
-    "ColorIn",
     "ColorIntent",
     "ColorShade",
     "ColorStyle",
@@ -74,5 +71,4 @@ __all__ = [
     "p3_to_rgb",
     "rgb_to_hsl",
     "rgb_to_p3",
-    "to_color",
 ]

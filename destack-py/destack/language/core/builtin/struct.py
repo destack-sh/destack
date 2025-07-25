@@ -14,7 +14,8 @@ from destack.utils.func import get_superclasses
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .common import Encoding, EnumType, ObjectKind, PackedCache, StructType
+from .builtin import EnumType, ObjectKind, StructType
+from .common import Encoding, PackedCache
 from .const import ENCODERS
 from .meta import builtin_method
 from .object import (

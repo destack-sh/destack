@@ -9,6 +9,7 @@ from ..builtin import (
     RuntimeLanguage,
     StructFrozen,
     StructType,
+    UInt16,
     builtin_node,
     builtin_property,
     builtin_struct,
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 class MethodDefinition(StructFrozen):
     """Definition of a builtin Method."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt16 = builtin_property(2, is_repr=True)
     type: MethodType = builtin_property(100)
     name: str = builtin_property(101)
     description: str | None = builtin_property(103, is_repr=True)

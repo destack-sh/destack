@@ -1,4 +1,5 @@
 export * from "@destack/language/core/builtin/base";
+export * from "@destack/language/core/builtin/builtin";
 export * from "@destack/language/core/builtin/common";
 export * from "@destack/language/core/builtin/const";
 export * from "@destack/language/core/builtin/definition";
@@ -13,4 +14,5 @@ export * from "@destack/language/core/builtin/relation";
 export * from "@destack/language/core/builtin/struct";
 export * from "@destack/language/core/builtin/trait";
 export * from "@destack/language/core/builtin/type";
+export * from "@destack/language/core/builtin/types";
 export * from "@destack/language/core/builtin/value";

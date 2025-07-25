@@ -1,10 +1,17 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Float32,
   NodeClass,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt32,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -19,7 +26,6 @@ import {
   NodeType,
   type Region,
   Resource,
-  type ResourceStatus,
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
@@ -150,12 +156,12 @@ export class Machine extends Resource {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -172,12 +178,12 @@ export class Machine extends Resource {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -196,7 +202,7 @@ export class Machine extends Resource {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -234,20 +240,20 @@ export class Machine extends Resource {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -255,15 +261,15 @@ export class Machine extends Resource {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -298,7 +304,7 @@ export class Machine extends Resource {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -318,15 +324,15 @@ export class Machine extends Resource {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Machine.type
@@ -343,22 +349,6 @@ export class Machine extends Resource {
     this._type = value;
   }
   _type: MachineType;
-
-  /**
-   * Resource.status
-   */
-  /**
-   * Resource.status
-   */
-  get status(): ResourceStatus | null {
-    return this._status;
-  }
-  set status(value: ResourceStatus | null) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: ResourceStatus | null;
 
   /**
    * Resource.region
@@ -382,15 +372,15 @@ export class Machine extends Resource {
   /**
    * Machine.version
    */
-  get version(): string {
+  get version(): String {
     return this._version;
   }
-  set version(value: string) {
+  set version(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["version"];
     this._session.updateSetProperty(this, prop, value);
     this._version = value;
   }
-  _version: string;
+  _version: String;
 
   /**
    * Machine.externalName
@@ -398,15 +388,15 @@ export class Machine extends Resource {
   /**
    * Machine.externalName
    */
-  get externalName(): string | null {
+  get externalName(): String | null {
     return this._externalName;
   }
-  set externalName(value: string | null) {
+  set externalName(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["external_name"];
     this._session.updateSetProperty(this, prop, value);
     this._externalName = value;
   }
-  _externalName: string | null;
+  _externalName: String | null;
 
   /**
    * Machine.externalId
@@ -414,15 +404,15 @@ export class Machine extends Resource {
   /**
    * Machine.externalId
    */
-  get externalId(): string | null {
+  get externalId(): String | null {
     return this._externalId;
   }
-  set externalId(value: string | null) {
+  set externalId(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["external_id"];
     this._session.updateSetProperty(this, prop, value);
     this._externalId = value;
   }
-  _externalId: string | null;
+  _externalId: String | null;
 
   /**
    * Machine.imageId
@@ -430,15 +420,15 @@ export class Machine extends Resource {
   /**
    * Machine.imageId
    */
-  get imageId(): string | null {
+  get imageId(): String | null {
     return this._imageId;
   }
-  set imageId(value: string | null) {
+  set imageId(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["image_id"];
     this._session.updateSetProperty(this, prop, value);
     this._imageId = value;
   }
-  _imageId: string | null;
+  _imageId: String | null;
 
   /**
    * vCPU count
@@ -446,15 +436,15 @@ export class Machine extends Resource {
   /**
    * vCPU count
    */
-  get cpu(): number {
+  get cpu(): Float32 {
     return this._cpu;
   }
-  set cpu(value: number) {
+  set cpu(value: Float32) {
     const prop = (this.constructor as NodeClass).__properties__["cpu"];
     this._session.updateSetProperty(this, prop, value);
     this._cpu = value;
   }
-  _cpu: number;
+  _cpu: Float32;
 
   /**
    * GB
@@ -462,15 +452,15 @@ export class Machine extends Resource {
   /**
    * GB
    */
-  get ram(): number {
+  get ram(): Float32 {
     return this._ram;
   }
-  set ram(value: number) {
+  set ram(value: Float32) {
     const prop = (this.constructor as NodeClass).__properties__["ram"];
     this._session.updateSetProperty(this, prop, value);
     this._ram = value;
   }
-  _ram: number;
+  _ram: Float32;
 
   /**
    * Machine.width
@@ -478,15 +468,15 @@ export class Machine extends Resource {
   /**
    * Machine.width
    */
-  get width(): number {
+  get width(): UInt32 {
     return this._width;
   }
-  set width(value: number) {
+  set width(value: UInt32) {
     const prop = (this.constructor as NodeClass).__properties__["width"];
     this._session.updateSetProperty(this, prop, value);
     this._width = value;
   }
-  _width: number;
+  _width: UInt32;
 
   /**
    * Machine.height
@@ -494,15 +484,15 @@ export class Machine extends Resource {
   /**
    * Machine.height
    */
-  get height(): number {
+  get height(): UInt32 {
     return this._height;
   }
-  set height(value: number) {
+  set height(value: UInt32) {
     const prop = (this.constructor as NodeClass).__properties__["height"];
     this._session.updateSetProperty(this, prop, value);
     this._height = value;
   }
-  _height: number;
+  _height: UInt32;
 
   /**
    * Machine.isHeadless
@@ -510,18 +500,18 @@ export class Machine extends Resource {
   /**
    * Machine.isHeadless
    */
-  get isHeadless(): boolean {
+  get isHeadless(): Boolean {
     return this._isHeadless;
   }
-  set isHeadless(value: boolean) {
+  set isHeadless(value: Boolean) {
     const prop = (this.constructor as NodeClass).__properties__["is_headless"];
     this._session.updateSetProperty(this, prop, value);
     this._isHeadless = value;
   }
-  _isHeadless: boolean;
+  _isHeadless: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -530,33 +520,32 @@ export class Machine extends Resource {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Machine | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type?: MachineType;
-    status?: ResourceStatus | null;
     region?: Region | null;
-    version?: string;
-    externalName?: string | null;
-    externalId?: string | null;
-    imageId?: string | null;
-    cpu?: number;
-    ram?: number;
-    width?: number;
-    height?: number;
-    isHeadless?: boolean;
+    version?: String;
+    externalName?: String | null;
+    externalId?: String | null;
+    imageId?: String | null;
+    cpu?: Float32;
+    ram?: Float32;
+    width?: UInt32;
+    height?: UInt32;
+    isHeadless?: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -695,13 +684,11 @@ export class Machine extends Resource {
       throw new Error(`Machine.type is required`);
     }
     this._type = _type;
-    let _status = options.status ?? null;
-    this._status = _status;
     let _region = options.region ?? null;
     this._region = _region;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.25.0";
+      _version = "2025.07.25.1";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
@@ -818,9 +805,6 @@ export class Machine extends Resource {
     if (!(this._isHeadless === other._isHeadless)) {
       return false;
     }
-    if (!(this._status === other._status)) {
-      return false;
-    }
     if (!(this._region === other._region)) {
       return false;
     }
@@ -881,9 +865,6 @@ export class Machine extends Resource {
     h = (h * 31 + hashInt(this._width)) & 0xffffffff;
     h = (h * 31 + hashInt(this._height)) & 0xffffffff;
     h = (h * 31 + hashBool(this._isHeadless)) & 0xffffffff;
-    if (this._status != null) {
-      h = (h * 31 + this._status) & 0xffffffff;
-    }
     if (this._region != null) {
       h = (h * 31 + this._region) & 0xffffffff;
     }

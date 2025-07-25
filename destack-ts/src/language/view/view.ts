@@ -1,10 +1,16 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
   EventStatus,
+  Float32,
   Materialization,
   NodeReference,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import { type Entity, Entity2D, Event, NodeType } from "@destack/language/core";
@@ -13,7 +19,6 @@ import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
 import type { Client } from "@destack/language/universe";
-import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1800001 ==== */
 /**
@@ -61,12 +66,12 @@ export abstract class ViewEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -83,17 +88,17 @@ export abstract class ViewEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -171,12 +176,12 @@ export abstract class View extends Entity2D {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -187,12 +192,12 @@ export abstract class View extends Entity2D {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -205,7 +210,7 @@ export abstract class View extends Entity2D {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -224,13 +229,13 @@ export abstract class View extends Entity2D {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -238,8 +243,8 @@ export abstract class View extends Entity2D {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -255,7 +260,7 @@ export abstract class View extends Entity2D {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -269,8 +274,8 @@ export abstract class View extends Entity2D {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Entity2D.position
@@ -395,8 +400,8 @@ export abstract class View extends Entity2D {
   /**
    * View.isVisible
    */
-  abstract get isVisible(): boolean | null;
-  abstract set isVisible(value: boolean | null);
+  abstract get isVisible(): Boolean | null;
+  abstract set isVisible(value: Boolean | null);
 
   /**
    * View.opacity
@@ -404,8 +409,8 @@ export abstract class View extends Entity2D {
   /**
    * View.opacity
    */
-  abstract get opacity(): number | null;
-  abstract set opacity(value: number | null);
+  abstract get opacity(): Float32 | null;
+  abstract set opacity(value: Float32 | null);
 
   /**
    * View.fill

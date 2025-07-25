@@ -6,6 +6,7 @@ import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import { toType } from "@destack/language/core/builtin/type";
+import type { Json } from "@destack/language/core/builtin/types";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
@@ -28,11 +29,11 @@ export class Value extends StructFrozen {
   /**
    * Value.value
    */
-  readonly value: any | null;
+  readonly value: Json | null;
 
   constructor(options: {
     type: Type;
-    value?: any | null;
+    value?: Json | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

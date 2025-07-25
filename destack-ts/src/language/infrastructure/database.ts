@@ -1,11 +1,16 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
   Icon,
   NodeClass,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -20,7 +25,6 @@ import {
   NodeType,
   type Region,
   Resource,
-  type ResourceStatus,
   StructType,
   Tenancy,
 } from "@destack/language/core";
@@ -147,12 +151,12 @@ export class Database extends Resource {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -169,12 +173,12 @@ export class Database extends Resource {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -193,7 +197,7 @@ export class Database extends Resource {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -231,20 +235,20 @@ export class Database extends Resource {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -252,15 +256,15 @@ export class Database extends Resource {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -295,7 +299,7 @@ export class Database extends Resource {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -315,15 +319,15 @@ export class Database extends Resource {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Database.type
@@ -358,22 +362,6 @@ export class Database extends Resource {
   _icon: Icon | null;
 
   /**
-   * Resource.status
-   */
-  /**
-   * Resource.status
-   */
-  get status(): ResourceStatus | null {
-    return this._status;
-  }
-  set status(value: ResourceStatus | null) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: ResourceStatus | null;
-
-  /**
    * Resource.region
    */
   /**
@@ -395,15 +383,15 @@ export class Database extends Resource {
   /**
    * Database.galaxyName
    */
-  get galaxyName(): string | null {
+  get galaxyName(): String | null {
     return this._galaxyName;
   }
-  set galaxyName(value: string | null) {
+  set galaxyName(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["galaxy_name"];
     this._session.updateSetProperty(this, prop, value);
     this._galaxyName = value;
   }
-  _galaxyName: string | null;
+  _galaxyName: String | null;
 
   /**
    * Database.externalName
@@ -411,15 +399,15 @@ export class Database extends Resource {
   /**
    * Database.externalName
    */
-  get externalName(): string {
+  get externalName(): String {
     return this._externalName;
   }
-  set externalName(value: string) {
+  set externalName(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["external_name"];
     this._session.updateSetProperty(this, prop, value);
     this._externalName = value;
   }
-  _externalName: string;
+  _externalName: String;
 
   /**
    * Database.customSchemaName
@@ -427,15 +415,15 @@ export class Database extends Resource {
   /**
    * Database.customSchemaName
    */
-  get customSchemaName(): string | null {
+  get customSchemaName(): String | null {
     return this._customSchemaName;
   }
-  set customSchemaName(value: string | null) {
+  set customSchemaName(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["custom_schema_name"];
     this._session.updateSetProperty(this, prop, value);
     this._customSchemaName = value;
   }
-  _customSchemaName: string | null;
+  _customSchemaName: String | null;
 
   /**
    * Database.tenancy
@@ -459,18 +447,18 @@ export class Database extends Resource {
   /**
    * Database.connectionUrl
    */
-  get connectionUrl(): string | null {
+  get connectionUrl(): String | null {
     return this._connectionUrl;
   }
-  set connectionUrl(value: string | null) {
+  set connectionUrl(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["connection_url"];
     this._session.updateSetProperty(this, prop, value);
     this._connectionUrl = value;
   }
-  _connectionUrl: string | null;
+  _connectionUrl: String | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -479,30 +467,29 @@ export class Database extends Resource {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Database | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: DatabaseType;
     icon?: Icon | null;
-    status?: ResourceStatus | null;
     region?: Region | null;
-    galaxyName?: string | null;
-    externalName: string;
-    customSchemaName?: string | null;
+    galaxyName?: String | null;
+    externalName: String;
+    customSchemaName?: String | null;
     tenancy?: Tenancy;
-    connectionUrl?: string | null;
+    connectionUrl?: String | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -640,8 +627,6 @@ export class Database extends Resource {
     this._type = _type;
     let _icon = options.icon ?? null;
     this._icon = _icon;
-    let _status = options.status ?? null;
-    this._status = _status;
     let _region = options.region ?? null;
     this._region = _region;
     let _galaxyName = options.galaxyName ?? null;
@@ -724,9 +709,6 @@ export class Database extends Resource {
     if (!(this._connectionUrl === other._connectionUrl)) {
       return false;
     }
-    if (!(this._status === other._status)) {
-      return false;
-    }
     if (!(this._region === other._region)) {
       return false;
     }
@@ -785,9 +767,6 @@ export class Database extends Resource {
     h = (h * 31 + this._tenancy) & 0xffffffff;
     if (this._connectionUrl != null) {
       h = (h * 31 + hashString(this._connectionUrl)) & 0xffffffff;
-    }
-    if (this._status != null) {
-      h = (h * 31 + this._status) & 0xffffffff;
     }
     if (this._region != null) {
       h = (h * 31 + this._region) & 0xffffffff;

@@ -6,6 +6,9 @@ from destack.language.core import (
     EnumType,
     StructMutable,
     StructType,
+    UInt8,
+    UInt16,
+    UInt32,
     builtin_enum,
     builtin_property,
     builtin_struct,
@@ -59,21 +62,21 @@ class Schedule(StructMutable):
     """The time-based schedule of something (compatible with rrule)."""
 
     frequency: ScheduleFrequency = builtin_property(101)
-    interval: int = builtin_property(102, default=1)
+    interval: UInt32 = builtin_property(102, default=1)
     start: datetime | None = builtin_property(110)
     end: datetime | None = builtin_property(111)
-    count: int | None = builtin_property(112)
+    count: UInt32 | None = builtin_property(112)
     week_start: DayOfWeek | None = builtin_property(113)
-    by_set_pos: list[int] = builtin_property(114)
+    by_set_pos: list[UInt32] = builtin_property(114)
     by_month: list[Month] = builtin_property(115)
-    by_month_day: list[int] = builtin_property(116)
-    by_year_day: list[int] = builtin_property(117)
-    by_easter: list[int] = builtin_property(118)
-    by_week_no: list[int] = builtin_property(119)
+    by_month_day: list[UInt8] = builtin_property(116)
+    by_year_day: list[UInt16] = builtin_property(117)
+    by_easter: list[UInt8] = builtin_property(118)
+    by_week_no: list[UInt8] = builtin_property(119)
     by_week_day: list[DayOfWeek] = builtin_property(120)
-    by_hour: list[int] = builtin_property(121)
-    by_minute: list[int] = builtin_property(122)
-    by_second: list[int] = builtin_property(123)
+    by_hour: list[UInt8] = builtin_property(121)
+    by_minute: list[UInt8] = builtin_property(122)
+    by_second: list[UInt8] = builtin_property(123)
 
     @staticmethod
     def every(

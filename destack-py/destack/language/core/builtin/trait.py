@@ -11,12 +11,9 @@ from destack.language.registry import (
 )
 from destack.utils.func import get_superclasses
 
-from .common import EnumType, NodeType, TraitType
+from .builtin import EnumType, NodeType, TraitType
 from .object import BuiltinObject, _process_object_cls
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    _resolve_trait_type,
-)
+from .property import _PROPERTY_SPECIFIERS, _resolve_trait_type
 
 if TYPE_CHECKING:
     from destack.language import (

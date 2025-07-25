@@ -1,11 +1,17 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Float32,
   NodeClass,
   NodeReference,
   PackedCache,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -31,7 +37,7 @@ import {
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
 import { Style } from "@destack/language/style/style";
-import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2100207 ==== */
@@ -110,17 +116,17 @@ export class Shadow extends StructFrozen {
   /**
    * Shadow.blur
    */
-  readonly blur: number | null;
+  readonly blur: Float32 | null;
 
   /**
    * Shadow.spread
    */
-  readonly spread: number | null;
+  readonly spread: Float32 | null;
 
   /**
    * Shadow.diffusion
    */
-  readonly diffusion: number | null;
+  readonly diffusion: Float32 | null;
 
   constructor(options: {
     type?: ShadowType;
@@ -128,9 +134,9 @@ export class Shadow extends StructFrozen {
     color?: Color | null;
     position?: ShadowPosition;
     offset?: Axis2 | null;
-    blur?: number | null;
-    spread?: number | null;
-    diffusion?: number | null;
+    blur?: Float32 | null;
+    spread?: Float32 | null;
+    diffusion?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -209,10 +215,17 @@ export class Shadow extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.blur === other.blur)) {
+    if (
+      (this.blur == null) !== (other.blur == null) ||
+      (this.blur != null && !(this.blur === other.blur || Math.abs(this.blur - other.blur) < 1e-10))
+    ) {
       return false;
     }
-    if (!(this.spread === other.spread)) {
+    if (
+      (this.spread == null) !== (other.spread == null) ||
+      (this.spread != null &&
+        !(this.spread === other.spread || Math.abs(this.spread - other.spread) < 1e-10))
+    ) {
       return false;
     }
     if (
@@ -272,10 +285,10 @@ export class Shadow extends StructFrozen {
       h = (h * 31 + this.offset.hash()) & 0xffffffff;
     }
     if (this.blur != null) {
-      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+      h = (h * 31 + hashFloat(this.blur)) & 0xffffffff;
     }
     if (this.spread != null) {
-      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+      h = (h * 31 + hashFloat(this.spread)) & 0xffffffff;
     }
     if (this.diffusion != null) {
       h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
@@ -396,12 +409,12 @@ export class ShadowStyle extends Style {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -418,12 +431,12 @@ export class ShadowStyle extends Style {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -442,7 +455,7 @@ export class ShadowStyle extends Style {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -480,20 +493,20 @@ export class ShadowStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -501,15 +514,15 @@ export class ShadowStyle extends Style {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -544,7 +557,7 @@ export class ShadowStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -564,15 +577,15 @@ export class ShadowStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * ShadowStyle.type
@@ -644,15 +657,15 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.blur
    */
-  get blur(): number | null {
+  get blur(): Float32 | null {
     return this._blur;
   }
-  set blur(value: number | null) {
+  set blur(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["blur"];
     this._session.updateSetProperty(this, prop, value);
     this._blur = value;
   }
-  _blur: number | null;
+  _blur: Float32 | null;
 
   /**
    * ShadowStyle.spread
@@ -660,15 +673,15 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.spread
    */
-  get spread(): number | null {
+  get spread(): Float32 | null {
     return this._spread;
   }
-  set spread(value: number | null) {
+  set spread(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["spread"];
     this._session.updateSetProperty(this, prop, value);
     this._spread = value;
   }
-  _spread: number | null;
+  _spread: Float32 | null;
 
   /**
    * ShadowStyle.diffusion
@@ -676,18 +689,18 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.diffusion
    */
-  get diffusion(): number | null {
+  get diffusion(): Float32 | null {
     return this._diffusion;
   }
-  set diffusion(value: number | null) {
+  set diffusion(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["diffusion"];
     this._session.updateSetProperty(this, prop, value);
     this._diffusion = value;
   }
-  _diffusion: number | null;
+  _diffusion: Float32 | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -696,28 +709,28 @@ export class ShadowStyle extends Style {
     snapshot?: Snapshot | NodeReference;
     precededBy?: ShadowStyle | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type?: ShadowType;
     color?: Color | null;
     position?: ShadowPosition;
     offset?: Axis2 | null;
-    blur?: number | null;
-    spread?: number | null;
-    diffusion?: number | null;
+    blur?: Float32 | null;
+    spread?: Float32 | null;
+    diffusion?: Float32 | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -929,10 +942,18 @@ export class ShadowStyle extends Style {
     ) {
       return false;
     }
-    if (!(this._blur === other._blur)) {
+    if (
+      (this._blur == null) !== (other._blur == null) ||
+      (this._blur != null &&
+        !(this._blur === other._blur || Math.abs(this._blur - other._blur) < 1e-10))
+    ) {
       return false;
     }
-    if (!(this._spread === other._spread)) {
+    if (
+      (this._spread == null) !== (other._spread == null) ||
+      (this._spread != null &&
+        !(this._spread === other._spread || Math.abs(this._spread - other._spread) < 1e-10))
+    ) {
       return false;
     }
     if (
@@ -995,10 +1016,10 @@ export class ShadowStyle extends Style {
       h = (h * 31 + this._offset.hash()) & 0xffffffff;
     }
     if (this._blur != null) {
-      h = (h * 31 + hashInt(this._blur)) & 0xffffffff;
+      h = (h * 31 + hashFloat(this._blur)) & 0xffffffff;
     }
     if (this._spread != null) {
-      h = (h * 31 + hashInt(this._spread)) & 0xffffffff;
+      h = (h * 31 + hashFloat(this._spread)) & 0xffffffff;
     }
     if (this._diffusion != null) {
       h = (h * 31 + hashFloat(this._diffusion)) & 0xffffffff;

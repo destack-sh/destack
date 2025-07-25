@@ -1,11 +1,16 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
   Icon,
   NodeClass,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -84,12 +89,12 @@ export abstract class Metric extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -100,12 +105,12 @@ export abstract class Metric extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -118,7 +123,7 @@ export abstract class Metric extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -137,13 +142,13 @@ export abstract class Metric extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -151,8 +156,8 @@ export abstract class Metric extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -168,7 +173,7 @@ export abstract class Metric extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -182,8 +187,8 @@ export abstract class Metric extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Metric.icon
@@ -247,12 +252,12 @@ export abstract class MeasurementEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -269,17 +274,17 @@ export abstract class MeasurementEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -399,12 +404,12 @@ export class GaugeMetric extends Metric {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -421,12 +426,12 @@ export class GaugeMetric extends Metric {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -445,7 +450,7 @@ export class GaugeMetric extends Metric {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -483,20 +488,20 @@ export class GaugeMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -504,15 +509,15 @@ export class GaugeMetric extends Metric {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -547,7 +552,7 @@ export class GaugeMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -567,15 +572,15 @@ export class GaugeMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Metric.icon
@@ -594,7 +599,7 @@ export class GaugeMetric extends Metric {
   _icon: Icon | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -603,21 +608,21 @@ export class GaugeMetric extends Metric {
     snapshot?: Snapshot | NodeReference;
     precededBy?: GaugeMetric | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -1014,12 +1019,12 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1048,17 +1053,17 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1078,20 +1083,20 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   readonly nodePtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition: GaugeMetric | NodeReference;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
@@ -1454,12 +1459,12 @@ export class CounterMetric extends Metric {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -1476,12 +1481,12 @@ export class CounterMetric extends Metric {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -1500,7 +1505,7 @@ export class CounterMetric extends Metric {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -1538,20 +1543,20 @@ export class CounterMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1559,15 +1564,15 @@ export class CounterMetric extends Metric {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -1602,7 +1607,7 @@ export class CounterMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1622,15 +1627,15 @@ export class CounterMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Metric.icon
@@ -1649,7 +1654,7 @@ export class CounterMetric extends Metric {
   _icon: Icon | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -1658,21 +1663,21 @@ export class CounterMetric extends Metric {
     snapshot?: Snapshot | NodeReference;
     precededBy?: CounterMetric | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -2069,12 +2074,12 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2103,17 +2108,17 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2133,20 +2138,20 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   readonly nodePtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition: CounterMetric | NodeReference;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
@@ -2509,12 +2514,12 @@ export class HistogramMetric extends Metric {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -2531,12 +2536,12 @@ export class HistogramMetric extends Metric {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -2555,7 +2560,7 @@ export class HistogramMetric extends Metric {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -2593,20 +2598,20 @@ export class HistogramMetric extends Metric {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2614,15 +2619,15 @@ export class HistogramMetric extends Metric {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -2657,7 +2662,7 @@ export class HistogramMetric extends Metric {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2677,15 +2682,15 @@ export class HistogramMetric extends Metric {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Metric.icon
@@ -2704,7 +2709,7 @@ export class HistogramMetric extends Metric {
   _icon: Icon | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -2713,21 +2718,21 @@ export class HistogramMetric extends Metric {
     snapshot?: Snapshot | NodeReference;
     precededBy?: HistogramMetric | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -3124,12 +3129,12 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -3158,17 +3163,17 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -3188,20 +3193,20 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   readonly nodePtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition: HistogramMetric | NodeReference;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;

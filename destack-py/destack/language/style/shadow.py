@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
+    Float32,
     NodeType,
     StructFrozen,
     StructType,
@@ -46,9 +47,9 @@ class Shadow(StructFrozen):
     color: Optional["Color"] = builtin_property(102, is_repr=True)
     position: ShadowPosition = builtin_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional["Axis2"] = builtin_property(104, is_repr=True)
-    blur: int | None = builtin_property(105, is_repr=True)
-    spread: int | None = builtin_property(106, is_repr=True)
-    diffusion: float | None = builtin_property(107, is_repr=True)
+    blur: Optional[Float32] = builtin_property(105, is_repr=True)
+    spread: Optional[Float32] = builtin_property(106, is_repr=True)
+    diffusion: Optional[Float32] = builtin_property(107, is_repr=True)
 
 
 @builtin_node(NodeType.SHADOW_STYLE)
@@ -59,6 +60,6 @@ class ShadowStyle(Style):
     color: Optional["Color"] = builtin_property(200, is_repr=True)
     position: ShadowPosition = builtin_property(201, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional["Axis2"] = builtin_property(202, is_repr=True)
-    blur: int | None = builtin_property(203, is_repr=True)
-    spread: int | None = builtin_property(204, is_repr=True)
-    diffusion: float | None = builtin_property(205, is_repr=True)
+    blur: Optional[Float32] = builtin_property(203, is_repr=True)
+    spread: Optional[Float32] = builtin_property(204, is_repr=True)
+    diffusion: Optional[Float32] = builtin_property(205, is_repr=True)

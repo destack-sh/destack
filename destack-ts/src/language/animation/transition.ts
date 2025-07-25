@@ -1,11 +1,17 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Float32,
   NodeClass,
   NodeReference,
   PackedCache,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -93,37 +99,37 @@ export class Transition extends StructFrozen {
   /**
    * Transition.delay
    */
-  readonly delay: number | null;
+  readonly delay: Float32 | null;
 
   /**
    * Transition.duration
    */
-  readonly duration: number | null;
+  readonly duration: Float32 | null;
 
   /**
    * Transition.ease
    */
-  readonly ease: readonly number[];
+  readonly ease: readonly Float32[];
 
   /**
    * Transition.stiffness
    */
-  readonly stiffness: number | null;
+  readonly stiffness: Float32 | null;
 
   /**
    * Transition.damping
    */
-  readonly damping: number | null;
+  readonly damping: Float32 | null;
 
   /**
    * Transition.mass
    */
-  readonly mass: number | null;
+  readonly mass: Float32 | null;
 
   /**
    * Transition.bounce
    */
-  readonly bounce: number | null;
+  readonly bounce: Float32 | null;
 
   /**
    * Transition.springType
@@ -133,13 +139,13 @@ export class Transition extends StructFrozen {
   constructor(options: {
     type?: TransitionType;
     style?: TransitionStyle | NodeReference | null;
-    delay?: number | null;
-    duration?: number | null;
-    ease?: readonly number[];
-    stiffness?: number | null;
-    damping?: number | null;
-    mass?: number | null;
-    bounce?: number | null;
+    delay?: Float32 | null;
+    duration?: Float32 | null;
+    ease?: readonly Float32[];
+    stiffness?: Float32 | null;
+    damping?: Float32 | null;
+    mass?: Float32 | null;
+    bounce?: Float32 | null;
     springType?: SpringType | null;
     _session?: Session | null;
     _hash?: number | null;
@@ -449,12 +455,12 @@ export class TransitionStyle extends Style {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -471,12 +477,12 @@ export class TransitionStyle extends Style {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -495,7 +501,7 @@ export class TransitionStyle extends Style {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -533,20 +539,20 @@ export class TransitionStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -554,15 +560,15 @@ export class TransitionStyle extends Style {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -597,7 +603,7 @@ export class TransitionStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -617,15 +623,15 @@ export class TransitionStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * TransitionStyle.type
@@ -649,15 +655,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.delay
    */
-  get delay(): number | null {
+  get delay(): Float32 | null {
     return this._delay;
   }
-  set delay(value: number | null) {
+  set delay(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["delay"];
     this._session.updateSetProperty(this, prop, value);
     this._delay = value;
   }
-  _delay: number | null;
+  _delay: Float32 | null;
 
   /**
    * TransitionStyle.duration
@@ -665,15 +671,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.duration
    */
-  get duration(): number | null {
+  get duration(): Float32 | null {
     return this._duration;
   }
-  set duration(value: number | null) {
+  set duration(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["duration"];
     this._session.updateSetProperty(this, prop, value);
     this._duration = value;
   }
-  _duration: number | null;
+  _duration: Float32 | null;
 
   /**
    * TransitionStyle.ease
@@ -681,15 +687,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.ease
    */
-  get ease(): readonly number[] {
+  get ease(): readonly Float32[] {
     return this._ease;
   }
-  set ease(value: readonly number[]) {
+  set ease(value: readonly Float32[]) {
     const prop = (this.constructor as NodeClass).__properties__["ease"];
     this._session.updateSetProperty(this, prop, value);
     this._ease = value;
   }
-  _ease: readonly number[];
+  _ease: readonly Float32[];
 
   /**
    * TransitionStyle.stiffness
@@ -697,15 +703,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.stiffness
    */
-  get stiffness(): number | null {
+  get stiffness(): Float32 | null {
     return this._stiffness;
   }
-  set stiffness(value: number | null) {
+  set stiffness(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["stiffness"];
     this._session.updateSetProperty(this, prop, value);
     this._stiffness = value;
   }
-  _stiffness: number | null;
+  _stiffness: Float32 | null;
 
   /**
    * TransitionStyle.damping
@@ -713,15 +719,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.damping
    */
-  get damping(): number | null {
+  get damping(): Float32 | null {
     return this._damping;
   }
-  set damping(value: number | null) {
+  set damping(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["damping"];
     this._session.updateSetProperty(this, prop, value);
     this._damping = value;
   }
-  _damping: number | null;
+  _damping: Float32 | null;
 
   /**
    * TransitionStyle.mass
@@ -729,15 +735,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.mass
    */
-  get mass(): number | null {
+  get mass(): Float32 | null {
     return this._mass;
   }
-  set mass(value: number | null) {
+  set mass(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["mass"];
     this._session.updateSetProperty(this, prop, value);
     this._mass = value;
   }
-  _mass: number | null;
+  _mass: Float32 | null;
 
   /**
    * TransitionStyle.bounce
@@ -745,15 +751,15 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.bounce
    */
-  get bounce(): number | null {
+  get bounce(): Float32 | null {
     return this._bounce;
   }
-  set bounce(value: number | null) {
+  set bounce(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["bounce"];
     this._session.updateSetProperty(this, prop, value);
     this._bounce = value;
   }
-  _bounce: number | null;
+  _bounce: Float32 | null;
 
   /**
    * TransitionStyle.springType
@@ -772,7 +778,7 @@ export class TransitionStyle extends Style {
   _springType: SpringType | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -781,29 +787,29 @@ export class TransitionStyle extends Style {
     snapshot?: Snapshot | NodeReference;
     precededBy?: TransitionStyle | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type?: TransitionType;
-    delay?: number | null;
-    duration?: number | null;
-    ease?: readonly number[];
-    stiffness?: number | null;
-    damping?: number | null;
-    mass?: number | null;
-    bounce?: number | null;
+    delay?: Float32 | null;
+    duration?: Float32 | null;
+    ease?: readonly Float32[];
+    stiffness?: Float32 | null;
+    damping?: Float32 | null;
+    mass?: Float32 | null;
+    bounce?: Float32 | null;
     springType?: SpringType | null;
     _session?: Session | null;
   }) {

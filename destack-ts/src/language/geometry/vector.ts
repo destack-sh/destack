@@ -1,4 +1,4 @@
-import type { PackedCache, Session } from "@destack/language/core";
+import type { Float32, PackedCache, Session, SInt32 } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -14,16 +14,16 @@ export class Vector2 extends StructFrozen {
   /**
    * The x-coordinate of the Vector2.
    */
-  readonly x: number;
+  readonly x: Float32;
 
   /**
    * The y-coordinate of the Vector2.
    */
-  readonly y: number;
+  readonly y: Float32;
 
   constructor(options: {
-    x: number;
-    y: number;
+    x: Float32;
+    y: Float32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -273,22 +273,22 @@ export class Vector3 extends StructFrozen {
   /**
    * The x-coordinate of the Vector3.
    */
-  readonly x: number;
+  readonly x: Float32;
 
   /**
    * The y-coordinate of the Vector3.
    */
-  readonly y: number;
+  readonly y: Float32;
 
   /**
    * The z-coordinate of the Vector3.
    */
-  readonly z: number;
+  readonly z: Float32;
 
   constructor(options: {
-    x: number;
-    y: number;
-    z: number;
+    x: Float32;
+    y: Float32;
+    z: Float32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -574,28 +574,28 @@ export class Vector4 extends StructFrozen {
   /**
    * The x-coordinate of the Vector4.
    */
-  readonly x: number;
+  readonly x: Float32;
 
   /**
    * The y-coordinate of the Vector4.
    */
-  readonly y: number;
+  readonly y: Float32;
 
   /**
    * The z-coordinate of the Vector4.
    */
-  readonly z: number;
+  readonly z: Float32;
 
   /**
    * The w-coordinate of the Vector4.
    */
-  readonly w: number;
+  readonly w: Float32;
 
   constructor(options: {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
+    x: Float32;
+    y: Float32;
+    z: Float32;
+    w: Float32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -907,16 +907,16 @@ export class Vector2i extends StructFrozen {
   /**
    * The x-coordinate of the Vector2i.
    */
-  readonly x: number;
+  readonly x: SInt32;
 
   /**
    * The y-coordinate of the Vector2i.
    */
-  readonly y: number;
+  readonly y: SInt32;
 
   constructor(options: {
-    x: number;
-    y: number;
+    x: SInt32;
+    y: SInt32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -1166,22 +1166,22 @@ export class Vector3i extends StructFrozen {
   /**
    * The x-coordinate of the Vector3i.
    */
-  readonly x: number;
+  readonly x: SInt32;
 
   /**
    * The y-coordinate of the Vector3i.
    */
-  readonly y: number;
+  readonly y: SInt32;
 
   /**
    * The z-coordinate of the Vector3i.
    */
-  readonly z: number;
+  readonly z: SInt32;
 
   constructor(options: {
-    x: number;
-    y: number;
-    z: number;
+    x: SInt32;
+    y: SInt32;
+    z: SInt32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -1457,28 +1457,28 @@ export class Vector4i extends StructFrozen {
   /**
    * The x-coordinate of the Vector4i.
    */
-  readonly x: number;
+  readonly x: SInt32;
 
   /**
    * The y-coordinate of the Vector4i.
    */
-  readonly y: number;
+  readonly y: SInt32;
 
   /**
    * The z-coordinate of the Vector4i.
    */
-  readonly z: number;
+  readonly z: SInt32;
 
   /**
    * The w-coordinate of the Vector4i.
    */
-  readonly w: number;
+  readonly w: SInt32;
 
   constructor(options: {
-    x: number;
-    y: number;
-    z: number;
-    w: number;
+    x: SInt32;
+    y: SInt32;
+    z: SInt32;
+    w: SInt32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Optional,
+    TypeAliasType,
     assert_never,
 )
 
@@ -17,18 +18,20 @@ from destack.language.registry import (
 from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
 
-from .common import (
+from .builtin import (
     NODE_TYPES,
-    PRIMITIVE_TYPE_BY_PY_TYPE,
+    NodeType,
+    StructType,
+    TraitType,
+)
+from .common import (
+    PRIMITIVE_TYPE_BY_ANNOTATION,
     CascadeAction,
     EdgeType,
     EnumType,
-    NodeType,
     PrimitiveType,
     PropertyType,
     ScalarType,
-    StructType,
-    TraitType,
     TypeCardinality,
     ValueFactory,
 )
@@ -185,8 +188,8 @@ class TypeDeclaration:
             node_types=list(self.node_types) if self.node_types else EMPTY_LIST,
             struct_type=self.struct_type,
             is_required=self.is_required,
-            value=default,
-            value_factory=self.default_factory,
+            default_value=default,
+            default_factory=self.default_factory,
             key_type=self.key_type._to_type() if self.key_type else None,
             string_constraint=string_constraint,
             number_constraint=number_constraint,
@@ -286,12 +289,14 @@ def parse_type_annotation(
     # determine scalar type
     is_self = False
     class_name = get_class_name(py_type)
-    if isinstance(py_type, type) and (primitive_t := PRIMITIVE_TYPE_BY_PY_TYPE.get(py_type)):
+    if isinstance(py_type, (type, TypeAliasType)) and (
+        primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
+    ):
+        if py_type in (float, int):
+            # shouldn't use float/int directly, use a specific precision/size
+            raise ValueError(f"unspecified primitive type: {py_type!r}")
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = primitive_t
-    elif class_name == "Json" or class_name == "Cson":
-        scalar_type = ScalarType.PRIMITIVE
-        primitive_type = PrimitiveType.JSON
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
