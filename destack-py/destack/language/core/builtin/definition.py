@@ -558,7 +558,7 @@ Whether this Property is part of the object's identity.
         from .node import Node
 
         assert prop.id is not None, f"{prop!r} has no id"
-        type = prop._to_type()
+        type = prop.to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
             prop.original_component, object_ref

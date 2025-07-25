@@ -15,7 +15,6 @@ from typing import (
     assert_never,
     cast,
     dataclass_transform,
-    final,
 )
 
 from destack.utils.code import exec_, format_code
@@ -479,6 +478,8 @@ __str__ = __repr__
 
     for prop in repr_properties:
         prop_name = prop.name
+
+        # scalar
         if prop.cardinality == TypeCardinality.SCALAR:
             if prop.is_required:
                 scalar_expr = _get_scalar_repr(prop, f"self.{prop_name}")
@@ -491,6 +492,8 @@ __str__ = __repr__
 if ({prop_name} := self.{prop_name}) is not None:
     property_reprs.append(f'{prop_name}={{{scalar_expr}}}')""".splitlines()
                 )
+
+        # list
         elif prop.cardinality == TypeCardinality.LIST:
             if prop.scalar_type == ScalarType.ENUM:
                 list_expr = f"'[' + ', '.join(x.name for x in self.{prop_name}) + ']'"
@@ -501,6 +504,12 @@ if ({prop_name} := self.{prop_name}) is not None:
 if self.{prop_name}:
     property_reprs.append(f'{prop_name}={{{list_expr}}}')""".splitlines()
             )
+
+        # tuple
+        elif prop.cardinality == TypeCardinality.TUPLE:
+            raise NotImplementedError(f"cannot repr tuple: {prop!r}")
+
+        # map
         elif prop.cardinality == TypeCardinality.MAP:
             assert prop.key_type is not None, f"{prop!r} has no key type"
             if prop.key_type.scalar_type == ScalarType.ENUM:
@@ -514,6 +523,7 @@ if self.{prop_name}:
 if self.{prop_name}:
     property_reprs.append(f'{prop_name}={{{map_expr}}}')""".splitlines()
             )
+
         else:
             assert_never(prop.cardinality)
 
@@ -698,13 +708,12 @@ if len(self.{prop_name}) != len(other.{prop_name}):
 """
         else:
             return f"""\
-if self.{prop_name} is None:
-    return other.{prop_name} is None
-if other.{prop_name} is None:
+if (self.{prop_name} is not None) != (other.{prop_name} is not None):
     return False
-if len(self.{prop_name}) != len(other.{prop_name}):
-    return False
-{main_cmp}
+if self.{prop_name} is not None:
+    if len(self.{prop_name}) != len(other.{prop_name}):
+        return False
+{textwrap.indent(main_cmp, "    ")}
 """
 
     # tuple
@@ -737,13 +746,12 @@ if len(self.{prop_name}) != len(other.{prop_name}):
 """
             else:
                 return f"""\
-if self.{prop_name} is None:
-    return other.{prop_name} is None
-if other.{prop_name} is None:
+if (self.{prop_name} is not None) != (other.{prop_name} is not None):
     return False
-if len(self.{prop_name}) != len(other.{prop_name}):
-    return False
-{main_cmp}
+if self.{prop_name} is not None:
+    if len(self.{prop_name}) != len(other.{prop_name}):
+        return False
+{textwrap.indent(main_cmp, "    ")}
 """
         else:
             # maps with primitive/enum values can use direct comparison
@@ -932,22 +940,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         raise NotImplementedError(f"cannot hash union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
-
-
-#
-# Validation
-#
-
-
-def _generate_validate[ObjectT: BuiltinObject](
-    cls: type[ObjectT],
-) -> tuple[str, dict[str, Any]]:
-    """Generates BuiltinObject.validate method."""
-    validate_impl = """\
-def validate(self) -> None:
-    raise NotImplementedError
-"""
-    return validate_impl, {}
 
 
 #
@@ -1276,9 +1268,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
             # hash
             hash_str, hash_glbls = _generate_hash(cls)
             exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
-            # validate
-            validate_str, validate_glbls = _generate_validate(cls)
-            exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
             if is_node:
                 # __to_ref__
                 ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))
@@ -1416,11 +1405,6 @@ class BuiltinObject:
         _identity_map: Mapping[UUID, UUID] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        raise NotImplementedError  # generated
-
-    @final
-    def validate(self) -> None:
-        """Validate the object."""
         raise NotImplementedError  # generated
 
     def hash(self) -> int:

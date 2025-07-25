@@ -185,7 +185,7 @@ class Type(BasicType):
     number_constraint: Optional["NumberConstraint"] = builtin_property(162)
 
     # flags
-    is_required: bool | None = builtin_property(170)
+    is_required: bool = builtin_property(170, default=False)
 
     @classmethod
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
@@ -271,4 +271,4 @@ class Type(BasicType):
 
         # parse as annotation
         type_decl = parse_type_annotation(value_or_type, is_builtin=False)
-        return type_decl._to_type()
+        return type_decl.to_type()

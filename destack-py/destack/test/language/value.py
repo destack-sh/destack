@@ -9,6 +9,7 @@ from destack.language import (
     ScalarType,
     Type,
     TypeCardinality,
+    UInt32,
     User,
 )
 
@@ -41,7 +42,7 @@ def test_value_to_type():
         primitive_type=PrimitiveType.STRING,
     )
 
-    # tuple[Int64, Boolean]
+    # tuple[Int8, Boolean]
     assert Type.infer((1, True)) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -57,7 +58,7 @@ def test_value_to_type():
             ),
         ],
     )
-    # tuple[String, Int64, Float64]
+    # tuple[String, Int8, Float32]
     assert Type.infer(("hello", 42, math.pi)) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -80,7 +81,7 @@ def test_value_to_type():
     )
 
     # lists
-    # list[Int64]
+    # list[Int8]
     assert Type.infer([1, 2, 3]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -100,7 +101,7 @@ def test_value_to_type():
     )
 
     # maps
-    # dict[String, Int64]
+    # dict[String, Int8]
     assert Type.infer({"a": 1, "b": 2, "c": 3}) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -116,7 +117,7 @@ def test_value_to_type():
     )
 
     # nested collections
-    # list[tuple[Int64, String]]
+    # list[tuple[Int8, String]]
     assert Type.infer([(1, "a"), (2, "b")]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -135,7 +136,7 @@ def test_value_to_type():
             ],
         ),
     )
-    # dict[String, list[Int64]]
+    # dict[String, list[Int8]]
     assert Type.infer({"nums": [1, 2, 3], "more": [4, 5]}) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -175,13 +176,13 @@ def test_annotation_to_type():
     )
 
     # tuple[int, str] (type annotation)
-    assert Type.infer(tuple[int, str]) == Type(
+    assert Type.infer(tuple[UInt32, str]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
             Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.INT64,
+                primitive_type=PrimitiveType.UINT32,
             ),
             Type(
                 cardinality=TypeCardinality.SCALAR,

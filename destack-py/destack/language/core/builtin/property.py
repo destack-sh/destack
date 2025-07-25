@@ -32,7 +32,7 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
-from .const import EMPTY_LIST, UNSET
+from .const import UNSET
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -127,14 +127,14 @@ class TypeDeclaration:
     # constraints
     constraint: "TypeConstraint | None" = None
 
-    def _to_type(self) -> "Type":
-        """Create the Type for this Property."""
-        from .type import (
-            CollectionConstraint,
-            NumberConstraint,
-            StringConstraint,
-            Type,
-        )
+    _type: Optional["Type"] = None  # cached
+
+    def to_type(self) -> "Type":
+        """Map this TypeDeclaration to a Type."""
+        if self._type is not None:
+            return self._type
+
+        from .type import CollectionConstraint, NumberConstraint, StringConstraint, Type
         from .value import Value
 
         # type
@@ -161,22 +161,20 @@ class TypeDeclaration:
                 assert_never(self.constraint)
 
         # type
-        type_obj = Type(
+        type = Type(
             # cardinality
             cardinality=self.cardinality,
-            key_type=self.key_type._to_type() if self.key_type else None,
-            value_type=self.value_type._to_type() if self.value_type else None,
-            element_types=[t._to_type() for t in self.element_types]
-            if self.element_types
-            else EMPTY_LIST,
+            key_type=self.key_type.to_type() if self.key_type else None,
+            value_type=self.value_type.to_type() if self.value_type else None,
+            element_types=[t.to_type() for t in self.element_types] if self.element_types else None,
             # scalar
             scalar_type=self.scalar_type,
             primitive_type=self.primitive_type,
             enum_type=self.enum_type,
-            node_types=list(self.node_types) if self.node_types else EMPTY_LIST,
+            node_types=list(self.node_types) if self.node_types else None,
             struct_type=self.struct_type,
             literal_value=Value.wrap(self.literal_value) if self.literal_value else None,
-            union_types=[t._to_type() for t in self.union_types] if self.union_types else None,
+            union_types=[t.to_type() for t in self.union_types] if self.union_types else None,
             is_required=self.is_required,
             # default
             default_value=default,
@@ -187,7 +185,8 @@ class TypeDeclaration:
             collection_constraint=collection_constraint,
         )
 
-        return type_obj
+        self._type = type
+        return type
 
 
 def parse_type_annotation(
@@ -407,7 +406,6 @@ class PropertyDeclaration(TypeDeclaration):
     is_main: bool = False  # root property (for return types with single value)
 
     _ref: Optional["PropertyReference"] = None
-    _type: Optional["Type"] = None
     _definition: Optional["PropertyDefinition"] = None
 
     def __str__(self):
@@ -482,13 +480,6 @@ class PropertyDeclaration(TypeDeclaration):
     @property
     def is_optional(self) -> bool:
         return not self.is_required
-
-    def to_type(self) -> "Type":
-        """The type info for this property (can't extend TypeInfo because circles)."""
-        if self._type is None:
-            self._type = self._to_type()
-            assert self._type is not None, f"{self!r} has no type"
-        return self._type
 
     @property
     def definition(self) -> "PropertyDefinition":
