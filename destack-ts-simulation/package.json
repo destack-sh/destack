@@ -1,6 +1,6 @@
 {
   "name": "destack-ts-simulation",
-  "version": "2025.07.24.2",
+  "version": "2025.07.25.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",

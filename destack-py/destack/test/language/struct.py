@@ -1,33 +1,37 @@
 from destack.language import (
-    BuiltinDefinition,
+    BasicType,
+    PropertyDefinition,
     Session,
     Struct,
     StructType,
+    Type,
 )
 
 
 def test_struct_inheritance(session: Session):
     """Test the Struct inheritance hierarchy."""
+    # test Struct as base
     assert Struct.metatype == StructType.STRUCT
     assert Struct.__is_abstract__
-    assert BuiltinDefinition.metatype == StructType.BUILTIN_DEFINITION
-    assert BuiltinDefinition.__is_abstract__
-    assert BuiltinDefinition.__base_type__ == StructType.STRUCT
-    assert BuiltinDefinition.__inherits__ == (StructType.STRUCT,)
-    assert BuiltinDefinition.__extended_by__ == (
-        StructType.NODE_DEFINITION,
-        StructType.TRAIT_DEFINITION,
-        StructType.STRUCT_DEFINITION,
-        StructType.ENUM_DEFINITION,
-        StructType.PROPERTY_DEFINITION,
-        StructType.OPTION_DEFINITION,
-        StructType.CONSTANT_DEFINITION,
-        StructType.TAG_DEFINITION,
-        StructType.INDEX_DEFINITION,
-        StructType.CONSTRAINT_DEFINITION,
-        StructType.PERMISSION_DEFINITION,
-        StructType.METHOD_DEFINITION,
-        StructType.MIGRATION_DEFINITION,
-        StructType.MIGRATION_OPERATION_DEFINITION,
+
+    # test BasicType extends Struct
+    assert BasicType.metatype == StructType.BASIC_TYPE
+    assert not BasicType.__is_abstract__
+    assert BasicType.__base_type__ == StructType.STRUCT
+    assert BasicType.__inherits__ == (StructType.STRUCT,)
+
+    # test Type extends BasicType
+    assert Type.metatype == StructType.TYPE
+    assert not Type.__is_abstract__
+    assert Type.__base_type__ == StructType.BASIC_TYPE
+    assert Type.__inherits__ == (StructType.STRUCT, StructType.BASIC_TYPE)
+
+    # test PropertyDefinition extends Type
+    assert PropertyDefinition.metatype == StructType.PROPERTY_DEFINITION
+    assert not PropertyDefinition.__is_abstract__
+    assert PropertyDefinition.__base_type__ == StructType.TYPE
+    assert PropertyDefinition.__inherits__ == (
+        StructType.STRUCT,
+        StructType.BASIC_TYPE,
+        StructType.TYPE,
     )
-    assert len(Struct.__inherited_by__) == len(StructType) - 1

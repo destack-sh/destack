@@ -5,13 +5,13 @@ from ..builtin import (
     Enum,
     EnumType,
     NodeType,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
     builtin_property,
     builtin_struct,
 )
-from ..builtin.definition import BuiltinDefinition
 
 if TYPE_CHECKING:
     pass
@@ -28,22 +28,31 @@ class MigrationType(Enum):
 
 
 @builtin_struct(StructType.MIGRATION_DEFINITION, frozen=True)
-class MigrationDefinition(BuiltinDefinition):
+class MigrationDefinition(StructFrozen):
     """Definition of a builtin Migration."""
 
     type: "MigrationType" = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
 
 
 @builtin_node(NodeType.MIGRATION)
 class Migration(Entity):
     """Migration of an Entity."""
 
+    id: int = builtin_property(2, is_repr=True)
     type: MigrationType = builtin_property(100, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
 
 
 @builtin_struct(StructType.MIGRATION_OPERATION_DEFINITION, frozen=True)
-class MigrationOperationDefinition(BuiltinDefinition):
+class MigrationOperationDefinition(StructFrozen):
     """Definition of a builtin MigrationOperation."""
+
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
+    type: "MigrationType" = builtin_property(100, is_repr=True)
 
 
 @builtin_node(NodeType.MIGRATION_OPERATION)

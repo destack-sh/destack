@@ -12,3 +12,5 @@ export * from "@destack/language/core/builtin/object";
 export * from "@destack/language/core/builtin/relation";
 export * from "@destack/language/core/builtin/struct";
 export * from "@destack/language/core/builtin/trait";
+export * from "@destack/language/core/builtin/type";
+export * from "@destack/language/core/builtin/value";

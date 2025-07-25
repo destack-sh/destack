@@ -95,7 +95,6 @@ import type {
   ValueFactory,
 } from "@destack/language/core/builtin/common";
 import type {
-  BuiltinDefinition,
   ConstantDefinition,
   ConstraintDefinition,
   EnumDefinition,
@@ -147,6 +146,16 @@ import type {
   IsSelectable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
+import type {
+  BasicType,
+  CollectionConstraint,
+  NumberConstraint,
+  NumberFormat,
+  StringConstraint,
+  StringFormat,
+  Type,
+} from "@destack/language/core/builtin/type";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Permission } from "@destack/language/core/common/access";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
@@ -189,15 +198,6 @@ import type {
   SnapshotStatus,
   SnapshotType,
 } from "@destack/language/core/common/time";
-import type {
-  CollectionConstraint,
-  NumberConstraint,
-  NumberFormat,
-  StringConstraint,
-  StringFormat,
-  Type,
-} from "@destack/language/core/common/type";
-import type { Value } from "@destack/language/core/common/value";
 import type { File, FileFormat, FileRetentionMode, FileType } from "@destack/language/data/file";
 import type { Environment } from "@destack/language/deployment/environment";
 import type { LogEvent, LogLevel } from "@destack/language/deployment/log";
@@ -628,7 +628,12 @@ export type StructTypeMapping = {
   [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
-  [StructType.BUILTIN_DEFINITION]: BuiltinDefinition;
+  [StructType.STRING_CONSTRAINT]: StringConstraint;
+  [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
+  [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
+  [StructType.BASIC_TYPE]: BasicType;
+  [StructType.TYPE]: Type;
+  [StructType.VALUE]: Value;
   [StructType.NODE_DEFINITION]: NodeDefinition;
   [StructType.TRAIT_DEFINITION]: TraitDefinition;
   [StructType.STRUCT_DEFINITION]: StructDefinition;
@@ -645,11 +650,6 @@ export type StructTypeMapping = {
   [StructType.ICON]: Icon;
   [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
   [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
-  [StructType.STRING_CONSTRAINT]: StringConstraint;
-  [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
-  [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
-  [StructType.TYPE]: Type;
-  [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;
   [StructType.CONDITION]: Condition;
   [StructType.AGGREGATION]: Aggregation;
@@ -739,14 +739,14 @@ export type EnumTypeMapping = {
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
+  [EnumType.STRING_FORMAT]: StringFormat;
+  [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
   [EnumType.ICON_TYPE]: IconType;
   [EnumType.MIGRATION_TYPE]: MigrationType;
-  [EnumType.STRING_FORMAT]: StringFormat;
-  [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.FUNCTION_TYPE]: FunctionType;
   [EnumType.CONDITIONAL_TYPE]: ConditionalType;
   [EnumType.AGGREGATION_TYPE]: AggregationType;

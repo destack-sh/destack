@@ -11,6 +11,7 @@ import type {
   ArrowShape2D,
   Axis2,
   Axis3,
+  BasicType,
   Border,
   BorderStyle,
   Branch,
@@ -1044,14 +1045,14 @@ export function loadEncoders(): void {
         for (const item of object._platforms) {
           packedPlatforms.push(item);
         }
-        objectCson["120"] = packedPlatforms;
+        objectCson["130"] = packedPlatforms;
       }
       if (object._languages.length > 0) {
         const packedLanguages: any[] = [];
         for (const item of object._languages) {
           packedLanguages.push(item);
         }
-        objectCson["121"] = packedLanguages;
+        objectCson["131"] = packedLanguages;
       }
       return objectCson;
     }
@@ -1064,14 +1065,14 @@ export function loadEncoders(): void {
       const unpackedText =
         textValue != undefined ? (_Text.unpack(2, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
-      if (objectCson["120"] != undefined) {
-        for (const item of objectCson["120"]) {
+      if (objectCson["130"] != undefined) {
+        for (const item of objectCson["130"]) {
           unpackedPlatforms.push(Number(item));
         }
       }
       const unpackedLanguages: any[] = [];
-      if (objectCson["121"] != undefined) {
-        for (const item of objectCson["121"]) {
+      if (objectCson["131"] != undefined) {
+        for (const item of objectCson["131"]) {
           unpackedLanguages.push(Number(item));
         }
       }
@@ -1227,14 +1228,14 @@ export function loadEncoders(): void {
         for (const item of object._platforms) {
           packedPlatforms.push(item);
         }
-        objectCson["120"] = packedPlatforms;
+        objectCson["130"] = packedPlatforms;
       }
       if (object._languages.length > 0) {
         const packedLanguages: any[] = [];
         for (const item of object._languages) {
           packedLanguages.push(item);
         }
-        objectCson["121"] = packedLanguages;
+        objectCson["131"] = packedLanguages;
       }
       return objectCson;
     }
@@ -1247,14 +1248,14 @@ export function loadEncoders(): void {
       const unpackedText =
         textValue != undefined ? (_Text.unpack(2, textValue, _session) as Text) : undefined;
       const unpackedPlatforms: any[] = [];
-      if (objectCson["120"] != undefined) {
-        for (const item of objectCson["120"]) {
+      if (objectCson["130"] != undefined) {
+        for (const item of objectCson["130"]) {
           unpackedPlatforms.push(Number(item));
         }
       }
       const unpackedLanguages: any[] = [];
-      if (objectCson["121"] != undefined) {
-        for (const item of objectCson["121"]) {
+      if (objectCson["131"] != undefined) {
+        for (const item of objectCson["131"]) {
           unpackedLanguages.push(Number(item));
         }
       }
@@ -1976,7 +1977,7 @@ export function loadEncoders(): void {
     packObject(object: Migration): any {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 31000;
-      objectCson["2"] = object.id;
+      objectCson["2"] = object._id;
       if (object.parentPtr != null) {
         objectCson["3"] = object.parentPtr.pack(2);
       }
@@ -2027,12 +2028,17 @@ export function loadEncoders(): void {
         objectCson["85"] = object._key;
       }
       objectCson["100"] = object._type;
+      if (object._description != null) {
+        objectCson["103"] = object._description;
+      }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): Migration {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
         parentPtrValue != undefined
@@ -2085,7 +2091,9 @@ export function loadEncoders(): void {
       const keyValue = objectCson["85"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[31000] as typeof Migration)({
+        id: Number(objectCson["2"]),
         type: Number(objectCson["100"]),
+        description: unpackedDescription,
         parent: unpackedParentPtr,
         materialization: Number(objectCson["10"]),
         definition: unpackedDefinitionPtr,
@@ -2108,7 +2116,6 @@ export function loadEncoders(): void {
         isExtensible: unpackedIsExtensible,
         source: unpackedSourcePtr,
         key: unpackedKey,
-        id: objectCson["2"],
         space: _NodeReference.unpack(2, objectCson["5"], _session) as NodeReference,
         _session,
       });
@@ -2380,7 +2387,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): CustomProperty {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
+      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
@@ -19212,6 +19219,349 @@ export function loadEncoders(): void {
 
   CSON_OBJECT_ENCODERS[getObjectKey(2, 1000)] = new NodeReferenceCsonEncoder();
 
+  class StringConstraintCsonEncoder implements CsonObjectEncoder {
+    packObject(object: StringConstraint): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 111;
+      if (object.format != null) {
+        objectCson["40"] = object.format;
+      }
+      if (object.regex != null) {
+        objectCson["41"] = object.regex;
+      }
+      if (object.startsWith != null) {
+        objectCson["42"] = object.startsWith;
+      }
+      if (object.endsWith != null) {
+        objectCson["43"] = object.endsWith;
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): StringConstraint {
+      const formatValue = objectCson["40"];
+      const unpackedFormat = formatValue != undefined ? Number(formatValue) : undefined;
+      const regexValue = objectCson["41"];
+      const unpackedRegex = regexValue != undefined ? regexValue : undefined;
+      const startsWithValue = objectCson["42"];
+      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : undefined;
+      const endsWithValue = objectCson["43"];
+      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint)({
+        format: unpackedFormat,
+        regex: unpackedRegex,
+        startsWith: unpackedStartsWith,
+        endsWith: unpackedEndsWith,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 111)] = new StringConstraintCsonEncoder();
+
+  class NumberConstraintCsonEncoder implements CsonObjectEncoder {
+    packObject(object: NumberConstraint): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 110;
+      if (object.format != null) {
+        objectCson["40"] = object.format;
+      }
+      if (object.minValue != null) {
+        objectCson["41"] = object.minValue;
+      }
+      if (object.maxValue != null) {
+        objectCson["42"] = object.maxValue;
+      }
+      if (object.stepValue != null) {
+        objectCson["43"] = object.stepValue;
+      }
+      if (object.precision != null) {
+        objectCson["44"] = object.precision;
+      }
+      if (object.scale != null) {
+        objectCson["45"] = object.scale;
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): NumberConstraint {
+      const formatValue = objectCson["40"];
+      const unpackedFormat = formatValue != undefined ? Number(formatValue) : undefined;
+      const minValueValue = objectCson["41"];
+      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
+      const maxValueValue = objectCson["42"];
+      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
+      const stepValueValue = objectCson["43"];
+      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
+      const precisionValue = objectCson["44"];
+      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : undefined;
+      const scaleValue = objectCson["45"];
+      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
+        format: unpackedFormat,
+        minValue: unpackedMinValue,
+        maxValue: unpackedMaxValue,
+        stepValue: unpackedStepValue,
+        precision: unpackedPrecision,
+        scale: unpackedScale,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 110)] = new NumberConstraintCsonEncoder();
+
+  class CollectionConstraintCsonEncoder implements CsonObjectEncoder {
+    packObject(object: CollectionConstraint): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 112;
+      if (object.minLength != null) {
+        objectCson["41"] = object.minLength;
+      }
+      if (object.maxLength != null) {
+        objectCson["42"] = object.maxLength;
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): CollectionConstraint {
+      const minLengthValue = objectCson["41"];
+      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : undefined;
+      const maxLengthValue = objectCson["42"];
+      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint)({
+        minLength: unpackedMinLength,
+        maxLength: unpackedMaxLength,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintCsonEncoder();
+
+  class BasicTypeCsonEncoder implements CsonObjectEncoder {
+    packObject(object: BasicType): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 101;
+      objectCson["110"] = object.cardinality;
+      objectCson["111"] = object.scalarType;
+      if (object.primitiveType != null) {
+        objectCson["112"] = object.primitiveType;
+      }
+      if (object.enumType != null) {
+        objectCson["113"] = object.enumType;
+      }
+      if (object.nodeTypes.length > 0) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(item);
+        }
+        objectCson["114"] = packedNodeTypes;
+      }
+      if (object.structType != null) {
+        objectCson["115"] = object.structType;
+      }
+      if (object.keyType != null) {
+        objectCson["117"] = object.keyType.pack(2);
+      }
+      if (object.value != null) {
+        objectCson["120"] = object.value.pack(2);
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): BasicType {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const primitiveTypeValue = objectCson["112"];
+      const unpackedPrimitiveType =
+        primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
+      const enumTypeValue = objectCson["113"];
+      const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
+      const unpackedNodeTypes: any[] = [];
+      if (objectCson["114"] != undefined) {
+        for (const item of objectCson["114"]) {
+          unpackedNodeTypes.push(Number(item));
+        }
+      }
+      const structTypeValue = objectCson["115"];
+      const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
+      const keyTypeValue = objectCson["117"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
+      const valueValue = objectCson["120"];
+      const unpackedValue =
+        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
+        cardinality: Number(objectCson["110"]),
+        scalarType: Number(objectCson["111"]),
+        primitiveType: unpackedPrimitiveType,
+        enumType: unpackedEnumType,
+        nodeTypes: unpackedNodeTypes,
+        structType: unpackedStructType,
+        keyType: unpackedKeyType,
+        value: unpackedValue,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new BasicTypeCsonEncoder();
+
+  class TypeCsonEncoder implements CsonObjectEncoder {
+    packObject(object: Type): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 102;
+      objectCson["110"] = object.cardinality;
+      objectCson["111"] = object.scalarType;
+      if (object.primitiveType != null) {
+        objectCson["112"] = object.primitiveType;
+      }
+      if (object.enumType != null) {
+        objectCson["113"] = object.enumType;
+      }
+      if (object.nodeTypes.length > 0) {
+        const packedNodeTypes: any[] = [];
+        for (const item of object.nodeTypes) {
+          packedNodeTypes.push(item);
+        }
+        objectCson["114"] = packedNodeTypes;
+      }
+      if (object.structType != null) {
+        objectCson["115"] = object.structType;
+      }
+      if (object.keyType != null) {
+        objectCson["117"] = object.keyType.pack(2);
+      }
+      if (object.value != null) {
+        objectCson["120"] = object.value.pack(2);
+      }
+      if (object.valueFactory != null) {
+        objectCson["150"] = object.valueFactory;
+      }
+      if (object.collectionConstraint != null) {
+        objectCson["160"] = object.collectionConstraint.pack(2);
+      }
+      if (object.stringConstraint != null) {
+        objectCson["161"] = object.stringConstraint.pack(2);
+      }
+      if (object.numberConstraint != null) {
+        objectCson["162"] = object.numberConstraint.pack(2);
+      }
+      if (object.isRequired != null) {
+        objectCson["170"] = object.isRequired;
+      }
+      if (object.isMain != null) {
+        objectCson["171"] = object.isMain;
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): Type {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
+      const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
+      const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
+      const valueFactoryValue = objectCson["150"];
+      const unpackedValueFactory =
+        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
+      const collectionConstraintValue = objectCson["160"];
+      const unpackedCollectionConstraint =
+        collectionConstraintValue != undefined
+          ? (_CollectionConstraint.unpack(
+              2,
+              collectionConstraintValue,
+              _session,
+            ) as CollectionConstraint)
+          : undefined;
+      const stringConstraintValue = objectCson["161"];
+      const unpackedStringConstraint =
+        stringConstraintValue != undefined
+          ? (_StringConstraint.unpack(2, stringConstraintValue, _session) as StringConstraint)
+          : undefined;
+      const numberConstraintValue = objectCson["162"];
+      const unpackedNumberConstraint =
+        numberConstraintValue != undefined
+          ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
+          : undefined;
+      const isRequiredValue = objectCson["170"];
+      const unpackedIsRequired =
+        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
+      const isMainValue = objectCson["171"];
+      const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
+      const primitiveTypeValue = objectCson["112"];
+      const unpackedPrimitiveType =
+        primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
+      const enumTypeValue = objectCson["113"];
+      const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
+      const unpackedNodeTypes: any[] = [];
+      if (objectCson["114"] != undefined) {
+        for (const item of objectCson["114"]) {
+          unpackedNodeTypes.push(Number(item));
+        }
+      }
+      const structTypeValue = objectCson["115"];
+      const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
+      const keyTypeValue = objectCson["117"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
+      const valueValue = objectCson["120"];
+      const unpackedValue =
+        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
+        valueFactory: unpackedValueFactory,
+        collectionConstraint: unpackedCollectionConstraint,
+        stringConstraint: unpackedStringConstraint,
+        numberConstraint: unpackedNumberConstraint,
+        isRequired: unpackedIsRequired,
+        isMain: unpackedIsMain,
+        cardinality: Number(objectCson["110"]),
+        scalarType: Number(objectCson["111"]),
+        primitiveType: unpackedPrimitiveType,
+        enumType: unpackedEnumType,
+        nodeTypes: unpackedNodeTypes,
+        structType: unpackedStructType,
+        keyType: unpackedKeyType,
+        value: unpackedValue,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 102)] = new TypeCsonEncoder();
+
+  class ValueCsonEncoder implements CsonObjectEncoder {
+    packObject(object: Value): any {
+      const objectCson: { [key: string]: any } = {};
+      objectCson["1"] = 100;
+      objectCson["100"] = object.type.pack(2);
+      if (object.value != null) {
+        objectCson["110"] = object.value;
+      }
+      return objectCson;
+    }
+
+    unpackObject(objectCson: any, _session: Session | null): Value {
+      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const valueValue = objectCson["110"];
+      const unpackedValue = valueValue != undefined ? valueValue : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[100] as typeof Value)({
+        type: _Type.unpack(2, objectCson["100"], _session) as Type,
+        value: unpackedValue,
+        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
+        _session,
+      });
+    }
+  }
+
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 100)] = new ValueCsonEncoder();
+
   class NodeDefinitionCsonEncoder implements CsonObjectEncoder {
     packObject(object: NodeDefinition): any {
       const objectCson: { [key: string]: any } = {};
@@ -19422,6 +19772,17 @@ export function loadEncoders(): void {
       const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
       const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const iconValue = objectCson["102"];
+      const unpackedIcon =
+        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
+      const unpackedTaggings: any[] = [];
+      if (objectCson["109"] != undefined) {
+        for (const item of objectCson["109"]) {
+          unpackedTaggings.push(Number(item));
+        }
+      }
       const unpackedProperties: any[] = [];
       if (objectCson["120"] != undefined) {
         for (const item of objectCson["120"]) {
@@ -19578,19 +19939,13 @@ export function loadEncoders(): void {
       }
       const domainValue = objectCson["200"];
       const unpackedDomain = domainValue != undefined ? Number(domainValue) : undefined;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[12] as typeof NodeDefinition)({
         type: Number(objectCson["100"]),
+        id: Number(objectCson["2"]),
+        name: objectCson["101"],
+        icon: unpackedIcon,
+        description: unpackedDescription,
+        taggings: unpackedTaggings,
         isAbstract: Boolean(objectCson["110"]),
         isExtensible: Boolean(objectCson["111"]),
         isFinal: Boolean(objectCson["112"]),
@@ -19621,11 +19976,6 @@ export function loadEncoders(): void {
         expectedAncestorTypes: unpackedExpectedAncestorTypes,
         expectedDescendantTypes: unpackedExpectedDescendantTypes,
         domain: unpackedDomain,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -19711,6 +20061,17 @@ export function loadEncoders(): void {
     unpackObject(objectCson: any, _session: Session | null): TraitDefinition {
       const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const iconValue = objectCson["102"];
+      const unpackedIcon =
+        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
+      const unpackedTaggings: any[] = [];
+      if (objectCson["109"] != undefined) {
+        for (const item of objectCson["109"]) {
+          unpackedTaggings.push(Number(item));
+        }
+      }
       const unpackedPermissions: any[] = [];
       if (objectCson["123"] != undefined) {
         for (const item of objectCson["123"]) {
@@ -19755,19 +20116,13 @@ export function loadEncoders(): void {
           unpackedSelfEnumTypes.push(Number(item));
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[14] as typeof TraitDefinition)({
         type: Number(objectCson["100"]),
+        id: Number(objectCson["2"]),
+        name: objectCson["101"],
+        icon: unpackedIcon,
+        description: unpackedDescription,
+        taggings: unpackedTaggings,
         alias: objectCson["110"],
         isExtensible: Boolean(objectCson["111"]),
         permissions: unpackedPermissions,
@@ -19777,11 +20132,6 @@ export function loadEncoders(): void {
         selfEventTypes: unpackedSelfEventTypes,
         enumTypes: unpackedEnumTypes,
         selfEnumTypes: unpackedSelfEnumTypes,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -19896,6 +20246,17 @@ export function loadEncoders(): void {
       const _MethodDefinition = STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition;
       const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const iconValue = objectCson["102"];
+      const unpackedIcon =
+        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
+      const unpackedTaggings: any[] = [];
+      if (objectCson["109"] != undefined) {
+        for (const item of objectCson["109"]) {
+          unpackedTaggings.push(Number(item));
+        }
+      }
       const unpackedProperties: any[] = [];
       if (objectCson["120"] != undefined) {
         for (const item of objectCson["120"]) {
@@ -19962,19 +20323,13 @@ export function loadEncoders(): void {
           unpackedSelfEnumTypes.push(Number(item));
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[15] as typeof StructDefinition)({
         type: Number(objectCson["100"]),
+        id: Number(objectCson["2"]),
+        name: objectCson["101"],
+        icon: unpackedIcon,
+        description: unpackedDescription,
+        taggings: unpackedTaggings,
         isFrozen: Boolean(objectCson["110"]),
         isAbstract: Boolean(objectCson["111"]),
         isExtensible: Boolean(objectCson["112"]),
@@ -19989,11 +20344,6 @@ export function loadEncoders(): void {
         inheritedBy: unpackedInheritedBy,
         enumTypes: unpackedEnumTypes,
         selfEnumTypes: unpackedSelfEnumTypes,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20015,13 +20365,6 @@ export function loadEncoders(): void {
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
-      if (object.options.length > 0) {
-        const packedOptions: any[] = [];
-        for (const item of object.options) {
-          packedOptions.push(item.pack(2));
-        }
-        objectCson["104"] = packedOptions;
-      }
       if (object.taggings.length > 0) {
         const packedTaggings: any[] = [];
         for (const item of object.taggings) {
@@ -20029,18 +20372,19 @@ export function loadEncoders(): void {
         }
         objectCson["109"] = packedTaggings;
       }
+      if (object.options.length > 0) {
+        const packedOptions: any[] = [];
+        for (const item of object.options) {
+          packedOptions.push(item.pack(2));
+        }
+        objectCson["120"] = packedOptions;
+      }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): EnumDefinition {
       const _OptionDefinition = STRUCT_CLASS_BY_TYPE[20] as typeof OptionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const unpackedOptions: any[] = [];
-      if (objectCson["104"] != undefined) {
-        for (const item of objectCson["104"]) {
-          unpackedOptions.push(_OptionDefinition.unpack(2, item, _session) as OptionDefinition);
-        }
-      }
       const iconValue = objectCson["102"];
       const unpackedIcon =
         iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
@@ -20052,14 +20396,20 @@ export function loadEncoders(): void {
           unpackedTaggings.push(Number(item));
         }
       }
+      const unpackedOptions: any[] = [];
+      if (objectCson["120"] != undefined) {
+        for (const item of objectCson["120"]) {
+          unpackedOptions.push(_OptionDefinition.unpack(2, item, _session) as OptionDefinition);
+        }
+      }
       return new (STRUCT_CLASS_BY_TYPE[17] as typeof EnumDefinition)({
         type: Number(objectCson["100"]),
-        options: unpackedOptions,
         id: Number(objectCson["2"]),
         name: objectCson["101"],
         icon: unpackedIcon,
         description: unpackedDescription,
         taggings: unpackedTaggings,
+        options: unpackedOptions,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20074,9 +20424,8 @@ export function loadEncoders(): void {
       objectCson["1"] = 18;
       objectCson["2"] = object.id;
       objectCson["100"] = object.type;
-      objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
+      if (object.name != null) {
+        objectCson["101"] = object.name;
       }
       if (object.description != null) {
         objectCson["103"] = object.description;
@@ -20109,40 +20458,44 @@ export function loadEncoders(): void {
         objectCson["115"] = object.structType;
       }
       if (object.keyType != null) {
-        objectCson["116"] = object.keyType.pack(2);
+        objectCson["117"] = object.keyType.pack(2);
       }
       if (object.value != null) {
         objectCson["120"] = object.value.pack(2);
       }
       if (object.valueFactory != null) {
-        objectCson["121"] = object.valueFactory;
+        objectCson["150"] = object.valueFactory;
       }
       if (object.collectionConstraint != null) {
-        objectCson["130"] = object.collectionConstraint.pack(2);
+        objectCson["160"] = object.collectionConstraint.pack(2);
       }
       if (object.stringConstraint != null) {
-        objectCson["131"] = object.stringConstraint.pack(2);
+        objectCson["161"] = object.stringConstraint.pack(2);
       }
       if (object.numberConstraint != null) {
-        objectCson["132"] = object.numberConstraint.pack(2);
+        objectCson["162"] = object.numberConstraint.pack(2);
+      }
+      if (object.isRequired != null) {
+        objectCson["170"] = object.isRequired;
+      }
+      if (object.isMain != null) {
+        objectCson["171"] = object.isMain;
       }
       if (object.edgeType != null) {
-        objectCson["140"] = object.edgeType;
+        objectCson["190"] = object.edgeType;
       }
       if (object.cascade != null) {
-        objectCson["141"] = object.cascade;
+        objectCson["191"] = object.cascade;
       }
-      objectCson["150"] = object.isRequired;
-      objectCson["151"] = object.isIdentity;
-      objectCson["152"] = object.isUnique;
-      objectCson["153"] = object.isReadonly;
-      objectCson["154"] = object.isMain;
-      objectCson["160"] = object.isWired;
-      objectCson["161"] = object.isStored;
-      objectCson["162"] = object.isRepr;
-      objectCson["163"] = object.isHash;
-      objectCson["164"] = object.isEq;
-      objectCson["165"] = object.isInternal;
+      objectCson["200"] = object.isIdentity;
+      objectCson["201"] = object.isUnique;
+      objectCson["202"] = object.isReadonly;
+      objectCson["210"] = object.isWired;
+      objectCson["211"] = object.isStored;
+      objectCson["212"] = object.isRepr;
+      objectCson["213"] = object.isHash;
+      objectCson["214"] = object.isEq;
+      objectCson["215"] = object.isInternal;
       return objectCson;
     }
 
@@ -20150,11 +20503,51 @@ export function loadEncoders(): void {
       const _ObjectDefinitionReference =
         STRUCT_CLASS_BY_TYPE[11] as typeof ObjectDefinitionReference;
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
+      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const nameValue = objectCson["101"];
+      const unpackedName = nameValue != undefined ? nameValue : undefined;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
+      const unpackedTaggings: any[] = [];
+      if (objectCson["109"] != undefined) {
+        for (const item of objectCson["109"]) {
+          unpackedTaggings.push(Number(item));
+        }
+      }
+      const edgeTypeValue = objectCson["190"];
+      const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : undefined;
+      const cascadeValue = objectCson["191"];
+      const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : undefined;
+      const valueFactoryValue = objectCson["150"];
+      const unpackedValueFactory =
+        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
+      const collectionConstraintValue = objectCson["160"];
+      const unpackedCollectionConstraint =
+        collectionConstraintValue != undefined
+          ? (_CollectionConstraint.unpack(
+              2,
+              collectionConstraintValue,
+              _session,
+            ) as CollectionConstraint)
+          : undefined;
+      const stringConstraintValue = objectCson["161"];
+      const unpackedStringConstraint =
+        stringConstraintValue != undefined
+          ? (_StringConstraint.unpack(2, stringConstraintValue, _session) as StringConstraint)
+          : undefined;
+      const numberConstraintValue = objectCson["162"];
+      const unpackedNumberConstraint =
+        numberConstraintValue != undefined
+          ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
+          : undefined;
+      const isRequiredValue = objectCson["170"];
+      const unpackedIsRequired =
+        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
+      const isMainValue = objectCson["171"];
+      const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
       const primitiveTypeValue = objectCson["112"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -20168,51 +20561,17 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectCson["115"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["116"];
+      const keyTypeValue = objectCson["117"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
       const valueValue = objectCson["120"];
       const unpackedValue =
         valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
-      const valueFactoryValue = objectCson["121"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
-      const collectionConstraintValue = objectCson["130"];
-      const unpackedCollectionConstraint =
-        collectionConstraintValue != undefined
-          ? (_CollectionConstraint.unpack(
-              2,
-              collectionConstraintValue,
-              _session,
-            ) as CollectionConstraint)
-          : undefined;
-      const stringConstraintValue = objectCson["131"];
-      const unpackedStringConstraint =
-        stringConstraintValue != undefined
-          ? (_StringConstraint.unpack(2, stringConstraintValue, _session) as StringConstraint)
-          : undefined;
-      const numberConstraintValue = objectCson["132"];
-      const unpackedNumberConstraint =
-        numberConstraintValue != undefined
-          ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
-          : undefined;
-      const edgeTypeValue = objectCson["140"];
-      const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : undefined;
-      const cascadeValue = objectCson["141"];
-      const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : undefined;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: Number(objectCson["100"]),
+        id: Number(objectCson["2"]),
+        name: unpackedName,
+        description: unpackedDescription,
         object: _ObjectDefinitionReference.unpack(
           2,
           objectCson["104"],
@@ -20223,6 +20582,24 @@ export function loadEncoders(): void {
           objectCson["105"],
           _session,
         ) as ObjectDefinitionReference,
+        taggings: unpackedTaggings,
+        edgeType: unpackedEdgeType,
+        cascade: unpackedCascade,
+        isIdentity: Boolean(objectCson["200"]),
+        isUnique: Boolean(objectCson["201"]),
+        isReadonly: Boolean(objectCson["202"]),
+        isWired: Boolean(objectCson["210"]),
+        isStored: Boolean(objectCson["211"]),
+        isRepr: Boolean(objectCson["212"]),
+        isHash: Boolean(objectCson["213"]),
+        isEq: Boolean(objectCson["214"]),
+        isInternal: Boolean(objectCson["215"]),
+        valueFactory: unpackedValueFactory,
+        collectionConstraint: unpackedCollectionConstraint,
+        stringConstraint: unpackedStringConstraint,
+        numberConstraint: unpackedNumberConstraint,
+        isRequired: unpackedIsRequired,
+        isMain: unpackedIsMain,
         cardinality: Number(objectCson["110"]),
         scalarType: Number(objectCson["111"]),
         primitiveType: unpackedPrimitiveType,
@@ -20231,28 +20608,6 @@ export function loadEncoders(): void {
         structType: unpackedStructType,
         keyType: unpackedKeyType,
         value: unpackedValue,
-        valueFactory: unpackedValueFactory,
-        collectionConstraint: unpackedCollectionConstraint,
-        stringConstraint: unpackedStringConstraint,
-        numberConstraint: unpackedNumberConstraint,
-        edgeType: unpackedEdgeType,
-        cascade: unpackedCascade,
-        isRequired: Boolean(objectCson["150"]),
-        isIdentity: Boolean(objectCson["151"]),
-        isUnique: Boolean(objectCson["152"]),
-        isReadonly: Boolean(objectCson["153"]),
-        isMain: Boolean(objectCson["154"]),
-        isWired: Boolean(objectCson["160"]),
-        isStored: Boolean(objectCson["161"]),
-        isRepr: Boolean(objectCson["162"]),
-        isHash: Boolean(objectCson["163"]),
-        isEq: Boolean(objectCson["164"]),
-        isInternal: Boolean(objectCson["165"]),
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20298,8 +20653,8 @@ export function loadEncoders(): void {
         }
       }
       return new (STRUCT_CLASS_BY_TYPE[20] as typeof OptionDefinition)({
-        type: Number(objectCson["100"]),
         id: Number(objectCson["2"]),
+        type: Number(objectCson["100"]),
         name: objectCson["101"],
         icon: unpackedIcon,
         description: unpackedDescription,
@@ -20318,9 +20673,6 @@ export function loadEncoders(): void {
       objectCson["1"] = 19;
       objectCson["2"] = object.id;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
@@ -20337,10 +20689,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): ConstantDefinition {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedTaggings: any[] = [];
@@ -20350,12 +20698,11 @@ export function loadEncoders(): void {
         }
       }
       return new (STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition)({
-        value: _Value.unpack(2, objectCson["120"], _session) as Value,
         id: Number(objectCson["2"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
         taggings: unpackedTaggings,
+        value: _Value.unpack(2, objectCson["120"], _session) as Value,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20370,41 +20717,19 @@ export function loadEncoders(): void {
       objectCson["1"] = 21;
       objectCson["2"] = object.id;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): TagDefinition {
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[21] as typeof TagDefinition)({
         id: Number(objectCson["2"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20420,9 +20745,6 @@ export function loadEncoders(): void {
       objectCson["2"] = object.id;
       objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
@@ -20431,62 +20753,43 @@ export function loadEncoders(): void {
         for (const item of object.properties) {
           packedProperties.push(item.pack(2));
         }
-        objectCson["105"] = packedProperties;
+        objectCson["120"] = packedProperties;
       }
       if (object.cover.length > 0) {
         const packedCover: any[] = [];
         for (const item of object.cover) {
           packedCover.push(item.pack(2));
         }
-        objectCson["106"] = packedCover;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
+        objectCson["121"] = packedCover;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): IndexDefinition {
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectCson["105"] != undefined) {
-        for (const item of objectCson["105"]) {
+      if (objectCson["120"] != undefined) {
+        for (const item of objectCson["120"]) {
           unpackedProperties.push(
             _PropertyReference.unpack(2, item, _session) as PropertyReference,
           );
         }
       }
       const unpackedCover: any[] = [];
-      if (objectCson["106"] != undefined) {
-        for (const item of objectCson["106"]) {
+      if (objectCson["121"] != undefined) {
+        for (const item of objectCson["121"]) {
           unpackedCover.push(_PropertyReference.unpack(2, item, _session) as PropertyReference);
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[30100] as typeof IndexDefinition)({
+        id: Number(objectCson["2"]),
         type: Number(objectCson["100"]),
+        name: objectCson["101"],
+        description: unpackedDescription,
         properties: unpackedProperties,
         cover: unpackedCover,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20502,9 +20805,6 @@ export function loadEncoders(): void {
       objectCson["2"] = object.id;
       objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
@@ -20513,48 +20813,29 @@ export function loadEncoders(): void {
         for (const item of object.properties) {
           packedProperties.push(item.pack(2));
         }
-        objectCson["105"] = packedProperties;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
+        objectCson["120"] = packedProperties;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): ConstraintDefinition {
       const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectCson["105"] != undefined) {
-        for (const item of objectCson["105"]) {
+      if (objectCson["120"] != undefined) {
+        for (const item of objectCson["120"]) {
           unpackedProperties.push(
             _PropertyReference.unpack(2, item, _session) as PropertyReference,
           );
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[30200] as typeof ConstraintDefinition)({
-        type: Number(objectCson["100"]),
-        properties: unpackedProperties,
         id: Number(objectCson["2"]),
+        type: Number(objectCson["100"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
-        taggings: unpackedTaggings,
+        properties: unpackedProperties,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20569,41 +20850,19 @@ export function loadEncoders(): void {
       objectCson["1"] = 50000;
       objectCson["2"] = object.id;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): PermissionDefinition {
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition)({
         id: Number(objectCson["2"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20619,9 +20878,6 @@ export function loadEncoders(): void {
       objectCson["2"] = object.id;
       objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
@@ -20630,78 +20886,59 @@ export function loadEncoders(): void {
         for (const item of object.properties) {
           packedProperties.push(item.pack(2));
         }
-        objectCson["104"] = packedProperties;
+        objectCson["120"] = packedProperties;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
-      }
-      objectCson["110"] = object.cardinality;
+      objectCson["121"] = object.cardinality;
       if (object.platforms.length > 0) {
         const packedPlatforms: any[] = [];
         for (const item of object.platforms) {
           packedPlatforms.push(item);
         }
-        objectCson["120"] = packedPlatforms;
+        objectCson["130"] = packedPlatforms;
       }
       if (object.languages.length > 0) {
         const packedLanguages: any[] = [];
         for (const item of object.languages) {
           packedLanguages.push(item);
         }
-        objectCson["121"] = packedLanguages;
+        objectCson["131"] = packedLanguages;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): MethodDefinition {
-      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectCson["104"] != undefined) {
-        for (const item of objectCson["104"]) {
+      if (objectCson["120"] != undefined) {
+        for (const item of objectCson["120"]) {
           unpackedProperties.push(
-            _PropertyDefinition.unpack(2, item, _session) as PropertyDefinition,
+            _PropertyReference.unpack(2, item, _session) as PropertyReference,
           );
         }
       }
       const unpackedPlatforms: any[] = [];
-      if (objectCson["120"] != undefined) {
-        for (const item of objectCson["120"]) {
+      if (objectCson["130"] != undefined) {
+        for (const item of objectCson["130"]) {
           unpackedPlatforms.push(Number(item));
         }
       }
       const unpackedLanguages: any[] = [];
-      if (objectCson["121"] != undefined) {
-        for (const item of objectCson["121"]) {
+      if (objectCson["131"] != undefined) {
+        for (const item of objectCson["131"]) {
           unpackedLanguages.push(Number(item));
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition)({
+        id: Number(objectCson["2"]),
         type: Number(objectCson["100"]),
+        name: objectCson["101"],
+        description: unpackedDescription,
         properties: unpackedProperties,
-        cardinality: Number(objectCson["110"]),
+        cardinality: Number(objectCson["121"]),
         platforms: unpackedPlatforms,
         languages: unpackedLanguages,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20717,9 +20954,6 @@ export function loadEncoders(): void {
       objectCson["2"] = object.id;
       objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
       }
@@ -20728,78 +20962,59 @@ export function loadEncoders(): void {
         for (const item of object.properties) {
           packedProperties.push(item.pack(2));
         }
-        objectCson["104"] = packedProperties;
+        objectCson["120"] = packedProperties;
       }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
-      }
-      objectCson["110"] = object.cardinality;
+      objectCson["121"] = object.cardinality;
       if (object.platforms.length > 0) {
         const packedPlatforms: any[] = [];
         for (const item of object.platforms) {
           packedPlatforms.push(item);
         }
-        objectCson["120"] = packedPlatforms;
+        objectCson["130"] = packedPlatforms;
       }
       if (object.languages.length > 0) {
         const packedLanguages: any[] = [];
         for (const item of object.languages) {
           packedLanguages.push(item);
         }
-        objectCson["121"] = packedLanguages;
+        objectCson["131"] = packedLanguages;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): ActionDefinition {
-      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
+      const descriptionValue = objectCson["103"];
+      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
-      if (objectCson["104"] != undefined) {
-        for (const item of objectCson["104"]) {
+      if (objectCson["120"] != undefined) {
+        for (const item of objectCson["120"]) {
           unpackedProperties.push(
-            _PropertyDefinition.unpack(2, item, _session) as PropertyDefinition,
+            _PropertyReference.unpack(2, item, _session) as PropertyReference,
           );
         }
       }
       const unpackedPlatforms: any[] = [];
-      if (objectCson["120"] != undefined) {
-        for (const item of objectCson["120"]) {
+      if (objectCson["130"] != undefined) {
+        for (const item of objectCson["130"]) {
           unpackedPlatforms.push(Number(item));
         }
       }
       const unpackedLanguages: any[] = [];
-      if (objectCson["121"] != undefined) {
-        for (const item of objectCson["121"]) {
+      if (objectCson["131"] != undefined) {
+        for (const item of objectCson["131"]) {
           unpackedLanguages.push(Number(item));
         }
       }
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
-      const descriptionValue = objectCson["103"];
-      const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition)({
+        id: Number(objectCson["2"]),
         type: Number(objectCson["100"]),
+        name: objectCson["101"],
+        description: unpackedDescription,
         properties: unpackedProperties,
-        cardinality: Number(objectCson["110"]),
+        cardinality: Number(objectCson["121"]),
         platforms: unpackedPlatforms,
         languages: unpackedLanguages,
-        id: Number(objectCson["2"]),
-        name: objectCson["101"],
-        icon: unpackedIcon,
-        description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20873,45 +21088,21 @@ export function loadEncoders(): void {
     packObject(object: MigrationDefinition): any {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 31000;
-      objectCson["2"] = object.id;
       objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): MigrationDefinition {
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[31000] as typeof MigrationDefinition)({
         type: Number(objectCson["100"]),
-        id: Number(objectCson["2"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
-        taggings: unpackedTaggings,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20925,42 +21116,22 @@ export function loadEncoders(): void {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 31100;
       objectCson["2"] = object.id;
+      objectCson["100"] = object.type;
       objectCson["101"] = object.name;
-      if (object.icon != null) {
-        objectCson["102"] = object.icon.pack(2);
-      }
       if (object.description != null) {
         objectCson["103"] = object.description;
-      }
-      if (object.taggings.length > 0) {
-        const packedTaggings: any[] = [];
-        for (const item of object.taggings) {
-          packedTaggings.push(item);
-        }
-        objectCson["109"] = packedTaggings;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): MigrationOperationDefinition {
-      const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
-      const iconValue = objectCson["102"];
-      const unpackedIcon =
-        iconValue != undefined ? (_Icon.unpack(2, iconValue, _session) as Icon) : undefined;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
-      const unpackedTaggings: any[] = [];
-      if (objectCson["109"] != undefined) {
-        for (const item of objectCson["109"]) {
-          unpackedTaggings.push(Number(item));
-        }
-      }
       return new (STRUCT_CLASS_BY_TYPE[31100] as typeof MigrationOperationDefinition)({
         id: Number(objectCson["2"]),
         name: objectCson["101"],
-        icon: unpackedIcon,
         description: unpackedDescription,
-        taggings: unpackedTaggings,
+        type: Number(objectCson["100"]),
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20968,285 +21139,6 @@ export function loadEncoders(): void {
   }
 
   CSON_OBJECT_ENCODERS[getObjectKey(2, 31100)] = new MigrationOperationDefinitionCsonEncoder();
-
-  class StringConstraintCsonEncoder implements CsonObjectEncoder {
-    packObject(object: StringConstraint): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 111;
-      if (object.format != null) {
-        objectCson["40"] = object.format;
-      }
-      if (object.regex != null) {
-        objectCson["41"] = object.regex;
-      }
-      if (object.startsWith != null) {
-        objectCson["42"] = object.startsWith;
-      }
-      if (object.endsWith != null) {
-        objectCson["43"] = object.endsWith;
-      }
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): StringConstraint {
-      const formatValue = objectCson["40"];
-      const unpackedFormat = formatValue != undefined ? Number(formatValue) : undefined;
-      const regexValue = objectCson["41"];
-      const unpackedRegex = regexValue != undefined ? regexValue : undefined;
-      const startsWithValue = objectCson["42"];
-      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : undefined;
-      const endsWithValue = objectCson["43"];
-      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint)({
-        format: unpackedFormat,
-        regex: unpackedRegex,
-        startsWith: unpackedStartsWith,
-        endsWith: unpackedEndsWith,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 111)] = new StringConstraintCsonEncoder();
-
-  class NumberConstraintCsonEncoder implements CsonObjectEncoder {
-    packObject(object: NumberConstraint): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 110;
-      if (object.format != null) {
-        objectCson["40"] = object.format;
-      }
-      if (object.minValue != null) {
-        objectCson["41"] = object.minValue;
-      }
-      if (object.maxValue != null) {
-        objectCson["42"] = object.maxValue;
-      }
-      if (object.stepValue != null) {
-        objectCson["43"] = object.stepValue;
-      }
-      if (object.precision != null) {
-        objectCson["44"] = object.precision;
-      }
-      if (object.scale != null) {
-        objectCson["45"] = object.scale;
-      }
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): NumberConstraint {
-      const formatValue = objectCson["40"];
-      const unpackedFormat = formatValue != undefined ? Number(formatValue) : undefined;
-      const minValueValue = objectCson["41"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
-      const maxValueValue = objectCson["42"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
-      const stepValueValue = objectCson["43"];
-      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
-      const precisionValue = objectCson["44"];
-      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : undefined;
-      const scaleValue = objectCson["45"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
-        format: unpackedFormat,
-        minValue: unpackedMinValue,
-        maxValue: unpackedMaxValue,
-        stepValue: unpackedStepValue,
-        precision: unpackedPrecision,
-        scale: unpackedScale,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 110)] = new NumberConstraintCsonEncoder();
-
-  class CollectionConstraintCsonEncoder implements CsonObjectEncoder {
-    packObject(object: CollectionConstraint): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 112;
-      if (object.minLength != null) {
-        objectCson["41"] = object.minLength;
-      }
-      if (object.maxLength != null) {
-        objectCson["42"] = object.maxLength;
-      }
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): CollectionConstraint {
-      const minLengthValue = objectCson["41"];
-      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : undefined;
-      const maxLengthValue = objectCson["42"];
-      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint)({
-        minLength: unpackedMinLength,
-        maxLength: unpackedMaxLength,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintCsonEncoder();
-
-  class TypeCsonEncoder implements CsonObjectEncoder {
-    packObject(object: Type): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 101;
-      if (object.name != null) {
-        objectCson["101"] = object.name;
-      }
-      objectCson["110"] = object.cardinality;
-      objectCson["111"] = object.scalarType;
-      if (object.primitiveType != null) {
-        objectCson["112"] = object.primitiveType;
-      }
-      if (object.enumType != null) {
-        objectCson["113"] = object.enumType;
-      }
-      if (object.nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object.nodeTypes) {
-          packedNodeTypes.push(item);
-        }
-        objectCson["114"] = packedNodeTypes;
-      }
-      if (object.structType != null) {
-        objectCson["115"] = object.structType;
-      }
-      if (object.keyType != null) {
-        objectCson["117"] = object.keyType.pack(2);
-      }
-      if (object.value != null) {
-        objectCson["130"] = object.value.pack(2);
-      }
-      if (object.valueFactory != null) {
-        objectCson["131"] = object.valueFactory;
-      }
-      if (object.collectionConstraint != null) {
-        objectCson["140"] = object.collectionConstraint.pack(2);
-      }
-      if (object.stringConstraint != null) {
-        objectCson["141"] = object.stringConstraint.pack(2);
-      }
-      if (object.numberConstraint != null) {
-        objectCson["142"] = object.numberConstraint.pack(2);
-      }
-      if (object.isRequired != null) {
-        objectCson["150"] = object.isRequired;
-      }
-      if (object.isMain != null) {
-        objectCson["154"] = object.isMain;
-      }
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): Type {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
-      const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
-      const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
-      const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-      const nameValue = objectCson["101"];
-      const unpackedName = nameValue != undefined ? nameValue : undefined;
-      const primitiveTypeValue = objectCson["112"];
-      const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
-      const enumTypeValue = objectCson["113"];
-      const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      if (objectCson["114"] != undefined) {
-        for (const item of objectCson["114"]) {
-          unpackedNodeTypes.push(Number(item));
-        }
-      }
-      const structTypeValue = objectCson["115"];
-      const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["117"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectCson["130"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(2, valueValue, _session) as Value) : undefined;
-      const valueFactoryValue = objectCson["131"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? Number(valueFactoryValue) : undefined;
-      const collectionConstraintValue = objectCson["140"];
-      const unpackedCollectionConstraint =
-        collectionConstraintValue != undefined
-          ? (_CollectionConstraint.unpack(
-              2,
-              collectionConstraintValue,
-              _session,
-            ) as CollectionConstraint)
-          : undefined;
-      const stringConstraintValue = objectCson["141"];
-      const unpackedStringConstraint =
-        stringConstraintValue != undefined
-          ? (_StringConstraint.unpack(2, stringConstraintValue, _session) as StringConstraint)
-          : undefined;
-      const numberConstraintValue = objectCson["142"];
-      const unpackedNumberConstraint =
-        numberConstraintValue != undefined
-          ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
-          : undefined;
-      const isRequiredValue = objectCson["150"];
-      const unpackedIsRequired =
-        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const isMainValue = objectCson["154"];
-      const unpackedIsMain = isMainValue != undefined ? Boolean(isMainValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[101] as typeof Type)({
-        name: unpackedName,
-        cardinality: Number(objectCson["110"]),
-        scalarType: Number(objectCson["111"]),
-        primitiveType: unpackedPrimitiveType,
-        enumType: unpackedEnumType,
-        nodeTypes: unpackedNodeTypes,
-        structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        value: unpackedValue,
-        valueFactory: unpackedValueFactory,
-        collectionConstraint: unpackedCollectionConstraint,
-        stringConstraint: unpackedStringConstraint,
-        numberConstraint: unpackedNumberConstraint,
-        isRequired: unpackedIsRequired,
-        isMain: unpackedIsMain,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new TypeCsonEncoder();
-
-  class ValueCsonEncoder implements CsonObjectEncoder {
-    packObject(object: Value): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 100;
-      objectCson["100"] = object.type.pack(2);
-      if (object.value != null) {
-        objectCson["110"] = object.value;
-      }
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): Value {
-      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
-      const valueValue = objectCson["110"];
-      const unpackedValue = valueValue != undefined ? valueValue : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[100] as typeof Value)({
-        type: _Type.unpack(2, objectCson["100"], _session) as Type,
-        value: unpackedValue,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 100)] = new ValueCsonEncoder();
 
   class FunctionCsonEncoder implements CsonObjectEncoder {
     packObject(object: Function): any {

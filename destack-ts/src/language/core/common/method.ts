@@ -5,19 +5,17 @@ import {
   StructType,
 } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
-import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
-import { BuiltinDefinition } from "@destack/language/core/builtin/definition";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
-import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Icon } from "@destack/language/core/common/icon";
+import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Text } from "@destack/language/core/common/text";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -32,12 +30,12 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Definition of a builtin Method.
  */
-export class MethodDefinition extends BuiltinDefinition {
+export class MethodDefinition extends StructFrozen {
   static metatype: StructType = StructType.METHOD_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * MethodDefinition.id
    */
   readonly id: number;
 
@@ -47,29 +45,19 @@ export class MethodDefinition extends BuiltinDefinition {
   readonly type: MethodType;
 
   /**
-   * BuiltinDefinition.name
+   * MethodDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * MethodDefinition.description
    */
   readonly description: string | null;
 
   /**
    * MethodDefinition.properties
    */
-  readonly properties: readonly PropertyDefinition[];
-
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
+  readonly properties: readonly PropertyReference[];
 
   /**
    * MethodDefinition.cardinality
@@ -90,10 +78,8 @@ export class MethodDefinition extends BuiltinDefinition {
     id: number;
     type: MethodType;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    taggings?: readonly number[];
+    properties?: readonly PropertyReference[];
     cardinality?: MethodCardinality;
     platforms?: readonly PlatformType[];
     languages?: readonly RuntimeLanguage[];
@@ -124,8 +110,6 @@ export class MethodDefinition extends BuiltinDefinition {
       throw new Error(`MethodDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
@@ -133,11 +117,6 @@ export class MethodDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* MethodCardinality.UNARY */;
@@ -170,7 +149,16 @@ export class MethodDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length != other.properties.length) {
@@ -200,29 +188,6 @@ export class MethodDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
@@ -230,7 +195,6 @@ export class MethodDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
@@ -246,7 +210,12 @@ export class MethodDefinition extends BuiltinDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -261,19 +230,6 @@ export class MethodDefinition extends BuiltinDefinition {
     if (this.languages && this.languages.length > 0) {
       for (const _item of this.languages) {
         h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
     // @ts-expect-error(readonly)

@@ -11,5 +11,3 @@ export * from "@destack/language/core/common/space";
 export * from "@destack/language/core/common/struct";
 export * from "@destack/language/core/common/text";
 export * from "@destack/language/core/common/time";
-export * from "@destack/language/core/common/type";
-export * from "@destack/language/core/common/value";

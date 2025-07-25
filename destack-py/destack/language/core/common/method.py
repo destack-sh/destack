@@ -7,33 +7,39 @@ from ..builtin import (
     NodeType,
     PlatformType,
     RuntimeLanguage,
+    StructFrozen,
     StructType,
     builtin_node,
     builtin_property,
     builtin_struct,
 )
-from ..builtin.definition import BuiltinDefinition
 
 if TYPE_CHECKING:
-    from destack.language import PropertyDefinition, Text
+    from destack.language import PropertyReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @builtin_struct(StructType.METHOD_DEFINITION, frozen=True)
-class MethodDefinition(BuiltinDefinition):
+class MethodDefinition(StructFrozen):
     """Definition of a builtin Method."""
 
+    id: int = builtin_property(2, is_repr=True)
     type: MethodType = builtin_property(100)
-    properties: list["PropertyDefinition"] = builtin_property(104)
-    cardinality: MethodCardinality = builtin_property(110, default=MethodCardinality.UNARY)
+    name: str = builtin_property(101)
+    description: str | None = builtin_property(103, is_repr=True)
+
+    # content
+    properties: list["PropertyReference"] = builtin_property(120)
+    cardinality: MethodCardinality = builtin_property(121, default=MethodCardinality.UNARY)
     # runtimes/languages/...?
+
     platforms: list[PlatformType] = builtin_property(
-        120,
+        130,
         description="The platforms this Method is available on (all if empty).",
     )
     languages: list[RuntimeLanguage] = builtin_property(
-        121,
+        131,
         description="The languages this Method is available in (all if empty).",
     )
 
@@ -51,10 +57,10 @@ class Method(
     cardinality: MethodCardinality = builtin_property(110, default=MethodCardinality.UNARY)
 
     platforms: list[PlatformType] = builtin_property(
-        120,
+        130,
         description="The platforms this Method is available on (all if empty).",
     )
     languages: list[RuntimeLanguage] = builtin_property(
-        121,
+        131,
         description="The languages this Method is available in (all if empty).",
     )

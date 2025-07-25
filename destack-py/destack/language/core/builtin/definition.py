@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Self, assert_never, cast
+from typing import TYPE_CHECKING, Any, Self, assert_never, cast
 
 from destack.language.registry import (
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
@@ -11,15 +11,10 @@ from .common import (
     EnumType,
     GraphDomain,
     NodeType,
-    PrimitiveType,
     PropertyType,
-    ScalarType,
     StructType,
     TraitType,
-    TypeCardinality,
-    ValueFactory,
 )
-from .const import EMPTY_LIST
 from .meta import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -36,11 +31,12 @@ from .relation import (
     PropertyReferenceType,
 )
 from .struct import Struct, StructFrozen, builtin_struct
+from .type import Type
+from .value import Value, to_value
 
 if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
-        CollectionConstraint,
         Condition,
         ConditionalType,
         ConstantDeclaration,
@@ -49,11 +45,9 @@ if TYPE_CHECKING:
         IndexType,
         MethodDefinition,
         Node,
-        NumberConstraint,
         ObjectDefinitionReference,
         Sort,
         SortType,
-        StringConstraint,
         Trait,
         Type,
         Value,
@@ -63,39 +57,33 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_struct(StructType.BUILTIN_DEFINITION, frozen=True, is_abstract=True)
-class BuiltinDefinition(StructFrozen):
-    """Definition of a builtin object."""
+def resolve_tagging(object_cls: type_["Node"], tagging: str) -> "TagDefinition":
+    """Resolve a tagging to a definition."""
+    from .node import Node
 
+    for tag in object_cls.__tags__:
+        if tag.name == tagging:
+            return tag
+    for cls in object_cls.__mro__:
+        if issubclass(cls, Node):
+            for tag in cls.__tags__:
+                if tag.name == tagging:
+                    return tag
+
+    raise ValueError(f"tagging {tagging} not found for {object_cls.__name__}")
+
+
+@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
+class NodeDefinition(StructFrozen):
+    """Definition of a builtin Node."""
+
+    # meta
+    type: NodeType = builtin_property(100, is_repr=True)
     id: int = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
     taggings: list[int] = builtin_property(109)
-
-    @classmethod
-    def resolve_tagging(cls, object_cls: type_["Node"], tagging: str) -> "TagDefinition":
-        """Resolve a tagging to a definition."""
-        from .node import Node
-
-        for tag in object_cls.__tags__:
-            if tag.name == tagging:
-                return tag
-        for cls in object_cls.__mro__:
-            if issubclass(cls, Node):
-                for tag in cls.__tags__:
-                    if tag.name == tagging:
-                        return tag
-
-        raise ValueError(f"tagging {tagging} not found for {object_cls.__name__}")
-
-
-@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
-class NodeDefinition(BuiltinDefinition):
-    """Definition of a builtin Node."""
-
-    # meta
-    type: NodeType = builtin_property(100, is_repr=True)
 
     # flags
     is_abstract: bool = builtin_property(
@@ -289,11 +277,16 @@ class NodeDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
-class TraitDefinition(BuiltinDefinition):
+class TraitDefinition(StructFrozen):
     """Definition of a builtin Trait."""
 
     # meta
     type: TraitType = builtin_property(100, is_repr=True)
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
 
     # flags
     alias: str = builtin_property(110, is_repr=True)
@@ -370,11 +363,16 @@ class TraitDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
-class StructDefinition(BuiltinDefinition):
+class StructDefinition(StructFrozen):
     """Definition of a builtin Struct."""
 
     # meta
     type: StructType = builtin_property(100, is_repr=True)
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
 
     # flags
     is_frozen: bool = builtin_property(
@@ -464,11 +462,18 @@ class StructDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
-class EnumDefinition(BuiltinDefinition):
+class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
     type: EnumType = builtin_property(100, is_repr=True)
-    options: list["OptionDefinition"] = builtin_property(104)
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
+
+    # content
+    options: list["OptionDefinition"] = builtin_property(120)
 
     @classmethod
     def from_declaration(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
@@ -489,49 +494,30 @@ class EnumDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
-class PropertyDefinition(BuiltinDefinition):
+class PropertyDefinition(Type):
     """Definition of a builtin Property."""
 
     type: PropertyType = builtin_property(100)
+    id: int = builtin_property(2, is_repr=True)
+    name: str | None = builtin_property(
+        101, is_repr=True, description="The name of this Type when it was used."
+    )
+    description: str | None = builtin_property(103, is_repr=True)
     object: "ObjectDefinitionReference" = builtin_property(
         104, description="The object that this property is defined on."
     )
     original_object: "ObjectDefinitionReference" = builtin_property(
         105, description="The original object that this property was defined on."
     )
-
-    # scalar
-    cardinality: TypeCardinality = builtin_property(
-        110, default=TypeCardinality.SCALAR, is_repr=True
-    )
-    scalar_type: ScalarType = builtin_property(111, is_repr=True)
-    primitive_type: Optional[PrimitiveType] = builtin_property(112, is_repr=True)
-    enum_type: Optional[EnumType] = builtin_property(113, is_repr=True)
-    node_types: list[NodeType] = builtin_property(114, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
-    key_type: Optional["Type"] = builtin_property(116, is_repr=True)  # for maps
-
-    # value
-    value: Optional["Value"] = builtin_property(120, is_repr=True)
-    value_factory: Optional["ValueFactory"] = builtin_property(121, is_repr=True)
-
-    # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(130)
-    string_constraint: Optional["StringConstraint"] = builtin_property(131)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(132)
+    taggings: list[int] = builtin_property(109)
 
     # relationship
-    edge_type: EdgeType | None = builtin_property(140)
-    cascade: CascadeAction | None = builtin_property(141)
+    edge_type: EdgeType | None = builtin_property(190)
+    cascade: CascadeAction | None = builtin_property(191)
 
-    # flags
-    is_required: bool = builtin_property(
-        150,
-        is_repr=True,
-        description="Whether this Property must have a value set (in every full instance).",
-    )
+    # property flags
     is_identity: bool = builtin_property(
-        151,
+        200,
         is_repr=True,
         description="""\
 Whether this Property is part of the object's identity.
@@ -539,26 +525,23 @@ Whether this Property is part of the object's identity.
 """,
     )
     is_unique: bool = builtin_property(
-        152,
+        201,
         is_repr=True,
         description="Whether this Property must have a unique value.",
     )
     is_readonly: bool = builtin_property(
-        153,
+        202,
         is_repr=True,
         description="Whether this Property is read-only.",
     )
-    is_main: bool = builtin_property(154)
 
     # internal flags
-    is_wired: bool = builtin_property(160)
-    is_stored: bool = builtin_property(161)
-    is_repr: bool = builtin_property(162)
-    is_hash: bool = builtin_property(163)
-    is_eq: bool = builtin_property(164)
-    is_internal: bool = builtin_property(165)
-
-    _type: "Type | None" = builtin_property_runtime()
+    is_wired: bool = builtin_property(210)
+    is_stored: bool = builtin_property(211)
+    is_repr: bool = builtin_property(212)
+    is_hash: bool = builtin_property(213)
+    is_eq: bool = builtin_property(214)
+    is_internal: bool = builtin_property(215)
 
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -572,7 +555,7 @@ Whether this Property is part of the object's identity.
             prop.original_component, object_ref
         )
         object_cls = prop.component if issubclass(prop.component, Node) else Node
-        taggings = [cls.resolve_tagging(object_cls, tag).id for tag in prop.tags]
+        taggings = [resolve_tagging(object_cls, tag).id for tag in prop.tags]
 
         return cls(
             type=prop.type,
@@ -613,28 +596,8 @@ Whether this Property is part of the object's identity.
 
     @builtin_method(101)
     def to_type(self) -> "Type":
-        """Convert to a Type."""
-        from ..common.type import Type
-
-        if self._type is None:
-            type = Type(
-                cardinality=self.cardinality,
-                scalar_type=self.scalar_type,
-                primitive_type=self.primitive_type,
-                enum_type=self.enum_type,
-                node_types=self.node_types or EMPTY_LIST,
-                struct_type=self.struct_type,
-                key_type=self.key_type,
-                value=self.value,
-                value_factory=self.value_factory,
-                collection_constraint=self.collection_constraint,
-                string_constraint=self.string_constraint,
-                number_constraint=self.number_constraint,
-                is_required=self.is_required,
-            )
-            self._type = type  # type: ignore (frozen)
-
-        return self._type
+        """Convert to a Type (returns self for convenience)."""
+        return self
 
     @builtin_method(102)
     def to_ref(self) -> PropertyReference:
@@ -767,10 +730,15 @@ Whether this Property is part of the object's identity.
 
 
 @builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
-class OptionDefinition(BuiltinDefinition):
+class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
+    id: int = builtin_property(2, is_repr=True)
     type: EnumType = builtin_property(100, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)
+    description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
 
     @classmethod
     def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -787,9 +755,15 @@ class OptionDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
-class ConstantDefinition(BuiltinDefinition):
+class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
+    taggings: list[int] = builtin_property(109)
+
+    # content
     value: "Value" = builtin_property(120)
 
     _is_deferred: bool = builtin_property_runtime()
@@ -797,8 +771,6 @@ class ConstantDefinition(BuiltinDefinition):
     @classmethod
     def from_declaration(cls, declaration: "ConstantDeclaration") -> "ConstantDefinition":
         """Create ConstantDefinition from a ConstantDeclaration."""
-        from ..common import to_value
-
         assert declaration.name is not None, f"{declaration!r} has no name"
         return cls(
             id=declaration.id,
@@ -810,8 +782,12 @@ class ConstantDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.TAG_DEFINITION, frozen=True)
-class TagDefinition(BuiltinDefinition):
+class TagDefinition(StructFrozen):
     """Definition of a builtin Tag to associate builtin definitions to."""
+
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
 
     @classmethod
     def from_declaration(cls, declaration: TagDeclaration) -> "TagDefinition":
@@ -824,12 +800,17 @@ class TagDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
-class IndexDefinition(BuiltinDefinition):
+class IndexDefinition(StructFrozen):
     """Definition of a builtin Index."""
 
+    id: int = builtin_property(2, is_repr=True)
     type: "IndexType" = builtin_property(100, is_repr=True)
-    properties: list["PropertyReference"] = builtin_property(105)
-    cover: list["PropertyReference"] = builtin_property(106)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
+
+    # content
+    properties: list["PropertyReference"] = builtin_property(120)
+    cover: list["PropertyReference"] = builtin_property(121)
 
     @classmethod
     def from_declaration(
@@ -845,11 +826,16 @@ class IndexDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
-class ConstraintDefinition(BuiltinDefinition):
+class ConstraintDefinition(StructFrozen):
     """Definition of a builtin Constraint."""
 
+    id: int = builtin_property(2, is_repr=True)
     type: "ConstraintType" = builtin_property(100, is_repr=True)
-    properties: list["PropertyReference"] = builtin_property(105)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
+
+    # content
+    properties: list["PropertyReference"] = builtin_property(120)
 
     @classmethod
     def from_declaration(
@@ -864,8 +850,12 @@ class ConstraintDefinition(BuiltinDefinition):
 
 
 @builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
-class PermissionDefinition(BuiltinDefinition):
+class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
+
+    id: int = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101, is_repr=True)
+    description: str | None = builtin_property(103, is_repr=True)
 
     @classmethod
     def from_declaration(cls, declaration: "PermissionDeclaration") -> "Self":

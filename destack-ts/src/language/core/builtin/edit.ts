@@ -4,10 +4,10 @@ import type { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   registerEnumClass,

@@ -7,10 +7,10 @@ import type {
   NodeDefinitionReference,
   NodeReference,
 } from "@destack/language/core/builtin/relation";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {

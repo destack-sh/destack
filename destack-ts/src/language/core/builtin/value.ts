@@ -4,9 +4,9 @@ import type { PropertyDefinition } from "@destack/language/core/builtin/definiti
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Type } from "@destack/language/core/builtin/type";
+import { toType } from "@destack/language/core/builtin/type";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import type { Type } from "@destack/language/core/common/type";
-import { toType } from "@destack/language/core/common/type";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerStructClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { hashString } from "@destack/utils/hash";

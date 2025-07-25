@@ -70,7 +70,7 @@ class EnumType(Enum):
     # ...
 
     # base
-    RESOURCE_STATUS = 10_101
+    # ...
 
     # custom
     # ...
@@ -161,8 +161,6 @@ class EnumType(Enum):
     # ...
 
     # interaction [2_000_000-2_100_000]
-    MODE_TYPE = 2_000_000
-    TOOL_TYPE = 2_000_001
     MOUSE_BUTTON = 2_000_010
 
     # style [2_100_000-2_200_000]
@@ -230,7 +228,6 @@ class StructType(Enum):
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
     DATUM = 2
     DATUM_MUTABLE = 3
-    BUILTIN_DEFINITION = 10
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
     NODE_DEFINITION_REFERENCE = 13
@@ -245,7 +242,8 @@ class StructType(Enum):
 
     # type/value
     VALUE = 100
-    TYPE = 101
+    BASIC_TYPE = 101
+    TYPE = 102
     NUMBER_CONSTRAINT = 110
     STRING_CONSTRAINT = 111
     COLLECTION_CONSTRAINT = 112
@@ -978,25 +976,6 @@ class EnvironmentType(Enum):
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
 
 
-@builtin_enum(EnumType.MODE_TYPE)
-class ModeType(Enum):
-    ACTIVE = 1
-    PAUSED = 2
-
-
-@builtin_enum(EnumType.TOOL_TYPE)
-class ToolType(Enum):
-    EDIT = 1
-    DEBUG = 2
-    PREVIEW = 4
-    USE = 5
-    SELECT = 6
-    DRAG = 7
-    INSPECT = 10
-    ANNOTATE = 11
-    # ...
-
-
 @builtin_enum(EnumType.CLOUD)
 class Cloud(Enum):
     """The cloud provider."""
@@ -1202,9 +1181,35 @@ class PackedCache(NamedTuple):
     packed: Any
 
 
-type Json = Any
-type Cson = Json
-type Kompakt = bytes
+@builtin_enum(EnumType.TYPE_CARDINALITY)
+class TypeCardinality(Enum):
+    """The 'kind' of a Type."""
+
+    SCALAR = 1
+    LIST = 2
+    # TUPLE
+    # SET?
+    MAP = 5
+    # OPTION = 5
+    # LITERAL = 6
+    # UNION = 7
+
+
+assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :Encoding
+
+
+@builtin_enum(EnumType.SCALAR_TYPE)
+class ScalarType(Enum):
+    """The type of a scalar."""
+
+    PRIMITIVE = 1
+    ENUM = 2
+    NODE_REFERENCE = 3
+    NODE_VALUE = 4
+    STRUCT = 5
+
+
+assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
 
 
 @builtin_enum(EnumType.PRIMITIVE_TYPE)
@@ -1260,30 +1265,9 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 }
 PRIMITIVE_PY_TYPES = tuple(PRIMITIVE_TYPE_BY_PY_TYPE.keys())
 
-
-@builtin_enum(EnumType.TYPE_CARDINALITY)
-class TypeCardinality(Enum):
-    """The 'kind' of a Type."""
-
-    SCALAR = 1
-    LIST = 2
-    # SET?
-    MAP = 4
-    # OPTION = 5
-    # LITERAL = 6
-    # UNION = 7
-
-
-@builtin_enum(EnumType.SCALAR_TYPE)
-class ScalarType(Enum):
-    """The type of a scalar."""
-
-    PRIMITIVE = 1
-    ENUM = 2
-    NODE_REFERENCE = 3
-    NODE_VALUE = 4
-    STRUCT = 5
-    # CUSTOM_ENUM, CUSTOM_STRUCT, ...? (or are they just NodeReferences/Structs?)
+type Json = Any
+type Cson = Json
+type Kompakt = bytes
 
 
 @builtin_enum(EnumType.VALUE_FACTORY)
@@ -1313,45 +1297,6 @@ class RoleType(Enum):
     DEVELOPER = 5
     USER = 7
     SPECTATOR = 10
-
-
-@builtin_enum(EnumType.RESOURCE_STATUS)
-class ResourceStatus(Enum):
-    """Generalized status of a Resource in its lifecycle."""
-
-    # pre
-    PENDING = (1, "Pending", "Waiting for provisioning", "fas fa-hourglass-start")
-    CREATING = (2, "Creating", "Actively provisioning", "fas fa-hourglass-start")
-    RETRYING = (3, "Retrying", "Retrying provisioning", "fas fa-exclamation-triangle")
-
-    # active states
-    AVAILABLE = (10, "Available", "Operational and available", "fas fa-check-circle")
-    SLEEPING = (11, "Sleeping", "Available but not running", "fas fa-moon")
-    UNAVAILABLE = (15, "Unavailable", "Unavailable or not responding", "fas fa-plug-circle-xmark")
-    IMPAIRED = (
-        16,
-        "Impaired",
-        "Operational but experiencing issues",
-        "fas fa-exclamation-triangle",
-    )
-    # terminal
-    OFFLINE = (30, "Offline", "Decommissioned and unavailable", "fas fa-power-off")
-    FAILED = (31, "Failed", "Failed to provision", "fas fa-exclamation-triangle")
-
-    @property
-    def is_pre(self) -> bool:
-        """Whether this Resource is in the pre-provisioning state."""
-        return 1 <= self.value < 10
-
-    @property
-    def is_extant(self) -> bool:
-        """Whether this Resource does/should exist."""
-        return 10 <= self.value <= 20
-
-    @property
-    def is_terminal(self) -> bool:
-        """Whether this Resource is terminal."""
-        return 30 <= self.value <= 40
 
 
 @builtin_enum(EnumType.CLIENT_TYPE)

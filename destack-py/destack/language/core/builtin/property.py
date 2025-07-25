@@ -132,7 +132,7 @@ class TypeDeclaration:
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from ..common.type import (
+        from .type import (
             CollectionConstraint,
             NumberConstraint,
             NumberFormat,
@@ -140,7 +140,7 @@ class TypeDeclaration:
             StringFormat,
             Type,
         )
-        from ..common.value import to_value
+        from .value import to_value
 
         # type
         default = (

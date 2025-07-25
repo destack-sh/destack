@@ -11,7 +11,7 @@ from destack.language.registry import ENUM_TYPE_BY_CLASS
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from ..builtin import (
+from .common import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     Enum,
@@ -19,20 +19,16 @@ from ..builtin import (
     NodeType,
     PrimitiveType,
     ScalarType,
-    Struct,
-    StructFrozen,
     StructType,
     TypeCardinality,
     ValueFactory,
     builtin_enum,
-    builtin_property,
-    builtin_struct,
 )
+from .property import builtin_property
+from .struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Value,
-    )
+    from destack.language import Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -104,18 +100,13 @@ TypeFormat = Union[NumberFormat, StringFormat]
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 
-# TODO :Incomplete: (tagged) Union / sum types?
+# nocheckin :Incomplete: (tagged) Union / sum types?
 
 
-@builtin_struct(StructType.TYPE, frozen=True)
-class Type(StructFrozen):
-    """A Type in the type system."""
+@builtin_struct(StructType.BASIC_TYPE, frozen=True)
+class BasicType(StructFrozen):
+    """A basic Type in the type system."""
 
-    name: str | None = builtin_property(
-        101, is_repr=True, description="The name of this Type when it was used."
-    )
-
-    # scalar
     cardinality: TypeCardinality = builtin_property(
         110, default=TypeCardinality.SCALAR, is_repr=True
     )
@@ -126,18 +117,24 @@ class Type(StructFrozen):
     struct_type: Optional[StructType] = builtin_property(115, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
 
+    value: Optional["Value"] = builtin_property(120, is_repr=True)
+
+
+@builtin_struct(StructType.TYPE, frozen=True)
+class Type(BasicType):
+    """A full Type in the type system."""
+
     # meta
-    value: Optional["Value"] = builtin_property(130)
-    value_factory: Optional[ValueFactory] = builtin_property(131)
+    value_factory: Optional[ValueFactory] = builtin_property(150)
 
     # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(140)
-    string_constraint: Optional["StringConstraint"] = builtin_property(141)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(142)
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(160)
+    string_constraint: Optional["StringConstraint"] = builtin_property(161)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(162)
 
     # flags
-    is_required: bool | None = builtin_property(150)
-    is_main: bool | None = builtin_property(154)
+    is_required: bool | None = builtin_property(170)
+    is_main: bool | None = builtin_property(171)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":

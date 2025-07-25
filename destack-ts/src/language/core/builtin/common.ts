@@ -135,7 +135,6 @@ export enum StructType {
   STRUCT = 1,
   DATUM = 2,
   DATUM_MUTABLE = 3,
-  BUILTIN_DEFINITION = 10,
   OBJECT_DEFINITION_REFERENCE = 11,
   NODE_DEFINITION = 12,
   NODE_DEFINITION_REFERENCE = 13,
@@ -148,7 +147,8 @@ export enum StructType {
   OPTION_DEFINITION = 20,
   TAG_DEFINITION = 21,
   VALUE = 100,
-  TYPE = 101,
+  BASIC_TYPE = 101,
+  TYPE = 102,
   NUMBER_CONSTRAINT = 110,
   STRING_CONSTRAINT = 111,
   COLLECTION_CONSTRAINT = 112,
@@ -823,7 +823,7 @@ registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
 export enum TypeCardinality {
   SCALAR = 1,
   LIST = 2,
-  MAP = 4,
+  MAP = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
