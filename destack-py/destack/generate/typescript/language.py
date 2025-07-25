@@ -707,6 +707,7 @@ repr(): string {{
 
     def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
         """Get repr expression for a scalar value."""
+        assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
         if prop.scalar_type == ScalarType.ENUM:
             assert prop.enum_type is not None, f"no enum type for {prop!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]

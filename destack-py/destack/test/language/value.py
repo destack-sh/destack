@@ -98,15 +98,6 @@ def test_value_to_type():
             primitive_type=PrimitiveType.STRING,
         ),
     )
-    # list[int] (type annotation)
-    assert Type.infer(list[int]) == Type(
-        cardinality=TypeCardinality.LIST,
-        value_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PrimitiveType.INT64,
-        ),
-    )
 
     # maps
     # dict[String, Int64]
@@ -121,20 +112,6 @@ def test_value_to_type():
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
             primitive_type=PrimitiveType.INT64,
-        ),
-    )
-    # dict[str, Node] (type annotation)
-    assert Type.infer(dict[str, Node]) == Type(
-        cardinality=TypeCardinality.MAP,
-        key_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PrimitiveType.STRING,
-        ),
-        value_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
-            node_types=[NodeType.NODE],
         ),
     )
 

@@ -270,5 +270,5 @@ class Type(BasicType):
         #
 
         # parse as annotation
-        type_decl = parse_type_annotation(value_or_type)
+        type_decl = parse_type_annotation(value_or_type, is_builtin=False)
         return type_decl._to_type()
