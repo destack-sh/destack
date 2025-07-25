@@ -190,7 +190,9 @@ class TypeDeclaration:
         return type_obj
 
 
-def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclaration:
+def parse_type_annotation(
+    py_type: type | str | typing.ForwardRef, *, is_builtin: bool = False
+) -> TypeDeclaration:
     """Parses the TypeDeclaration from a given py type."""
     is_required: bool = True
     scalar_type: ScalarType | None = None
@@ -227,7 +229,7 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
     # unwrap list
     if origin is list:
         element_type_arg = typing.get_args(py_type)[0]
-        element_annotation = parse_type_annotation(element_type_arg)
+        element_annotation = parse_type_annotation(element_type_arg, is_builtin=is_builtin)
         return TypeDeclaration(
             cardinality=TypeCardinality.LIST,
             value_type=element_annotation,
@@ -242,7 +244,7 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
 
         # check for homogeneous tuple notation: tuple[int, ...]
         if len(type_args) == 2 and type_args[1] is ...:
-            element_annotation = parse_type_annotation(type_args[0])
+            element_annotation = parse_type_annotation(type_args[0], is_builtin=is_builtin)
             return TypeDeclaration(
                 cardinality=TypeCardinality.LIST,
                 value_type=element_annotation,
@@ -250,7 +252,7 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
             )
         else:
             # heterogeneous tuple
-            element_types = [parse_type_annotation(arg) for arg in type_args]
+            element_types = [parse_type_annotation(arg, is_builtin=is_builtin) for arg in type_args]
             return TypeDeclaration(
                 cardinality=TypeCardinality.TUPLE,
                 element_types=element_types,
@@ -266,7 +268,7 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
 
         if len(non_none_types) == 1:
             # it's just an optional of that type
-            result = parse_type_annotation(non_none_types[0])
+            result = parse_type_annotation(non_none_types[0], is_builtin=is_builtin)
             result.is_required = is_required
             return result
         else:
@@ -291,7 +293,9 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
                 )
             else:
                 # general union
-                union_types = [parse_type_annotation(t) for t in non_none_types]
+                union_types = [
+                    parse_type_annotation(t, is_builtin=is_builtin) for t in non_none_types
+                ]
                 return TypeDeclaration(
                     cardinality=TypeCardinality.SCALAR,
                     scalar_type=ScalarType.UNION,
@@ -302,8 +306,8 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
     # unwrap map (dict)
     if origin is dict:
         key_type_arg, value_type_arg = typing.get_args(py_type)
-        key_annotation = parse_type_annotation(key_type_arg)
-        value_annotation = parse_type_annotation(value_type_arg)
+        key_annotation = parse_type_annotation(key_type_arg, is_builtin=is_builtin)
+        value_annotation = parse_type_annotation(value_type_arg, is_builtin=is_builtin)
         return TypeDeclaration(
             cardinality=TypeCardinality.MAP,
             key_type=key_annotation,
@@ -317,7 +321,7 @@ def parse_type_annotation(py_type: type | str | typing.ForwardRef) -> TypeDeclar
     if isinstance(py_type, (type, TypeAliasType)) and (
         primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
     ):
-        if py_type in (float, int):
+        if is_builtin and py_type in (float, int):
             # shouldn't use float/int directly, use a specific precision/size
             raise ValueError(f"unspecific primitive type: {py_type!r}")
         scalar_type = ScalarType.PRIMITIVE
@@ -501,7 +505,7 @@ class PropertyDeclaration(TypeDeclaration):
 
         # parse annotation
         try:
-            annotation = parse_type_annotation(self.py_type)
+            annotation = parse_type_annotation(self.py_type, is_builtin=True)
         except Exception as e:
             raise ValueError(
                 f"invalid type: {self.component.__name__}.{self.name} ({self.py_type})"
