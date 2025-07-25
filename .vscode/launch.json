@@ -12,7 +12,6 @@
       "purpose": ["debug-test"],
       "console": "integratedTerminal",
       "env": {
-        "PYTEST_ADDOPTS": "--no-cov",
       },
       "justMyCode": false
     },
@@ -27,7 +26,6 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
-        "PYTEST_ADDOPTS": "--no-cov",
       },
     },
     // general configs

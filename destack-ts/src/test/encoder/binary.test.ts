@@ -21,7 +21,7 @@ test("sint8", () => {
 
   const writer = new BinaryWriter();
   for (const value of testValues) {
-    writer.writeSInt8(value);
+    writer.writeInt8(value);
   }
 
   // Expected: 7 bytes (1 byte per int8)
@@ -29,7 +29,7 @@ test("sint8", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const expected of testValues) {
-    expect(reader.readSInt8()).toBe(expected);
+    expect(reader.readInt8()).toBe(expected);
   }
   expect(reader.remaining).toBe(0);
 });
@@ -54,12 +54,12 @@ test("sint16", () => {
   for (const [valueStr, expectedBytes] of Object.entries(testCases)) {
     const value = Number(valueStr);
     const writer = new BinaryWriter();
-    writer.writeSInt16(value);
+    writer.writeInt16(value);
     const data = writer.toBytes();
     expect(data.length).toBe(expectedBytes);
 
     const reader = new BinaryReader(data);
-    expect(reader.readSInt16()).toBe(value);
+    expect(reader.readInt16()).toBe(value);
   }
 });
 
@@ -81,7 +81,7 @@ test("sint32", () => {
 
   const writer = new BinaryWriter();
   for (const value of Object.keys(valueToBytes).map(Number)) {
-    writer.writeSInt32(value);
+    writer.writeInt32(value);
   }
 
   // Calculate total expected bytes
@@ -90,7 +90,7 @@ test("sint32", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes).map(Number)) {
-    expect(reader.readSInt32()).toBe(value);
+    expect(reader.readInt32()).toBe(value);
   }
   expect(reader.remaining).toBe(0);
 });
@@ -113,7 +113,7 @@ test("sint64", () => {
 
   const writer = new BinaryWriter();
   for (const value of Object.keys(valueToBytes)) {
-    writer.writeSInt64(BigInt(value));
+    writer.writeInt64(BigInt(value));
   }
 
   // Calculate total expected bytes
@@ -122,7 +122,7 @@ test("sint64", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes)) {
-    expect(reader.readSInt64()).toBe(BigInt(value));
+    expect(reader.readInt64()).toBe(BigInt(value));
   }
   expect(reader.remaining).toBe(0);
 });
@@ -145,7 +145,7 @@ test("sint128", () => {
 
   const writer = new BinaryWriter();
   for (const value of Object.keys(valueToBytes)) {
-    writer.writeSInt128(BigInt(value));
+    writer.writeInt128(BigInt(value));
   }
 
   // Calculate total expected bytes
@@ -154,7 +154,7 @@ test("sint128", () => {
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes)) {
-    expect(reader.readSInt128()).toBe(BigInt(value));
+    expect(reader.readInt128()).toBe(BigInt(value));
   }
   expect(reader.remaining).toBe(0);
 });
@@ -434,10 +434,10 @@ test("mixed types", () => {
   // Write various types with expected sizes
   const operations: Array<[() => void, number]> = [
     [() => writer.writeBool(true), 1], // 1 byte
-    [() => writer.writeSInt8(-42), 1], // 1 byte
+    [() => writer.writeInt8(-42), 1], // 1 byte
     [() => writer.writeUint16(65535), 3], // 3 bytes (varint)
-    [() => writer.writeSInt32(-1234567), 4], // 4 bytes (varint)
-    [() => writer.writeSInt128(BigInt("-1267650600228229401496703205376")), 15], // 15 bytes (varint)
+    [() => writer.writeInt32(-1234567), 4], // 4 bytes (varint)
+    [() => writer.writeInt128(BigInt("-1267650600228229401496703205376")), 15], // 15 bytes (varint)
     [() => writer.writeUint128(BigInt("1267650600228229401496703205376")), 15], // 15 bytes (varint)
     [() => writer.writeFloat16(1.5), 3], // 3 bytes
     [() => writer.writeFloat32(Math.PI), 5], // 5 bytes
@@ -457,10 +457,10 @@ test("mixed types", () => {
   // read them back
   const reader = new BinaryReader(writer.toBytes());
   expect(reader.readBool()).toBe(true);
-  expect(reader.readSInt8()).toBe(-42);
+  expect(reader.readInt8()).toBe(-42);
   expect(reader.readUint16()).toBe(65535);
-  expect(reader.readSInt32()).toBe(-1234567);
-  expect(reader.readSInt128()).toBe(BigInt("-1267650600228229401496703205376"));
+  expect(reader.readInt32()).toBe(-1234567);
+  expect(reader.readInt128()).toBe(BigInt("-1267650600228229401496703205376"));
   expect(reader.readUint128()).toBe(BigInt("1267650600228229401496703205376"));
   expect(reader.readFloat16()).toBeCloseTo(1.5, 2);
   expect(reader.readFloat32()).toBeCloseTo(Math.PI, 6);
@@ -488,9 +488,9 @@ test("int zigzag", () => {
   for (const [signed, _] of testCases) {
     // we can't directly access private methods, so we'll test via writeInt32/readInt32
     const writer = new BinaryWriter();
-    writer.writeSInt32(signed);
+    writer.writeInt32(signed);
     const reader = new BinaryReader(writer.toBytes());
-    expect(reader.readSInt32()).toBe(signed);
+    expect(reader.readInt32()).toBe(signed);
   }
 });
 

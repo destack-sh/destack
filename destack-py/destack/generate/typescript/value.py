@@ -53,11 +53,11 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
         elif type.primitive_type == PrimitiveType.BOOLEAN:
             return "true" if value else "false"
         elif type.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ):
             return str(value)
         elif type.primitive_type in (

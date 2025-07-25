@@ -207,11 +207,11 @@ def _generate_pack_json_scalar(
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ):
             return value_expr
         elif prop.primitive_type in (
@@ -317,11 +317,11 @@ def _generate_unpack_json_scalar(
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ):
             return value_expr
         elif prop.primitive_type in (

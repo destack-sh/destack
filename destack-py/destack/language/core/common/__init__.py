@@ -33,7 +33,7 @@ from .query import (
     SortType,
 )
 from .space import Space, Universe
-from .struct import CustomStruct, DatumMutable
+from .struct import CustomStruct
 from .text import (
     Text,
     TextIn,
@@ -61,7 +61,6 @@ __all__ = [
     "CustomOption",
     "CustomProperty",
     "CustomStruct",
-    "DatumMutable",
     "Expression",
     "ExpressionIn",
     "ExpressionType",

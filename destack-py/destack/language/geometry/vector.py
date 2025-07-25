@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Float32,
-    SInt32,
+    Int32,
     StructFrozen,
     StructType,
     builtin_method,
@@ -482,12 +482,12 @@ class Vector4(StructFrozen):
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
-    x: SInt32 = builtin_property(
+    x: Int32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector2i.",
     )
-    y: SInt32 = builtin_property(
+    y: Int32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector2i.",
@@ -623,17 +623,17 @@ class Vector2i(StructFrozen):
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
-    x: SInt32 = builtin_property(
+    x: Int32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector3i.",
     )
-    y: SInt32 = builtin_property(
+    y: Int32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector3i.",
     )
-    z: SInt32 = builtin_property(
+    z: Int32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector3i.",
@@ -778,22 +778,22 @@ class Vector3i(StructFrozen):
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 
-    x: SInt32 = builtin_property(
+    x: Int32 = builtin_property(
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4i.",
     )
-    y: SInt32 = builtin_property(
+    y: Int32 = builtin_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4i.",
     )
-    z: SInt32 = builtin_property(
+    z: Int32 = builtin_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4i.",
     )
-    w: SInt32 = builtin_property(
+    w: Int32 = builtin_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4i.",

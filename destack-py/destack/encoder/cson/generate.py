@@ -202,11 +202,11 @@ def _generate_pack_cson_scalar(
             prop.primitive_type == PrimitiveType.BOOLEAN
             or prop.primitive_type
             in (
-                PrimitiveType.SINT8,
-                PrimitiveType.SINT16,
-                PrimitiveType.SINT32,
-                PrimitiveType.SINT64,
-                PrimitiveType.SINT128,
+                PrimitiveType.INT8,
+                PrimitiveType.INT16,
+                PrimitiveType.INT32,
+                PrimitiveType.INT64,
+                PrimitiveType.INT128,
                 PrimitiveType.UINT8,
                 PrimitiveType.UINT16,
                 PrimitiveType.UINT32,
@@ -308,11 +308,11 @@ def _generate_unpack_cson_scalar(
         if prop.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
         elif prop.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ):
             return f"int({value_expr})"  # cast CSON floats to ints
         elif prop.primitive_type in (

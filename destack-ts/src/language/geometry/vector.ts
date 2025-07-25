@@ -1,4 +1,4 @@
-import type { Float32, PackedCache, Session, SInt32 } from "@destack/language/core";
+import type { Float32, Int32, PackedCache, Session } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -907,16 +907,16 @@ export class Vector2i extends StructFrozen {
   /**
    * The x-coordinate of the Vector2i.
    */
-  readonly x: SInt32;
+  readonly x: Int32;
 
   /**
    * The y-coordinate of the Vector2i.
    */
-  readonly y: SInt32;
+  readonly y: Int32;
 
   constructor(options: {
-    x: SInt32;
-    y: SInt32;
+    x: Int32;
+    y: Int32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -1166,22 +1166,22 @@ export class Vector3i extends StructFrozen {
   /**
    * The x-coordinate of the Vector3i.
    */
-  readonly x: SInt32;
+  readonly x: Int32;
 
   /**
    * The y-coordinate of the Vector3i.
    */
-  readonly y: SInt32;
+  readonly y: Int32;
 
   /**
    * The z-coordinate of the Vector3i.
    */
-  readonly z: SInt32;
+  readonly z: Int32;
 
   constructor(options: {
-    x: SInt32;
-    y: SInt32;
-    z: SInt32;
+    x: Int32;
+    y: Int32;
+    z: Int32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -1457,28 +1457,28 @@ export class Vector4i extends StructFrozen {
   /**
    * The x-coordinate of the Vector4i.
    */
-  readonly x: SInt32;
+  readonly x: Int32;
 
   /**
    * The y-coordinate of the Vector4i.
    */
-  readonly y: SInt32;
+  readonly y: Int32;
 
   /**
    * The z-coordinate of the Vector4i.
    */
-  readonly z: SInt32;
+  readonly z: Int32;
 
   /**
    * The w-coordinate of the Vector4i.
    */
-  readonly w: SInt32;
+  readonly w: Int32;
 
   constructor(options: {
-    x: SInt32;
-    y: SInt32;
-    z: SInt32;
-    w: SInt32;
+    x: Int32;
+    y: Int32;
+    z: Int32;
+    w: Int32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

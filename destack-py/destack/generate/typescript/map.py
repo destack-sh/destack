@@ -6,11 +6,11 @@ TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
     # boolean
     PrimitiveType.BOOLEAN: "boolean",
     # integer
-    PrimitiveType.SINT8: "SInt8",
-    PrimitiveType.SINT16: "SInt16",
-    PrimitiveType.SINT32: "SInt32",
-    PrimitiveType.SINT64: "SInt64",
-    PrimitiveType.SINT128: "SInt128",
+    PrimitiveType.INT8: "Int8",
+    PrimitiveType.INT16: "Int16",
+    PrimitiveType.INT32: "Int32",
+    PrimitiveType.INT64: "Int64",
+    PrimitiveType.INT128: "Int128",
     PrimitiveType.UINT8: "UInt8",
     PrimitiveType.UINT16: "UInt16",
     PrimitiveType.UINT32: "UInt32",

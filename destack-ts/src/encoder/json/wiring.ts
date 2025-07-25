@@ -116,11 +116,11 @@ function _packScalarJson(value: any, type: Type): any {
     } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaToISOFormat(value as Temporal.Duration);
     } else if (
-      type.primitiveType == PrimitiveType.SINT8 ||
-      type.primitiveType == PrimitiveType.SINT16 ||
-      type.primitiveType == PrimitiveType.SINT32 ||
-      type.primitiveType == PrimitiveType.SINT64 ||
-      type.primitiveType == PrimitiveType.SINT128 ||
+      type.primitiveType == PrimitiveType.INT8 ||
+      type.primitiveType == PrimitiveType.INT16 ||
+      type.primitiveType == PrimitiveType.INT32 ||
+      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.INT128 ||
       type.primitiveType == PrimitiveType.UINT8 ||
       type.primitiveType == PrimitiveType.UINT16 ||
       type.primitiveType == PrimitiveType.UINT32 ||
@@ -184,11 +184,11 @@ function _unpackScalarJson(value: any, type: Type, _session: Session | null): an
     ) {
       return Number(value);
     } else if (
-      type.primitiveType == PrimitiveType.SINT8 ||
-      type.primitiveType == PrimitiveType.SINT16 ||
-      type.primitiveType == PrimitiveType.SINT32 ||
-      type.primitiveType == PrimitiveType.SINT64 ||
-      type.primitiveType == PrimitiveType.SINT128 ||
+      type.primitiveType == PrimitiveType.INT8 ||
+      type.primitiveType == PrimitiveType.INT16 ||
+      type.primitiveType == PrimitiveType.INT32 ||
+      type.primitiveType == PrimitiveType.INT64 ||
+      type.primitiveType == PrimitiveType.INT128 ||
       type.primitiveType == PrimitiveType.UINT8 ||
       type.primitiveType == PrimitiveType.UINT16 ||
       type.primitiveType == PrimitiveType.UINT32 ||

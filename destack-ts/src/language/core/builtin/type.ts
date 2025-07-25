@@ -493,49 +493,55 @@ export class BasicType extends StructFrozen {
   readonly cardinality: TypeCardinality;
 
   /**
+   * Key type of this Type (if it's a map).
+   */
+  readonly keyType: Type | null;
+
+  /**
+   * Value type of this Type (if it's a list, map, etc.).
+   */
+  readonly valueType: Type | null;
+
+  /**
+   * Element types of this Type (if it's a tuple).
+   */
+  readonly elementTypes: readonly Type[] | null;
+
+  /**
    * Scalar value type of this Type (primitive, enum, node, struct, etc..).
    */
   readonly scalarType: ScalarType;
 
   /**
-   * Primitive type of this Type (if it's a primitive value).
+   * Primitive type of this Type (if it's a primitive scalar).
    */
   readonly primitiveType: PrimitiveType | null;
 
   /**
-   * Enum type of this Type (if it's an enum value).
+   * Enum type of this Type (if it's an enum scalar).
    */
   readonly enumType: EnumType | null;
 
   /**
-   * Node types of this Type (if it's a node reference value).
+   * Node types of this Type (if it's a node reference scalar).
    */
   readonly nodeTypes: readonly NodeType[] | null;
 
   /**
-   * Struct type of this Type (if it's a struct value).
+   * Struct type of this Type (if it's a struct scalar).
    */
   readonly structType: StructType | null;
 
-  /**
-   * Key type of this Type (if it's a map value).
-   */
-  readonly keyType: Type | null;
-
-  /**
-   * Value of this Type (if it's a literal value).
-   */
-  readonly literalValue: Value | null;
-
   constructor(options: {
     cardinality?: TypeCardinality;
+    keyType?: Type | null;
+    valueType?: Type | null;
+    elementTypes?: readonly Type[] | null;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
-    keyType?: Type | null;
-    literalValue?: Value | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -556,6 +562,12 @@ export class BasicType extends StructFrozen {
       throw new Error(`BasicType.cardinality is required`);
     }
     this.cardinality = _cardinality;
+    let _keyType = options.keyType ?? null;
+    this.keyType = _keyType;
+    let _valueType = options.valueType ?? null;
+    this.valueType = _valueType;
+    let _elementTypes = options.elementTypes ?? null;
+    this.elementTypes = _elementTypes;
     let _scalarType = options.scalarType;
     if (_scalarType == null) {
       throw new Error(`BasicType.scalarType is required`);
@@ -569,10 +581,6 @@ export class BasicType extends StructFrozen {
     this.nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _keyType = options.keyType ?? null;
-    this.keyType = _keyType;
-    let _literalValue = options.literalValue ?? null;
-    this.literalValue = _literalValue;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -590,6 +598,30 @@ export class BasicType extends StructFrozen {
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.valueType == null) !== (other.valueType == null) ||
+      (this.valueType != null && !this.valueType.equals(other.valueType))
+    ) {
+      return false;
+    }
+    if (this.elementTypes == null) {
+      return other.elementTypes == null;
+    }
+    if (this.elementTypes.length != other.elementTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.elementTypes.length; i++) {
+      if (!this.elementTypes[i].equals(other.elementTypes[i])) {
+        return false;
+      }
+    }
+
     if (!(this.scalarType === other.scalarType)) {
       return false;
     }
@@ -614,18 +646,6 @@ export class BasicType extends StructFrozen {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (
-      (this.keyType == null) !== (other.keyType == null) ||
-      (this.keyType != null && !this.keyType.equals(other.keyType))
-    ) {
-      return false;
-    }
-    if (
-      (this.literalValue == null) !== (other.literalValue == null) ||
-      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
-    ) {
-      return false;
-    }
     return true;
   }
 
@@ -633,6 +653,17 @@ export class BasicType extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+      if (this.keyType != null) {
+        propertyReprs.push(`keyType=${this.keyType.repr()}`);
+      }
+      if (this.valueType != null) {
+        propertyReprs.push(`valueType=${this.valueType.repr()}`);
+      }
+      if (this.elementTypes != null && this.elementTypes.length > 0) {
+        propertyReprs.push(
+          `elementTypes=${this.elementTypes.map((_item) => _item.repr()).join(", ")}`,
+        );
+      }
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
       if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
@@ -648,12 +679,6 @@ export class BasicType extends StructFrozen {
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.keyType != null) {
-        propertyReprs.push(`keyType=${this.keyType.repr()}`);
-      }
-      if (this.literalValue != null) {
-        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
-      }
       // @ts-expect-error(readonly) */
       this._repr = `<BasicType ${propertyReprs.join(" ")}>`;
     }
@@ -667,6 +692,17 @@ export class BasicType extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.cardinality) & 0xffffffff;
+    if (this.keyType != null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.valueType != null) {
+      h = (h * 31 + this.valueType.hash()) & 0xffffffff;
+    }
+    if (this.elementTypes && this.elementTypes.length > 0) {
+      for (const _item of this.elementTypes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
@@ -681,12 +717,6 @@ export class BasicType extends StructFrozen {
     }
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
-    }
-    if (this.keyType != null) {
-      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
-    }
-    if (this.literalValue != null) {
-      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -781,13 +811,14 @@ export class Type extends BasicType {
 
   constructor(options: {
     cardinality?: TypeCardinality;
+    keyType?: Type | null;
+    valueType?: Type | null;
+    elementTypes?: readonly Type[] | null;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
-    keyType?: Type | null;
-    literalValue?: Value | null;
     defaultValue?: Value | null;
     defaultFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
@@ -858,6 +889,30 @@ export class Type extends BasicType {
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.valueType == null) !== (other.valueType == null) ||
+      (this.valueType != null && !this.valueType.equals(other.valueType))
+    ) {
+      return false;
+    }
+    if (this.elementTypes == null) {
+      return other.elementTypes == null;
+    }
+    if (this.elementTypes.length != other.elementTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.elementTypes.length; i++) {
+      if (!this.elementTypes[i].equals(other.elementTypes[i])) {
+        return false;
+      }
+    }
+
     if (!(this.scalarType === other.scalarType)) {
       return false;
     }
@@ -882,18 +937,6 @@ export class Type extends BasicType {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (
-      (this.keyType == null) !== (other.keyType == null) ||
-      (this.keyType != null && !this.keyType.equals(other.keyType))
-    ) {
-      return false;
-    }
-    if (
-      (this.literalValue == null) !== (other.literalValue == null) ||
-      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
-    ) {
-      return false;
-    }
     return true;
   }
 
@@ -901,6 +944,17 @@ export class Type extends BasicType {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+      if (this.keyType != null) {
+        propertyReprs.push(`keyType=${this.keyType.repr()}`);
+      }
+      if (this.valueType != null) {
+        propertyReprs.push(`valueType=${this.valueType.repr()}`);
+      }
+      if (this.elementTypes != null && this.elementTypes.length > 0) {
+        propertyReprs.push(
+          `elementTypes=${this.elementTypes.map((_item) => _item.repr()).join(", ")}`,
+        );
+      }
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
       if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
@@ -915,12 +969,6 @@ export class Type extends BasicType {
       }
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
-      }
-      if (this.keyType != null) {
-        propertyReprs.push(`keyType=${this.keyType.repr()}`);
-      }
-      if (this.literalValue != null) {
-        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
       }
       // @ts-expect-error(readonly) */
       this._repr = `<Type ${propertyReprs.join(" ")}>`;
@@ -953,6 +1001,17 @@ export class Type extends BasicType {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     }
     h = (h * 31 + this.cardinality) & 0xffffffff;
+    if (this.keyType != null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.valueType != null) {
+      h = (h * 31 + this.valueType.hash()) & 0xffffffff;
+    }
+    if (this.elementTypes && this.elementTypes.length > 0) {
+      for (const _item of this.elementTypes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
@@ -967,12 +1026,6 @@ export class Type extends BasicType {
     }
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
-    }
-    if (this.keyType != null) {
-      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
-    }
-    if (this.literalValue != null) {
-      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;

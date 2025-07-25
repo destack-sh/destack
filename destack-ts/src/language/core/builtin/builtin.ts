@@ -146,8 +146,6 @@ registerEnumClass(EnumType.OBJECT_KIND, ObjectKind);
  */
 export enum StructType {
   STRUCT = 1,
-  DATUM = 2,
-  DATUM_MUTABLE = 3,
   OBJECT_DEFINITION_REFERENCE = 11,
   NODE_DEFINITION = 12,
   NODE_DEFINITION_REFERENCE = 13,

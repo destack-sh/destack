@@ -838,11 +838,11 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hash_bool({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
@@ -1052,7 +1052,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         is_computed=True,  # is set statically by class decorator
         is_wired=True,
         is_stored=False,
-        primitive_type=PrimitiveType.SINT32,
+        primitive_type=PrimitiveType.INT32,
         enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,
         component=cls,
     )

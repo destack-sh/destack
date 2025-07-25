@@ -20,20 +20,20 @@ def test_bool():
     assert reader.remaining == 0
 
 
-def test_sint8():
+def test_int8():
     """Test signed 8-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 42, -42]
 
     writer = BinaryWriter()
     for value in test_values:
-        writer.write_sint8(value)
+        writer.write_int8(value)
 
     # Expected: 7 bytes (1 byte per int8)
     assert len(writer.to_bytes()) == 7
 
     reader = BinaryReader(writer.to_bytes())
     for expected in test_values:
-        assert reader.read_sint8() == expected
+        assert reader.read_int8() == expected
     assert reader.remaining == 0
 
 
@@ -54,7 +54,7 @@ def test_uint8():
     assert reader.remaining == 0
 
 
-def test_sint16():
+def test_int16():
     """Test signed 16-bit integer variable-length encoding."""
     # Map of value -> expected bytes with explanation
     test_cases = {
@@ -74,17 +74,17 @@ def test_sint16():
 
     for value, expected_bytes in test_cases.items():
         writer = BinaryWriter()
-        writer.write_sint16(value)
+        writer.write_int16(value)
         data = writer.to_bytes()
         assert len(data) == expected_bytes, (
             f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
         )
 
         reader = BinaryReader(data)
-        assert reader.read_sint16() == value
+        assert reader.read_int16() == value
 
 
-def test_sint32():
+def test_int32():
     """Test signed 32-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -103,7 +103,7 @@ def test_sint32():
 
     writer = BinaryWriter()
     for value in value_to_bytes:
-        writer.write_sint32(value)
+        writer.write_int32(value)
 
     # Calculate total expected bytes
     total_expected = sum(value_to_bytes.values())
@@ -111,11 +111,11 @@ def test_sint32():
 
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
-        assert reader.read_sint32() == value
+        assert reader.read_int32() == value
     assert reader.remaining == 0
 
 
-def test_sint64():
+def test_int64():
     """Test signed 64-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -134,7 +134,7 @@ def test_sint64():
 
     writer = BinaryWriter()
     for value in value_to_bytes:
-        writer.write_sint64(value)
+        writer.write_int64(value)
 
     # Calculate total expected bytes
     total_expected = sum(value_to_bytes.values())
@@ -142,11 +142,11 @@ def test_sint64():
 
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
-        assert reader.read_sint64() == value
+        assert reader.read_int64() == value
     assert reader.remaining == 0
 
 
-def test_sint128():
+def test_int128():
     """Test signed 128-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
@@ -165,7 +165,7 @@ def test_sint128():
 
     writer = BinaryWriter()
     for value in value_to_bytes:
-        writer.write_sint128(value)
+        writer.write_int128(value)
 
     # Calculate total expected bytes
     total_expected = sum(value_to_bytes.values())
@@ -173,7 +173,7 @@ def test_sint128():
 
     reader = BinaryReader(writer.to_bytes())
     for value in value_to_bytes:
-        assert reader.read_sint128() == value
+        assert reader.read_int128() == value
     assert reader.remaining == 0
 
 
@@ -424,10 +424,10 @@ def test_mixed_types():
     # Write various types with expected sizes
     operations = [
         (lambda: writer.write_bool(True), 1),  # 1 byte
-        (lambda: writer.write_sint8(-42), 1),  # 1 byte
+        (lambda: writer.write_int8(-42), 1),  # 1 byte
         (lambda: writer.write_uint16(65535), 3),  # 3 bytes (varint)
-        (lambda: writer.write_sint32(-1234567), 4),  # 4 bytes (varint)
-        (lambda: writer.write_sint128(-(2**100)), 15),  # 15 bytes (varint)
+        (lambda: writer.write_int32(-1234567), 4),  # 4 bytes (varint)
+        (lambda: writer.write_int128(-(2**100)), 15),  # 15 bytes (varint)
         (lambda: writer.write_uint128(2**100), 15),  # 15 bytes (varint)
         (lambda: writer.write_float16(1.5), 3),  # 3 bytes
         (lambda: writer.write_float32(math.pi), 5),  # 5 bytes
@@ -446,10 +446,10 @@ def test_mixed_types():
     # read them back
     reader = BinaryReader(writer.to_bytes())
     assert reader.read_bool() is True
-    assert reader.read_sint8() == -42
+    assert reader.read_int8() == -42
     assert reader.read_uint16() == 65535
-    assert reader.read_sint32() == -1234567
-    assert reader.read_sint128() == -(2**100)
+    assert reader.read_int32() == -1234567
+    assert reader.read_int128() == -(2**100)
     assert reader.read_uint128() == 2**100
     assert reader.read_float16() == pytest.approx(1.5, rel=1e-3)
     assert reader.read_float32() == pytest.approx(math.pi, rel=1e-6)
