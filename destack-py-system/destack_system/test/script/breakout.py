@@ -51,7 +51,7 @@ class BreakoutPaddle(Entity2D):
 
 @entity
 class BreakoutBrick(Entity2D):
-    pass
+    width: Int8
 
 
 # ===============================================

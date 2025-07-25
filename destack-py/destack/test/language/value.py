@@ -18,7 +18,7 @@ def test_to_type():
     assert to_type(1) == Type(
         cardinality=TypeCardinality.SCALAR,
         scalar_type=ScalarType.PRIMITIVE,
-        primitive_type=PrimitiveType.SINT64,
+        primitive_type=PrimitiveType.INT64,
     )
     assert to_type(1.0) == Type(
         cardinality=TypeCardinality.SCALAR,
@@ -35,12 +35,12 @@ def test_to_type():
     assert to_type([1, 2, 3]) == Type(
         cardinality=TypeCardinality.LIST,
         scalar_type=ScalarType.PRIMITIVE,
-        primitive_type=PrimitiveType.SINT64,
+        primitive_type=PrimitiveType.INT64,
     )
     assert to_type({"a": 1, "b": 2, "c": 3}) == Type(
         cardinality=TypeCardinality.MAP,
         scalar_type=ScalarType.PRIMITIVE,
-        primitive_type=PrimitiveType.SINT64,
+        primitive_type=PrimitiveType.INT64,
         key_type=Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
@@ -52,7 +52,7 @@ def test_to_type():
     assert to_type(list[int]) == Type(
         cardinality=TypeCardinality.LIST,
         scalar_type=ScalarType.PRIMITIVE,
-        primitive_type=PrimitiveType.SINT64,
+        primitive_type=PrimitiveType.INT64,
     )
     assert to_type(dict[str, Node]) == Type(
         cardinality=TypeCardinality.MAP,

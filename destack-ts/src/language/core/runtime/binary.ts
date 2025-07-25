@@ -54,49 +54,49 @@ export class BinaryWriter {
     this.view.setUint8(this.pos++, value ? 1 : 0);
   }
 
-  // PrimitiveType.SINT8
+  // PrimitiveType.INT8
   /**
    * Write a signed 8-bit integer as raw byte.
    * Size: 1 byte.
    */
-  writeSInt8(value: number): void {
+  writeInt8(value: number): void {
     this.ensureCapacity(1);
     this.view.setInt8(this.pos++, value);
   }
 
-  // PrimitiveType.SINT16
+  // PrimitiveType.INT16
   /**
    * Write a signed 16-bit integer using zigzag encoding then varint.
    * Size: 1-3 bytes.
    */
-  writeSInt16(value: number): void {
+  writeInt16(value: number): void {
     this.writeVarint(this.zigzagEncode(value));
   }
 
-  // PrimitiveType.SINT32
+  // PrimitiveType.INT32
   /**
    * Write a signed 32-bit integer using zigzag encoding then varint.
    * Size: 1-5 bytes.
    */
-  writeSInt32(value: number): void {
+  writeInt32(value: number): void {
     this.writeVarint(this.zigzagEncode(value));
   }
 
-  // PrimitiveType.SINT64
+  // PrimitiveType.INT64
   /**
    * Write a signed 64-bit integer using zigzag encoding then varint.
    * Size: 1-10 bytes.
    */
-  writeSInt64(value: bigint): void {
+  writeInt64(value: bigint): void {
     this.writeVarint64(this.zigzagEncode64(value));
   }
 
-  // PrimitiveType.SINT128
+  // PrimitiveType.INT128
   /**
    * Write a signed 128-bit integer using zigzag encoding then varint.
    * Size: 1-19 bytes.
    */
-  writeSInt128(value: bigint): void {
+  writeInt128(value: bigint): void {
     this.writeVarint128(this.zigzagEncode128(value));
   }
 
@@ -174,7 +174,7 @@ export class BinaryWriter {
     } else if (Number.isInteger(value) && value >= -(2 ** 7) && value <= 2 ** 7) {
       // can be represented as sint8
       this.view.setUint8(this.pos++, 5);
-      this.writeSInt8(value);
+      this.writeInt8(value);
     } else {
       this.view.setUint8(this.pos++, 6);
       // Encode float16
@@ -212,7 +212,7 @@ export class BinaryWriter {
     } else if (Number.isInteger(value) && value >= -(2 ** 15) && value <= 2 ** 15) {
       // can be represented as sint16
       this.view.setUint8(this.pos++, 5);
-      this.writeSInt16(value);
+      this.writeInt16(value);
     } else {
       this.view.setUint8(this.pos++, 6);
       this.view.setFloat32(this.pos, value, true); // little-endian
@@ -248,7 +248,7 @@ export class BinaryWriter {
     } else if (Number.isInteger(value) && value >= -(2 ** 31) && value <= 2 ** 31) {
       // can be represented as sint32
       this.view.setUint8(this.pos++, 5);
-      this.writeSInt32(value);
+      this.writeInt32(value);
     } else {
       this.view.setUint8(this.pos++, 6);
       this.view.setFloat64(this.pos, value, true); // little-endian
@@ -479,51 +479,51 @@ export class BinaryReader {
     return this.buffer[this.pos++] !== 0;
   }
 
-  // PrimitiveType.SINT8
+  // PrimitiveType.INT8
   /**
    * Read a signed 8-bit integer from raw byte.
    * Size: 1 byte.
    */
-  readSInt8(): number {
+  readInt8(): number {
     if (this.pos >= this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
     return this.view.getInt8(this.pos++);
   }
 
-  // PrimitiveType.SINT16
+  // PrimitiveType.INT16
   /**
    * Read a signed 16-bit integer from zigzag-decoded varint.
    * Size: 1-3 bytes.
    */
-  readSInt16(): number {
+  readInt16(): number {
     return this.zigzagDecode(this.readVarint());
   }
 
-  // PrimitiveType.SINT32
+  // PrimitiveType.INT32
   /**
    * Read a signed 32-bit integer from zigzag-decoded varint.
    * Size: 1-5 bytes.
    */
-  readSInt32(): number {
+  readInt32(): number {
     return this.zigzagDecode(this.readVarint());
   }
 
-  // PrimitiveType.SINT64
+  // PrimitiveType.INT64
   /**
    * Read a signed 64-bit integer from zigzag-decoded varint.
    * Size: 1-10 bytes.
    */
-  readSInt64(): bigint {
+  readInt64(): bigint {
     return this.zigzagDecode64(this.readVarint64());
   }
 
-  // PrimitiveType.SINT128
+  // PrimitiveType.INT128
   /**
    * Read a signed 128-bit integer from zigzag-decoded varint.
    * Size: 1-19 bytes.
    */
-  readSInt128(): bigint {
+  readInt128(): bigint {
     return this.zigzagDecode128(this.readVarint128());
   }
 
@@ -603,7 +603,7 @@ export class BinaryReader {
     } else if (flag === 4) {
       return Number.NaN;
     } else if (flag === 5) {
-      return this.readSInt8();
+      return this.readInt8();
     } else if (flag === 6) {
       if (this.pos + 2 > this.buffer.length) {
         throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -644,7 +644,7 @@ export class BinaryReader {
     } else if (flag === 4) {
       return Number.NaN;
     } else if (flag === 5) {
-      return this.readSInt16();
+      return this.readInt16();
     } else if (flag === 6) {
       if (this.pos + 4 > this.buffer.length) {
         throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
@@ -685,7 +685,7 @@ export class BinaryReader {
     } else if (flag === 4) {
       return Number.NaN;
     } else if (flag === 5) {
-      return this.readSInt32();
+      return this.readInt32();
     } else if (flag === 6) {
       if (this.pos + 8 > this.buffer.length) {
         throw new BinaryError(`unexpected end of buffer at ${this.pos}`);

@@ -188,7 +188,7 @@ import type {
   SortType,
 } from "@destack/language/core/common/query";
 import type { Space, Universe } from "@destack/language/core/common/space";
-import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/common/struct";
+import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
   Branch,
@@ -657,8 +657,6 @@ export type StructTypeMapping = {
   [StructType.SELECT]: Select;
   [StructType.JOIN]: Join;
   [StructType.QUERY]: Query;
-  [StructType.DATUM]: Datum;
-  [StructType.DATUM_MUTABLE]: DatumMutable;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
   [StructType.COLOR]: Color;

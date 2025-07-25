@@ -38,40 +38,40 @@ class BinaryWriter:
         """
         self.buffer.append(1 if value else 0)
 
-    # PrimitiveType.SINT8
-    def write_sint8(self, value: int) -> None:
+    # PrimitiveType.INT8
+    def write_int8(self, value: int) -> None:
         """
         Write a signed 8-bit integer as raw byte.
         Size: 1 byte.
         """
         self.buffer.append(value & 0xFF)
 
-    # PrimitiveType.SINT16
-    def write_sint16(self, value: int) -> None:
+    # PrimitiveType.INT16
+    def write_int16(self, value: int) -> None:
         """
         Write a signed 16-bit integer using zigzag encoding then varint.
         Size: 1-3 bytes.
         """
         self._write_varint(self._write_zigzag(value))
 
-    # PrimitiveType.SINT32
-    def write_sint32(self, value: int) -> None:
+    # PrimitiveType.INT32
+    def write_int32(self, value: int) -> None:
         """
         Write a signed 32-bit integer using zigzag encoding then varint.
         Size: 1-5 bytes.
         """
         self._write_varint(self._write_zigzag(value))
 
-    # PrimitiveType.SINT64
-    def write_sint64(self, value: int) -> None:
+    # PrimitiveType.INT64
+    def write_int64(self, value: int) -> None:
         """
         Write a signed 64-bit integer using zigzag encoding then varint.
         Size: 1-10 bytes.
         """
         self._write_varint(self._write_zigzag(value))
 
-    # PrimitiveType.SINT128
-    def write_sint128(self, value: int) -> None:
+    # PrimitiveType.INT128
+    def write_int128(self, value: int) -> None:
         """
         Write a signed 128-bit integer using zigzag encoding then varint.
         Size: 1-19 bytes.
@@ -143,7 +143,7 @@ class BinaryWriter:
             self.buffer.append(4)  # NaN
         elif value == float(int(value)) and -(2**7) <= value <= 2**7:
             self.buffer.append(5)
-            self.write_sint8(int(value))
+            self.write_int8(int(value))
         else:
             self.buffer.append(6)
             self.buffer.extend(struct.pack("<e", value))
@@ -173,7 +173,7 @@ class BinaryWriter:
             self.buffer.append(4)  # NaN
         elif value == float(int(value)) and -(2**15) <= value <= 2**15:
             self.buffer.append(5)
-            self.write_sint16(int(value))
+            self.write_int16(int(value))
         else:
             self.buffer.append(6)
             self.buffer.extend(struct.pack("<f", value))
@@ -204,7 +204,7 @@ class BinaryWriter:
         elif value == float(int(value)) and -(2**31) <= value <= 2**31:
             # can be represented exactly as an integer
             self.buffer.append(5)
-            self.write_sint32(int(value))
+            self.write_int32(int(value))
         else:
             self.buffer.append(6)
             self.buffer.extend(struct.pack("<d", value))
@@ -326,8 +326,8 @@ class BinaryReader:
         self.pos += 1
         return value != 0
 
-    # PrimitiveType.SINT8
-    def read_sint8(self) -> int:
+    # PrimitiveType.INT8
+    def read_int8(self) -> int:
         """
         Read a signed 8-bit integer from raw byte with sign extension.
         Size: 1 byte.
@@ -341,32 +341,32 @@ class BinaryReader:
             return value - 0x100
         return value
 
-    # PrimitiveType.SINT16
-    def read_sint16(self) -> int:
+    # PrimitiveType.INT16
+    def read_int16(self) -> int:
         """
         Read a signed 16-bit integer from zigzag-decoded varint.
         Size: 1-3 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
-    # PrimitiveType.SINT32
-    def read_sint32(self) -> int:
+    # PrimitiveType.INT32
+    def read_int32(self) -> int:
         """
         Read a signed 32-bit integer from zigzag-decoded varint.
         Size: 1-5 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
-    # PrimitiveType.SINT64
-    def read_sint64(self) -> int:
+    # PrimitiveType.INT64
+    def read_int64(self) -> int:
         """
         Read a signed 64-bit integer from zigzag-decoded varint.
         Size: 1-10 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
-    # PrimitiveType.SINT128
-    def read_sint128(self) -> int:
+    # PrimitiveType.INT128
+    def read_int128(self) -> int:
         """
         Read a signed 128-bit integer from zigzag-decoded varint.
         Size: 1-19 bytes.
@@ -446,7 +446,7 @@ class BinaryReader:
         elif flag == 4:
             return _FLOAT_NAN
         elif flag == 5:
-            return float(self.read_sint8())
+            return float(self.read_int8())
         elif flag == 6:
             if self.pos + 2 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -485,7 +485,7 @@ class BinaryReader:
         elif flag == 4:
             return _FLOAT_NAN
         elif flag == 5:
-            return float(self.read_sint16())
+            return float(self.read_int16())
         elif flag == 6:
             if self.pos + 4 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -524,7 +524,7 @@ class BinaryReader:
         elif flag == 4:
             return _FLOAT_NAN
         elif flag == 5:
-            return float(self.read_sint32())
+            return float(self.read_int32())
         elif flag == 6:
             if self.pos + 8 > len(self.buffer):
                 raise BinaryError(f"unexpected end of buffer at {self.pos}")

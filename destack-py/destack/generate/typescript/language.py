@@ -1009,11 +1009,11 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
             prop.primitive_type == PrimitiveType.BOOLEAN
             or prop.primitive_type
             in (
-                PrimitiveType.SINT8,
-                PrimitiveType.SINT16,
-                PrimitiveType.SINT32,
-                PrimitiveType.SINT64,
-                PrimitiveType.SINT128,
+                PrimitiveType.INT8,
+                PrimitiveType.INT16,
+                PrimitiveType.INT32,
+                PrimitiveType.INT64,
+                PrimitiveType.INT128,
             )
             or prop.primitive_type
             in (
@@ -1142,11 +1142,11 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
             return f"hashBool({value_expr})"
         elif prop.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ) or prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,

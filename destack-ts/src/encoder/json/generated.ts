@@ -50,8 +50,6 @@ import {
   type CutEvent,
   type Database,
   DatabaseType,
-  type Datum,
-  type DatumMutable,
   DayOfWeek,
   Direction,
   Distribute,
@@ -19070,6 +19068,19 @@ export function loadEncoders(): void {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "BASIC_TYPE";
       objectJson["cardinality"] = TypeCardinality[object.cardinality];
+      if (object.keyType != null) {
+        objectJson["keyType"] = object.keyType.pack(1);
+      }
+      if (object.valueType != null) {
+        objectJson["valueType"] = object.valueType.pack(1);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(1));
+        }
+        objectJson["elementTypes"] = packedElementTypes;
+      }
       objectJson["scalarType"] = ScalarType[object.scalarType];
       if (object.primitiveType != null) {
         objectJson["primitiveType"] = PrimitiveType[object.primitiveType];
@@ -19087,18 +19098,28 @@ export function loadEncoders(): void {
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
       }
-      if (object.keyType != null) {
-        objectJson["keyType"] = object.keyType.pack(1);
-      }
-      if (object.literalValue != null) {
-        objectJson["literalValue"] = object.literalValue.pack(1);
-      }
       return objectJson;
     }
 
     unpackObject(objectJson: any, _session: Session | null): BasicType {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const keyTypeValue = objectJson["keyType"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectJson["valueType"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(1, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectJson["elementTypes"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectJson["elementTypes"]) {
+          unpackedElementTypes.push(_Type.unpack(1, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
@@ -19117,23 +19138,16 @@ export function loadEncoders(): void {
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
         structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
-      const keyTypeValue = objectJson["keyType"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectJson["literalValue"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(1, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -19147,6 +19161,19 @@ export function loadEncoders(): void {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "TYPE";
       objectJson["cardinality"] = TypeCardinality[object.cardinality];
+      if (object.keyType != null) {
+        objectJson["keyType"] = object.keyType.pack(1);
+      }
+      if (object.valueType != null) {
+        objectJson["valueType"] = object.valueType.pack(1);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(1));
+        }
+        objectJson["elementTypes"] = packedElementTypes;
+      }
       objectJson["scalarType"] = ScalarType[object.scalarType];
       if (object.primitiveType != null) {
         objectJson["primitiveType"] = PrimitiveType[object.primitiveType];
@@ -19163,12 +19190,6 @@ export function loadEncoders(): void {
       }
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
-      }
-      if (object.keyType != null) {
-        objectJson["keyType"] = object.keyType.pack(1);
-      }
-      if (object.literalValue != null) {
-        objectJson["literalValue"] = object.literalValue.pack(1);
       }
       if (object.defaultValue != null) {
         objectJson["defaultValue"] = object.defaultValue.pack(1);
@@ -19226,6 +19247,23 @@ export function loadEncoders(): void {
           : undefined;
       const isRequiredValue = objectJson["isRequired"];
       const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
+      const keyTypeValue = objectJson["keyType"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectJson["valueType"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(1, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectJson["elementTypes"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectJson["elementTypes"]) {
+          unpackedElementTypes.push(_Type.unpack(1, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
@@ -19244,14 +19282,6 @@ export function loadEncoders(): void {
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
         structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
-      const keyTypeValue = objectJson["keyType"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectJson["literalValue"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(1, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
         defaultValue: unpackedDefaultValue,
         defaultFactory: unpackedDefaultFactory,
@@ -19260,13 +19290,14 @@ export function loadEncoders(): void {
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -19992,6 +20023,19 @@ export function loadEncoders(): void {
       }
       objectJson["taggings"] = packedTaggings;
       objectJson["cardinality"] = TypeCardinality[object.cardinality];
+      if (object.keyType != null) {
+        objectJson["keyType"] = object.keyType.pack(1);
+      }
+      if (object.valueType != null) {
+        objectJson["valueType"] = object.valueType.pack(1);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(1));
+        }
+        objectJson["elementTypes"] = packedElementTypes;
+      }
       objectJson["scalarType"] = ScalarType[object.scalarType];
       if (object.primitiveType != null) {
         objectJson["primitiveType"] = PrimitiveType[object.primitiveType];
@@ -20008,12 +20052,6 @@ export function loadEncoders(): void {
       }
       if (object.structType != null) {
         objectJson["structType"] = StructType[object.structType];
-      }
-      if (object.keyType != null) {
-        objectJson["keyType"] = object.keyType.pack(1);
-      }
-      if (object.literalValue != null) {
-        objectJson["literalValue"] = object.literalValue.pack(1);
       }
       if (object.defaultValue != null) {
         objectJson["defaultValue"] = object.defaultValue.pack(1);
@@ -20103,6 +20141,23 @@ export function loadEncoders(): void {
           : undefined;
       const isRequiredValue = objectJson["isRequired"];
       const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
+      const keyTypeValue = objectJson["keyType"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectJson["valueType"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(1, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectJson["elementTypes"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectJson["elementTypes"]) {
+          unpackedElementTypes.push(_Type.unpack(1, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
@@ -20121,14 +20176,6 @@ export function loadEncoders(): void {
       const structTypeValue = objectJson["structType"];
       const unpackedStructType =
         structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
-      const keyTypeValue = objectJson["keyType"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectJson["literalValue"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(1, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: PropertyType[objectJson["type"]] as any,
         id: Number(objectJson["id"]),
@@ -20164,13 +20211,14 @@ export function loadEncoders(): void {
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -21015,67 +21063,6 @@ export function loadEncoders(): void {
   }
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 300)] = new QueryJsonEncoder();
-
-  class DatumJsonEncoder implements JsonObjectEncoder {
-    packObject(object: Datum): any {
-      const objectJson: { [key: string]: any } = {};
-      objectJson["metatype"] = "DATUM";
-      objectJson["definition"] = object.definitionPtr.pack(1);
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(key)] = value.pack(1);
-      }
-      objectJson["customValues"] = packedCustomValues;
-      return objectJson;
-    }
-
-    unpackObject(objectJson: any, _session: Session | null): Datum {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const unpackedCustomValues = {} as any;
-      for (const [key, value] of Object.entries(objectJson["customValues"])) {
-        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-      }
-      return new (STRUCT_CLASS_BY_TYPE[2] as typeof Datum)({
-        definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
-        customValues: unpackedCustomValues,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
-        _session,
-      });
-    }
-  }
-
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2)] = new DatumJsonEncoder();
-
-  class DatumMutableJsonEncoder implements JsonObjectEncoder {
-    packObject(object: DatumMutable): any {
-      const objectJson: { [key: string]: any } = {};
-      objectJson["metatype"] = "DATUM_MUTABLE";
-      objectJson["definition"] = object.definitionPtr.pack(1);
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(key)] = value.pack(1);
-      }
-      objectJson["customValues"] = packedCustomValues;
-      return objectJson;
-    }
-
-    unpackObject(objectJson: any, _session: Session | null): DatumMutable {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const unpackedCustomValues = {} as any;
-      for (const [key, value] of Object.entries(objectJson["customValues"])) {
-        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
-      }
-      return new (STRUCT_CLASS_BY_TYPE[3] as typeof DatumMutable)({
-        definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
-        customValues: unpackedCustomValues,
-        _session,
-      });
-    }
-  }
-
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 3)] = new DatumMutableJsonEncoder();
 
   class TextSpanJsonEncoder implements JsonObjectEncoder {
     packObject(object: TextSpan): any {

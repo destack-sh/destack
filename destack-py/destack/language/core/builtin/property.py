@@ -515,9 +515,9 @@ class PropertyDeclaration(TypeDeclaration):
                 assert self.enum_type is not None, f"no enum type for {self!r}"
                 enum_cls = ENUM_CLASS_BY_TYPE.get(self.enum_type)
                 if enum_cls is None or max(enum_cls) < 2**15:
-                    self.primitive_type = PrimitiveType.SINT16
+                    self.primitive_type = PrimitiveType.INT16
                 else:
-                    self.primitive_type = PrimitiveType.SINT32
+                    self.primitive_type = PrimitiveType.INT32
             elif self.scalar_type == ScalarType.STRUCT:
                 assert self.struct_type is not None, f"no struct type for {self!r}"
                 self.primitive_type = PrimitiveType.JSON

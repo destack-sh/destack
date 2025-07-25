@@ -123,7 +123,7 @@ def get_scalar_type_strategy(
 @defines_strategy()
 def get_primitive_strategy(primitive_type: PrimitiveType) -> st.SearchStrategy[Any]:
     """Get a strategy for generating primitive values with proper constraints."""
-    if primitive_type in (PrimitiveType.SINT16, PrimitiveType.SINT32, PrimitiveType.SINT64):
+    if primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
         min_value = cast(int, MIN_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
         max_value = cast(int, MAX_VALUE_BY_PRIMITIVE_TYPE[primitive_type])
         return st.integers(min_value=min_value, max_value=max_value)
@@ -262,10 +262,10 @@ def uuids():
 
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.BOOLEAN: st.booleans(),
-    PrimitiveType.SINT8: st.integers(min_value=-(2**7), max_value=2**7 - 1),
-    PrimitiveType.SINT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
-    PrimitiveType.SINT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
-    PrimitiveType.SINT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
+    PrimitiveType.INT8: st.integers(min_value=-(2**7), max_value=2**7 - 1),
+    PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
+    PrimitiveType.INT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
+    PrimitiveType.INT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
     PrimitiveType.UINT8: st.integers(min_value=0, max_value=2**8 - 1),
     PrimitiveType.UINT16: st.integers(min_value=0, max_value=2**16 - 1),
     PrimitiveType.UINT32: st.integers(min_value=0, max_value=2**32 - 1),
@@ -281,10 +281,10 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
 }
 
 MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
-    PrimitiveType.SINT8: -(2**7),
-    PrimitiveType.SINT16: -(2**15),
-    PrimitiveType.SINT32: -(2**31),
-    PrimitiveType.SINT64: -(2**63),
+    PrimitiveType.INT8: -(2**7),
+    PrimitiveType.INT16: -(2**15),
+    PrimitiveType.INT32: -(2**31),
+    PrimitiveType.INT64: -(2**63),
     PrimitiveType.UINT8: 0,
     PrimitiveType.UINT16: 0,
     PrimitiveType.UINT32: 0,
@@ -294,10 +294,10 @@ MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
 }
 
 MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int | float] = {
-    PrimitiveType.SINT8: 2**7 - 1,
-    PrimitiveType.SINT16: 2**15 - 1,
-    PrimitiveType.SINT32: 2**31 - 1,
-    PrimitiveType.SINT64: 2**63 - 1,
+    PrimitiveType.INT8: 2**7 - 1,
+    PrimitiveType.INT16: 2**15 - 1,
+    PrimitiveType.INT32: 2**31 - 1,
+    PrimitiveType.INT64: 2**63 - 1,
     PrimitiveType.UINT8: 2**8 - 1,
     PrimitiveType.UINT16: 2**16 - 1,
     PrimitiveType.UINT32: 2**32 - 1,

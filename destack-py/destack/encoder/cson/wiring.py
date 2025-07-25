@@ -107,11 +107,11 @@ def _pack_scalar_cson(value: Any, type: Type) -> Cson:
         elif (
             type.primitive_type
             in (
-                PrimitiveType.SINT8,
-                PrimitiveType.SINT16,
-                PrimitiveType.SINT32,
-                PrimitiveType.SINT64,
-                PrimitiveType.SINT128,
+                PrimitiveType.INT8,
+                PrimitiveType.INT16,
+                PrimitiveType.INT32,
+                PrimitiveType.INT64,
+                PrimitiveType.INT128,
             )
             or type.primitive_type
             in (
@@ -167,11 +167,11 @@ def _unpack_scalar_cson(value: Cson, type: Type, session: "Session | None") -> A
         elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value
         elif type.primitive_type in (
-            PrimitiveType.SINT8,
-            PrimitiveType.SINT16,
-            PrimitiveType.SINT32,
-            PrimitiveType.SINT64,
-            PrimitiveType.SINT128,
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
         ) or type.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,

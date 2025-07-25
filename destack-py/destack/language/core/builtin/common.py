@@ -15,13 +15,13 @@ from .types import (
     Float16,
     Float32,
     Float64,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Int128,
     Json,
     Kompakt,
-    SInt8,
-    SInt16,
-    SInt32,
-    SInt64,
-    SInt128,
     String,
     Time,
     UInt8,
@@ -300,15 +300,14 @@ assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 
 @builtin_enum(EnumType.TYPE_CARDINALITY)
 class TypeCardinality(Enum):
-    """The 'kind' of a Type."""
+    """The order of a Type (scalar, list, map, etc.)."""
 
     # nocheckin :Incomplete: support tuples, sets (?), (tagged) unions, .. in type system
-    SCALAR = 1, "Scalar", "Single value of some type"
-    LIST = 2, "List", "List of homogeneous values"
-    # TUPLE
-    # SET?
+    SCALAR = 1, "Scalar", "Single value"
+    LIST = 2, "List", "List of values (dynamic length)"
+    # TUPLE = 3, "Tuple", "Tuple of values (fixed length)"
+    # SET? = 4, "Set", "Set of unique values (dynamic length)"
     MAP = 5, "Map", "Map of primitive keys to any values"
-    # UNION = 6
 
 
 assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :Encoding
@@ -316,7 +315,7 @@ assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :E
 
 @builtin_enum(EnumType.SCALAR_TYPE)
 class ScalarType(Enum):
-    """The type of a scalar."""
+    """The type of a scalar (single value like primitive, enum, struct, etc.)."""
 
     PRIMITIVE = (
         1,
@@ -332,13 +331,13 @@ class ScalarType(Enum):
     )
     NODE_REFERENCE = (
         3,
-        "NodeReference",
+        "Node Reference",
         "Reference to a Node (NodeReference)",
         "fas fa-link",
     )
     NODE_VALUE = (
         4,
-        "NodeValue",
+        "Node Value",
         "Value of a Node",
         "fas fa-link",
     )
@@ -348,6 +347,8 @@ class ScalarType(Enum):
         "Struct value (structured data)",
         "fas fa-shapes",
     )
+    # LITERAL = 6, "Literal", "Literal value (constant value)"
+    # UNION = 7, "Union", "Tagged union of heterogeneous values"
 
 
 assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
@@ -368,33 +369,33 @@ class PrimitiveType(Enum):
         "fas fa-toggle-large-on",
     )
     # integer
-    SINT8 = (
+    INT8 = (
         10,
-        "SInt8",
+        "Int8",
         "8-bit signed integer (-128 to 127)",
         "fas fa-tally",
     )
-    SINT16 = (
+    INT16 = (
         11,
-        "SInt16",
+        "Int16",
         "16-bit signed integer (-32768 to 32767)",
         "fas fa-tally",
     )
-    SINT32 = (
+    INT32 = (
         12,
-        "SInt32",
+        "Int32",
         "32-bit signed integer (-2147483648 to 2147483647)",
         "fas fa-tally",
     )
-    SINT64 = (
+    INT64 = (
         13,
-        "SInt64",
+        "Int64",
         "64-bit signed integer (-9223372036854775808 to 9223372036854775807)",
         "fas fa-tally",
     )
-    SINT128 = (
+    INT128 = (
         14,
-        "SInt128",
+        "Int128",
         "128-bit signed integer (-170141183460469231731687303715884105728 to 170141183460469231731687303715884105727)",
         "fas fa-tally",
     )
@@ -509,12 +510,12 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
     Boolean: PrimitiveType.BOOLEAN,
     # integer
-    int: PrimitiveType.SINT64,
-    SInt8: PrimitiveType.SINT8,
-    SInt16: PrimitiveType.SINT16,
-    SInt32: PrimitiveType.SINT32,
-    SInt64: PrimitiveType.SINT64,
-    SInt128: PrimitiveType.SINT128,
+    int: PrimitiveType.INT64,
+    Int8: PrimitiveType.INT8,
+    Int16: PrimitiveType.INT16,
+    Int32: PrimitiveType.INT32,
+    Int64: PrimitiveType.INT64,
+    Int128: PrimitiveType.INT128,
     UInt8: PrimitiveType.UINT8,
     UInt16: PrimitiveType.UINT16,
     UInt32: PrimitiveType.UINT32,

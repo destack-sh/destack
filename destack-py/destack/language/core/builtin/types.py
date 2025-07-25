@@ -6,11 +6,11 @@ from destack.utils.uuid import UUID
 # :PrimitiveType
 type Boolean = bool
 # integer
-type SInt8 = int
-type SInt16 = int
-type SInt32 = int
-type SInt64 = int
-type SInt128 = int
+type Int8 = int
+type Int16 = int
+type Int32 = int
+type Int64 = int
+type Int128 = int
 type UInt8 = int
 type UInt16 = int
 type UInt32 = int
@@ -36,11 +36,11 @@ type Kompakt = bytes  # just an alias
 __all__ = [  # noqa: RUF022
     "Boolean",
     # integer
-    "SInt8",
-    "SInt16",
-    "SInt32",
-    "SInt64",
-    "SInt128",
+    "Int8",
+    "Int16",
+    "Int32",
+    "Int64",
+    "Int128",
     "UInt8",
     "UInt16",
     "UInt32",

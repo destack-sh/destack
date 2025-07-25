@@ -102,47 +102,57 @@ TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 class BasicType(StructFrozen):
     """A basic Type in the type system."""
 
+    # cardinality
     cardinality: TypeCardinality = builtin_property(
         110,
         default=TypeCardinality.SCALAR,
         is_repr=True,
         description="Cardinality of this Type (scalar, list, map, etc.)",
     )
-    scalar_type: ScalarType = builtin_property(
+    key_type: Optional["Type"] = builtin_property(
         111,
+        is_repr=True,
+        description="Key type of this Type (if it's a map).",
+    )
+    value_type: Optional["Type"] = builtin_property(
+        112,
+        is_repr=True,
+        description="Value type of this Type (if it's a list, map, etc.).",
+    )
+    element_types: list["Type"] | None = builtin_property(
+        113,
+        is_repr=True,
+        description="Element types of this Type (if it's a tuple).",
+    )
+
+    # scalar
+    scalar_type: ScalarType = builtin_property(
+        120,
         is_repr=True,
         description="Scalar value type of this Type (primitive, enum, node, struct, etc..).",
     )
     primitive_type: Optional[PrimitiveType] = builtin_property(
-        112,
+        121,
         is_repr=True,
-        description="Primitive type of this Type (if it's a primitive value).",
+        description="Primitive type of this Type (if it's a primitive scalar).",
     )
     enum_type: Optional[EnumType] = builtin_property(
-        113,
+        122,
         is_repr=True,
-        description="Enum type of this Type (if it's an enum value).",
+        description="Enum type of this Type (if it's an enum scalar).",
     )
     node_types: list[NodeType] | None = builtin_property(
-        114,
+        123,
         is_repr=True,
-        description="Node types of this Type (if it's a node reference value).",
+        description="Node types of this Type (if it's a node reference scalar).",
     )
     struct_type: Optional[StructType] = builtin_property(
-        115,
+        124,
         is_repr=True,
-        description="Struct type of this Type (if it's a struct value).",
+        description="Struct type of this Type (if it's a struct scalar).",
     )
-    key_type: Optional["Type"] = builtin_property(
-        117,
-        is_repr=True,
-        description="Key type of this Type (if it's a map value).",
-    )
-    literal_value: Optional["Value"] = builtin_property(
-        120,
-        is_repr=True,
-        description="Value of this Type (if it's a literal value).",
-    )
+    # literal_value: Optional["Value"]
+    # union_types: list["Type"] | None
 
 
 @builtin_struct(StructType.TYPE, frozen=True)

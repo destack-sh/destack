@@ -3,11 +3,11 @@ import type { Temporal } from "temporal-polyfill";
 // :PrimitiveType
 export type Boolean = boolean;
 // integer
-export type SInt8 = number;
-export type SInt16 = number;
-export type SInt32 = number;
-export type SInt64 = number;
-export type SInt128 = number;
+export type Int8 = number;
+export type Int16 = number;
+export type Int32 = number;
+export type Int64 = number;
+export type Int128 = number;
 export type UInt8 = number;
 export type UInt16 = number;
 export type UInt32 = number;

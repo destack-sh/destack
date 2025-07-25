@@ -34,8 +34,6 @@ import type {
   CustomStruct,
   CutEvent,
   Database,
-  Datum,
-  DatumMutable,
   DoubleClickEvent,
   DragEndEvent,
   DragEnterEvent,
@@ -18863,68 +18861,84 @@ export function loadEncoders(): void {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 101;
       objectCson["110"] = object.cardinality;
-      objectCson["111"] = object.scalarType;
+      if (object.keyType != null) {
+        objectCson["111"] = object.keyType.pack(2);
+      }
+      if (object.valueType != null) {
+        objectCson["112"] = object.valueType.pack(2);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(2));
+        }
+        objectCson["113"] = packedElementTypes;
+      }
+      objectCson["120"] = object.scalarType;
       if (object.primitiveType != null) {
-        objectCson["112"] = object.primitiveType;
+        objectCson["121"] = object.primitiveType;
       }
       if (object.enumType != null) {
-        objectCson["113"] = object.enumType;
+        objectCson["122"] = object.enumType;
       }
       if (object.nodeTypes != null) {
         const packedNodeTypes: any[] = [];
         for (const item of object.nodeTypes) {
           packedNodeTypes.push(item);
         }
-        objectCson["114"] = packedNodeTypes;
+        objectCson["123"] = packedNodeTypes;
       }
       if (object.structType != null) {
-        objectCson["115"] = object.structType;
-      }
-      if (object.keyType != null) {
-        objectCson["117"] = object.keyType.pack(2);
-      }
-      if (object.literalValue != null) {
-        objectCson["120"] = object.literalValue.pack(2);
+        objectCson["124"] = object.structType;
       }
       return objectCson;
     }
 
     unpackObject(objectCson: any, _session: Session | null): BasicType {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
-      const primitiveTypeValue = objectCson["112"];
+      const keyTypeValue = objectCson["111"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectCson["112"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(2, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectCson["113"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectCson["113"]) {
+          unpackedElementTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
+      const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
-      const enumTypeValue = objectCson["113"];
+      const enumTypeValue = objectCson["122"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
       let unpackedNodeTypes: any[] | undefined;
-      if (objectCson["114"] != undefined) {
+      if (objectCson["123"] != undefined) {
         unpackedNodeTypes = [];
-        for (const item of objectCson["114"]) {
+        for (const item of objectCson["123"]) {
           unpackedNodeTypes.push(Number(item));
         }
       } else {
         unpackedNodeTypes = undefined;
       }
-      const structTypeValue = objectCson["115"];
+      const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["117"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectCson["120"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(2, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
         cardinality: Number(objectCson["110"]),
-        scalarType: Number(objectCson["111"]),
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
+        scalarType: Number(objectCson["120"]),
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -18938,28 +18952,35 @@ export function loadEncoders(): void {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 102;
       objectCson["110"] = object.cardinality;
-      objectCson["111"] = object.scalarType;
+      if (object.keyType != null) {
+        objectCson["111"] = object.keyType.pack(2);
+      }
+      if (object.valueType != null) {
+        objectCson["112"] = object.valueType.pack(2);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(2));
+        }
+        objectCson["113"] = packedElementTypes;
+      }
+      objectCson["120"] = object.scalarType;
       if (object.primitiveType != null) {
-        objectCson["112"] = object.primitiveType;
+        objectCson["121"] = object.primitiveType;
       }
       if (object.enumType != null) {
-        objectCson["113"] = object.enumType;
+        objectCson["122"] = object.enumType;
       }
       if (object.nodeTypes != null) {
         const packedNodeTypes: any[] = [];
         for (const item of object.nodeTypes) {
           packedNodeTypes.push(item);
         }
-        objectCson["114"] = packedNodeTypes;
+        objectCson["123"] = packedNodeTypes;
       }
       if (object.structType != null) {
-        objectCson["115"] = object.structType;
-      }
-      if (object.keyType != null) {
-        objectCson["117"] = object.keyType.pack(2);
-      }
-      if (object.literalValue != null) {
-        objectCson["120"] = object.literalValue.pack(2);
+        objectCson["124"] = object.structType;
       }
       if (object.defaultValue != null) {
         objectCson["150"] = object.defaultValue.pack(2);
@@ -19018,30 +19039,39 @@ export function loadEncoders(): void {
       const isRequiredValue = objectCson["170"];
       const unpackedIsRequired =
         isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const primitiveTypeValue = objectCson["112"];
+      const keyTypeValue = objectCson["111"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectCson["112"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(2, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectCson["113"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectCson["113"]) {
+          unpackedElementTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
+      const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
-      const enumTypeValue = objectCson["113"];
+      const enumTypeValue = objectCson["122"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
       let unpackedNodeTypes: any[] | undefined;
-      if (objectCson["114"] != undefined) {
+      if (objectCson["123"] != undefined) {
         unpackedNodeTypes = [];
-        for (const item of objectCson["114"]) {
+        for (const item of objectCson["123"]) {
           unpackedNodeTypes.push(Number(item));
         }
       } else {
         unpackedNodeTypes = undefined;
       }
-      const structTypeValue = objectCson["115"];
+      const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["117"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectCson["120"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(2, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
         defaultValue: unpackedDefaultValue,
         defaultFactory: unpackedDefaultFactory,
@@ -19050,13 +19080,14 @@ export function loadEncoders(): void {
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
         cardinality: Number(objectCson["110"]),
-        scalarType: Number(objectCson["111"]),
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
+        scalarType: Number(objectCson["120"]),
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -19779,28 +19810,35 @@ export function loadEncoders(): void {
       }
       objectCson["109"] = packedTaggings;
       objectCson["110"] = object.cardinality;
-      objectCson["111"] = object.scalarType;
+      if (object.keyType != null) {
+        objectCson["111"] = object.keyType.pack(2);
+      }
+      if (object.valueType != null) {
+        objectCson["112"] = object.valueType.pack(2);
+      }
+      if (object.elementTypes != null) {
+        const packedElementTypes: any[] = [];
+        for (const item of object.elementTypes) {
+          packedElementTypes.push(item.pack(2));
+        }
+        objectCson["113"] = packedElementTypes;
+      }
+      objectCson["120"] = object.scalarType;
       if (object.primitiveType != null) {
-        objectCson["112"] = object.primitiveType;
+        objectCson["121"] = object.primitiveType;
       }
       if (object.enumType != null) {
-        objectCson["113"] = object.enumType;
+        objectCson["122"] = object.enumType;
       }
       if (object.nodeTypes != null) {
         const packedNodeTypes: any[] = [];
         for (const item of object.nodeTypes) {
           packedNodeTypes.push(item);
         }
-        objectCson["114"] = packedNodeTypes;
+        objectCson["123"] = packedNodeTypes;
       }
       if (object.structType != null) {
-        objectCson["115"] = object.structType;
-      }
-      if (object.keyType != null) {
-        objectCson["117"] = object.keyType.pack(2);
-      }
-      if (object.literalValue != null) {
-        objectCson["120"] = object.literalValue.pack(2);
+        objectCson["124"] = object.structType;
       }
       if (object.defaultValue != null) {
         objectCson["150"] = object.defaultValue.pack(2);
@@ -19889,30 +19927,39 @@ export function loadEncoders(): void {
       const isRequiredValue = objectCson["170"];
       const unpackedIsRequired =
         isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
-      const primitiveTypeValue = objectCson["112"];
+      const keyTypeValue = objectCson["111"];
+      const unpackedKeyType =
+        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
+      const valueTypeValue = objectCson["112"];
+      const unpackedValueType =
+        valueTypeValue != undefined
+          ? (_Type.unpack(2, valueTypeValue, _session) as Type)
+          : undefined;
+      let unpackedElementTypes: any[] | undefined;
+      if (objectCson["113"] != undefined) {
+        unpackedElementTypes = [];
+        for (const item of objectCson["113"]) {
+          unpackedElementTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedElementTypes = undefined;
+      }
+      const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
-      const enumTypeValue = objectCson["113"];
+      const enumTypeValue = objectCson["122"];
       const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : undefined;
       let unpackedNodeTypes: any[] | undefined;
-      if (objectCson["114"] != undefined) {
+      if (objectCson["123"] != undefined) {
         unpackedNodeTypes = [];
-        for (const item of objectCson["114"]) {
+        for (const item of objectCson["123"]) {
           unpackedNodeTypes.push(Number(item));
         }
       } else {
         unpackedNodeTypes = undefined;
       }
-      const structTypeValue = objectCson["115"];
+      const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      const keyTypeValue = objectCson["117"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
-      const literalValueValue = objectCson["120"];
-      const unpackedLiteralValue =
-        literalValueValue != undefined
-          ? (_Value.unpack(2, literalValueValue, _session) as Value)
-          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: Number(objectCson["100"]),
         id: Number(objectCson["2"]),
@@ -19948,13 +19995,14 @@ export function loadEncoders(): void {
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
         cardinality: Number(objectCson["110"]),
-        scalarType: Number(objectCson["111"]),
+        keyType: unpackedKeyType,
+        valueType: unpackedValueType,
+        elementTypes: unpackedElementTypes,
+        scalarType: Number(objectCson["120"]),
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20799,67 +20847,6 @@ export function loadEncoders(): void {
   }
 
   CSON_OBJECT_ENCODERS[getObjectKey(2, 300)] = new QueryCsonEncoder();
-
-  class DatumCsonEncoder implements CsonObjectEncoder {
-    packObject(object: Datum): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 2;
-      objectCson["6"] = object.definitionPtr.pack(2);
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(key)] = value.pack(2);
-      }
-      objectCson["26"] = packedCustomValues;
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): Datum {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const unpackedCustomValues = {} as any;
-      for (const [key, value] of Object.entries(objectCson["26"])) {
-        unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
-      }
-      return new (STRUCT_CLASS_BY_TYPE[2] as typeof Datum)({
-        definition: _NodeReference.unpack(2, objectCson["6"], _session) as NodeReference,
-        customValues: unpackedCustomValues,
-        _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 2)] = new DatumCsonEncoder();
-
-  class DatumMutableCsonEncoder implements CsonObjectEncoder {
-    packObject(object: DatumMutable): any {
-      const objectCson: { [key: string]: any } = {};
-      objectCson["1"] = 3;
-      objectCson["6"] = object.definitionPtr.pack(2);
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(key)] = value.pack(2);
-      }
-      objectCson["26"] = packedCustomValues;
-      return objectCson;
-    }
-
-    unpackObject(objectCson: any, _session: Session | null): DatumMutable {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const unpackedCustomValues = {} as any;
-      for (const [key, value] of Object.entries(objectCson["26"])) {
-        unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
-      }
-      return new (STRUCT_CLASS_BY_TYPE[3] as typeof DatumMutable)({
-        definition: _NodeReference.unpack(2, objectCson["6"], _session) as NodeReference,
-        customValues: unpackedCustomValues,
-        _session,
-      });
-    }
-  }
-
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 3)] = new DatumMutableCsonEncoder();
 
   class TextSpanCsonEncoder implements CsonObjectEncoder {
     packObject(object: TextSpan): any {
