@@ -1,10 +1,15 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
   NodeClass,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -126,12 +131,12 @@ export class Client extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -148,12 +153,12 @@ export class Client extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -172,7 +177,7 @@ export class Client extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -210,20 +215,20 @@ export class Client extends Entity {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * Client.browserVersion
@@ -231,15 +236,15 @@ export class Client extends Entity {
   /**
    * Client.browserVersion
    */
-  get browserVersion(): string | null {
+  get browserVersion(): String | null {
     return this._browserVersion;
   }
-  set browserVersion(value: string | null) {
+  set browserVersion(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["browser_version"];
     this._session.updateSetProperty(this, prop, value);
     this._browserVersion = value;
   }
-  _browserVersion: string | null;
+  _browserVersion: String | null;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -247,15 +252,15 @@ export class Client extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -290,7 +295,7 @@ export class Client extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -310,15 +315,15 @@ export class Client extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Client.type
@@ -402,15 +407,15 @@ export class Client extends Entity {
   /**
    * Client.accessToken
    */
-  get accessToken(): string | null {
+  get accessToken(): String | null {
     return this._accessToken;
   }
-  set accessToken(value: string | null) {
+  set accessToken(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["access_token"];
     this._session.updateSetProperty(this, prop, value);
     this._accessToken = value;
   }
-  _accessToken: string | null;
+  _accessToken: String | null;
 
   /**
    * Client.seenAt
@@ -418,15 +423,15 @@ export class Client extends Entity {
   /**
    * Client.seenAt
    */
-  get seenAt(): Temporal.ZonedDateTime | null {
+  get seenAt(): Datetime | null {
     return this._seenAt;
   }
-  set seenAt(value: Temporal.ZonedDateTime | null) {
+  set seenAt(value: Datetime | null) {
     const prop = (this.constructor as NodeClass).__properties__["seen_at"];
     this._session.updateSetProperty(this, prop, value);
     this._seenAt = value;
   }
-  _seenAt: Temporal.ZonedDateTime | null;
+  _seenAt: Datetime | null;
 
   /**
    * Client.loggedInAt
@@ -434,15 +439,15 @@ export class Client extends Entity {
   /**
    * Client.loggedInAt
    */
-  get loggedInAt(): Temporal.ZonedDateTime | null {
+  get loggedInAt(): Datetime | null {
     return this._loggedInAt;
   }
-  set loggedInAt(value: Temporal.ZonedDateTime | null) {
+  set loggedInAt(value: Datetime | null) {
     const prop = (this.constructor as NodeClass).__properties__["logged_in_at"];
     this._session.updateSetProperty(this, prop, value);
     this._loggedInAt = value;
   }
-  _loggedInAt: Temporal.ZonedDateTime | null;
+  _loggedInAt: Datetime | null;
 
   /**
    * Client.deviceType
@@ -450,15 +455,15 @@ export class Client extends Entity {
   /**
    * Client.deviceType
    */
-  get deviceType(): string | null {
+  get deviceType(): String | null {
     return this._deviceType;
   }
-  set deviceType(value: string | null) {
+  set deviceType(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["device_type"];
     this._session.updateSetProperty(this, prop, value);
     this._deviceType = value;
   }
-  _deviceType: string | null;
+  _deviceType: String | null;
 
   /**
    * Client.deviceName
@@ -466,15 +471,15 @@ export class Client extends Entity {
   /**
    * Client.deviceName
    */
-  get deviceName(): string | null {
+  get deviceName(): String | null {
     return this._deviceName;
   }
-  set deviceName(value: string | null) {
+  set deviceName(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["device_name"];
     this._session.updateSetProperty(this, prop, value);
     this._deviceName = value;
   }
-  _deviceName: string | null;
+  _deviceName: String | null;
 
   /**
    * Client.operatingSystem
@@ -482,15 +487,15 @@ export class Client extends Entity {
   /**
    * Client.operatingSystem
    */
-  get operatingSystem(): string | null {
+  get operatingSystem(): String | null {
     return this._operatingSystem;
   }
-  set operatingSystem(value: string | null) {
+  set operatingSystem(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["operating_system"];
     this._session.updateSetProperty(this, prop, value);
     this._operatingSystem = value;
   }
-  _operatingSystem: string | null;
+  _operatingSystem: String | null;
 
   /**
    * Client.browserName
@@ -498,18 +503,18 @@ export class Client extends Entity {
   /**
    * Client.browserName
    */
-  get browserName(): string | null {
+  get browserName(): String | null {
     return this._browserName;
   }
-  set browserName(value: string | null) {
+  set browserName(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["browser_name"];
     this._session.updateSetProperty(this, prop, value);
     this._browserName = value;
   }
-  _browserName: string | null;
+  _browserName: String | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -518,32 +523,32 @@ export class Client extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Client | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    browserVersion?: string | null;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    browserVersion?: String | null;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: ClientType;
     machine?: Machine | NodeReference | null;
     user?: User | NodeReference | null;
-    accessToken?: string | null;
-    seenAt?: Temporal.ZonedDateTime | null;
-    loggedInAt?: Temporal.ZonedDateTime | null;
-    deviceType?: string | null;
-    deviceName?: string | null;
-    operatingSystem?: string | null;
-    browserName?: string | null;
+    accessToken?: String | null;
+    seenAt?: Datetime | null;
+    loggedInAt?: Datetime | null;
+    deviceType?: String | null;
+    deviceName?: String | null;
+    operatingSystem?: String | null;
+    browserName?: String | null;
     _session?: Session | null;
   }) {
     /* super */

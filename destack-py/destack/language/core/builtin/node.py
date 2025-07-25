@@ -19,7 +19,8 @@ from destack.language.registry import (
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import EnumType, GraphDomain, NodeType, ObjectKind, TraitType
+from .builtin import EnumType, NodeType, ObjectKind, TraitType
+from .common import GraphDomain
 from .const import UNSET
 from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls

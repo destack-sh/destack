@@ -3,8 +3,9 @@ from typing import (
     Optional,
 )
 
+from .builtin import NodeType
 from .const import UNSET
-from .node import NodeType, builtin_node
+from .node import builtin_node
 from .property import (
     builtin_property,
 )

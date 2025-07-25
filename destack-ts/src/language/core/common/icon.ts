@@ -3,6 +3,7 @@ import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { String } from "@destack/language/core/builtin/types";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -43,17 +44,17 @@ export class Icon extends StructFrozen {
   /**
    * Icon.emoji
    */
-  readonly emoji: string | null;
+  readonly emoji: String | null;
 
   /**
    * Icon.faName
    */
-  readonly faName: string | null;
+  readonly faName: String | null;
 
   /**
    * Icon.vscName
    */
-  readonly vscName: string | null;
+  readonly vscName: String | null;
 
   /**
    * Icon.file
@@ -73,7 +74,7 @@ export class Icon extends StructFrozen {
   /**
    * Icon.fileUrl
    */
-  readonly fileUrl: string | null;
+  readonly fileUrl: String | null;
 
   /**
    * Icon.color
@@ -82,11 +83,11 @@ export class Icon extends StructFrozen {
 
   constructor(options: {
     type: IconType;
-    emoji?: string | null;
-    faName?: string | null;
-    vscName?: string | null;
+    emoji?: String | null;
+    faName?: String | null;
+    vscName?: String | null;
     file?: File | NodeReference | null;
-    fileUrl?: string | null;
+    fileUrl?: String | null;
     color?: Color | null;
     _session?: Session | null;
     _hash?: number | null;

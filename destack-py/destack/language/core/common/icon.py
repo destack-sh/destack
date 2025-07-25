@@ -11,7 +11,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Color, ColorIn, File
+    from destack.language import Color, File
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -48,11 +48,10 @@ class Icon(StructFrozen):
 IconIn = Union[Icon, "File", str]
 
 
-def to_icon(icon: IconIn, color: "ColorIn | None" = None) -> "Icon":
+def to_icon(icon: IconIn, color: "Color | None" = None) -> "Icon":
     """Turn something that could be an Icon into an Icon."""
-    from destack.language import File, to_color
+    from destack.language import File
 
-    color = to_color(color) if color else None
     if isinstance(icon, str):
         if (
             icon.endswith(".svg")

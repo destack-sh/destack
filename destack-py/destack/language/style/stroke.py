@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
+    Float32,
     NodeType,
     StructFrozen,
     StructType,
+    UInt8,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -33,12 +35,12 @@ class Stroke(StructFrozen):
     """A Stroke."""
 
     type: StrokeType = builtin_property(100)
-    size: int = builtin_property(101, description="The stroke size/width.")
-    thinning: float = builtin_property(
+    size: UInt8 = builtin_property(101, description="The stroke size/width.")
+    thinning: Float32 = builtin_property(
         102, description="The amount of pressure-based thinning (0-1)."
     )
-    smoothing: float = builtin_property(103, description="The amount of path smoothing (0-1).")
-    streamline: float = builtin_property(
+    smoothing: Float32 = builtin_property(103, description="The amount of path smoothing (0-1).")
+    streamline: Float32 = builtin_property(
         104, description="The amount of streamlining applied to path (0-1)."
     )
     easing: "Easing" = builtin_property(
@@ -63,12 +65,12 @@ class StrokeStyle(Style):
     """A StrokeStyle."""
 
     type: StrokeType = builtin_property(100)
-    size: int = builtin_property(200, description="The stroke size/width.")
-    thinning: float = builtin_property(
+    size: UInt8 = builtin_property(200, description="The stroke size/width.")
+    thinning: Float32 = builtin_property(
         201, description="The amount of pressure-based thinning (0-1)."
     )
-    smoothing: float = builtin_property(202, description="The amount of path smoothing (0-1).")
-    streamline: float = builtin_property(
+    smoothing: Float32 = builtin_property(202, description="The amount of path smoothing (0-1).")
+    streamline: Float32 = builtin_property(
         203, description="The amount of streamlining applied to path (0-1)."
     )
     easing: "Easing" = builtin_property(
@@ -88,13 +90,13 @@ class StrokePoint(StructFrozen):
     original_point: "Vector2" = builtin_property(
         102, is_repr=True, description="The original input point."
     )
-    pressure: float = builtin_property(103, description="The pressure value at this point (0-1).")
+    pressure: Float32 = builtin_property(103, description="The pressure value at this point (0-1).")
     direction: "Vector2" = builtin_property(
         104, description="The normalized direction vector from previous point."
     )
-    distance: float = builtin_property(105, description="Distance from the previous point.")
-    running_length: float = builtin_property(106, description="Total distance from stroke start.")
-    radius: float = builtin_property(107, description="The computed radius at this point.")
+    distance: Float32 = builtin_property(105, description="Distance from the previous point.")
+    running_length: Float32 = builtin_property(106, description="Total distance from stroke start.")
+    radius: Float32 = builtin_property(107, description="The computed radius at this point.")
 
 
 @builtin_struct(StructType.STROKE_PATH, frozen=True)

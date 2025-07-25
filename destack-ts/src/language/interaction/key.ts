@@ -1,4 +1,15 @@
-import type { Branch, NodeReference, Session, Snapshot, Space } from "@destack/language/core";
+import type {
+  Boolean,
+  Branch,
+  Datetime,
+  NodeReference,
+  Session,
+  Snapshot,
+  Space,
+  String,
+  UInt128,
+  UUID,
+} from "@destack/language/core";
 import {
   ACTIVE_BRANCH,
   ACTIVE_SNAPSHOT,
@@ -62,12 +73,12 @@ export abstract class KeyEvent extends InputEvent {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -84,17 +95,17 @@ export abstract class KeyEvent extends InputEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -110,42 +121,42 @@ export abstract class KeyEvent extends InputEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  declare readonly key: string;
+  declare readonly key: String;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  declare readonly code: string;
+  declare readonly code: String;
 
   /**
    * Whether the key is being held down.
    */
-  declare readonly isRepeat: boolean;
+  declare readonly isRepeat: Boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  declare readonly isRedacted: boolean;
+  declare readonly isRedacted: Boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  declare readonly shiftKey: boolean;
+  declare readonly shiftKey: Boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  declare readonly altKey: boolean;
+  declare readonly altKey: Boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  declare readonly ctrlKey: boolean;
+  declare readonly ctrlKey: Boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  declare readonly metaKey: boolean;
+  declare readonly metaKey: Boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -236,12 +247,12 @@ export class KeyDownEvent extends KeyEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -270,17 +281,17 @@ export class KeyDownEvent extends KeyEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -302,68 +313,68 @@ export class KeyDownEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: string;
+  readonly key: String;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: string;
+  readonly code: String;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: boolean;
+  readonly isRepeat: Boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: boolean;
+  readonly isRedacted: Boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: string;
-    code: string;
-    isRepeat: boolean;
-    isRedacted: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    key: String;
+    code: String;
+    isRepeat: Boolean;
+    isRedacted: Boolean;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -780,12 +791,12 @@ export class KeyUpEvent extends KeyEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -814,17 +825,17 @@ export class KeyUpEvent extends KeyEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -846,68 +857,68 @@ export class KeyUpEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: string;
+  readonly key: String;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: string;
+  readonly code: String;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: boolean;
+  readonly isRepeat: Boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: boolean;
+  readonly isRedacted: Boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: string;
-    code: string;
-    isRepeat: boolean;
-    isRedacted: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    key: String;
+    code: String;
+    isRepeat: Boolean;
+    isRedacted: Boolean;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1324,12 +1335,12 @@ export class KeyPressEvent extends KeyEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1358,17 +1369,17 @@ export class KeyPressEvent extends KeyEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1390,68 +1401,68 @@ export class KeyPressEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: string;
+  readonly key: String;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: string;
+  readonly code: String;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: boolean;
+  readonly isRepeat: Boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: boolean;
+  readonly isRedacted: Boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: boolean;
+  readonly shiftKey: Boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: boolean;
+  readonly altKey: Boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: boolean;
+  readonly ctrlKey: Boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: boolean;
+  readonly metaKey: Boolean;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: string;
-    code: string;
-    isRepeat: boolean;
-    isRedacted: boolean;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
+    key: String;
+    code: String;
+    isRepeat: Boolean;
+    isRedacted: Boolean;
+    shiftKey: Boolean;
+    altKey: Boolean;
+    ctrlKey: Boolean;
+    metaKey: Boolean;
     _session?: Session | null;
   }) {
     /* super */

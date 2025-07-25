@@ -1,8 +1,7 @@
-import type { Session } from "@destack/language/core";
+import type { Datetime, Session, UInt8, UInt16, UInt32 } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashInt, hashString } from "@destack/utils/hash";
-import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:705101 ==== */
 /**
@@ -84,22 +83,22 @@ export class Schedule extends Struct {
   /**
    * Schedule.interval
    */
-  interval: number;
+  interval: UInt32;
 
   /**
    * Schedule.start
    */
-  start: Temporal.ZonedDateTime | null;
+  start: Datetime | null;
 
   /**
    * Schedule.end
    */
-  end: Temporal.ZonedDateTime | null;
+  end: Datetime | null;
 
   /**
    * Schedule.count
    */
-  count: number | null;
+  count: UInt32 | null;
 
   /**
    * Schedule.weekStart
@@ -109,7 +108,7 @@ export class Schedule extends Struct {
   /**
    * Schedule.bySetPos
    */
-  bySetPos: readonly number[];
+  bySetPos: readonly UInt32[];
 
   /**
    * Schedule.byMonth
@@ -119,22 +118,22 @@ export class Schedule extends Struct {
   /**
    * Schedule.byMonthDay
    */
-  byMonthDay: readonly number[];
+  byMonthDay: readonly UInt8[];
 
   /**
    * Schedule.byYearDay
    */
-  byYearDay: readonly number[];
+  byYearDay: readonly UInt16[];
 
   /**
    * Schedule.byEaster
    */
-  byEaster: readonly number[];
+  byEaster: readonly UInt8[];
 
   /**
    * Schedule.byWeekNo
    */
-  byWeekNo: readonly number[];
+  byWeekNo: readonly UInt8[];
 
   /**
    * Schedule.byWeekDay
@@ -144,35 +143,35 @@ export class Schedule extends Struct {
   /**
    * Schedule.byHour
    */
-  byHour: readonly number[];
+  byHour: readonly UInt8[];
 
   /**
    * Schedule.byMinute
    */
-  byMinute: readonly number[];
+  byMinute: readonly UInt8[];
 
   /**
    * Schedule.bySecond
    */
-  bySecond: readonly number[];
+  bySecond: readonly UInt8[];
 
   constructor(options: {
     frequency: ScheduleFrequency;
-    interval?: number;
-    start?: Temporal.ZonedDateTime | null;
-    end?: Temporal.ZonedDateTime | null;
-    count?: number | null;
+    interval?: UInt32;
+    start?: Datetime | null;
+    end?: Datetime | null;
+    count?: UInt32 | null;
     weekStart?: DayOfWeek | null;
-    bySetPos?: readonly number[];
+    bySetPos?: readonly UInt32[];
     byMonth?: readonly Month[];
-    byMonthDay?: readonly number[];
-    byYearDay?: readonly number[];
-    byEaster?: readonly number[];
-    byWeekNo?: readonly number[];
+    byMonthDay?: readonly UInt8[];
+    byYearDay?: readonly UInt16[];
+    byEaster?: readonly UInt8[];
+    byWeekNo?: readonly UInt8[];
     byWeekDay?: readonly DayOfWeek[];
-    byHour?: readonly number[];
-    byMinute?: readonly number[];
-    bySecond?: readonly number[];
+    byHour?: readonly UInt8[];
+    byMinute?: readonly UInt8[];
+    bySecond?: readonly UInt8[];
     _session?: Session | null;
   }) {
     /* super */

@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.utils.uuid import UUID
 
-from .common import EnumType, GraphDomain
+from .builtin import EnumType, NodeType
+from .common import GraphDomain, UInt128
 from .const import ACTIVE_EVENT, UNSET
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .meta import TagDeclaration
-from .node import Node, NodeType, builtin_node
+from .node import Node, builtin_node
 from .property import ValueFactory, builtin_property
 
 if TYPE_CHECKING:
@@ -113,7 +114,7 @@ class Event[N: Node = Node](Node):
         description="The time this Event was created (system).",
         tags=("tracking", "system"),
     )
-    created_epoch: int = builtin_property(
+    created_epoch: UInt128 = builtin_property(
         21,
         is_internal=True,
         is_eq=False,
@@ -157,7 +158,7 @@ class Event[N: Node = Node](Node):
         description="The time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
-    client_epoch: int = builtin_property(
+    client_epoch: UInt128 = builtin_property(
         26,
         is_internal=True,
         is_readonly=True,

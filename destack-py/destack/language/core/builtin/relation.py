@@ -13,12 +13,18 @@ from destack.language.registry import (
 )
 from destack.utils.uuid import UUID
 
-from .common import EnumType, GraphKey, NodeType, PrimitiveType
+from .builtin import (
+    EnumType,
+    NodeType,
+    StructType,
+    TraitType,
+)
+from .common import GraphKey, UInt8
 from .enum import Enum, builtin_enum
 from .object import BuiltinObject
 from .property import PropertyDeclaration, builtin_property
-from .struct import Struct, StructFrozen, StructType, builtin_struct
-from .trait import Trait, TraitType
+from .struct import Struct, StructFrozen, builtin_struct
+from .trait import Trait
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -270,10 +276,9 @@ class PropertyReference(StructFrozen):
     node_type: NodeType | None = builtin_property(101, is_repr=True)
     trait_type: TraitType | None = builtin_property(102, is_repr=True)
     struct_type: StructType | None = builtin_property(103, is_repr=True)
-    id: int | None = builtin_property(
+    id: UInt8 | None = builtin_property(
         105,
         is_repr=True,
-        primitive_type=PrimitiveType.SINT32,
         description="id of the builtin Property",
     )
     custom_property: "CustomProperty | None" = builtin_property(

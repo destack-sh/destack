@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .common import EnumType, NodeType
+from .builtin import EnumType, NodeType
+from .common import UInt8
 from .const import UNSET
 from .entity import Entity
 from .enum import Enum, builtin_enum
@@ -36,21 +37,20 @@ class EditOperation(Enum):
     """The update operation to perform on a Node."""
 
     # direct
-    SET = 1, "Set a Property to a value (maybe an empty value)"
+    SET = 1, "Set a Property to a value (may be an empty value)"
     # UNSET = 3, "Unset a Property (remove it from the override)"
-
-    # collection
 
     # list
     # LIST_APPEND, LIST_REMOVE, ...
+
+    # tuple
+    # ...
 
     # set
     # SET_ADD, SET_REMOVE, ...
 
     # map
     # MAP_SET, MAP_REMOVE, ...
-
-    # scalar
 
     # number
     # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
@@ -80,7 +80,7 @@ class EditEvent(Event):
     operation: "EditOperation | None" = builtin_property(
         102, is_repr=True, description="The specific Edit operation."
     )
-    property_id: int | None = builtin_property(
+    property_id: UInt8 | None = builtin_property(
         103,
         is_repr=True,
         description="""\

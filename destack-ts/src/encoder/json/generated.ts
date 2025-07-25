@@ -218,7 +218,6 @@ import {
   type RectangleShape2D,
   Region,
   RepeatType,
-  ResourceStatus,
   type Role,
   type RoleAssignedEvent,
   RoleType,
@@ -2415,56 +2414,15 @@ export function loadEncoders(): void {
       if (object._icon != null) {
         objectJson["icon"] = object._icon.pack(1);
       }
-      objectJson["cardinality"] = TypeCardinality[object._cardinality];
-      objectJson["scalarType"] = ScalarType[object._scalarType];
-      if (object._primitiveType != null) {
-        objectJson["primitiveType"] = PrimitiveType[object._primitiveType];
-      }
-      if (object._enumType != null) {
-        objectJson["enumType"] = EnumType[object._enumType];
-      }
-      if (object._nodeTypes.length > 0) {
-        const packedNodeTypes: any[] = [];
-        for (const item of object._nodeTypes) {
-          packedNodeTypes.push(NodeType[item]);
-        }
-        objectJson["nodeTypes"] = packedNodeTypes;
-      }
-      if (object._structType != null) {
-        objectJson["structType"] = StructType[object._structType];
-      }
-      if (object._keyType != null) {
-        objectJson["keyType"] = object._keyType.pack(1);
-      }
-      if (object._value != null) {
-        objectJson["value"] = object._value.pack(1);
-      }
-      if (object._valueFactory != null) {
-        objectJson["valueFactory"] = ValueFactory[object._valueFactory];
-      }
-      if (object._collectionConstraint != null) {
-        objectJson["collectionConstraint"] = object._collectionConstraint.pack(1);
-      }
-      if (object._stringConstraint != null) {
-        objectJson["stringConstraint"] = object._stringConstraint.pack(1);
-      }
-      if (object._numberConstraint != null) {
-        objectJson["numberConstraint"] = object._numberConstraint.pack(1);
-      }
+      objectJson["valueType"] = object._valueType.pack(1);
       if (object._edgeType != null) {
         objectJson["edgeType"] = EdgeType[object._edgeType];
       }
       if (object._cascade != null) {
         objectJson["cascade"] = CascadeAction[object._cascade];
       }
-      if (object._isRequired != null) {
-        objectJson["isRequired"] = object._isRequired;
-      }
       if (object._isUnique != null) {
         objectJson["isUnique"] = object._isUnique;
-      }
-      if (object._isComputed != null) {
-        objectJson["isComputed"] = object._isComputed;
       }
       if (object._isReadonly != null) {
         objectJson["isReadonly"] = object._isReadonly;
@@ -2478,69 +2436,19 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): CustomProperty {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
-      const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
-      const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
-      const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
         iconValue != undefined ? (_Icon.unpack(1, iconValue, _session) as Icon) : undefined;
-      const primitiveTypeValue = objectJson["primitiveType"];
-      const unpackedPrimitiveType =
-        primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
-      const enumTypeValue = objectJson["enumType"];
-      const unpackedEnumType =
-        enumTypeValue != undefined ? (EnumType[enumTypeValue] as any) : undefined;
-      const unpackedNodeTypes: any[] = [];
-      if (objectJson["nodeTypes"] != undefined) {
-        for (const item of objectJson["nodeTypes"]) {
-          unpackedNodeTypes.push(NodeType[item] as any);
-        }
-      }
-      const structTypeValue = objectJson["structType"];
-      const unpackedStructType =
-        structTypeValue != undefined ? (StructType[structTypeValue] as any) : undefined;
-      const keyTypeValue = objectJson["keyType"];
-      const unpackedKeyType =
-        keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectJson["value"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
-      const valueFactoryValue = objectJson["valueFactory"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
-      const collectionConstraintValue = objectJson["collectionConstraint"];
-      const unpackedCollectionConstraint =
-        collectionConstraintValue != undefined
-          ? (_CollectionConstraint.unpack(
-              1,
-              collectionConstraintValue,
-              _session,
-            ) as CollectionConstraint)
-          : undefined;
-      const stringConstraintValue = objectJson["stringConstraint"];
-      const unpackedStringConstraint =
-        stringConstraintValue != undefined
-          ? (_StringConstraint.unpack(1, stringConstraintValue, _session) as StringConstraint)
-          : undefined;
-      const numberConstraintValue = objectJson["numberConstraint"];
-      const unpackedNumberConstraint =
-        numberConstraintValue != undefined
-          ? (_NumberConstraint.unpack(1, numberConstraintValue, _session) as NumberConstraint)
-          : undefined;
       const edgeTypeValue = objectJson["edgeType"];
       const unpackedEdgeType =
         edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : undefined;
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
         cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
-      const isRequiredValue = objectJson["isRequired"];
-      const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
       const isUniqueValue = objectJson["isUnique"];
       const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : undefined;
-      const isComputedValue = objectJson["isComputed"];
-      const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : undefined;
       const isReadonlyValue = objectJson["isReadonly"];
       const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : undefined;
       const isMainValue = objectJson["isMain"];
@@ -2598,23 +2506,10 @@ export function loadEncoders(): void {
       return new (NODE_CLASS_BY_TYPE[20300] as typeof CustomProperty)({
         type: PropertyType[objectJson["type"]] as any,
         icon: unpackedIcon,
-        cardinality: TypeCardinality[objectJson["cardinality"]] as any,
-        scalarType: ScalarType[objectJson["scalarType"]] as any,
-        primitiveType: unpackedPrimitiveType,
-        enumType: unpackedEnumType,
-        nodeTypes: unpackedNodeTypes,
-        structType: unpackedStructType,
-        keyType: unpackedKeyType,
-        value: unpackedValue,
-        valueFactory: unpackedValueFactory,
-        collectionConstraint: unpackedCollectionConstraint,
-        stringConstraint: unpackedStringConstraint,
-        numberConstraint: unpackedNumberConstraint,
+        valueType: _Type.unpack(1, objectJson["valueType"], _session) as Type,
         edgeType: unpackedEdgeType,
         cascade: unpackedCascade,
-        isRequired: unpackedIsRequired,
         isUnique: unpackedIsUnique,
-        isComputed: unpackedIsComputed,
         isReadonly: unpackedIsReadonly,
         isMain: unpackedIsMain,
         parent: unpackedParentPtr,
@@ -7326,9 +7221,6 @@ export function loadEncoders(): void {
         objectJson["key"] = object._key;
       }
       objectJson["type"] = FileType[object._type];
-      if (object._status != null) {
-        objectJson["status"] = ResourceStatus[object._status];
-      }
       if (object._region != null) {
         objectJson["region"] = Region[object._region];
       }
@@ -7428,9 +7320,6 @@ export function loadEncoders(): void {
         thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : undefined;
       const contentValue = objectJson["content"];
       const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : undefined;
-      const statusValue = objectJson["status"];
-      const unpackedStatus =
-        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
       const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const definitionPtrValue = objectJson["definition"];
@@ -7497,7 +7386,6 @@ export function loadEncoders(): void {
         thumbnailWidth: unpackedThumbnailWidth,
         thumbnailHeight: unpackedThumbnailHeight,
         content: unpackedContent,
-        status: unpackedStatus,
         region: unpackedRegion,
         materialization: Materialization[objectJson["materialization"]] as any,
         definition: unpackedDefinitionPtr,
@@ -9858,9 +9746,6 @@ export function loadEncoders(): void {
       if (object._icon != null) {
         objectJson["icon"] = object._icon.pack(1);
       }
-      if (object._status != null) {
-        objectJson["status"] = ResourceStatus[object._status];
-      }
       if (object._region != null) {
         objectJson["region"] = Region[object._region];
       }
@@ -9893,9 +9778,6 @@ export function loadEncoders(): void {
       const connectionUrlValue = objectJson["connectionUrl"];
       const unpackedConnectionUrl =
         connectionUrlValue != undefined ? connectionUrlValue : undefined;
-      const statusValue = objectJson["status"];
-      const unpackedStatus =
-        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
       const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
@@ -9956,7 +9838,6 @@ export function loadEncoders(): void {
         customSchemaName: unpackedCustomSchemaName,
         tenancy: Tenancy[objectJson["tenancy"]] as any,
         connectionUrl: unpackedConnectionUrl,
-        status: unpackedStatus,
         region: unpackedRegion,
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -10044,9 +9925,6 @@ export function loadEncoders(): void {
         objectJson["key"] = object._key;
       }
       objectJson["type"] = MachineType[object._type];
-      if (object._status != null) {
-        objectJson["status"] = ResourceStatus[object._status];
-      }
       if (object._region != null) {
         objectJson["region"] = Region[object._region];
       }
@@ -10077,9 +9955,6 @@ export function loadEncoders(): void {
       const unpackedExternalId = externalIdValue != undefined ? externalIdValue : undefined;
       const imageIdValue = objectJson["imageId"];
       const unpackedImageId = imageIdValue != undefined ? imageIdValue : undefined;
-      const statusValue = objectJson["status"];
-      const unpackedStatus =
-        statusValue != undefined ? (ResourceStatus[statusValue] as any) : undefined;
       const regionValue = objectJson["region"];
       const unpackedRegion = regionValue != undefined ? (Region[regionValue] as any) : undefined;
       const parentPtrValue = objectJson["parent"];
@@ -10143,7 +10018,6 @@ export function loadEncoders(): void {
         width: Number(objectJson["width"]),
         height: Number(objectJson["height"]),
         isHeadless: objectJson["isHeadless"],
-        status: unpackedStatus,
         region: unpackedRegion,
         parent: unpackedParentPtr,
         materialization: Materialization[objectJson["materialization"]] as any,
@@ -15412,15 +15286,6 @@ export function loadEncoders(): void {
       if (object._value != null) {
         objectJson["value"] = Number(object._value);
       }
-      if (object._minValue != null) {
-        objectJson["minValue"] = Number(object._minValue);
-      }
-      if (object._maxValue != null) {
-        objectJson["maxValue"] = Number(object._maxValue);
-      }
-      if (object._step != null) {
-        objectJson["step"] = Number(object._step);
-      }
       return objectJson;
     }
 
@@ -15436,12 +15301,6 @@ export function loadEncoders(): void {
       const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
       const valueValue = objectJson["value"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
-      const minValueValue = objectJson["minValue"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
-      const maxValueValue = objectJson["maxValue"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
-      const stepValue = objectJson["step"];
-      const unpackedStep = stepValue != undefined ? Number(stepValue) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
         widthValue != undefined ? (_Length.unpack(1, widthValue, _session) as Length) : undefined;
@@ -15566,9 +15425,6 @@ export function loadEncoders(): void {
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[1810200] as typeof SliderInputView)({
         value: unpackedValue,
-        minValue: unpackedMinValue,
-        maxValue: unpackedMaxValue,
-        step: unpackedStep,
         width: unpackedWidth,
         height: unpackedHeight,
         minWidth: unpackedMinWidth,
@@ -19486,12 +19342,6 @@ export function loadEncoders(): void {
       if (object.stepValue != null) {
         objectJson["stepValue"] = Number(object.stepValue);
       }
-      if (object.precision != null) {
-        objectJson["precision"] = Number(object.precision);
-      }
-      if (object.scale != null) {
-        objectJson["scale"] = Number(object.scale);
-      }
       return objectJson;
     }
 
@@ -19505,17 +19355,11 @@ export function loadEncoders(): void {
       const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
       const stepValueValue = objectJson["stepValue"];
       const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
-      const precisionValue = objectJson["precision"];
-      const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : undefined;
-      const scaleValue = objectJson["scale"];
-      const unpackedScale = scaleValue != undefined ? Number(scaleValue) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
         format: unpackedFormat,
         minValue: unpackedMinValue,
         maxValue: unpackedMaxValue,
         stepValue: unpackedStepValue,
-        precision: unpackedPrecision,
-        scale: unpackedScale,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -19578,8 +19422,8 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectJson["keyType"] = object.keyType.pack(1);
       }
-      if (object.value != null) {
-        objectJson["value"] = object.value.pack(1);
+      if (object.literalValue != null) {
+        objectJson["literalValue"] = object.literalValue.pack(1);
       }
       return objectJson;
     }
@@ -19605,9 +19449,11 @@ export function loadEncoders(): void {
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectJson["value"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectJson["literalValue"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(1, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
@@ -19616,7 +19462,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -19650,11 +19496,14 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectJson["keyType"] = object.keyType.pack(1);
       }
-      if (object.value != null) {
-        objectJson["value"] = object.value.pack(1);
+      if (object.literalValue != null) {
+        objectJson["literalValue"] = object.literalValue.pack(1);
       }
-      if (object.valueFactory != null) {
-        objectJson["valueFactory"] = ValueFactory[object.valueFactory];
+      if (object.defaultValue != null) {
+        objectJson["defaultValue"] = object.defaultValue.pack(1);
+      }
+      if (object.defaultFactory != null) {
+        objectJson["defaultFactory"] = ValueFactory[object.defaultFactory];
       }
       if (object.collectionConstraint != null) {
         objectJson["collectionConstraint"] = object.collectionConstraint.pack(1);
@@ -19668,9 +19517,6 @@ export function loadEncoders(): void {
       if (object.isRequired != null) {
         objectJson["isRequired"] = object.isRequired;
       }
-      if (object.isMain != null) {
-        objectJson["isMain"] = object.isMain;
-      }
       return objectJson;
     }
 
@@ -19680,9 +19526,14 @@ export function loadEncoders(): void {
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
-      const valueFactoryValue = objectJson["valueFactory"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
+      const defaultValueValue = objectJson["defaultValue"];
+      const unpackedDefaultValue =
+        defaultValueValue != undefined
+          ? (_Value.unpack(1, defaultValueValue, _session) as Value)
+          : undefined;
+      const defaultFactoryValue = objectJson["defaultFactory"];
+      const unpackedDefaultFactory =
+        defaultFactoryValue != undefined ? (ValueFactory[defaultFactoryValue] as any) : undefined;
       const collectionConstraintValue = objectJson["collectionConstraint"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -19704,8 +19555,6 @@ export function loadEncoders(): void {
           : undefined;
       const isRequiredValue = objectJson["isRequired"];
       const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
-      const isMainValue = objectJson["isMain"];
-      const unpackedIsMain = isMainValue != undefined ? isMainValue : undefined;
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
@@ -19724,16 +19573,18 @@ export function loadEncoders(): void {
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectJson["value"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectJson["literalValue"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(1, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
-        valueFactory: unpackedValueFactory,
+        defaultValue: unpackedDefaultValue,
+        defaultFactory: unpackedDefaultFactory,
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
-        isMain: unpackedIsMain,
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
         primitiveType: unpackedPrimitiveType,
@@ -19741,7 +19592,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -20677,11 +20528,14 @@ export function loadEncoders(): void {
       if (object.keyType != null) {
         objectJson["keyType"] = object.keyType.pack(1);
       }
-      if (object.value != null) {
-        objectJson["value"] = object.value.pack(1);
+      if (object.literalValue != null) {
+        objectJson["literalValue"] = object.literalValue.pack(1);
       }
-      if (object.valueFactory != null) {
-        objectJson["valueFactory"] = ValueFactory[object.valueFactory];
+      if (object.defaultValue != null) {
+        objectJson["defaultValue"] = object.defaultValue.pack(1);
+      }
+      if (object.defaultFactory != null) {
+        objectJson["defaultFactory"] = ValueFactory[object.defaultFactory];
       }
       if (object.collectionConstraint != null) {
         objectJson["collectionConstraint"] = object.collectionConstraint.pack(1);
@@ -20695,9 +20549,6 @@ export function loadEncoders(): void {
       if (object.isRequired != null) {
         objectJson["isRequired"] = object.isRequired;
       }
-      if (object.isMain != null) {
-        objectJson["isMain"] = object.isMain;
-      }
       if (object.edgeType != null) {
         objectJson["edgeType"] = EdgeType[object.edgeType];
       }
@@ -20707,6 +20558,7 @@ export function loadEncoders(): void {
       objectJson["isIdentity"] = object.isIdentity;
       objectJson["isUnique"] = object.isUnique;
       objectJson["isReadonly"] = object.isReadonly;
+      objectJson["isMain"] = object.isMain;
       objectJson["isWired"] = object.isWired;
       objectJson["isStored"] = object.isStored;
       objectJson["isRepr"] = object.isRepr;
@@ -20740,9 +20592,14 @@ export function loadEncoders(): void {
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
         cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
-      const valueFactoryValue = objectJson["valueFactory"];
-      const unpackedValueFactory =
-        valueFactoryValue != undefined ? (ValueFactory[valueFactoryValue] as any) : undefined;
+      const defaultValueValue = objectJson["defaultValue"];
+      const unpackedDefaultValue =
+        defaultValueValue != undefined
+          ? (_Value.unpack(1, defaultValueValue, _session) as Value)
+          : undefined;
+      const defaultFactoryValue = objectJson["defaultFactory"];
+      const unpackedDefaultFactory =
+        defaultFactoryValue != undefined ? (ValueFactory[defaultFactoryValue] as any) : undefined;
       const collectionConstraintValue = objectJson["collectionConstraint"];
       const unpackedCollectionConstraint =
         collectionConstraintValue != undefined
@@ -20764,8 +20621,6 @@ export function loadEncoders(): void {
           : undefined;
       const isRequiredValue = objectJson["isRequired"];
       const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : undefined;
-      const isMainValue = objectJson["isMain"];
-      const unpackedIsMain = isMainValue != undefined ? isMainValue : undefined;
       const primitiveTypeValue = objectJson["primitiveType"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? (PrimitiveType[primitiveTypeValue] as any) : undefined;
@@ -20784,9 +20639,11 @@ export function loadEncoders(): void {
       const keyTypeValue = objectJson["keyType"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(1, keyTypeValue, _session) as Type) : undefined;
-      const valueValue = objectJson["value"];
-      const unpackedValue =
-        valueValue != undefined ? (_Value.unpack(1, valueValue, _session) as Value) : undefined;
+      const literalValueValue = objectJson["literalValue"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(1, literalValueValue, _session) as Value)
+          : undefined;
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: PropertyType[objectJson["type"]] as any,
         id: Number(objectJson["id"]),
@@ -20808,18 +20665,19 @@ export function loadEncoders(): void {
         isIdentity: objectJson["isIdentity"],
         isUnique: objectJson["isUnique"],
         isReadonly: objectJson["isReadonly"],
+        isMain: objectJson["isMain"],
         isWired: objectJson["isWired"],
         isStored: objectJson["isStored"],
         isRepr: objectJson["isRepr"],
         isHash: objectJson["isHash"],
         isEq: objectJson["isEq"],
         isInternal: objectJson["isInternal"],
-        valueFactory: unpackedValueFactory,
+        defaultValue: unpackedDefaultValue,
+        defaultFactory: unpackedDefaultFactory,
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
         isRequired: unpackedIsRequired,
-        isMain: unpackedIsMain,
         cardinality: TypeCardinality[objectJson["cardinality"]] as any,
         scalarType: ScalarType[objectJson["scalarType"]] as any,
         primitiveType: unpackedPrimitiveType,
@@ -20827,7 +20685,7 @@ export function loadEncoders(): void {
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
         keyType: unpackedKeyType,
-        value: unpackedValue,
+        literalValue: unpackedLiteralValue,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
@@ -21586,9 +21444,6 @@ export function loadEncoders(): void {
       objectJson["metatype"] = "JOIN";
       objectJson["type"] = JoinType[object.type];
       objectJson["recursive"] = object.recursive;
-      if (object.depth != null) {
-        objectJson["depth"] = Number(object.depth);
-      }
       if (object.on != null) {
         objectJson["on"] = object.on.pack(1);
       }
@@ -21597,15 +21452,12 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Join {
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
-      const depthValue = objectJson["depth"];
-      const unpackedDepth = depthValue != undefined ? Number(depthValue) : undefined;
       const onValue = objectJson["on"];
       const unpackedOn =
         onValue != undefined ? (_Condition.unpack(1, onValue, _session) as Condition) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[202] as typeof Join)({
         type: JoinType[objectJson["type"]] as any,
         recursive: objectJson["recursive"],
-        depth: unpackedDepth,
         on: unpackedOn,
         _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
@@ -21961,15 +21813,6 @@ export function loadEncoders(): void {
       if (object.stylePtr != null) {
         objectJson["style"] = object.stylePtr.pack(1);
       }
-      if (object.hue != null) {
-        objectJson["hue"] = ColorHue[object.hue];
-      }
-      if (object.shade != null) {
-        objectJson["shade"] = ColorShade[object.shade];
-      }
-      if (object.intent != null) {
-        objectJson["intent"] = ColorIntent[object.intent];
-      }
       if (object.x != null) {
         objectJson["x"] = Number(object.x);
       }
@@ -21992,13 +21835,6 @@ export function loadEncoders(): void {
         stylePtrValue != undefined
           ? (_NodeReference.unpack(1, stylePtrValue, _session) as NodeReference)
           : undefined;
-      const hueValue = objectJson["hue"];
-      const unpackedHue = hueValue != undefined ? (ColorHue[hueValue] as any) : undefined;
-      const shadeValue = objectJson["shade"];
-      const unpackedShade = shadeValue != undefined ? (ColorShade[shadeValue] as any) : undefined;
-      const intentValue = objectJson["intent"];
-      const unpackedIntent =
-        intentValue != undefined ? (ColorIntent[intentValue] as any) : undefined;
       const xValue = objectJson["x"];
       const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
@@ -22010,9 +21846,6 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2100300] as typeof Color)({
         type: ColorType[objectJson["type"]] as any,
         style: unpackedStylePtr,
-        hue: unpackedHue,
-        shade: unpackedShade,
-        intent: unpackedIntent,
         x: unpackedX,
         y: unpackedY,
         z: unpackedZ,

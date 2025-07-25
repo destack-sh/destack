@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Float32,
     NodeType,
     builtin_node,
     builtin_property,
@@ -19,7 +20,7 @@ class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
     position: "Vector2" = builtin_property(110, is_repr=True)
-    pressure: float | None = builtin_property(111, is_repr=True)
+    pressure: Float32 | None = builtin_property(111, is_repr=True)
 
     shift_key: bool = builtin_property(120)
     alt_key: bool = builtin_property(121)

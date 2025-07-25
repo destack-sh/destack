@@ -1,12 +1,19 @@
 import type { Easing } from "@destack/language/animation";
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Float32,
   NodeClass,
   NodeReference,
   PackedCache,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt8,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -68,22 +75,22 @@ export class Stroke extends StructFrozen {
   /**
    * The stroke size/width.
    */
-  readonly size: number;
+  readonly size: UInt8;
 
   /**
    * The amount of pressure-based thinning (0-1).
    */
-  readonly thinning: number;
+  readonly thinning: Float32;
 
   /**
    * The amount of path smoothing (0-1).
    */
-  readonly smoothing: number;
+  readonly smoothing: Float32;
 
   /**
    * The amount of streamlining applied to path (0-1).
    */
-  readonly streamline: number;
+  readonly streamline: Float32;
 
   /**
    * The easing function for pressure mapping.
@@ -107,10 +114,10 @@ export class Stroke extends StructFrozen {
 
   constructor(options: {
     type: StrokeType;
-    size: number;
-    thinning: number;
-    smoothing: number;
-    streamline: number;
+    size: UInt8;
+    thinning: Float32;
+    smoothing: Float32;
+    streamline: Float32;
     easing: Easing;
     color?: Color | null;
     start?: StrokeCap | null;
@@ -274,12 +281,12 @@ export class StrokeCap extends StructFrozen {
   /**
    * Whether to cap the stroke.
    */
-  readonly cap: boolean;
+  readonly cap: Boolean;
 
   /**
    * Whether to taper the stroke.
    */
-  readonly taper: boolean;
+  readonly taper: Boolean;
 
   /**
    * The easing function for taper.
@@ -287,8 +294,8 @@ export class StrokeCap extends StructFrozen {
   readonly easing: Easing;
 
   constructor(options: {
-    cap: boolean;
-    taper: boolean;
+    cap: Boolean;
+    taper: Boolean;
     easing: Easing;
     _session?: Session | null;
     _hash?: number | null;
@@ -393,7 +400,7 @@ export class StrokePoint extends StructFrozen {
   /**
    * The pressure value at this point (0-1).
    */
-  readonly pressure: number;
+  readonly pressure: Float32;
 
   /**
    * The normalized direction vector from previous point.
@@ -403,26 +410,26 @@ export class StrokePoint extends StructFrozen {
   /**
    * Distance from the previous point.
    */
-  readonly distance: number;
+  readonly distance: Float32;
 
   /**
    * Total distance from stroke start.
    */
-  readonly runningLength: number;
+  readonly runningLength: Float32;
 
   /**
    * The computed radius at this point.
    */
-  readonly radius: number;
+  readonly radius: Float32;
 
   constructor(options: {
     point: Vector2;
     originalPoint: Vector2;
-    pressure: number;
+    pressure: Float32;
     direction: Vector2;
-    distance: number;
-    runningLength: number;
-    radius: number;
+    distance: Float32;
+    runningLength: Float32;
+    radius: Float32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -754,12 +761,12 @@ export class StrokeStyle extends Style {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -776,12 +783,12 @@ export class StrokeStyle extends Style {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -800,7 +807,7 @@ export class StrokeStyle extends Style {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -838,20 +845,20 @@ export class StrokeStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -859,15 +866,15 @@ export class StrokeStyle extends Style {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -902,7 +909,7 @@ export class StrokeStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -922,15 +929,15 @@ export class StrokeStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * StrokeStyle.type
@@ -954,15 +961,15 @@ export class StrokeStyle extends Style {
   /**
    * The stroke size/width.
    */
-  get size(): number {
+  get size(): UInt8 {
     return this._size;
   }
-  set size(value: number) {
+  set size(value: UInt8) {
     const prop = (this.constructor as NodeClass).__properties__["size"];
     this._session.updateSetProperty(this, prop, value);
     this._size = value;
   }
-  _size: number;
+  _size: UInt8;
 
   /**
    * The amount of pressure-based thinning (0-1).
@@ -970,15 +977,15 @@ export class StrokeStyle extends Style {
   /**
    * The amount of pressure-based thinning (0-1).
    */
-  get thinning(): number {
+  get thinning(): Float32 {
     return this._thinning;
   }
-  set thinning(value: number) {
+  set thinning(value: Float32) {
     const prop = (this.constructor as NodeClass).__properties__["thinning"];
     this._session.updateSetProperty(this, prop, value);
     this._thinning = value;
   }
-  _thinning: number;
+  _thinning: Float32;
 
   /**
    * The amount of path smoothing (0-1).
@@ -986,15 +993,15 @@ export class StrokeStyle extends Style {
   /**
    * The amount of path smoothing (0-1).
    */
-  get smoothing(): number {
+  get smoothing(): Float32 {
     return this._smoothing;
   }
-  set smoothing(value: number) {
+  set smoothing(value: Float32) {
     const prop = (this.constructor as NodeClass).__properties__["smoothing"];
     this._session.updateSetProperty(this, prop, value);
     this._smoothing = value;
   }
-  _smoothing: number;
+  _smoothing: Float32;
 
   /**
    * The amount of streamlining applied to path (0-1).
@@ -1002,15 +1009,15 @@ export class StrokeStyle extends Style {
   /**
    * The amount of streamlining applied to path (0-1).
    */
-  get streamline(): number {
+  get streamline(): Float32 {
     return this._streamline;
   }
-  set streamline(value: number) {
+  set streamline(value: Float32) {
     const prop = (this.constructor as NodeClass).__properties__["streamline"];
     this._session.updateSetProperty(this, prop, value);
     this._streamline = value;
   }
-  _streamline: number;
+  _streamline: Float32;
 
   /**
    * The easing function for pressure mapping.
@@ -1061,7 +1068,7 @@ export class StrokeStyle extends Style {
   _end: StrokeCap | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -1070,26 +1077,26 @@ export class StrokeStyle extends Style {
     snapshot?: Snapshot | NodeReference;
     precededBy?: StrokeStyle | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: StrokeType;
-    size: number;
-    thinning: number;
-    smoothing: number;
-    streamline: number;
+    size: UInt8;
+    thinning: Float32;
+    smoothing: Float32;
+    streamline: Float32;
     easing: Easing;
     start?: StrokeCap | null;
     end?: StrokeCap | null;

@@ -4,6 +4,7 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
+    Float32,
     IsOrdered,
     IsOwnable,
     NodeType,
@@ -44,5 +45,5 @@ class Layer(
 
     # style
     is_visible: Optional[bool] = builtin_property(140)
-    opacity: Optional[float] = builtin_property(141)
+    opacity: Optional[Float32] = builtin_property(141)
     # parallax?

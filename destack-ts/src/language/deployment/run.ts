@@ -1,10 +1,16 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Duration,
   Materialization,
   NodeReference,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -96,12 +102,12 @@ export abstract class RunEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -118,17 +124,17 @@ export abstract class RunEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  declare readonly clientNonce: string;
+  declare readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+  declare readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  declare readonly clientEpoch: number;
+  declare readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -236,12 +242,12 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -270,17 +276,17 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -312,20 +318,20 @@ export class RunStartedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -682,12 +688,12 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -716,17 +722,17 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -758,20 +764,20 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -1128,12 +1134,12 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1162,17 +1168,17 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1204,20 +1210,20 @@ export class RunPausedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -1574,12 +1580,12 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -1608,17 +1614,17 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -1650,20 +1656,20 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -2020,12 +2026,12 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2054,17 +2060,17 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2096,20 +2102,20 @@ export class RunResumedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -2466,12 +2472,12 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2500,17 +2506,17 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2542,20 +2548,20 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -2912,12 +2918,12 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -2946,17 +2952,17 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -2988,20 +2994,20 @@ export class RunFailedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -3358,12 +3364,12 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -3392,17 +3398,17 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -3434,20 +3440,20 @@ export class RunCompletedEvent extends RunEvent {
   readonly targetPtr: NodeReference | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: Entity | NodeReference | null;
@@ -3780,12 +3786,12 @@ export abstract class Run extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -3796,12 +3802,12 @@ export abstract class Run extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -3814,7 +3820,7 @@ export abstract class Run extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -3833,13 +3839,13 @@ export abstract class Run extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -3847,8 +3853,8 @@ export abstract class Run extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -3864,7 +3870,7 @@ export abstract class Run extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -3878,8 +3884,8 @@ export abstract class Run extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Run.target
@@ -3907,8 +3913,8 @@ export abstract class Run extends Entity {
   /**
    * Duration from first attempt start to last attempt termination.
    */
-  abstract get duration(): Temporal.Duration | null;
-  abstract set duration(value: Temporal.Duration | null);
+  abstract get duration(): Duration | null;
+  abstract set duration(value: Duration | null);
 
   /**
    * When the Run is scheduled to start.
@@ -3916,8 +3922,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run is scheduled to start.
    */
-  abstract get scheduledAt(): Temporal.ZonedDateTime | null;
-  abstract set scheduledAt(value: Temporal.ZonedDateTime | null);
+  abstract get scheduledAt(): Datetime | null;
+  abstract set scheduledAt(value: Datetime | null);
 
   /**
    * When the Run first started.
@@ -3925,8 +3931,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run first started.
    */
-  abstract get startedAt(): Temporal.ZonedDateTime | null;
-  abstract set startedAt(value: Temporal.ZonedDateTime | null);
+  abstract get startedAt(): Datetime | null;
+  abstract set startedAt(value: Datetime | null);
 
   /**
    * When the Run was last active.
@@ -3934,8 +3940,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was last active.
    */
-  abstract get seenAt(): Temporal.ZonedDateTime | null;
-  abstract set seenAt(value: Temporal.ZonedDateTime | null);
+  abstract get seenAt(): Datetime | null;
+  abstract set seenAt(value: Datetime | null);
 
   /**
    * When the Run was interrupted.
@@ -3943,8 +3949,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was interrupted.
    */
-  abstract get interruptedAt(): Temporal.ZonedDateTime | null;
-  abstract set interruptedAt(value: Temporal.ZonedDateTime | null);
+  abstract get interruptedAt(): Datetime | null;
+  abstract set interruptedAt(value: Datetime | null);
 
   /**
    * When the Run was last terminated.
@@ -3952,8 +3958,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was last terminated.
    */
-  abstract get terminatedAt(): Temporal.ZonedDateTime | null;
-  abstract set terminatedAt(value: Temporal.ZonedDateTime | null);
+  abstract get terminatedAt(): Datetime | null;
+  abstract set terminatedAt(value: Datetime | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

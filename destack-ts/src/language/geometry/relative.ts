@@ -1,4 +1,4 @@
-import type { PackedCache, Session } from "@destack/language/core";
+import type { Float32, PackedCache, Session, UInt16 } from "@destack/language/core";
 import { EnumType, StructFrozen, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -136,11 +136,11 @@ export class Length extends StructFrozen {
   /**
    * Length.value
    */
-  readonly value: number;
+  readonly value: Float32;
 
   constructor(options: {
     unit: LengthType;
-    value: number;
+    value: Float32;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -397,34 +397,34 @@ export class Inset2 extends StructFrozen {
   /**
    * Inset2.base
    */
-  readonly base: number;
+  readonly base: UInt16;
 
   /**
    * Inset2.top
    */
-  readonly top: number | null;
+  readonly top: UInt16 | null;
 
   /**
    * Inset2.left
    */
-  readonly left: number | null;
+  readonly left: UInt16 | null;
 
   /**
    * Inset2.right
    */
-  readonly right: number | null;
+  readonly right: UInt16 | null;
 
   /**
    * Inset2.bottom
    */
-  readonly bottom: number | null;
+  readonly bottom: UInt16 | null;
 
   constructor(options: {
-    base?: number;
-    top?: number | null;
-    left?: number | null;
-    right?: number | null;
-    bottom?: number | null;
+    base?: UInt16;
+    top?: UInt16 | null;
+    left?: UInt16 | null;
+    right?: UInt16 | null;
+    bottom?: UInt16 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -553,34 +553,34 @@ export class Corner2 extends StructFrozen {
   /**
    * Corner2.base
    */
-  readonly base: number;
+  readonly base: UInt16;
 
   /**
    * Corner2.topLeft
    */
-  readonly topLeft: number | null;
+  readonly topLeft: UInt16 | null;
 
   /**
    * Corner2.topRight
    */
-  readonly topRight: number | null;
+  readonly topRight: UInt16 | null;
 
   /**
    * Corner2.bottomLeft
    */
-  readonly bottomLeft: number | null;
+  readonly bottomLeft: UInt16 | null;
 
   /**
    * Corner2.bottomRight
    */
-  readonly bottomRight: number | null;
+  readonly bottomRight: UInt16 | null;
 
   constructor(options: {
-    base?: number;
-    topLeft?: number | null;
-    topRight?: number | null;
-    bottomLeft?: number | null;
-    bottomRight?: number | null;
+    base?: UInt16;
+    topLeft?: UInt16 | null;
+    topRight?: UInt16 | null;
+    bottomLeft?: UInt16 | null;
+    bottomRight?: UInt16 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -709,22 +709,22 @@ export class Axis2 extends StructFrozen {
   /**
    * Axis2.base
    */
-  readonly base: number;
+  readonly base: Float32;
 
   /**
    * Axis2.x
    */
-  readonly x: number | null;
+  readonly x: Float32 | null;
 
   /**
    * Axis2.y
    */
-  readonly y: number | null;
+  readonly y: Float32 | null;
 
   constructor(options: {
-    base?: number;
-    x?: number | null;
-    y?: number | null;
+    base?: Float32;
+    x?: Float32 | null;
+    y?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -837,28 +837,28 @@ export class Axis3 extends StructFrozen {
   /**
    * Axis3.base
    */
-  readonly base: number;
+  readonly base: Float32;
 
   /**
    * Axis3.x
    */
-  readonly x: number | null;
+  readonly x: Float32 | null;
 
   /**
    * Axis3.y
    */
-  readonly y: number | null;
+  readonly y: Float32 | null;
 
   /**
    * Axis3.z
    */
-  readonly z: number | null;
+  readonly z: Float32 | null;
 
   constructor(options: {
-    base?: number;
-    x?: number | null;
-    y?: number | null;
-    z?: number | null;
+    base?: Float32;
+    x?: Float32 | null;
+    y?: Float32 | null;
+    z?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -985,12 +985,12 @@ export class Grid2 extends StructFrozen {
   /**
    * Grid2.columns
    */
-  readonly columns: number;
+  readonly columns: UInt16;
 
   /**
    * Grid2.rows
    */
-  readonly rows: number;
+  readonly rows: UInt16;
 
   /**
    * Grid2.columnWidth
@@ -1008,8 +1008,8 @@ export class Grid2 extends StructFrozen {
   readonly rowHeight: Length | null;
 
   constructor(options: {
-    columns: number;
-    rows: number;
+    columns: UInt16;
+    rows: UInt16;
     columnWidth?: Length | null;
     columnMinWidth?: Length | null;
     rowHeight?: Length | null;
@@ -1146,16 +1146,16 @@ export class GridSpan2 extends StructFrozen {
   /**
    * GridSpan2.columns
    */
-  readonly columns: number;
+  readonly columns: UInt16;
 
   /**
    * GridSpan2.rows
    */
-  readonly rows: number;
+  readonly rows: UInt16;
 
   constructor(options: {
-    columns: number;
-    rows: number;
+    columns: UInt16;
+    rows: UInt16;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

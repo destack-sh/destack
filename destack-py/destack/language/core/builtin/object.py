@@ -28,16 +28,18 @@ from destack.utils.string import Casing, to_casing
 from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
+from .builtin import (
+    NodeType,
+    ObjectKind,
+    StructType,
+    TraitType,
+)
 from .common import (
     EdgeType,
     Encoding,
     EnumType,
-    NodeType,
-    ObjectKind,
     PrimitiveType,
     ScalarType,
-    StructType,
-    TraitType,
     TypeCardinality,
     ValueFactory,
 )

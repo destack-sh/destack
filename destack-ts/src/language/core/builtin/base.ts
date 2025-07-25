@@ -1,4 +1,4 @@
-import type { Region, ResourceStatus } from "@destack/language/core/builtin/common";
+import type { Region } from "@destack/language/core/builtin/common";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
@@ -6,6 +6,13 @@ import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsOrdered, IsOwnable } from "@destack/language/core/builtin/trait";
+import type {
+  Boolean,
+  Datetime,
+  String,
+  UInt128,
+  UUID,
+} from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
@@ -75,12 +82,12 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -91,12 +98,12 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -109,7 +116,7 @@ export abstract class Record extends Entity implements IsOwnable {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -128,13 +135,13 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -142,8 +149,8 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -159,7 +166,7 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -173,8 +180,8 @@ export abstract class Record extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -242,12 +249,12 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -258,12 +265,12 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -276,7 +283,7 @@ export abstract class Resource extends Entity implements IsOwnable {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -295,13 +302,13 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -309,8 +316,8 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -326,7 +333,7 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -340,17 +347,8 @@ export abstract class Resource extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
-
-  /**
-   * Resource.status
-   */
-  /**
-   * Resource.status
-   */
-  abstract get status(): ResourceStatus | null;
-  abstract set status(value: ResourceStatus | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Resource.region
@@ -426,12 +424,12 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -442,12 +440,12 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -460,7 +458,7 @@ export abstract class Variant extends Entity implements IsOwnable {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -479,13 +477,13 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -493,8 +491,8 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -510,7 +508,7 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -524,8 +522,8 @@ export abstract class Variant extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Variant.icon
@@ -643,12 +641,12 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -665,12 +663,12 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -689,7 +687,7 @@ export class Tag extends Entity implements IsOrdered {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -727,20 +725,20 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -748,15 +746,15 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -791,7 +789,7 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -811,15 +809,15 @@ export class Tag extends Entity implements IsOrdered {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Tag.icon
@@ -838,7 +836,7 @@ export class Tag extends Entity implements IsOrdered {
   _icon: Icon | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -847,21 +845,21 @@ export class Tag extends Entity implements IsOrdered {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tag | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     icon?: Icon | null;
     _session?: Session | null;
   }) {
@@ -1274,12 +1272,12 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -1296,12 +1294,12 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -1320,7 +1318,7 @@ export class Tagging extends Entity implements IsOrdered {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -1358,20 +1356,20 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1379,15 +1377,15 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -1422,7 +1420,7 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1442,15 +1440,15 @@ export class Tagging extends Entity implements IsOrdered {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * Tagging.tag
@@ -1479,7 +1477,7 @@ export class Tagging extends Entity implements IsOrdered {
   _tagPtr: NodeReference;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -1488,21 +1486,21 @@ export class Tagging extends Entity implements IsOrdered {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tagging | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     tag: Tag | NodeReference;
     _session?: Session | null;
   }) {
@@ -1874,12 +1872,12 @@ export abstract class Entity2D extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -1890,12 +1888,12 @@ export abstract class Entity2D extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -1908,7 +1906,7 @@ export abstract class Entity2D extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -1927,13 +1925,13 @@ export abstract class Entity2D extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -1941,8 +1939,8 @@ export abstract class Entity2D extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -1958,7 +1956,7 @@ export abstract class Entity2D extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -1972,8 +1970,8 @@ export abstract class Entity2D extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Entity2D.position
@@ -2103,12 +2101,12 @@ export abstract class Entity3D extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -2119,12 +2117,12 @@ export abstract class Entity3D extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -2137,7 +2135,7 @@ export abstract class Entity3D extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -2156,13 +2154,13 @@ export abstract class Entity3D extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2170,8 +2168,8 @@ export abstract class Entity3D extends Entity {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -2187,7 +2185,7 @@ export abstract class Entity3D extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2201,8 +2199,8 @@ export abstract class Entity3D extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /**
    * Entity3D.position

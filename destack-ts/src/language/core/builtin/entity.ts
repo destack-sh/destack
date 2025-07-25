@@ -3,6 +3,13 @@ import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/co
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { hasTrait, Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type {
+  Boolean,
+  Datetime,
+  String,
+  UInt128,
+  UUID,
+} from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -13,7 +20,6 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import { getOrderKey } from "@destack/utils";
-import type { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
@@ -81,12 +87,12 @@ export abstract class Entity extends Node {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Temporal.ZonedDateTime;
+  declare readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  declare readonly createdEpoch: number;
+  declare readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -97,12 +103,12 @@ export abstract class Entity extends Node {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
+  declare readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  declare readonly updatedEpoch: number;
+  declare readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -115,7 +121,7 @@ export abstract class Entity extends Node {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+  declare readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -134,13 +140,13 @@ export abstract class Entity extends Node {
   /**
    * Entity.name
    */
-  abstract get name(): string;
-  abstract set name(value: string);
+  abstract get name(): String;
+  abstract set name(value: String);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: string;
+  declare readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -148,8 +154,8 @@ export abstract class Entity extends Node {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  abstract get customValues(): { readonly [key: string]: Value };
-  abstract set customValues(value: { readonly [key: string]: Value });
+  abstract get customValues(): { readonly [key: UUID]: Value };
+  abstract set customValues(value: { readonly [key: UUID]: Value });
 
   /**
    * The Script of this Entity.
@@ -165,7 +171,7 @@ export abstract class Entity extends Node {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: boolean | null;
+  declare readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -179,8 +185,8 @@ export abstract class Entity extends Node {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
+  abstract get key(): String | null;
+  abstract set key(value: String | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
 

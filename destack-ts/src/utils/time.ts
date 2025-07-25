@@ -1,6 +1,6 @@
 import { Temporal } from "temporal-polyfill";
 
-type DurationPart = [string, string, number | null, boolean];
+type DurationPart = [string, string, number | null];
 type DurationParts = DurationPart[];
 type DurationUnits = [string, number][];
 

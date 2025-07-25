@@ -4,6 +4,7 @@ import type { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { Datetime, UInt8, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Space } from "@destack/language/core/common/space";
@@ -133,12 +134,12 @@ export class EditEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Event was created (system).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Event.
@@ -167,17 +168,17 @@ export class EditEvent extends Event {
   /**
    * The nonce of the Client that created this Event (client).
    */
-  readonly clientNonce: string;
+  readonly clientNonce: UUID;
 
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Temporal.ZonedDateTime;
+  readonly clientCreatedAt: Datetime;
 
   /**
    * The logical time in the Client when it created this Event (client).
    */
-  readonly clientEpoch: number;
+  readonly clientEpoch: UInt128;
 
   /**
    * The status of the Event (system).
@@ -210,7 +211,7 @@ export class EditEvent extends Event {
    * The id of the builtin Property being edited.
    * If it's a custom Property, this just refers to Entity.custom_values.
    */
-  readonly propertyId: number | null;
+  readonly propertyId: UInt8 | null;
 
   /**
    * The custom Property being edited (if not a builtin).
@@ -245,25 +246,25 @@ export class EditEvent extends Event {
   readonly reverseValue: Value | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
-    clientNonce?: string;
-    clientCreatedAt?: Temporal.ZonedDateTime;
-    clientEpoch?: number;
+    clientNonce?: UUID;
+    clientCreatedAt?: Datetime;
+    clientEpoch?: UInt128;
     status?: EventStatus;
     type: EditType;
     node: Entity | NodeReference;
     operation?: EditOperation | null;
-    propertyId?: number | null;
+    propertyId?: UInt8 | null;
     customProperty?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;

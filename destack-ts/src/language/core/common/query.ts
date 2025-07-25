@@ -16,6 +16,7 @@ import type {
 } from "@destack/language/core/builtin/relation";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/builtin/type";
+import type { Boolean, String, UInt32, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import { toValue } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
@@ -897,12 +898,7 @@ export class Join extends StructFrozen {
   /**
    * Join.recursive
    */
-  readonly recursive: boolean;
-
-  /**
-   * Join.depth
-   */
-  readonly depth: number | null;
+  readonly recursive: Boolean;
 
   /**
    * Join.on
@@ -911,8 +907,7 @@ export class Join extends StructFrozen {
 
   constructor(options: {
     type: JoinType;
-    recursive?: boolean;
-    depth?: number | null;
+    recursive?: Boolean;
     on?: Condition | null;
     _session?: Session | null;
     _hash?: number | null;
@@ -939,8 +934,6 @@ export class Join extends StructFrozen {
       throw new Error(`Join.recursive is required`);
     }
     this.recursive = _recursive;
-    let _depth = options.depth ?? null;
-    this.depth = _depth;
     let _on = options.on ?? null;
     this.on = _on;
 
@@ -963,9 +956,6 @@ export class Join extends StructFrozen {
     if (!(this.recursive === other.recursive)) {
       return false;
     }
-    if (!(this.depth === other.depth)) {
-      return false;
-    }
     if (
       (this.on == null) !== (other.on == null) ||
       (this.on != null && !this.on.equals(other.on))
@@ -980,9 +970,6 @@ export class Join extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${JoinType[this.type]}`);
       propertyReprs.push(`recursive=${this.recursive}`);
-      if (this.depth != null) {
-        propertyReprs.push(`depth=${this.depth}`);
-      }
       if (this.on != null) {
         propertyReprs.push(`on=${this.on.repr()}`);
       }
@@ -1000,9 +987,6 @@ export class Join extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
-    if (this.depth != null) {
-      h = (h * 31 + hashInt(this.depth)) & 0xffffffff;
-    }
     if (this.on != null) {
       h = (h * 31 + this.on.hash()) & 0xffffffff;
     }
@@ -1055,7 +1039,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /**
    * Query.id
    */
-  readonly id: string;
+  readonly id: UUID;
 
   /**
    * The type of Query.
@@ -1070,7 +1054,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /**
    * Name for this subquery. Should be unique within the parent Query.
    */
-  readonly name: string;
+  readonly name: String;
 
   /**
    * The Node definition this Query is about.
@@ -1120,18 +1104,18 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /**
    * Limit the number of results.
    */
-  readonly limit: number | null;
+  readonly limit: UInt32 | null;
 
   /**
    * Offset the results.
    */
-  readonly offset: number | null;
+  readonly offset: UInt32 | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     type: QueryType;
     domain: GraphDomain;
-    name: string;
+    name: String;
     definition: NodeDefinitionReference;
     subqueries?: readonly Query[];
     join?: Join | null;
@@ -1141,8 +1125,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     groupBy?: readonly Expression[];
     aggregation?: Aggregation | null;
     sort?: readonly Sort[];
-    limit?: number | null;
-    offset?: number | null;
+    limit?: UInt32 | null;
+    offset?: UInt32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

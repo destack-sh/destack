@@ -4,8 +4,10 @@ from destack.language.core import (
     VERSION,
     Enum,
     EnumType,
+    Float32,
     NodeType,
     Resource,
+    UInt32,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -40,8 +42,8 @@ class Machine(Resource):
     external_id: Optional[str] = builtin_property(122)
     image_id: Optional[str] = builtin_property(123)
 
-    cpu: float = builtin_property(130, description="vCPU count", default=1.0)
-    ram: float = builtin_property(131, description="GB", default=1.0)
-    width: int = builtin_property(132, default=1280)
-    height: int = builtin_property(133, default=960)
+    cpu: Float32 = builtin_property(130, description="vCPU count", default=1.0)
+    ram: Float32 = builtin_property(131, description="GB", default=1.0)
+    width: UInt32 = builtin_property(132, default=1280)
+    height: UInt32 = builtin_property(133, default=960)
     is_headless: bool = builtin_property(134, default=False)

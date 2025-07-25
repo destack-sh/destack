@@ -1,11 +1,17 @@
 import type {
+  Boolean,
   Branch,
+  Datetime,
+  Float32,
   NodeClass,
   NodeReference,
   PackedCache,
   Session,
   Snapshot,
   Space,
+  String,
+  UInt128,
+  UUID,
   Value,
 } from "@destack/language/core";
 import {
@@ -61,50 +67,32 @@ export class Color extends StructFrozen {
   readonly stylePtr: NodeReference | null;
 
   /**
-   * Color.hue
-   */
-  readonly hue: ColorHue | null;
-
-  /**
-   * Color.shade
-   */
-  readonly shade: ColorShade | null;
-
-  /**
-   * Color.intent
-   */
-  readonly intent: ColorIntent | null;
-
-  /**
    * Color.x
    */
-  readonly x: number | null;
+  readonly x: Float32 | null;
 
   /**
    * Color.y
    */
-  readonly y: number | null;
+  readonly y: Float32 | null;
 
   /**
    * Color.z
    */
-  readonly z: number | null;
+  readonly z: Float32 | null;
 
   /**
    * Color.alpha
    */
-  readonly alpha: number | null;
+  readonly alpha: Float32 | null;
 
   constructor(options: {
     type: ColorType;
     style?: ColorStyle | NodeReference | null;
-    hue?: ColorHue | null;
-    shade?: ColorShade | null;
-    intent?: ColorIntent | null;
-    x?: number | null;
-    y?: number | null;
-    z?: number | null;
-    alpha?: number | null;
+    x?: Float32 | null;
+    y?: Float32 | null;
+    z?: Float32 | null;
+    alpha?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -127,12 +115,6 @@ export class Color extends StructFrozen {
       _style = (_style as Node).toRef();
     }
     this.stylePtr = _style as NodeReference | null;
-    let _hue = options.hue ?? null;
-    this.hue = _hue;
-    let _shade = options.shade ?? null;
-    this.shade = _shade;
-    let _intent = options.intent ?? null;
-    this.intent = _intent;
     let _x = options.x ?? null;
     this.x = _x;
     let _y = options.y ?? null;
@@ -159,15 +141,6 @@ export class Color extends StructFrozen {
       return false;
     }
     if (!(this.stylePtr?.id === other.stylePtr?.id)) {
-      return false;
-    }
-    if (!(this.hue === other.hue)) {
-      return false;
-    }
-    if (!(this.shade === other.shade)) {
-      return false;
-    }
-    if (!(this.intent === other.intent)) {
       return false;
     }
     if (
@@ -205,15 +178,6 @@ export class Color extends StructFrozen {
       if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.hue != null) {
-        propertyReprs.push(`hue=${ColorHue[this.hue]}`);
-      }
-      if (this.shade != null) {
-        propertyReprs.push(`shade=${ColorShade[this.shade]}`);
-      }
-      if (this.intent != null) {
-        propertyReprs.push(`intent=${ColorIntent[this.intent]}`);
-      }
       if (this.x != null) {
         propertyReprs.push(`x=${this.x}`);
       }
@@ -241,15 +205,6 @@ export class Color extends StructFrozen {
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
-    }
-    if (this.hue != null) {
-      h = (h * 31 + this.hue) & 0xffffffff;
-    }
-    if (this.shade != null) {
-      h = (h * 31 + this.shade) & 0xffffffff;
-    }
-    if (this.intent != null) {
-      h = (h * 31 + this.intent) & 0xffffffff;
     }
     if (this.x != null) {
       h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
@@ -388,12 +343,12 @@ export class ColorStyle extends Style {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Temporal.ZonedDateTime;
+  readonly createdAt: Datetime;
 
   /**
    * The logical time this Entity was created (system time).
    */
-  readonly createdEpoch: number;
+  readonly createdEpoch: UInt128;
 
   /**
    * The Actor that created this Entity.
@@ -410,12 +365,12 @@ export class ColorStyle extends Style {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Temporal.ZonedDateTime;
+  readonly updatedAt: Datetime;
 
   /**
    * The logical time this Entity was last updated (system time).
    */
-  readonly updatedEpoch: number;
+  readonly updatedEpoch: UInt128;
 
   /**
    * The Actor that last updated this Entity.
@@ -434,7 +389,7 @@ export class ColorStyle extends Style {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
+  readonly deletedAt: Datetime | null;
 
   /**
    * Entity.ownedBy
@@ -472,20 +427,20 @@ export class ColorStyle extends Style {
   /**
    * Entity.name
    */
-  get name(): string {
+  get name(): String {
     return this._name;
   }
-  set name(value: string) {
+  set name(value: String) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: string;
+  _name: String;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: string;
+  readonly orderKey: String;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -493,15 +448,15 @@ export class ColorStyle extends Style {
   /**
    * The custom Values of this Entity, keyed by custom Property id..
    */
-  get customValues(): { readonly [key: string]: Value } {
+  get customValues(): { readonly [key: UUID]: Value } {
     return this._customValues;
   }
-  set customValues(value: { readonly [key: string]: Value }) {
+  set customValues(value: { readonly [key: UUID]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: { readonly [key: string]: Value };
+  _customValues: { readonly [key: UUID]: Value };
 
   /**
    * The Script of this Entity.
@@ -536,7 +491,7 @@ export class ColorStyle extends Style {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: boolean | null;
+  readonly isExtensible: Boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -556,15 +511,15 @@ export class ColorStyle extends Style {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): string | null {
+  get key(): String | null {
     return this._key;
   }
-  set key(value: string | null) {
+  set key(value: String | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: string | null;
+  _key: String | null;
 
   /**
    * ColorStyle.type
@@ -636,15 +591,15 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.x
    */
-  get x(): number | null {
+  get x(): Float32 | null {
     return this._x;
   }
-  set x(value: number | null) {
+  set x(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["x"];
     this._session.updateSetProperty(this, prop, value);
     this._x = value;
   }
-  _x: number | null;
+  _x: Float32 | null;
 
   /**
    * ColorStyle.y
@@ -652,15 +607,15 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.y
    */
-  get y(): number | null {
+  get y(): Float32 | null {
     return this._y;
   }
-  set y(value: number | null) {
+  set y(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["y"];
     this._session.updateSetProperty(this, prop, value);
     this._y = value;
   }
-  _y: number | null;
+  _y: Float32 | null;
 
   /**
    * ColorStyle.z
@@ -668,15 +623,15 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.z
    */
-  get z(): number | null {
+  get z(): Float32 | null {
     return this._z;
   }
-  set z(value: number | null) {
+  set z(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["z"];
     this._session.updateSetProperty(this, prop, value);
     this._z = value;
   }
-  _z: number | null;
+  _z: Float32 | null;
 
   /**
    * ColorStyle.alpha
@@ -684,15 +639,15 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.alpha
    */
-  get alpha(): number | null {
+  get alpha(): Float32 | null {
     return this._alpha;
   }
-  set alpha(value: number | null) {
+  set alpha(value: Float32 | null) {
     const prop = (this.constructor as NodeClass).__properties__["alpha"];
     this._session.updateSetProperty(this, prop, value);
     this._alpha = value;
   }
-  _alpha: number | null;
+  _alpha: Float32 | null;
 
   /**
    * ColorStyle.dark
@@ -711,7 +666,7 @@ export class ColorStyle extends Style {
   _dark: Color | null;
 
   constructor(options: {
-    id?: string;
+    id?: UUID;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -720,29 +675,29 @@ export class ColorStyle extends Style {
     snapshot?: Snapshot | NodeReference;
     precededBy?: ColorStyle | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
+    createdAt?: Datetime;
+    createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
+    updatedAt?: Datetime;
+    updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Temporal.ZonedDateTime | null;
+    deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: string;
-    orderKey?: string;
-    customValues?: { readonly [key: string]: Value };
+    name?: String;
+    orderKey?: String;
+    customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: boolean | null;
+    isExtensible?: Boolean | null;
     source?: Script | NodeReference | null;
-    key?: string | null;
+    key?: String | null;
     type: ColorType;
     hue?: ColorHue | null;
     shade?: ColorShade | null;
     intent?: ColorIntent | null;
-    x?: number | null;
-    y?: number | null;
-    z?: number | null;
-    alpha?: number | null;
+    x?: Float32 | null;
+    y?: Float32 | null;
+    z?: Float32 | null;
+    alpha?: Float32 | null;
     dark?: Color | null;
     _session?: Session | null;
   }) {

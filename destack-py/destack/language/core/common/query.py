@@ -14,6 +14,7 @@ from ..builtin import (
     StructType,
     Trait,
     TypeCardinality,
+    UInt32,
     Value,
     ValueFactory,
     builtin_enum,
@@ -304,8 +305,7 @@ class Join(StructFrozen):
     type: JoinType = builtin_property(100, is_repr=True)
     # query_name?
     recursive: bool = builtin_property(102, default=False, is_repr=True)  # for tree joins
-    depth: int | None = builtin_property(103, default=None, is_repr=True)  # for tree joins
-    on: Optional[Condition] = builtin_property(104, is_repr=True)
+    on: Optional[Condition] = builtin_property(103, is_repr=True)
 
     @classmethod
     def of(
@@ -313,12 +313,11 @@ class Join(StructFrozen):
         join: "JoinIn",
         on: Optional[Condition] = None,
         recursive: bool = False,
-        depth: int | None = None,
     ) -> "Join":
         if isinstance(join, Join):
             return join
         else:
-            return Join(type=join, on=on, recursive=recursive, depth=depth)
+            return Join(type=join, on=on, recursive=recursive)
 
 
 JoinIn = Union[Join, "JoinType"]
@@ -396,12 +395,12 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     )
 
     # pagination
-    limit: Optional[int] = builtin_property(
+    limit: Optional[UInt32] = builtin_property(
         120,
         is_repr=True,
         description="Limit the number of results.",
     )
-    offset: Optional[int] = builtin_property(
+    offset: Optional[UInt32] = builtin_property(
         121,
         is_repr=True,
         description="Offset the results.",

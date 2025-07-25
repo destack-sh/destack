@@ -11,6 +11,7 @@ import {
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Boolean, Float32, String, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -152,23 +153,23 @@ export class StringConstraint extends StructFrozen {
   /**
    * StringConstraint.regex
    */
-  readonly regex: string | null;
+  readonly regex: String | null;
 
   /**
    * StringConstraint.startsWith
    */
-  readonly startsWith: string | null;
+  readonly startsWith: String | null;
 
   /**
    * StringConstraint.endsWith
    */
-  readonly endsWith: string | null;
+  readonly endsWith: String | null;
 
   constructor(options: {
     format?: StringFormat | null;
-    regex?: string | null;
-    startsWith?: string | null;
-    endsWith?: string | null;
+    regex?: String | null;
+    startsWith?: String | null;
+    endsWith?: String | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -272,35 +273,23 @@ export class NumberConstraint extends StructFrozen {
   /**
    * NumberConstraint.minValue
    */
-  readonly minValue: number | null;
+  readonly minValue: Float32 | null;
 
   /**
    * NumberConstraint.maxValue
    */
-  readonly maxValue: number | null;
+  readonly maxValue: Float32 | null;
 
   /**
    * NumberConstraint.stepValue
    */
-  readonly stepValue: number | null;
-
-  /**
-   * NumberConstraint.precision
-   */
-  readonly precision: number | null;
-
-  /**
-   * NumberConstraint.scale
-   */
-  readonly scale: number | null;
+  readonly stepValue: Float32 | null;
 
   constructor(options: {
     format?: NumberFormat | null;
-    minValue?: number | null;
-    maxValue?: number | null;
-    stepValue?: number | null;
-    precision?: number | null;
-    scale?: number | null;
+    minValue?: Float32 | null;
+    maxValue?: Float32 | null;
+    stepValue?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -321,10 +310,6 @@ export class NumberConstraint extends StructFrozen {
     this.maxValue = _maxValue;
     let _stepValue = options.stepValue ?? null;
     this.stepValue = _stepValue;
-    let _precision = options.precision ?? null;
-    this.precision = _precision;
-    let _scale = options.scale ?? null;
-    this.scale = _scale;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -363,12 +348,6 @@ export class NumberConstraint extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.precision === other.precision)) {
-      return false;
-    }
-    if (!(this.scale === other.scale)) {
-      return false;
-    }
     return true;
   }
 
@@ -393,12 +372,6 @@ export class NumberConstraint extends StructFrozen {
     }
     if (this.stepValue != null) {
       h = (h * 31 + hashFloat(this.stepValue)) & 0xffffffff;
-    }
-    if (this.precision != null) {
-      h = (h * 31 + hashInt(this.precision)) & 0xffffffff;
-    }
-    if (this.scale != null) {
-      h = (h * 31 + hashInt(this.scale)) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -427,16 +400,16 @@ export class CollectionConstraint extends StructFrozen {
   /**
    * CollectionConstraint.minLength
    */
-  readonly minLength: number | null;
+  readonly minLength: UInt32 | null;
 
   /**
    * CollectionConstraint.maxLength
    */
-  readonly maxLength: number | null;
+  readonly maxLength: UInt32 | null;
 
   constructor(options: {
-    minLength?: number | null;
-    maxLength?: number | null;
+    minLength?: UInt32 | null;
+    maxLength?: UInt32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -517,44 +490,44 @@ export class BasicType extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * BasicType.cardinality
+   * Cardinality of this Type (scalar, list, map, etc.)
    */
   readonly cardinality: TypeCardinality;
 
   /**
-   * BasicType.scalarType
+   * Scalar value type of this Type (primitive, enum, node, struct, etc..).
    */
   readonly scalarType: ScalarType;
 
   /**
-   * BasicType.primitiveType
+   * Primitive type of this Type (if it's a primitive value).
    */
   readonly primitiveType: PrimitiveType | null;
 
   /**
-   * BasicType.enumType
+   * Enum type of this Type (if it's an enum value).
    */
   readonly enumType: EnumType | null;
 
   /**
-   * BasicType.nodeTypes
+   * Node types of this Type (if it's a node reference value).
    */
   readonly nodeTypes: readonly NodeType[];
 
   /**
-   * BasicType.structType
+   * Struct type of this Type (if it's a struct value).
    */
   readonly structType: StructType | null;
 
   /**
-   * BasicType.keyType
+   * Key type of this Type (if it's a map value).
    */
   readonly keyType: Type | null;
 
   /**
-   * BasicType.value
+   * Value of this Type (if it's a literal value).
    */
-  readonly value: Value | null;
+  readonly literalValue: Value | null;
 
   constructor(options: {
     cardinality?: TypeCardinality;
@@ -564,7 +537,7 @@ export class BasicType extends StructFrozen {
     nodeTypes?: readonly NodeType[];
     structType?: StructType | null;
     keyType?: Type | null;
-    value?: Value | null;
+    literalValue?: Value | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -603,8 +576,8 @@ export class BasicType extends StructFrozen {
     this.structType = _structType;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
-    let _value = options.value ?? null;
-    this.value = _value;
+    let _literalValue = options.literalValue ?? null;
+    this.literalValue = _literalValue;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -649,8 +622,8 @@ export class BasicType extends StructFrozen {
       return false;
     }
     if (
-      (this.value == null) !== (other.value == null) ||
-      (this.value != null && !this.value.equals(other.value))
+      (this.literalValue == null) !== (other.literalValue == null) ||
+      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
     ) {
       return false;
     }
@@ -679,8 +652,8 @@ export class BasicType extends StructFrozen {
       if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
-      if (this.value != null) {
-        propertyReprs.push(`value=${this.value.repr()}`);
+      if (this.literalValue != null) {
+        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
       }
       // @ts-expect-error(readonly) */
       this._repr = `<BasicType ${propertyReprs.join(" ")}>`;
@@ -713,8 +686,8 @@ export class BasicType extends StructFrozen {
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.value != null) {
-      h = (h * 31 + this.value.hash()) & 0xffffffff;
+    if (this.literalValue != null) {
+      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -778,9 +751,14 @@ export class Type extends BasicType {
   static __isFrozen__: boolean = true;
 
   /**
-   * Type.valueFactory
+   * Type.defaultValue
    */
-  readonly valueFactory: ValueFactory | null;
+  readonly defaultValue: Value | null;
+
+  /**
+   * Type.defaultFactory
+   */
+  readonly defaultFactory: ValueFactory | null;
 
   /**
    * Type.collectionConstraint
@@ -800,12 +778,7 @@ export class Type extends BasicType {
   /**
    * Type.isRequired
    */
-  readonly isRequired: boolean | null;
-
-  /**
-   * Type.isMain
-   */
-  readonly isMain: boolean | null;
+  readonly isRequired: Boolean | null;
 
   constructor(options: {
     cardinality?: TypeCardinality;
@@ -815,13 +788,13 @@ export class Type extends BasicType {
     nodeTypes?: readonly NodeType[];
     structType?: StructType | null;
     keyType?: Type | null;
-    value?: Value | null;
-    valueFactory?: ValueFactory | null;
+    literalValue?: Value | null;
+    defaultValue?: Value | null;
+    defaultFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    isRequired?: boolean | null;
-    isMain?: boolean | null;
+    isRequired?: Boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -831,8 +804,10 @@ export class Type extends BasicType {
     super(options);
 
     /* properties */
-    let _valueFactory = options.valueFactory ?? null;
-    this.valueFactory = _valueFactory;
+    let _defaultValue = options.defaultValue ?? null;
+    this.defaultValue = _defaultValue;
+    let _defaultFactory = options.defaultFactory ?? null;
+    this.defaultFactory = _defaultFactory;
     let _collectionConstraint = options.collectionConstraint ?? null;
     this.collectionConstraint = _collectionConstraint;
     let _stringConstraint = options.stringConstraint ?? null;
@@ -841,8 +816,6 @@ export class Type extends BasicType {
     this.numberConstraint = _numberConstraint;
     let _isRequired = options.isRequired ?? null;
     this.isRequired = _isRequired;
-    let _isMain = options.isMain ?? null;
-    this.isMain = _isMain;
 
     /* identity */
     /* ... (already set in parent) */
@@ -852,7 +825,13 @@ export class Type extends BasicType {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.valueFactory === other.valueFactory)) {
+    if (
+      (this.defaultValue == null) !== (other.defaultValue == null) ||
+      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+    ) {
+      return false;
+    }
+    if (!(this.defaultFactory === other.defaultFactory)) {
       return false;
     }
     if (
@@ -875,9 +854,6 @@ export class Type extends BasicType {
       return false;
     }
     if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
-    if (!(this.isMain === other.isMain)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -910,8 +886,8 @@ export class Type extends BasicType {
       return false;
     }
     if (
-      (this.value == null) !== (other.value == null) ||
-      (this.value != null && !this.value.equals(other.value))
+      (this.literalValue == null) !== (other.literalValue == null) ||
+      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
     ) {
       return false;
     }
@@ -940,8 +916,8 @@ export class Type extends BasicType {
       if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
-      if (this.value != null) {
-        propertyReprs.push(`value=${this.value.repr()}`);
+      if (this.literalValue != null) {
+        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
       }
       // @ts-expect-error(readonly) */
       this._repr = `<Type ${propertyReprs.join(" ")}>`;
@@ -955,8 +931,11 @@ export class Type extends BasicType {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.valueFactory != null) {
-      h = (h * 31 + this.valueFactory) & 0xffffffff;
+    if (this.defaultValue != null) {
+      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
+    }
+    if (this.defaultFactory != null) {
+      h = (h * 31 + this.defaultFactory) & 0xffffffff;
     }
     if (this.collectionConstraint != null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
@@ -969,9 +948,6 @@ export class Type extends BasicType {
     }
     if (this.isRequired != null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    }
-    if (this.isMain != null) {
-      h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
     }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
@@ -992,8 +968,8 @@ export class Type extends BasicType {
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.value != null) {
-      h = (h * 31 + this.value.hash()) & 0xffffffff;
+    if (this.literalValue != null) {
+      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;

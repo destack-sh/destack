@@ -4,16 +4,20 @@ from destack.language.registry import (
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
 )
 
+from .builtin import (
+    NodeType,
+    StructType,
+    TraitType,
+)
 from .common import (
     CascadeAction,
     EdgeType,
     Enum,
     EnumType,
     GraphDomain,
-    NodeType,
     PropertyType,
-    StructType,
-    TraitType,
+    UInt8,
+    UInt32,
 )
 from .meta import (
     ConstraintDeclaration,
@@ -79,11 +83,11 @@ class NodeDefinition(StructFrozen):
 
     # meta
     type: NodeType = builtin_property(100, is_repr=True)
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt32 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # flags
     is_abstract: bool = builtin_property(
@@ -282,11 +286,11 @@ class TraitDefinition(StructFrozen):
 
     # meta
     type: TraitType = builtin_property(100, is_repr=True)
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt32 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # flags
     alias: str = builtin_property(110, is_repr=True)
@@ -368,11 +372,11 @@ class StructDefinition(StructFrozen):
 
     # meta
     type: StructType = builtin_property(100, is_repr=True)
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt32 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # flags
     is_frozen: bool = builtin_property(
@@ -466,11 +470,11 @@ class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
     type: EnumType = builtin_property(100, is_repr=True)
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt32 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # content
     options: list["OptionDefinition"] = builtin_property(120)
@@ -498,7 +502,7 @@ class PropertyDefinition(Type):
     """Definition of a builtin Property."""
 
     type: PropertyType = builtin_property(100)
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     name: str | None = builtin_property(
         101, is_repr=True, description="The name of this Type when it was used."
     )
@@ -509,7 +513,7 @@ class PropertyDefinition(Type):
     original_object: "ObjectDefinitionReference" = builtin_property(
         105, description="The original object that this property was defined on."
     )
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # relationship
     edge_type: EdgeType | None = builtin_property(190)
@@ -533,6 +537,11 @@ Whether this Property is part of the object's identity.
         202,
         is_repr=True,
         description="Whether this Property is read-only.",
+    )
+    is_main: bool = builtin_property(
+        203,
+        is_repr=True,
+        description="Whether this Property is the main property of the object.",
     )
 
     # internal flags
@@ -572,8 +581,8 @@ Whether this Property is part of the object's identity.
             enum_type=type.enum_type,
             struct_type=type.struct_type,
             key_type=type.key_type,
-            value=type.value,
-            value_factory=type.value_factory,
+            default_value=type.default_value,
+            default_factory=type.default_factory,
             collection_constraint=type.collection_constraint,
             string_constraint=type.string_constraint,
             number_constraint=type.number_constraint,
@@ -733,12 +742,12 @@ Whether this Property is part of the object's identity.
 class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     type: EnumType = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     @classmethod
     def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -758,10 +767,10 @@ class OptionDefinition(StructFrozen):
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[int] = builtin_property(109)
+    taggings: list[UInt8] = builtin_property(109)
 
     # content
     value: "Value" = builtin_property(120)
@@ -785,7 +794,7 @@ class ConstantDefinition(StructFrozen):
 class TagDefinition(StructFrozen):
     """Definition of a builtin Tag to associate builtin definitions to."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
 
@@ -803,7 +812,7 @@ class TagDefinition(StructFrozen):
 class IndexDefinition(StructFrozen):
     """Definition of a builtin Index."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     type: "IndexType" = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
@@ -829,7 +838,7 @@ class IndexDefinition(StructFrozen):
 class ConstraintDefinition(StructFrozen):
     """Definition of a builtin Constraint."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     type: "ConstraintType" = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
@@ -853,7 +862,7 @@ class ConstraintDefinition(StructFrozen):
 class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
 
-    id: int = builtin_property(2, is_repr=True)
+    id: UInt8 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
     description: str | None = builtin_property(103, is_repr=True)
 

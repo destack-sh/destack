@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Enum,
     EnumType,
+    Float32,
     StructFrozen,
     StructType,
+    UInt16,
     builtin_enum,
     builtin_property,
     builtin_struct,
@@ -89,7 +91,7 @@ class Length(StructFrozen):
     """An absolute or relative length value."""
 
     unit: LengthType = builtin_property(101, is_repr=True)
-    value: float = builtin_property(102, is_repr=True)
+    value: Float32 = builtin_property(102, is_repr=True)
 
 
 @builtin_struct(StructType.OFFSET2, frozen=True)
@@ -107,49 +109,49 @@ class Offset2(StructFrozen):
 class Inset2(StructFrozen):
     """A 2-dimensional insets value (base + side overrides)."""
 
-    base: int = builtin_property(101, is_repr=True, default=0)
-    top: int | None = builtin_property(102, is_repr=True)
-    left: int | None = builtin_property(103, is_repr=True)
-    right: int | None = builtin_property(104, is_repr=True)
-    bottom: int | None = builtin_property(105, is_repr=True)
+    base: UInt16 = builtin_property(101, is_repr=True, default=0)
+    top: UInt16 | None = builtin_property(102, is_repr=True)
+    left: UInt16 | None = builtin_property(103, is_repr=True)
+    right: UInt16 | None = builtin_property(104, is_repr=True)
+    bottom: UInt16 | None = builtin_property(105, is_repr=True)
 
 
 @builtin_struct(StructType.CORNER2, frozen=True)
 class Corner2(StructFrozen):
     """A 2-dimensional corners value (base + corner overrides)."""
 
-    base: int = builtin_property(101, is_repr=True, default=0)
-    top_left: int | None = builtin_property(102, is_repr=True)
-    top_right: int | None = builtin_property(103, is_repr=True)
-    bottom_left: int | None = builtin_property(104, is_repr=True)
-    bottom_right: int | None = builtin_property(105, is_repr=True)
+    base: UInt16 = builtin_property(101, is_repr=True, default=0)
+    top_left: UInt16 | None = builtin_property(102, is_repr=True)
+    top_right: UInt16 | None = builtin_property(103, is_repr=True)
+    bottom_left: UInt16 | None = builtin_property(104, is_repr=True)
+    bottom_right: UInt16 | None = builtin_property(105, is_repr=True)
 
 
 @builtin_struct(StructType.AXIS2, frozen=True)
 class Axis2(StructFrozen):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
-    base: float = builtin_property(101, is_repr=True, default=0)
-    x: float | None = builtin_property(102, is_repr=True)
-    y: float | None = builtin_property(103, is_repr=True)
+    base: Float32 = builtin_property(101, is_repr=True, default=0)
+    x: Float32 | None = builtin_property(102, is_repr=True)
+    y: Float32 | None = builtin_property(103, is_repr=True)
 
 
 @builtin_struct(StructType.AXIS3, frozen=True)
 class Axis3(StructFrozen):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
-    base: float = builtin_property(101, is_repr=True, default=0)
-    x: float | None = builtin_property(102, is_repr=True)
-    y: float | None = builtin_property(103, is_repr=True)
-    z: float | None = builtin_property(104, is_repr=True)
+    base: Float32 = builtin_property(101, is_repr=True, default=0)
+    x: Float32 | None = builtin_property(102, is_repr=True)
+    y: Float32 | None = builtin_property(103, is_repr=True)
+    z: Float32 | None = builtin_property(104, is_repr=True)
 
 
 @builtin_struct(StructType.GRID2, frozen=True)
 class Grid2(StructFrozen):
     """A 2-dimensional grid configuration value."""
 
-    columns: int = builtin_property(101, is_repr=True)
-    rows: int = builtin_property(102, is_repr=True)
+    columns: UInt16 = builtin_property(101, is_repr=True)
+    rows: UInt16 = builtin_property(102, is_repr=True)
     column_width: Length | None = builtin_property(103, is_repr=True)
     column_min_width: Length | None = builtin_property(104, is_repr=True)
     row_height: Length | None = builtin_property(105, is_repr=True)
@@ -159,5 +161,5 @@ class Grid2(StructFrozen):
 class GridSpan2(StructFrozen):
     """A 2-dimensional grid span value."""
 
-    columns: int = builtin_property(101, is_repr=True)
-    rows: int = builtin_property(102, is_repr=True)
+    columns: UInt16 = builtin_property(101, is_repr=True)
+    rows: UInt16 = builtin_property(102, is_repr=True)
