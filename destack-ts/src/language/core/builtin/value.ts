@@ -1,15 +1,14 @@
 import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
-import { ScalarType, StructType, TypeCardinality } from "@destack/language/core/builtin/common";
-import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
+import { StructType } from "@destack/language/core/builtin/builtin";
+import { ScalarType, TypeCardinality } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import { toType } from "@destack/language/core/builtin/type";
 import type { Json } from "@destack/language/core/builtin/types";
-import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerStructClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
+import { registerStructClass } from "@destack/language/registry";
 import { hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
@@ -128,7 +127,7 @@ registerStructClass(StructType.VALUE, Value);
  */
 export function toValue(
   valueUnpacked: any,
-  type: Type | PropertyDefinition | CustomProperty | null = null,
+  type: Type | null = null,
   options?: { nodeAsValue: boolean },
 ): Value {
   // infer type
@@ -147,11 +146,7 @@ export function toValue(
     }
   }
   // pack value
-  const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
   const valuePacked = packCson(valueUnpacked, type);
-  const value = new Value({
-    type: type instanceof _Type ? type : type.toType(),
-    value: valuePacked,
-  });
+  const value = new Value({ type: type, value: valuePacked });
   return value;
 }

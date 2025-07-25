@@ -85,7 +85,6 @@ class NumberConstraint(StructFrozen):
     min_value: Optional[Float32] = builtin_property(41)
     max_value: Optional[Float32] = builtin_property(42)
     step_value: Optional[Float32] = builtin_property(43)
-    # precision/scale? (for decimals)
 
 
 @builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
@@ -96,7 +95,6 @@ class CollectionConstraint(StructFrozen):
     max_length: Optional[UInt32] = builtin_property(42)
 
 
-TypeFormat = Union[NumberFormat, StringFormat]
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 

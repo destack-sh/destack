@@ -1,9 +1,8 @@
-import { EnumType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Boolean, String } from "@destack/language/core/builtin/types";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -43,7 +42,7 @@ export class TextSpan extends StructFrozen {
   /**
    * TextSpan.content
    */
-  readonly content: String | null;
+  readonly content: string | null;
 
   /**
    * TextSpan.node
@@ -63,43 +62,43 @@ export class TextSpan extends StructFrozen {
   /**
    * TextSpan.url
    */
-  readonly url: String | null;
+  readonly url: string | null;
 
   /**
    * TextSpan.isBold
    */
-  readonly isBold: Boolean | null;
+  readonly isBold: boolean | null;
 
   /**
    * TextSpan.isItalic
    */
-  readonly isItalic: Boolean | null;
+  readonly isItalic: boolean | null;
 
   /**
    * TextSpan.isStrikethrough
    */
-  readonly isStrikethrough: Boolean | null;
+  readonly isStrikethrough: boolean | null;
 
   /**
    * TextSpan.isUnderline
    */
-  readonly isUnderline: Boolean | null;
+  readonly isUnderline: boolean | null;
 
   /**
    * TextSpan.isCode
    */
-  readonly isCode: Boolean | null;
+  readonly isCode: boolean | null;
 
   constructor(options: {
     type?: TextSpanType;
-    content?: String | null;
+    content?: string | null;
     node?: Node | NodeReference | null;
-    url?: String | null;
-    isBold?: Boolean | null;
-    isItalic?: Boolean | null;
-    isStrikethrough?: Boolean | null;
-    isUnderline?: Boolean | null;
-    isCode?: Boolean | null;
+    url?: string | null;
+    isBold?: boolean | null;
+    isItalic?: boolean | null;
+    isStrikethrough?: boolean | null;
+    isUnderline?: boolean | null;
+    isCode?: boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -250,35 +249,35 @@ export class Text extends StructFrozen {
   /**
    * Text.isBold
    */
-  readonly isBold: Boolean | null;
+  readonly isBold: boolean | null;
 
   /**
    * Text.isItalic
    */
-  readonly isItalic: Boolean | null;
+  readonly isItalic: boolean | null;
 
   /**
    * Text.isStrikethrough
    */
-  readonly isStrikethrough: Boolean | null;
+  readonly isStrikethrough: boolean | null;
 
   /**
    * Text.isUnderline
    */
-  readonly isUnderline: Boolean | null;
+  readonly isUnderline: boolean | null;
 
   /**
    * Text.isCode
    */
-  readonly isCode: Boolean | null;
+  readonly isCode: boolean | null;
 
   constructor(options: {
     spans?: readonly TextSpan[];
-    isBold?: Boolean | null;
-    isItalic?: Boolean | null;
-    isStrikethrough?: Boolean | null;
-    isUnderline?: Boolean | null;
-    isCode?: Boolean | null;
+    isBold?: boolean | null;
+    isItalic?: boolean | null;
+    isStrikethrough?: boolean | null;
+    isUnderline?: boolean | null;
+    isCode?: boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

@@ -1,5 +1,5 @@
 import type { Encoding, PackedCache, StructDefinition } from "@destack/language/core";
-import { ObjectKind, StructType } from "@destack/language/core/builtin/common";
+import { ObjectKind, StructType } from "@destack/language/core/builtin/builtin";
 import { ACTIVE_SESSION, ENCODERS } from "@destack/language/core/builtin/const";
 import { BuiltinObject, type BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { BinaryWriter } from "@destack/language/core/runtime/binary";

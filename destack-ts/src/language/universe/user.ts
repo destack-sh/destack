@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Bytes,
   Datetime,
@@ -10,7 +9,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -221,20 +219,20 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -285,7 +283,7 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -305,15 +303,15 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * User.slug
@@ -321,15 +319,15 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * User.slug
    */
-  get slug(): String {
+  get slug(): string {
     return this._slug;
   }
-  set slug(value: String) {
+  set slug(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["slug"];
     this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
-  _slug: String;
+  _slug: string;
 
   /**
    * User.status
@@ -369,15 +367,15 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * User.isStaff
    */
-  get isStaff(): Boolean {
+  get isStaff(): boolean {
     return this._isStaff;
   }
-  set isStaff(value: Boolean) {
+  set isStaff(value: boolean) {
     const prop = (this.constructor as NodeClass).__properties__["is_staff"];
     this._session.updateSetProperty(this, prop, value);
     this._isStaff = value;
   }
-  _isStaff: Boolean;
+  _isStaff: boolean;
 
   /**
    * User.handle
@@ -415,15 +413,15 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * User.email
    */
-  get email(): String | null {
+  get email(): string | null {
     return this._email;
   }
-  set email(value: String | null) {
+  set email(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["email"];
     this._session.updateSetProperty(this, prop, value);
     this._email = value;
   }
-  _email: String | null;
+  _email: string | null;
 
   /**
    * User.passwordSalt
@@ -475,19 +473,19 @@ export class User extends Entity implements IsActor, IsFollowable {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
-    slug: String;
+    key?: string | null;
+    slug: string;
     status?: UserStatus;
     lastLoggedInAt?: Datetime | null;
-    isStaff?: Boolean;
+    isStaff?: boolean;
     handle?: Handle | NodeReference | null;
-    email?: String | null;
+    email?: string | null;
     passwordSalt?: Bytes | null;
     passwordHash?: Bytes | null;
     _session?: Session | null;

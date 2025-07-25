@@ -1,12 +1,10 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   NodeReference,
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
 } from "@destack/language/core";
@@ -121,42 +119,42 @@ export abstract class KeyEvent extends InputEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  declare readonly key: String;
+  declare readonly key: string;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  declare readonly code: String;
+  declare readonly code: string;
 
   /**
    * Whether the key is being held down.
    */
-  declare readonly isRepeat: Boolean;
+  declare readonly isRepeat: boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  declare readonly isRedacted: Boolean;
+  declare readonly isRedacted: boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  declare readonly shiftKey: Boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  declare readonly altKey: Boolean;
+  declare readonly altKey: boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  declare readonly ctrlKey: Boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  declare readonly metaKey: Boolean;
+  declare readonly metaKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -313,42 +311,42 @@ export class KeyDownEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: String;
+  readonly key: string;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: String;
+  readonly code: string;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: Boolean;
+  readonly isRepeat: boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: Boolean;
+  readonly isRedacted: boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -367,14 +365,14 @@ export class KeyDownEvent extends KeyEvent {
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: String;
-    code: String;
-    isRepeat: Boolean;
-    isRedacted: Boolean;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    key: string;
+    code: string;
+    isRepeat: boolean;
+    isRedacted: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -857,42 +855,42 @@ export class KeyUpEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: String;
+  readonly key: string;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: String;
+  readonly code: string;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: Boolean;
+  readonly isRepeat: boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: Boolean;
+  readonly isRedacted: boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -911,14 +909,14 @@ export class KeyUpEvent extends KeyEvent {
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: String;
-    code: String;
-    isRepeat: Boolean;
-    isRedacted: Boolean;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    key: string;
+    code: string;
+    isRepeat: boolean;
+    isRedacted: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */
@@ -1401,42 +1399,42 @@ export class KeyPressEvent extends KeyEvent {
   /**
    * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
-  readonly key: String;
+  readonly key: string;
 
   /**
    * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
-  readonly code: String;
+  readonly code: string;
 
   /**
    * Whether the key is being held down.
    */
-  readonly isRepeat: Boolean;
+  readonly isRepeat: boolean;
 
   /**
    * Whether the key was masked for some reason (e.g., security, privacy).
    */
-  readonly isRedacted: Boolean;
+  readonly isRedacted: boolean;
 
   /**
    * Whether the Shift key was held.
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * Whether the Alt key was held.
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * Whether the Ctrl key was held.
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * Whether the Meta key was held.
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   constructor(options: {
     id?: UUID;
@@ -1455,14 +1453,14 @@ export class KeyPressEvent extends KeyEvent {
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
-    key: String;
-    code: String;
-    isRepeat: Boolean;
-    isRedacted: Boolean;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    key: string;
+    code: string;
+    isRepeat: boolean;
+    isRedacted: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     _session?: Session | null;
   }) {
     /* super */

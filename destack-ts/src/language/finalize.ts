@@ -36,6 +36,9 @@ function _indexProperties(
   cls.__propertiesById__ = {};
   cls.__propertiesByAlias__ = {};
   for (const propertyDefinition of definition.properties) {
+    if (propertyDefinition.name === null) {
+      throw new Error(`property name is required for ${definition.name}:${propertyDefinition.id}`);
+    }
     cls.__properties__[propertyDefinition.name] = propertyDefinition;
     cls.__propertiesById__[propertyDefinition.id] = propertyDefinition;
     if (propertyDefinition.isWired) {

@@ -166,7 +166,6 @@ from .type import (
     StringFormat,
     Type,
     TypeConstraint,
-    TypeFormat,
     to_type,
 )
 from .types import (
@@ -330,7 +329,6 @@ __all__ = [
     "TypeCardinality",
     "TypeConstraint",
     "TypeDeclaration",
-    "TypeFormat",
     "UInt8",
     "UInt16",
     "UInt32",

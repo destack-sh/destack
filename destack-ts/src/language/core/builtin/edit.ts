@@ -1,4 +1,4 @@
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/builtin";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";

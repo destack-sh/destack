@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   Float32,
@@ -153,22 +152,22 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * PointerEvent.shiftKey
    */
-  declare readonly shiftKey: Boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare readonly altKey: Boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare readonly ctrlKey: Boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare readonly metaKey: Boolean;
+  declare readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -286,22 +285,22 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * PointerEvent.shiftKey
    */
-  declare readonly shiftKey: Boolean;
+  declare readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  declare readonly altKey: Boolean;
+  declare readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  declare readonly ctrlKey: Boolean;
+  declare readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  declare readonly metaKey: Boolean;
+  declare readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -473,22 +472,22 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -514,10 +513,10 @@ export class SingleClickEvent extends ClickEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
   }) {
@@ -1007,22 +1006,22 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -1048,10 +1047,10 @@ export class DoubleClickEvent extends ClickEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
   }) {
@@ -1541,22 +1540,22 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -1582,10 +1581,10 @@ export class TripleClickEvent extends ClickEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     button: MouseButton;
     _session?: Session | null;
   }) {
@@ -2075,22 +2074,22 @@ export class WheelEvent extends MouseEvent {
   /**
    * PointerEvent.shiftKey
    */
-  readonly shiftKey: Boolean;
+  readonly shiftKey: boolean;
 
   /**
    * PointerEvent.altKey
    */
-  readonly altKey: Boolean;
+  readonly altKey: boolean;
 
   /**
    * PointerEvent.ctrlKey
    */
-  readonly ctrlKey: Boolean;
+  readonly ctrlKey: boolean;
 
   /**
    * PointerEvent.metaKey
    */
-  readonly metaKey: Boolean;
+  readonly metaKey: boolean;
 
   /**
    * MouseEvent.button
@@ -2121,10 +2120,10 @@ export class WheelEvent extends MouseEvent {
     node?: Entity | NodeReference | null;
     position: Vector2;
     pressure?: Float32 | null;
-    shiftKey: Boolean;
-    altKey: Boolean;
-    ctrlKey: Boolean;
-    metaKey: Boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
     button: MouseButton;
     delta: Vector2;
     _session?: Session | null;

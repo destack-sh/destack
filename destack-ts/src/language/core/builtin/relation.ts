@@ -1,18 +1,13 @@
-import {
-  EnumType,
-  GraphKey,
-  NodeType,
-  StructType,
-  TraitType,
-} from "@destack/language/core/builtin/builtin";
+import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/builtin";
+import { GraphKey } from "@destack/language/core/builtin/common";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Type } from "@destack/language/core/builtin/type";
 import type { UInt8, UUID } from "@destack/language/core/builtin/types";
-import type { Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Session } from "@destack/language/core/runtime/session";

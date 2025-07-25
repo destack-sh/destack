@@ -1,9 +1,8 @@
-import { EnumType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { String } from "@destack/language/core/builtin/types";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -44,17 +43,17 @@ export class Icon extends StructFrozen {
   /**
    * Icon.emoji
    */
-  readonly emoji: String | null;
+  readonly emoji: string | null;
 
   /**
    * Icon.faName
    */
-  readonly faName: String | null;
+  readonly faName: string | null;
 
   /**
    * Icon.vscName
    */
-  readonly vscName: String | null;
+  readonly vscName: string | null;
 
   /**
    * Icon.file
@@ -74,7 +73,7 @@ export class Icon extends StructFrozen {
   /**
    * Icon.fileUrl
    */
-  readonly fileUrl: String | null;
+  readonly fileUrl: string | null;
 
   /**
    * Icon.color
@@ -83,11 +82,11 @@ export class Icon extends StructFrozen {
 
   constructor(options: {
     type: IconType;
-    emoji?: String | null;
-    faName?: String | null;
-    vscName?: String | null;
+    emoji?: string | null;
+    faName?: string | null;
+    vscName?: string | null;
     file?: File | NodeReference | null;
-    fileUrl?: String | null;
+    fileUrl?: string | null;
     color?: Color | null;
     _session?: Session | null;
     _hash?: number | null;

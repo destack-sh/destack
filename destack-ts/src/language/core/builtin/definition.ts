@@ -1,14 +1,11 @@
+import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/builtin";
 import {
   type CascadeAction,
   type EdgeType,
-  EnumType,
   type GraphDomain,
-  NodeType,
   PrimitiveType,
   type PropertyType,
   ScalarType,
-  StructType,
-  TraitType,
   TypeCardinality,
   type ValueFactory,
 } from "@destack/language/core/builtin/common";
@@ -29,7 +26,7 @@ import {
   type StringConstraint,
   Type,
 } from "@destack/language/core/builtin/type";
-import type { Boolean, String, UInt8, UInt32 } from "@destack/language/core/builtin/types";
+import type { UInt8, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { ActionDefinition } from "@destack/language/core/common/action";
 import type { Icon } from "@destack/language/core/common/icon";
@@ -65,7 +62,7 @@ export class NodeDefinition extends StructFrozen {
   /**
    * NodeDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * NodeDefinition.icon
@@ -75,7 +72,7 @@ export class NodeDefinition extends StructFrozen {
   /**
    * NodeDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * NodeDefinition.taggings
@@ -85,22 +82,22 @@ export class NodeDefinition extends StructFrozen {
   /**
    * Whether this Node cannot be instantiated directly.
    */
-  readonly isAbstract: Boolean;
+  readonly isAbstract: boolean;
 
   /**
    * Whether this Node can be extended by custom Nodes.
    */
-  readonly isExtensible: Boolean;
+  readonly isExtensible: boolean;
 
   /**
    * Whether this Node cannot be extended by custom Nodes.
    */
-  readonly isFinal: Boolean;
+  readonly isFinal: boolean;
 
   /**
    * Whether this Node cannot be modified.
    */
-  readonly isFrozen: Boolean;
+  readonly isFrozen: boolean;
 
   /**
    * All properties of this Node (including inherited).
@@ -235,14 +232,14 @@ export class NodeDefinition extends StructFrozen {
   constructor(options: {
     id: UInt32;
     type: NodeType;
-    name: String;
+    name: string;
     icon?: Icon | null;
-    description?: String | null;
+    description?: string | null;
     taggings?: readonly UInt8[];
-    isAbstract: Boolean;
-    isExtensible: Boolean;
-    isFinal: Boolean;
-    isFrozen: Boolean;
+    isAbstract: boolean;
+    isExtensible: boolean;
+    isFinal: boolean;
+    isFrozen: boolean;
     properties?: readonly PropertyDefinition[];
     indexes?: readonly IndexDefinition[];
     constraints?: readonly ConstraintDefinition[];
@@ -942,7 +939,7 @@ export class TraitDefinition extends StructFrozen {
   /**
    * TraitDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * TraitDefinition.icon
@@ -952,7 +949,7 @@ export class TraitDefinition extends StructFrozen {
   /**
    * TraitDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * TraitDefinition.taggings
@@ -962,12 +959,12 @@ export class TraitDefinition extends StructFrozen {
   /**
    * TraitDefinition.alias
    */
-  readonly alias: String;
+  readonly alias: string;
 
   /**
    * Whether this Trait can be extended by custom Nodes and custom Traits.
    */
-  readonly isExtensible: Boolean;
+  readonly isExtensible: boolean;
 
   /**
    * All permissions of this Trait.
@@ -1007,12 +1004,12 @@ export class TraitDefinition extends StructFrozen {
   constructor(options: {
     id: UInt32;
     type: TraitType;
-    name: String;
+    name: string;
     icon?: Icon | null;
-    description?: String | null;
+    description?: string | null;
     taggings?: readonly UInt8[];
-    alias: String;
-    isExtensible: Boolean;
+    alias: string;
+    isExtensible: boolean;
     permissions?: readonly PermissionDefinition[];
     selfTraits?: readonly TraitType[];
     traits?: readonly TraitType[];
@@ -1317,7 +1314,7 @@ export class StructDefinition extends StructFrozen {
   /**
    * StructDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * StructDefinition.icon
@@ -1327,7 +1324,7 @@ export class StructDefinition extends StructFrozen {
   /**
    * StructDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * StructDefinition.taggings
@@ -1337,17 +1334,17 @@ export class StructDefinition extends StructFrozen {
   /**
    * Whether this Struct is read-only (cannot be modified).
    */
-  readonly isFrozen: Boolean;
+  readonly isFrozen: boolean;
 
   /**
    * Whether this Struct is abstract (cannot be instantiated directly).
    */
-  readonly isAbstract: Boolean;
+  readonly isAbstract: boolean;
 
   /**
    * Whether this Struct can be extended by custom Structs.
    */
-  readonly isExtensible: Boolean;
+  readonly isExtensible: boolean;
 
   /**
    * All properties of this Struct.
@@ -1407,13 +1404,13 @@ export class StructDefinition extends StructFrozen {
   constructor(options: {
     id: UInt32;
     type: StructType;
-    name: String;
+    name: string;
     icon?: Icon | null;
-    description?: String | null;
+    description?: string | null;
     taggings?: readonly UInt8[];
-    isFrozen: Boolean;
-    isAbstract: Boolean;
-    isExtensible: Boolean;
+    isFrozen: boolean;
+    isAbstract: boolean;
+    isExtensible: boolean;
     properties?: readonly PropertyDefinition[];
     methods?: readonly MethodDefinition[];
     actions?: readonly ActionDefinition[];
@@ -1791,7 +1788,7 @@ export class EnumDefinition extends StructFrozen {
   /**
    * EnumDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * EnumDefinition.icon
@@ -1801,7 +1798,7 @@ export class EnumDefinition extends StructFrozen {
   /**
    * EnumDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * EnumDefinition.taggings
@@ -1816,9 +1813,9 @@ export class EnumDefinition extends StructFrozen {
   constructor(options: {
     id: UInt32;
     type: EnumType;
-    name: String;
+    name: string;
     icon?: Icon | null;
-    description?: String | null;
+    description?: string | null;
     taggings?: readonly UInt8[];
     options?: readonly OptionDefinition[];
     _session?: Session | null;
@@ -1990,12 +1987,12 @@ export class PropertyDefinition extends Type {
   /**
    * The name of this Type when it was used.
    */
-  readonly name: String | null;
+  readonly name: string | null;
 
   /**
    * PropertyDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * The object that this property is defined on.
@@ -2026,58 +2023,58 @@ export class PropertyDefinition extends Type {
    * Whether this Property is part of the object's identity.
    *  (And thus is always required, in every instance including partials; only for Nodes.)
    */
-  readonly isIdentity: Boolean;
+  readonly isIdentity: boolean;
 
   /**
    * Whether this Property must have a unique value.
    */
-  readonly isUnique: Boolean;
+  readonly isUnique: boolean;
 
   /**
    * Whether this Property is read-only.
    */
-  readonly isReadonly: Boolean;
+  readonly isReadonly: boolean;
 
   /**
    * Whether this Property is the main property of the object.
    */
-  readonly isMain: Boolean;
+  readonly isMain: boolean;
 
   /**
    * PropertyDefinition.isWired
    */
-  readonly isWired: Boolean;
+  readonly isWired: boolean;
 
   /**
    * PropertyDefinition.isStored
    */
-  readonly isStored: Boolean;
+  readonly isStored: boolean;
 
   /**
    * PropertyDefinition.isRepr
    */
-  readonly isRepr: Boolean;
+  readonly isRepr: boolean;
 
   /**
    * PropertyDefinition.isHash
    */
-  readonly isHash: Boolean;
+  readonly isHash: boolean;
 
   /**
    * PropertyDefinition.isEq
    */
-  readonly isEq: Boolean;
+  readonly isEq: boolean;
 
   /**
    * PropertyDefinition.isInternal
    */
-  readonly isInternal: Boolean;
+  readonly isInternal: boolean;
 
   constructor(options: {
     id: UInt8;
     type: PropertyType;
-    name?: String | null;
-    description?: String | null;
+    name?: string | null;
+    description?: string | null;
     object: ObjectDefinitionReference;
     originalObject: ObjectDefinitionReference;
     taggings?: readonly UInt8[];
@@ -2094,19 +2091,19 @@ export class PropertyDefinition extends Type {
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    isRequired?: Boolean | null;
+    isRequired?: boolean | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
-    isIdentity: Boolean;
-    isUnique: Boolean;
-    isReadonly: Boolean;
-    isMain: Boolean;
-    isWired: Boolean;
-    isStored: Boolean;
-    isRepr: Boolean;
-    isHash: Boolean;
-    isEq: Boolean;
-    isInternal: Boolean;
+    isIdentity: boolean;
+    isUnique: boolean;
+    isReadonly: boolean;
+    isMain: boolean;
+    isWired: boolean;
+    isStored: boolean;
+    isRepr: boolean;
+    isHash: boolean;
+    isEq: boolean;
+    isInternal: boolean;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -2594,8 +2591,9 @@ export class PropertyDefinition extends Type {
         structType: this.structType,
         keyType: this.keyType,
         isRequired: this.isRequired,
-        value: this.value,
-        valueFactory: this.valueFactory,
+        literalValue: this.literalValue,
+        defaultValue: this.defaultValue,
+        defaultFactory: this.defaultFactory,
         collectionConstraint: this.collectionConstraint,
         stringConstraint: this.stringConstraint,
         numberConstraint: this.numberConstraint,
@@ -2630,7 +2628,7 @@ export class OptionDefinition extends StructFrozen {
   /**
    * OptionDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * OptionDefinition.icon
@@ -2640,7 +2638,7 @@ export class OptionDefinition extends StructFrozen {
   /**
    * OptionDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * OptionDefinition.taggings
@@ -2650,9 +2648,9 @@ export class OptionDefinition extends StructFrozen {
   constructor(options: {
     id: UInt8;
     type: EnumType;
-    name: String;
+    name: string;
     icon?: Icon | null;
-    description?: String | null;
+    description?: string | null;
     taggings?: readonly UInt8[];
     _session?: Session | null;
     _hash?: number | null;
@@ -2800,12 +2798,12 @@ export class ConstantDefinition extends StructFrozen {
   /**
    * ConstantDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * ConstantDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * ConstantDefinition.taggings
@@ -2819,8 +2817,8 @@ export class ConstantDefinition extends StructFrozen {
 
   constructor(options: {
     id: UInt8;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     taggings?: readonly UInt8[];
     value: Value;
     _session?: Session | null;
@@ -2957,17 +2955,17 @@ export class TagDefinition extends StructFrozen {
   /**
    * TagDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * TagDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   constructor(options: {
     id: UInt8;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -3080,12 +3078,12 @@ export class IndexDefinition extends StructFrozen {
   /**
    * IndexDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * IndexDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * IndexDefinition.properties
@@ -3100,8 +3098,8 @@ export class IndexDefinition extends StructFrozen {
   constructor(options: {
     id: UInt8;
     type: IndexType;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     properties?: readonly PropertyReference[];
     cover?: readonly PropertyReference[];
     _session?: Session | null;
@@ -3262,12 +3260,12 @@ export class ConstraintDefinition extends StructFrozen {
   /**
    * ConstraintDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * ConstraintDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   /**
    * ConstraintDefinition.properties
@@ -3277,8 +3275,8 @@ export class ConstraintDefinition extends StructFrozen {
   constructor(options: {
     id: UInt8;
     type: ConstraintType;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     properties?: readonly PropertyReference[];
     _session?: Session | null;
     _hash?: number | null;
@@ -3415,17 +3413,17 @@ export class PermissionDefinition extends StructFrozen {
   /**
    * PermissionDefinition.name
    */
-  readonly name: String;
+  readonly name: string;
 
   /**
    * PermissionDefinition.description
    */
-  readonly description: String | null;
+  readonly description: string | null;
 
   constructor(options: {
     id: UInt8;
-    name: String;
-    description?: String | null;
+    name: string;
+    description?: string | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;

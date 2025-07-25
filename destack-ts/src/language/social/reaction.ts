@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   IsOwned,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt128,
   UUID,
   Value,
@@ -215,20 +213,20 @@ export class Reaction extends Entity implements IsOwned {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -279,7 +277,7 @@ export class Reaction extends Entity implements IsOwned {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -299,15 +297,15 @@ export class Reaction extends Entity implements IsOwned {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Reaction.content
@@ -315,15 +313,15 @@ export class Reaction extends Entity implements IsOwned {
   /**
    * Reaction.content
    */
-  get content(): String {
+  get content(): string {
     return this._content;
   }
-  set content(value: String) {
+  set content(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["content"];
     this._session.updateSetProperty(this, prop, value);
     this._content = value;
   }
-  _content: String;
+  _content: string;
 
   constructor(options: {
     id?: UUID;
@@ -343,14 +341,14 @@ export class Reaction extends Entity implements IsOwned {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
-    content: String;
+    key?: string | null;
+    content: string;
     _session?: Session | null;
   }) {
     /* super */
@@ -811,7 +809,7 @@ export class ReactionEvent extends Event {
   /**
    * ReactionEvent.content
    */
-  readonly content: String;
+  readonly content: string;
 
   constructor(options: {
     id?: UUID;
@@ -830,7 +828,7 @@ export class ReactionEvent extends Event {
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Reaction | NodeReference;
-    content: String;
+    content: string;
     _session?: Session | null;
   }) {
     /* super */

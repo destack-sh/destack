@@ -1,23 +1,12 @@
-import {
-  type CascadeAction,
-  type EdgeType,
-  NodeType,
-  type PropertyType,
-  StructType,
-} from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
+import type { CascadeAction, EdgeType, PropertyType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { Type } from "@destack/language/core/builtin/type";
-import type {
-  Boolean,
-  Datetime,
-  String,
-  UInt128,
-  UUID,
-} from "@destack/language/core/builtin/types";
+import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
@@ -213,20 +202,20 @@ export class CustomProperty extends Entity {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -277,7 +266,7 @@ export class CustomProperty extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -297,15 +286,15 @@ export class CustomProperty extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Where in the parent Entity this Property resides.
@@ -393,15 +382,15 @@ export class CustomProperty extends Entity {
   /**
    * Whether this property must have a unique value.
    */
-  get isUnique(): Boolean | null {
+  get isUnique(): boolean | null {
     return this._isUnique;
   }
-  set isUnique(value: Boolean | null) {
+  set isUnique(value: boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_unique"];
     this._session.updateSetProperty(this, prop, value);
     this._isUnique = value;
   }
-  _isUnique: Boolean | null;
+  _isUnique: boolean | null;
 
   /**
    * Whether this property is read-only.
@@ -409,15 +398,15 @@ export class CustomProperty extends Entity {
   /**
    * Whether this property is read-only.
    */
-  get isReadonly(): Boolean | null {
+  get isReadonly(): boolean | null {
     return this._isReadonly;
   }
-  set isReadonly(value: Boolean | null) {
+  set isReadonly(value: boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_readonly"];
     this._session.updateSetProperty(this, prop, value);
     this._isReadonly = value;
   }
-  _isReadonly: Boolean | null;
+  _isReadonly: boolean | null;
 
   /**
    * Whether this property is the main property of the entity.
@@ -425,15 +414,15 @@ export class CustomProperty extends Entity {
   /**
    * Whether this property is the main property of the entity.
    */
-  get isMain(): Boolean | null {
+  get isMain(): boolean | null {
     return this._isMain;
   }
-  set isMain(value: Boolean | null) {
+  set isMain(value: boolean | null) {
     const prop = (this.constructor as NodeClass).__properties__["is_main"];
     this._session.updateSetProperty(this, prop, value);
     this._isMain = value;
   }
-  _isMain: Boolean | null;
+  _isMain: boolean | null;
 
   constructor(options: {
     id?: UUID;
@@ -453,21 +442,21 @@ export class CustomProperty extends Entity {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type?: PropertyType;
     icon?: Icon | null;
     valueType: Type;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
-    isUnique?: Boolean | null;
-    isReadonly?: Boolean | null;
-    isMain?: Boolean | null;
+    isUnique?: boolean | null;
+    isReadonly?: boolean | null;
+    isMain?: boolean | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -838,22 +827,7 @@ export class CustomProperty extends Entity {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   toType(): Type {
-    const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
-    return new _Type({
-      cardinality: this.cardinality,
-      scalarType: this.scalarType,
-      primitiveType: this.primitiveType,
-      enumType: this.enumType,
-      nodeTypes: this.nodeTypes,
-      structType: this.structType,
-      keyType: this.keyType,
-      isRequired: this.isRequired,
-      value: this.value,
-      valueFactory: this.valueFactory,
-      collectionConstraint: this.collectionConstraint,
-      stringConstraint: this.stringConstraint,
-      numberConstraint: this.numberConstraint,
-    });
+    return this.valueType;
   }
 
   eq(value: any): Condition {

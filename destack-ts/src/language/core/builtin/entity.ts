@@ -1,15 +1,9 @@
 import { type Tag, Tagging } from "@destack/language/core/builtin/base";
-import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/builtin";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { hasTrait, Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type {
-  Boolean,
-  Datetime,
-  String,
-  UInt128,
-  UUID,
-} from "@destack/language/core/builtin/types";
+import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -140,13 +134,13 @@ export abstract class Entity extends Node {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -171,7 +165,7 @@ export abstract class Entity extends Node {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -185,8 +179,8 @@ export abstract class Entity extends Node {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
 

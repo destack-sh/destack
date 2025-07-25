@@ -5,7 +5,6 @@ from destack.language.core import (
     EnumType,
     Float32,
     NodeType,
-    NumberFormat,
     StructFrozen,
     StructType,
     builtin_enum,
@@ -37,7 +36,7 @@ class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
     color: Optional["Color"] = builtin_property(101, is_repr=True)
-    position: Float32 = builtin_property(102, format=NumberFormat.PERCENTAGE, is_repr=True)
+    position: Float32 = builtin_property(102, is_repr=True)
 
 
 @builtin_struct(StructType.GRADIENT, frozen=True)
@@ -46,7 +45,7 @@ class Gradient(StructFrozen):
 
     type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
     style: Optional["GradientStyle"] = builtin_property(101, is_repr=True)
-    angle: Optional[Float32] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
+    angle: Optional[Float32] = builtin_property(102, is_repr=True)
     stops: list[GradientStop] = builtin_property(103, is_repr=True)
     center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
 
@@ -56,7 +55,7 @@ class GradientStyle(Style):
     """A gradient style."""
 
     type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
-    angle: Optional[Float32] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
+    angle: Optional[Float32] = builtin_property(102, is_repr=True)
     stops: list[GradientStop] = builtin_property(103, is_repr=True)
     center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
     dark: Gradient | None = builtin_property(105)

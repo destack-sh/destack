@@ -236,6 +236,7 @@ class StructType(Enum):
     CONSTANT_DEFINITION = 19
     OPTION_DEFINITION = 20
     TAG_DEFINITION = 21
+    # ALIAS_DEFINITION, UNION_DEFINITION, ...
 
     # type/value
     VALUE = 100
@@ -526,9 +527,10 @@ class NodeType(Enum):
     # custom
     CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
     CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
-    CUSTOM_ENUM = 20_200, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
-    CUSTOM_PROPERTY = 20_300, "Custom Property", "Custom Property Definition", "fas fa-triangle"
+    CUSTOM_PROPERTY = 20_200, "Custom Property", "Custom Property Definition", "fas fa-triangle"
+    CUSTOM_ENUM = 20_300, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
     CUSTOM_OPTION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
+    # CUSTOM_ALIAS, CUSTOM_UNION, ...
 
     # integrity
     INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"

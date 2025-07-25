@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Datetime,
   IsOwnable,
@@ -8,7 +7,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   Text,
   UInt128,
   UUID,
@@ -2447,20 +2445,20 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -2511,7 +2509,7 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -2531,15 +2529,15 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Notification.title
@@ -2547,15 +2545,15 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * Notification.title
    */
-  get title(): String {
+  get title(): string {
     return this._title;
   }
-  set title(value: String) {
+  set title(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["title"];
     this._session.updateSetProperty(this, prop, value);
     this._title = value;
   }
-  _title: String;
+  _title: string;
 
   /**
    * Notification.status
@@ -2607,14 +2605,14 @@ export class Notification extends Entity implements IsOwnable {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
-    title: String;
+    key?: string | null;
+    title: string;
     status: NotificationStatus;
     text?: Text | null;
     _session?: Session | null;

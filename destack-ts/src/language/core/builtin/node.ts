@@ -11,12 +11,12 @@ import type {
   Sort,
 } from "@destack/language";
 import {
-  GraphDomain,
   NodeType,
   ObjectKind,
   StructType,
   type TraitType,
-} from "@destack/language/core/builtin/common";
+} from "@destack/language/core/builtin/builtin";
+import { GraphDomain } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, type BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import { isStruct } from "@destack/language/core/builtin/struct";

@@ -1841,20 +1841,26 @@ def _generate_file(
             new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
             file_parts.append(new_block)
 
-    # add imports to the top (will be auto-merged by linter)
+    # add imports to the top (will be auto-merged and pruned by formatter/linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
     value_dependencies: set[str] = set()
     language_imports_by_module["core.runtime.graph"] = {"Graph"}
     language_imports_by_module["core.runtime.session"] = {"Session"}
     language_imports_by_module["core.runtime.connection"] = {"GraphConnection"}
+    language_imports_by_module["core.builtin.types"] = {
+        # (builtin types are lowercase)
+        v
+        for v in TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE.values()
+        if v[0].isupper()
+    }
     language_imports_by_module["core.builtin.relation"] = {"NodeReference"}
-    language_imports_by_module["core.builtin.common"] = {
+    language_imports_by_module["core.builtin.builtin"] = {
         "NodeType",
         "TraitType",
         "StructType",
         "EnumType",
     }
-    value_dependencies.update(language_imports_by_module["core.builtin.common"])
+    value_dependencies.update(language_imports_by_module["core.builtin.builtin"])
     language_imports_by_module["core.builtin.event"] = {
         "Event",
         "CustomEventDefinition",

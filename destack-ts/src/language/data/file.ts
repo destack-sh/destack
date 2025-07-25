@@ -1,5 +1,4 @@
 import type {
-  Boolean,
   Branch,
   Bytes,
   Datetime,
@@ -10,7 +9,6 @@ import type {
   Session,
   Snapshot,
   Space,
-  String,
   UInt32,
   UInt64,
   UInt128,
@@ -362,20 +360,20 @@ export class File extends Resource {
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -426,7 +424,7 @@ export class File extends Resource {
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -446,15 +444,15 @@ export class File extends Resource {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * File.type
@@ -494,15 +492,15 @@ export class File extends Resource {
   /**
    * File.mimeType
    */
-  get mimeType(): String | null {
+  get mimeType(): string | null {
     return this._mimeType;
   }
-  set mimeType(value: String | null) {
+  set mimeType(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["mime_type"];
     this._session.updateSetProperty(this, prop, value);
     this._mimeType = value;
   }
-  _mimeType: String | null;
+  _mimeType: string | null;
 
   /**
    * File.format
@@ -542,15 +540,15 @@ export class File extends Resource {
   /**
    * File.sha256
    */
-  get sha256(): String | null {
+  get sha256(): string | null {
     return this._sha256;
   }
-  set sha256(value: String | null) {
+  set sha256(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["sha256"];
     this._session.updateSetProperty(this, prop, value);
     this._sha256 = value;
   }
-  _sha256: String | null;
+  _sha256: string | null;
 
   /**
    * File.width
@@ -606,15 +604,15 @@ export class File extends Resource {
   /**
    * File.codec
    */
-  get codec(): String | null {
+  get codec(): string | null {
     return this._codec;
   }
-  set codec(value: String | null) {
+  set codec(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["codec"];
     this._session.updateSetProperty(this, prop, value);
     this._codec = value;
   }
-  _codec: String | null;
+  _codec: string | null;
 
   /**
    * File.duration
@@ -638,15 +636,15 @@ export class File extends Resource {
   /**
    * File.url
    */
-  get url(): String | null {
+  get url(): string | null {
     return this._url;
   }
-  set url(value: String | null) {
+  set url(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["url"];
     this._session.updateSetProperty(this, prop, value);
     this._url = value;
   }
-  _url: String | null;
+  _url: string | null;
 
   /**
    * File.contentUrl
@@ -654,15 +652,15 @@ export class File extends Resource {
   /**
    * File.contentUrl
    */
-  get contentUrl(): String | null {
+  get contentUrl(): string | null {
     return this._contentUrl;
   }
-  set contentUrl(value: String | null) {
+  set contentUrl(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["content_url"];
     this._session.updateSetProperty(this, prop, value);
     this._contentUrl = value;
   }
-  _contentUrl: String | null;
+  _contentUrl: string | null;
 
   /**
    * File.thumbnailUrl
@@ -670,15 +668,15 @@ export class File extends Resource {
   /**
    * File.thumbnailUrl
    */
-  get thumbnailUrl(): String | null {
+  get thumbnailUrl(): string | null {
     return this._thumbnailUrl;
   }
-  set thumbnailUrl(value: String | null) {
+  set thumbnailUrl(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["thumbnail_url"];
     this._session.updateSetProperty(this, prop, value);
     this._thumbnailUrl = value;
   }
-  _thumbnailUrl: String | null;
+  _thumbnailUrl: string | null;
 
   /**
    * File.faviconUrl
@@ -686,15 +684,15 @@ export class File extends Resource {
   /**
    * File.faviconUrl
    */
-  get faviconUrl(): String | null {
+  get faviconUrl(): string | null {
     return this._faviconUrl;
   }
-  set faviconUrl(value: String | null) {
+  set faviconUrl(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["favicon_url"];
     this._session.updateSetProperty(this, prop, value);
     this._faviconUrl = value;
   }
-  _faviconUrl: String | null;
+  _faviconUrl: string | null;
 
   /**
    * File.thumbnailWidth
@@ -762,28 +760,28 @@ export class File extends Resource {
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
+    key?: string | null;
     type: FileType;
     region?: Region | null;
-    mimeType?: String | null;
+    mimeType?: string | null;
     format?: FileFormat | null;
     size?: UInt64 | null;
-    sha256?: String | null;
+    sha256?: string | null;
     width?: UInt32 | null;
     height?: UInt32 | null;
     aspectRatio?: Float32 | null;
-    codec?: String | null;
+    codec?: string | null;
     duration?: Duration | null;
-    url?: String | null;
-    contentUrl?: String | null;
-    thumbnailUrl?: String | null;
-    faviconUrl?: String | null;
+    url?: string | null;
+    contentUrl?: string | null;
+    thumbnailUrl?: string | null;
+    faviconUrl?: string | null;
     thumbnailWidth?: UInt32 | null;
     thumbnailHeight?: UInt32 | null;
     content?: Bytes | null;

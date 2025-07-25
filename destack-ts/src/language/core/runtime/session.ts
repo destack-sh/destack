@@ -142,6 +142,9 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
+    if (prop.name === null) {
+      throw new Error(`property name is required for ${node.repr()}.${prop.id}`);
+    }
     const propName = toCasing(prop.name, Casing.CAMEL);
     const nodePtr = node.toRef();
     const propType = prop.toType();

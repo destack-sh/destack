@@ -1,4 +1,5 @@
-import { NodeType, type Region, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
+import type { Region } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/const";
 import type {
   EnumDefinition,
@@ -15,14 +16,7 @@ import type {
   IsOwnable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
-import type {
-  Boolean,
-  Datetime,
-  Float64,
-  String,
-  UInt128,
-  UUID,
-} from "@destack/language/core/builtin/types";
+import type { Datetime, Float64, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import { BranchType, SnapshotType } from "@destack/language/core/common/time";
@@ -48,7 +42,7 @@ export abstract class Universe extends Entity {
   /**
    * The current version of Destack.
    */
-  static readonly VERSION: String = "2025.07.25.1";
+  static readonly VERSION: string = "2025.07.25.1";
 
   /**
    * The float epsilon used for floating point comparisons.
@@ -226,13 +220,13 @@ export abstract class Universe extends Entity {
   /**
    * Entity.name
    */
-  abstract get name(): String;
-  abstract set name(value: String);
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  declare readonly orderKey: String;
+  declare readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -257,7 +251,7 @@ export abstract class Universe extends Entity {
   /**
    * Whether this Entity can be instanced.
    */
-  declare readonly isExtensible: Boolean | null;
+  declare readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -271,8 +265,8 @@ export abstract class Universe extends Entity {
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  abstract get key(): String | null;
-  abstract set key(value: String | null);
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -465,20 +459,20 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * Entity.name
    */
-  get name(): String {
+  get name(): string {
     return this._name;
   }
-  set name(value: String) {
+  set name(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
     this._name = value;
   }
-  _name: String;
+  _name: string;
 
   /**
    * The absolute order key of this Entity in its parent.
    */
-  readonly orderKey: String;
+  readonly orderKey: string;
 
   /**
    * The custom Values of this Entity, keyed by custom Property id..
@@ -529,7 +523,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * Whether this Entity can be instanced.
    */
-  readonly isExtensible: Boolean | null;
+  readonly isExtensible: boolean | null;
 
   /**
    * The Script that defines this Node.
@@ -549,15 +543,15 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
    */
-  get key(): String | null {
+  get key(): string | null {
     return this._key;
   }
-  set key(value: String | null) {
+  set key(value: string | null) {
     const prop = (this.constructor as NodeClass).__properties__["key"];
     this._session.updateSetProperty(this, prop, value);
     this._key = value;
   }
-  _key: String | null;
+  _key: string | null;
 
   /**
    * Space.slug
@@ -565,15 +559,15 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * Space.slug
    */
-  get slug(): String {
+  get slug(): string {
     return this._slug;
   }
-  set slug(value: String) {
+  set slug(value: string) {
     const prop = (this.constructor as NodeClass).__properties__["slug"];
     this._session.updateSetProperty(this, prop, value);
     this._slug = value;
   }
-  _slug: String;
+  _slug: string;
 
   /**
    * Space.handle
@@ -639,14 +633,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     updatedBy?: Entity | NodeReference;
     deletedAt?: Datetime | null;
     ownedBy?: Entity | NodeReference | null;
-    name?: String;
-    orderKey?: String;
+    name?: string;
+    orderKey?: string;
     customValues?: { readonly [key: UUID]: Value };
     script?: Script | NodeReference | null;
-    isExtensible?: Boolean | null;
+    isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
-    key?: String | null;
-    slug: String;
+    key?: string | null;
+    slug: string;
     handle?: Handle | NodeReference | null;
     region: Region;
     _session?: Session | null;
