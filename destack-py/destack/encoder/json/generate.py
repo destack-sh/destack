@@ -154,6 +154,7 @@ def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
     obj_json = f"_object.{prop_name}"
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         value_expr = _generate_pack_json_scalar(prop, obj_json)
         if prop.is_required:
@@ -161,8 +162,11 @@ def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
         else:
             lines.append(f"if ({prop_name} := {obj_json}) is not None:")
             lines.append(f'    _object_json["{json_key}"] = {value_expr}')
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_pack_json_scalar(prop, "_item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_pack_json_scalar(prop.value_type, "_item")
         if prop.is_required:
             lines.append(f"_packed_{prop_name} = []")
             lines.append(f"for _item in {obj_json}:")
@@ -174,10 +178,17 @@ def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
             lines.append(f"    for _item in {obj_json}:")
             lines.append(f"        _packed_{prop_name}.append({item_expr})")
             lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot pack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_pack_json_scalar(prop.key_type, "_key")
-        value_expr = _generate_pack_json_scalar(prop, "_value")
+        value_expr = _generate_pack_json_scalar(prop.value_type, "_value")
         if prop.is_required:
             lines.append(f"_packed_{prop_name} = {{}}")
             lines.append(f"for _key, _value in {obj_json}.items():")
@@ -189,6 +200,7 @@ def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
             lines.append(f"    for _key, _value in {obj_json}.items():")
             lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
             lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
+
     else:
         assert_never(prop.cardinality)
 
@@ -199,6 +211,7 @@ def _generate_pack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
@@ -251,6 +264,10 @@ def _generate_pack_json_scalar(
         return f"{value_expr}.name"
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack(Encoding.JSON)"
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot pack literal: {prop!r}")
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot pack union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
@@ -262,6 +279,7 @@ def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
     prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
     data_json = f'_object_json.get("{json_key}")'
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_unpack_json_scalar(prop, data_json)
@@ -271,8 +289,11 @@ def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
             lines.append(
                 f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_json}) is not None else None"
             )
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_unpack_json_scalar(prop, "_item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_unpack_json_scalar(prop.value_type, "_item")
         if prop.is_required:
             lines.append(f"_unpacked_{prop_name} = []")
             lines.append(f"for _item in {data_json}:")
@@ -284,10 +305,17 @@ def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
             lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
             lines.append("else:")
             lines.append(f"    _unpacked_{prop_name} = None")
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot unpack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_unpack_json_scalar(prop.key_type, "_key")
-        value_expr = _generate_unpack_json_scalar(prop, "_value")
+        value_expr = _generate_unpack_json_scalar(prop.value_type, "_value")
         if prop.is_required:
             lines.append(f"_unpacked_{prop_name} = {{}}")
             lines.append(f"for _key, _value in {data_json}.items():")
@@ -299,6 +327,7 @@ def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
             lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
             lines.append("else:")
             lines.append(f"    _unpacked_{prop_name} = None")
+
     else:
         assert_never(prop.cardinality)
 
@@ -309,6 +338,7 @@ def _generate_unpack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
@@ -368,6 +398,10 @@ def _generate_unpack_json_scalar(
         return f"NodeReference.unpack(Encoding.JSON, {value_expr}, _session)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack(Encoding.JSON, {value_expr}, _session)"
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot unpack literal: {prop!r}")
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot unpack union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 

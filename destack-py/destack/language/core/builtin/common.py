@@ -302,10 +302,9 @@ assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 class TypeCardinality(Enum):
     """The order of a Type (scalar, list, map, etc.)."""
 
-    # nocheckin :Incomplete: support tuples, sets (?), (tagged) unions, .. in type system
     SCALAR = 1, "Scalar", "Single value"
     LIST = 2, "List", "List of values (dynamic length)"
-    # TUPLE = 3, "Tuple", "Tuple of values (fixed length)"
+    TUPLE = 3, "Tuple", "Tuple of values (fixed length)"
     # SET? = 4, "Set", "Set of unique values (dynamic length)"
     MAP = 5, "Map", "Map of primitive keys to any values"
 
@@ -347,8 +346,8 @@ class ScalarType(Enum):
         "Struct value (structured data)",
         "fas fa-shapes",
     )
-    # LITERAL = 6, "Literal", "Literal value (constant value)"
-    # UNION = 7, "Union", "Tagged union of heterogeneous values"
+    LITERAL = 6, "Literal", "Literal value (constant value)"
+    UNION = 7, "Union", "Tagged union of heterogeneous values"
 
 
 assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding

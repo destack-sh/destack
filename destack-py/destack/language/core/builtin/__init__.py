@@ -166,7 +166,6 @@ from .type import (
     StringFormat,
     Type,
     TypeConstraint,
-    to_type,
 )
 from .types import (
     Cson,
@@ -186,7 +185,7 @@ from .types import (
     UInt64,
     UInt128,
 )
-from .value import Value, to_value
+from .value import Value
 
 __all__ = [
     "ACTIVE_BRANCH",
@@ -363,6 +362,4 @@ __all__ = [
     "get_active_space",
     "get_active_space_ptr",
     "parse_type_annotation",
-    "to_type",
-    "to_value",
 ]

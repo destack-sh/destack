@@ -9,7 +9,7 @@ from destack import *  # noqa: F403
 
 from .scaffold import *  # noqa: F403
 
-# ruff: noqa: F405
+# ruff: noqa: F405, E741
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -31,7 +31,11 @@ class TicTacToeGame(IsStarable, Record):
 
 @entity
 class TicTacToeBoard(Record):
-    pass
+    size: tuple[int, int]
+
+    @method
+    def reset(self):
+        pass
 
 
 # ===============================================
@@ -39,7 +43,14 @@ class TicTacToeBoard(Record):
 # ===============================================
 
 
+@enum
+class TicTacToeCellState(Enum):
+    EMPTY = 1
+    X = 2
+    O = 3
+
+
 @entity
 class TicTacToeCell(IsOwnable, Record):
     parent: TicTacToeBoard
-    owned_by: IsActor
+    state: TicTacToeCellState

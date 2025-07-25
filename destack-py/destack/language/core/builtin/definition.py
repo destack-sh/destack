@@ -36,7 +36,7 @@ from .relation import (
 )
 from .struct import Struct, StructFrozen, builtin_struct
 from .type import Type
-from .value import Value, to_value
+from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -785,7 +785,7 @@ class ConstantDefinition(StructFrozen):
             id=declaration.id,
             name=declaration.name,
             description=declaration.description,
-            value=to_value(declaration.value, is_required=True),
+            value=Value.wrap(declaration.value, is_required=True),
             _is_deferred=declaration.is_deferred,
         )
 

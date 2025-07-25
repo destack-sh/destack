@@ -18,7 +18,7 @@ from ..builtin import (
     Event,
     NodeReference,
     PropertyDeclaration,
-    to_value,
+    Value,
 )
 from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle
@@ -116,7 +116,7 @@ class Session:
         edit = EditEvent(
             type=EditType.CREATE,
             node=node,
-            value=to_value(node, node_as_value=True),
+            value=Value.wrap(node, node_as_value=True),
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
@@ -131,7 +131,7 @@ class Session:
         edit = EditEvent(
             type=EditType.UPSERT,
             node=node,
-            value=to_value(node, node_as_value=True),
+            value=Value.wrap(node, node_as_value=True),
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
@@ -148,9 +148,9 @@ class Session:
         prop_type = prop.to_type()
 
         undo_operation = EditOperation.SET
-        old_value = to_value(old_value, prop_type)
+        old_value = Value.wrap(old_value, prop_type)
         operation = EditOperation.SET
-        new_value = to_value(new_value, prop_type)
+        new_value = Value.wrap(new_value, prop_type)
         edit = EditEvent(
             type=EditType.UPDATE,
             space_ptr=node.space_ptr,
@@ -182,15 +182,15 @@ class Session:
             snapshot_ptr=node.snapshot_ptr,
             created_by_ptr=self.actor_ptr,
             node=node,
-            value=to_value(parent),
-            reverse_value=to_value(old_parent),
+            value=Value.wrap(parent),
+            reverse_value=Value.wrap(old_parent),
         )
         self.pending_events.append(edit)
 
     def delete(self, node: Entity):
         """Deletes an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        reverse_value = to_value(node, node_as_value=True)
+        reverse_value = Value.wrap(node, node_as_value=True)
         edit = EditEvent(
             type=EditType.DELETE,
             reverse_value=reverse_value,

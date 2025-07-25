@@ -1,10 +1,7 @@
-import types
-import typing
 from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
-    TypeAliasType,
     Union,
 )
 
@@ -100,7 +97,15 @@ TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 @builtin_struct(StructType.BASIC_TYPE, frozen=True)
 class BasicType(StructFrozen):
-    """A basic Type in the type system."""
+    """
+    A basic Type in the type system. Types compose like a tree, with scalars at the leaves:
+     - Scalar: a single value (primitive, enum, node, struct, etc.)
+     - List: a dynamic-length list of homogeneous values
+     - Tuple: a fixed-length list of heterogeneous values
+     - Map: a dict of homogenous keys to homogeneous values
+     - Literal: a constant value
+     - Union: a tagged union of heterogeneous values (declaration only)
+    """
 
     # cardinality
     cardinality: TypeCardinality = builtin_property(
@@ -109,24 +114,24 @@ class BasicType(StructFrozen):
         is_repr=True,
         description="Cardinality of this Type (scalar, list, map, etc.)",
     )
-    key_type: Optional["Type"] = builtin_property(
+    key_type: Optional["BasicType"] = builtin_property(
         111,
         is_repr=True,
         description="Key type of this Type (if it's a map).",
     )
-    value_type: Optional["Type"] = builtin_property(
+    value_type: Optional["BasicType"] = builtin_property(
         112,
         is_repr=True,
         description="Value type of this Type (if it's a list, map, etc.).",
     )
-    element_types: list["Type"] | None = builtin_property(
+    element_types: list["BasicType"] | None = builtin_property(
         113,
         is_repr=True,
         description="Element types of this Type (if it's a tuple).",
     )
 
     # scalar
-    scalar_type: ScalarType = builtin_property(
+    scalar_type: Optional[ScalarType] = builtin_property(
         120,
         is_repr=True,
         description="Scalar value type of this Type (primitive, enum, node, struct, etc..).",
@@ -144,20 +149,31 @@ class BasicType(StructFrozen):
     node_types: list[NodeType] | None = builtin_property(
         123,
         is_repr=True,
-        description="Node types of this Type (if it's a node reference scalar).",
+        description="Node types of this Type (if it's a node reference or node value scalar).",
     )
     struct_type: Optional[StructType] = builtin_property(
         124,
         is_repr=True,
         description="Struct type of this Type (if it's a struct scalar).",
     )
-    # literal_value: Optional["Value"]
-    # union_types: list["Type"] | None
+    literal_value: Optional["Value"] = builtin_property(
+        125,
+        is_repr=True,
+        description="Literal value of this Type (if it's a literal scalar).",
+    )
+    union_types: list["BasicType"] | None = builtin_property(
+        126,
+        is_repr=True,
+        description="Union types of this Type (if it's a union scalar).",
+    )
 
 
 @builtin_struct(StructType.TYPE, frozen=True)
 class Type(BasicType):
-    """A full Type in the type system."""
+    """
+    A full Type in the type system.
+    Extends the BasicType with defaults, constraints, and supporting flags.
+    """
 
     # default
     default_value: Optional["Value"] = builtin_property(150)
@@ -171,167 +187,88 @@ class Type(BasicType):
     # flags
     is_required: bool | None = builtin_property(170)
 
+    @classmethod
+    def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
+        """
+        Infer the Type of a value or class.
+        For values, we try to infer the most specific Type that can represent the value.
+        For annotations, we defer to parse_type_annotation.
+        """
+        from ..builtin import Node, NodeReference, parse_type_annotation
 
-def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
-    """
-    Guess the Type of a value or class.
-    For values, we try to infer the most specific Type that can represent the value.
-    """
-    from destack.language import Node, NodeReference
+        if value_or_type is None:
+            raise ValueError("None is not a valid Type")
 
-    if value_or_type is None:
-        raise ValueError("None is not a valid Type")
+        #
+        # Values - handle actual runtime values
+        #
 
-    # scalar values
-    if isinstance(value_or_type, NodeReference):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
-            node_types=[value_or_type.type],
-        )
-    elif isinstance(value_or_type, Node):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
-            node_types=[value_or_type.metatype],
-        )
-    elif isinstance(value_or_type, Struct):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.STRUCT,
-            struct_type=value_or_type.metatype,
-        )
-    elif isinstance(value_or_type, Enum):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.ENUM,
-            enum_type=ENUM_TYPE_BY_CLASS[type(value_or_type)],
-        )
-    elif isinstance(value_or_type, (type, TypeAliasType)) and (
-        primitive_type := PRIMITIVE_TYPE_BY_ANNOTATION.get(value_or_type)
-    ):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=primitive_type,
-        )
-    elif isinstance(value_or_type, PRIMITIVE_PY_TYPES):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PRIMITIVE_TYPE_BY_ANNOTATION[type(value_or_type)],
-        )
-
-    # collections
-    if isinstance(value_or_type, (list, tuple)):
-        assert value_or_type, f"cannot infer type of empty sequence: {value_or_type!r}"
-        element_type = to_type(value_or_type[0])
-        assert element_type.cardinality == TypeCardinality.SCALAR, (
-            f"expected scalar inside list, got {element_type!r} for {value_or_type!r}"
-        )
-        return Type(
-            cardinality=TypeCardinality.LIST,
-            scalar_type=element_type.scalar_type,
-            primitive_type=element_type.primitive_type,
-            enum_type=element_type.enum_type,
-            node_types=element_type.node_types,
-            struct_type=element_type.struct_type,
-        )
-    elif isinstance(value_or_type, dict):
-        assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
-        sample_key = next(iter(value_or_type))
-        sample_value = value_or_type[sample_key]
-        key_type = to_type(sample_key)
-        assert key_type.cardinality == TypeCardinality.SCALAR, (
-            f"expected scalar inside dict, got {key_type!r} for {value_or_type!r}"
-        )
-        value_type = to_type(sample_value)
-        assert value_type.cardinality in (TypeCardinality.SCALAR, TypeCardinality.LIST), (
-            f"expected scalar or list inside dict, got {value_type!r} for {value_or_type!r}"
-        )
-        return Type(
-            cardinality=TypeCardinality.MAP,
-            scalar_type=value_type.scalar_type,
-            primitive_type=value_type.primitive_type,
-            enum_type=value_type.enum_type,
-            node_types=value_type.node_types,
-            struct_type=value_type.struct_type,
-            key_type=key_type,
-        )
-
-    # handle type annotations
-    origin = typing.get_origin(value_or_type)
-    if origin in (list, tuple):
-        element_type_annotation = typing.get_args(value_or_type)[0]
-        element_type = to_type(element_type_annotation)
-        return Type(
-            cardinality=TypeCardinality.LIST,
-            scalar_type=element_type.scalar_type,
-            primitive_type=element_type.primitive_type,
-            enum_type=element_type.enum_type,
-            node_types=element_type.node_types,
-            struct_type=element_type.struct_type,
-        )
-    elif origin is dict:
-        key_type_annotation, value_type_annotation = typing.get_args(value_or_type)
-        key_type = to_type(key_type_annotation)
-        value_type = to_type(value_type_annotation)
-        return Type(
-            cardinality=TypeCardinality.MAP,
-            scalar_type=value_type.scalar_type,
-            primitive_type=value_type.primitive_type,
-            enum_type=value_type.enum_type,
-            node_types=value_type.node_types,
-            struct_type=value_type.struct_type,
-            key_type=key_type,
-        )
-    elif origin in (typing.Union, types.UnionType):
-        union_args = typing.get_args(value_or_type)
-        non_none_types = tuple(t for t in union_args if t is not type(None))
-        assert len(non_none_types) > 0, f"empty union: {value_or_type!r}"
-
-        # check if all types are Node types
-        node_types = []
-        for arg_type in non_none_types:
-            if (
-                isinstance(arg_type, type)
-                and issubclass(arg_type, Node)
-                and (metatype := getattr(arg_type, "metatype", None))
-            ):
-                node_types.append(metatype)
-            else:
-                # not all are Node types, fall back to first type
-                return to_type(non_none_types[0])
-
-        if node_types:
+        # scalar values
+        if isinstance(value_or_type, NodeReference):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
-                node_types=node_types,
+                node_types=[value_or_type.type],
             )
-
-    # type classes
-    if isinstance(value_or_type, type):
-        if issubclass(value_or_type, Enum):
+        elif isinstance(value_or_type, Node):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.ENUM,
-                enum_type=ENUM_TYPE_BY_CLASS[value_or_type],
+                scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
+                node_types=[value_or_type.metatype],
             )
-        elif issubclass(value_or_type, Node):
-            node_type = getattr(value_or_type, "metatype", None)
-            if not isinstance(node_type, NodeType):
-                raise ValueError(f"cannot infer node type of {value_or_type!r}")
-            return Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.NODE_REFERENCE,
-                node_types=[node_type],
-            )
-        elif issubclass(value_or_type, Struct):
+        elif isinstance(value_or_type, Struct):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.STRUCT,
                 struct_type=value_or_type.metatype,
             )
+        elif isinstance(value_or_type, Enum):
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.ENUM,
+                enum_type=ENUM_TYPE_BY_CLASS[type(value_or_type)],
+            )
+        elif isinstance(value_or_type, PRIMITIVE_PY_TYPES):
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.PRIMITIVE,
+                primitive_type=PRIMITIVE_TYPE_BY_ANNOTATION[type(value_or_type)],
+            )
 
-    raise ValueError(f"cannot infer type of {value_or_type!r}")
+        # collections - handle actual values
+        if isinstance(value_or_type, tuple):
+            # tuples are heterogeneous
+            element_types = [
+                Type.infer(elem, node_as_value=node_as_value) for elem in value_or_type
+            ]
+            return Type(
+                cardinality=TypeCardinality.TUPLE,
+                element_types=element_types,  # type: ignore
+            )
+        elif isinstance(value_or_type, list):
+            assert value_or_type, f"cannot infer type of empty list: {value_or_type!r}"
+            # lists are homogeneous - infer from first element
+            element_type = Type.infer(value_or_type[0], node_as_value=node_as_value)
+            return Type(
+                cardinality=TypeCardinality.LIST,
+                value_type=element_type,
+            )
+        elif isinstance(value_or_type, dict):
+            assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
+            sample_key = next(iter(value_or_type))
+            sample_value = value_or_type[sample_key]
+            key_type = Type.infer(sample_key, node_as_value=node_as_value)
+            value_type = Type.infer(sample_value, node_as_value=node_as_value)
+            return Type(
+                cardinality=TypeCardinality.MAP,
+                key_type=key_type,
+                value_type=value_type,
+            )
+
+        #
+        # Annotations
+        #
+
+        # parse as annotation
+        type_decl = parse_type_annotation(value_or_type)
+        return type_decl._to_type()

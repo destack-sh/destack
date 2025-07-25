@@ -7,6 +7,7 @@ from typing import assert_never, cast
 from destack.language import (
     EMPTY_DICT,
     UNSET,
+    BasicType,
     BuiltinObject,
     ConstantDefinition,
     EdgeType,
@@ -123,7 +124,7 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
 
 
 def _generate_type_scalar(
-    prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True
+    prop: PropertyDeclaration | TypeDeclaration | BasicType, as_ptr: bool = True
 ) -> str:
     """Generate a scalar property Typescript type annotation."""
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
