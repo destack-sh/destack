@@ -3,18 +3,10 @@ from typing import TYPE_CHECKING, Any
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from ..builtin import (
-    ENCODERS,
-    Cson,
-    Encoding,
-    Node,
-    StructFrozen,
-    StructType,
-    active_session,
-    builtin_property,
-    builtin_property_runtime,
-    builtin_struct,
-)
+from .common import Cson, Encoding
+from .const import ENCODERS, active_session
+from .property import builtin_property, builtin_property_runtime
+from .struct import StructFrozen, StructType, builtin_struct
 from .type import ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
@@ -60,6 +52,7 @@ def to_value(
     Convert an arbitrary (legal) value to a Value.
     If Type isn't provided, it will be inferred from the value.
     """
+    from .node import Node
 
     encoder = ENCODERS[Encoding.CSON]
 

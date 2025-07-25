@@ -10,7 +10,7 @@ import {
   StructType,
   TraitType,
   TypeCardinality,
-  ValueFactory,
+  type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
 import type { PackedCache } from "@destack/language/core/builtin/object";
@@ -23,17 +23,17 @@ import {
   PropertyReferenceType,
 } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import {
+  type CollectionConstraint,
+  type NumberConstraint,
+  type StringConstraint,
+  Type,
+} from "@destack/language/core/builtin/type";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { ActionDefinition } from "@destack/language/core/common/action";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { MethodDefinition } from "@destack/language/core/common/method";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
-import type {
-  CollectionConstraint,
-  NumberConstraint,
-  StringConstraint,
-  Type,
-} from "@destack/language/core/common/type";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
@@ -43,56 +43,16 @@ import {
 import { assertNever } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:10 ==== */
-/**
- * Definition of a builtin object.
- */
-export abstract class BuiltinDefinition extends StructFrozen {
-  static metatype: StructType = StructType.BUILTIN_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  declare readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  declare readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  declare readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  declare readonly description: string | null;
-
-  /**
-   * BuiltinDefinition.taggings
-   */
-  declare readonly taggings: readonly number[];
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:10 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12 ==== */
 /**
  * Definition of a builtin Node.
  */
-export class NodeDefinition extends BuiltinDefinition {
+export class NodeDefinition extends StructFrozen {
   static metatype: StructType = StructType.NODE_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * NodeDefinition.id
    */
   readonly id: number;
 
@@ -102,22 +62,22 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly type: NodeType;
 
   /**
-   * BuiltinDefinition.name
+   * NodeDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
+   * NodeDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * BuiltinDefinition.description
+   * NodeDefinition.description
    */
   readonly description: string | null;
 
   /**
-   * BuiltinDefinition.taggings
+   * NodeDefinition.taggings
    */
   readonly taggings: readonly number[];
 
@@ -505,6 +465,29 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
     if (!(this.isAbstract === other.isAbstract)) {
       return false;
     }
@@ -715,29 +698,6 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.domain === other.domain)) {
       return false;
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
@@ -745,6 +705,11 @@ export class NodeDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeType[this.type]}`);
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
       propertyReprs.push(`isAbstract=${this.isAbstract}`);
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`isFinal=${this.isFinal}`);
@@ -762,11 +727,6 @@ export class NodeDefinition extends BuiltinDefinition {
           `childTypes=${this.childTypes.map((_item) => NodeType[_item]).join(", ")}`,
         );
       }
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
       // @ts-expect-error(readonly) */
       this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -780,6 +740,19 @@ export class NodeDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isFinal)) & 0xffffffff;
@@ -910,19 +883,6 @@ export class NodeDefinition extends BuiltinDefinition {
     if (this.domain != null) {
       h = (h * 31 + this.domain) & 0xffffffff;
     }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -964,12 +924,12 @@ registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
 /**
  * Definition of a builtin Trait.
  */
-export class TraitDefinition extends BuiltinDefinition {
+export class TraitDefinition extends StructFrozen {
   static metatype: StructType = StructType.TRAIT_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * TraitDefinition.id
    */
   readonly id: number;
 
@@ -979,22 +939,22 @@ export class TraitDefinition extends BuiltinDefinition {
   readonly type: TraitType;
 
   /**
-   * BuiltinDefinition.name
+   * TraitDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
+   * TraitDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * BuiltinDefinition.description
+   * TraitDefinition.description
    */
   readonly description: string | null;
 
   /**
-   * BuiltinDefinition.taggings
+   * TraitDefinition.taggings
    */
   readonly taggings: readonly number[];
 
@@ -1157,6 +1117,29 @@ export class TraitDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
     if (!(this.alias === other.alias)) {
       return false;
     }
@@ -1219,29 +1202,6 @@ export class TraitDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
@@ -1249,13 +1209,13 @@ export class TraitDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${TraitType[this.type]}`);
-      propertyReprs.push(`alias=${`"${this.alias}"`}`);
-      propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
+      propertyReprs.push(`alias=${`"${this.alias}"`}`);
+      propertyReprs.push(`isExtensible=${this.isExtensible}`);
       // @ts-expect-error(readonly) */
       this._repr = `<TraitDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -1269,6 +1229,19 @@ export class TraitDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.alias)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.permissions && this.permissions.length > 0) {
@@ -1306,19 +1279,6 @@ export class TraitDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1339,12 +1299,12 @@ registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
 /**
  * Definition of a builtin Struct.
  */
-export class StructDefinition extends BuiltinDefinition {
+export class StructDefinition extends StructFrozen {
   static metatype: StructType = StructType.STRUCT_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * StructDefinition.id
    */
   readonly id: number;
 
@@ -1354,22 +1314,22 @@ export class StructDefinition extends BuiltinDefinition {
   readonly type: StructType;
 
   /**
-   * BuiltinDefinition.name
+   * StructDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
+   * StructDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * BuiltinDefinition.description
+   * StructDefinition.description
    */
   readonly description: string | null;
 
   /**
-   * BuiltinDefinition.taggings
+   * StructDefinition.taggings
    */
   readonly taggings: readonly number[];
 
@@ -1584,6 +1544,29 @@ export class StructDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
     if (!(this.isFrozen === other.isFrozen)) {
       return false;
     }
@@ -1676,29 +1659,6 @@ export class StructDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
@@ -1724,6 +1684,19 @@ export class StructDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
@@ -1780,19 +1753,6 @@ export class StructDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -1813,12 +1773,12 @@ registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
 /**
  * Definition of a builtin Enum.
  */
-export class EnumDefinition extends BuiltinDefinition {
+export class EnumDefinition extends StructFrozen {
   static metatype: StructType = StructType.ENUM_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * EnumDefinition.id
    */
   readonly id: number;
 
@@ -1828,29 +1788,29 @@ export class EnumDefinition extends BuiltinDefinition {
   readonly type: EnumType;
 
   /**
-   * BuiltinDefinition.name
+   * EnumDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
+   * EnumDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * BuiltinDefinition.description
+   * EnumDefinition.description
    */
   readonly description: string | null;
+
+  /**
+   * EnumDefinition.taggings
+   */
+  readonly taggings: readonly number[];
 
   /**
    * EnumDefinition.options
    */
   readonly options: readonly OptionDefinition[];
-
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
 
   constructor(options: {
     id: number;
@@ -1858,8 +1818,8 @@ export class EnumDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    options?: readonly OptionDefinition[];
     taggings?: readonly number[];
+    options?: readonly OptionDefinition[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -1891,16 +1851,16 @@ export class EnumDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _options = options.options ?? null;
-    if (_options === null) {
-      _options = [];
-    }
-    this.options = _options;
     let _taggings = options.taggings ?? null;
     if (_taggings === null) {
       _taggings = [];
     }
     this.taggings = _taggings;
+    let _options = options.options ?? null;
+    if (_options === null) {
+      _options = [];
+    }
+    this.options = _options;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -1917,14 +1877,6 @@ export class EnumDefinition extends BuiltinDefinition {
     }
     if (!(this.type === other.type)) {
       return false;
-    }
-    if (this.options.length != other.options.length) {
-      return false;
-    }
-    for (let i = 0; i < this.options.length; i++) {
-      if (!this.options[i].equals(other.options[i])) {
-        return false;
-      }
     }
     if (!(this.id === other.id)) {
       return false;
@@ -1946,6 +1898,14 @@ export class EnumDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.taggings.length; i++) {
       if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
+    if (this.options.length != other.options.length) {
+      return false;
+    }
+    for (let i = 0; i < this.options.length; i++) {
+      if (!this.options[i].equals(other.options[i])) {
         return false;
       }
     }
@@ -1974,11 +1934,6 @@ export class EnumDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.options && this.options.length > 0) {
-      for (const _item of this.options) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -1990,6 +1945,11 @@ export class EnumDefinition extends BuiltinDefinition {
     if (this.taggings && this.taggings.length > 0) {
       for (const _item of this.taggings) {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.options && this.options.length > 0) {
+      for (const _item of this.options) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     // @ts-expect-error(readonly)
@@ -2012,12 +1972,12 @@ registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
 /**
  * Definition of a builtin Property.
  */
-export class PropertyDefinition extends BuiltinDefinition {
+export class PropertyDefinition extends Type {
   static metatype: StructType = StructType.PROPERTY_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * PropertyDefinition.id
    */
   readonly id: number;
 
@@ -2027,17 +1987,12 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly type: PropertyType;
 
   /**
-   * BuiltinDefinition.name
+   * The name of this Type when it was used.
    */
-  readonly name: string;
+  readonly name: string | null;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * PropertyDefinition.description
    */
   readonly description: string | null;
 
@@ -2052,69 +2007,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly originalObject: ObjectDefinitionReference;
 
   /**
-   * BuiltinDefinition.taggings
+   * PropertyDefinition.taggings
    */
   readonly taggings: readonly number[];
-
-  /**
-   * PropertyDefinition.cardinality
-   */
-  readonly cardinality: TypeCardinality;
-
-  /**
-   * PropertyDefinition.scalarType
-   */
-  readonly scalarType: ScalarType;
-
-  /**
-   * PropertyDefinition.primitiveType
-   */
-  readonly primitiveType: PrimitiveType | null;
-
-  /**
-   * PropertyDefinition.enumType
-   */
-  readonly enumType: EnumType | null;
-
-  /**
-   * PropertyDefinition.nodeTypes
-   */
-  readonly nodeTypes: readonly NodeType[];
-
-  /**
-   * PropertyDefinition.structType
-   */
-  readonly structType: StructType | null;
-
-  /**
-   * PropertyDefinition.keyType
-   */
-  readonly keyType: Type | null;
-
-  /**
-   * PropertyDefinition.value
-   */
-  readonly value: Value | null;
-
-  /**
-   * PropertyDefinition.valueFactory
-   */
-  readonly valueFactory: ValueFactory | null;
-
-  /**
-   * PropertyDefinition.collectionConstraint
-   */
-  readonly collectionConstraint: CollectionConstraint | null;
-
-  /**
-   * PropertyDefinition.stringConstraint
-   */
-  readonly stringConstraint: StringConstraint | null;
-
-  /**
-   * PropertyDefinition.numberConstraint
-   */
-  readonly numberConstraint: NumberConstraint | null;
 
   /**
    * PropertyDefinition.edgeType
@@ -2125,11 +2020,6 @@ export class PropertyDefinition extends BuiltinDefinition {
    * PropertyDefinition.cascade
    */
   readonly cascade: CascadeAction | null;
-
-  /**
-   * Whether this Property must have a value set (in every full instance).
-   */
-  readonly isRequired: boolean;
 
   /**
    * Whether this Property is part of the object's identity.
@@ -2146,11 +2036,6 @@ export class PropertyDefinition extends BuiltinDefinition {
    * Whether this Property is read-only.
    */
   readonly isReadonly: boolean;
-
-  /**
-   * PropertyDefinition.isMain
-   */
-  readonly isMain: boolean;
 
   /**
    * PropertyDefinition.isWired
@@ -2185,8 +2070,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   constructor(options: {
     id: number;
     type: PropertyType;
-    name: string;
-    icon?: Icon | null;
+    name?: string | null;
     description?: string | null;
     object: ObjectDefinitionReference;
     originalObject: ObjectDefinitionReference;
@@ -2203,13 +2087,13 @@ export class PropertyDefinition extends BuiltinDefinition {
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
+    isRequired?: boolean | null;
+    isMain?: boolean | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
-    isRequired: boolean;
     isIdentity: boolean;
     isUnique: boolean;
     isReadonly: boolean;
-    isMain: boolean;
     isWired: boolean;
     isStored: boolean;
     isRepr: boolean;
@@ -2222,10 +2106,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     _packedCache?: PackedCache[] | null;
   }) {
     /* super */
-    super(
-      /* session */
-      options._session ?? null,
-    );
+    super(options);
 
     /* properties */
     let _id = options.id;
@@ -2238,13 +2119,8 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.type is required`);
     }
     this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`PropertyDefinition.name is required`);
-    }
+    let _name = options.name ?? null;
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
     let _object = options.object;
@@ -2262,51 +2138,10 @@ export class PropertyDefinition extends BuiltinDefinition {
       _taggings = [];
     }
     this.taggings = _taggings;
-    let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
-      _cardinality = 1 /* TypeCardinality.SCALAR */;
-    }
-    if (_cardinality === null) {
-      throw new Error(`PropertyDefinition.cardinality is required`);
-    }
-    this.cardinality = _cardinality;
-    let _scalarType = options.scalarType;
-    if (_scalarType === null) {
-      throw new Error(`PropertyDefinition.scalarType is required`);
-    }
-    this.scalarType = _scalarType;
-    let _primitiveType = options.primitiveType ?? null;
-    this.primitiveType = _primitiveType;
-    let _enumType = options.enumType ?? null;
-    this.enumType = _enumType;
-    let _nodeTypes = options.nodeTypes ?? null;
-    if (_nodeTypes === null) {
-      _nodeTypes = [];
-    }
-    this.nodeTypes = _nodeTypes;
-    let _structType = options.structType ?? null;
-    this.structType = _structType;
-    let _keyType = options.keyType ?? null;
-    this.keyType = _keyType;
-    let _value = options.value ?? null;
-    this.value = _value;
-    let _valueFactory = options.valueFactory ?? null;
-    this.valueFactory = _valueFactory;
-    let _collectionConstraint = options.collectionConstraint ?? null;
-    this.collectionConstraint = _collectionConstraint;
-    let _stringConstraint = options.stringConstraint ?? null;
-    this.stringConstraint = _stringConstraint;
-    let _numberConstraint = options.numberConstraint ?? null;
-    this.numberConstraint = _numberConstraint;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
     this.cascade = _cascade;
-    let _isRequired = options.isRequired;
-    if (_isRequired === null) {
-      throw new Error(`PropertyDefinition.isRequired is required`);
-    }
-    this.isRequired = _isRequired;
     let _isIdentity = options.isIdentity;
     if (_isIdentity === null) {
       throw new Error(`PropertyDefinition.isIdentity is required`);
@@ -2322,11 +2157,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.isReadonly is required`);
     }
     this.isReadonly = _isReadonly;
-    let _isMain = options.isMain;
-    if (_isMain === null) {
-      throw new Error(`PropertyDefinition.isMain is required`);
-    }
-    this.isMain = _isMain;
     let _isWired = options.isWired;
     if (_isWired === null) {
       throw new Error(`PropertyDefinition.isWired is required`);
@@ -2359,12 +2189,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     this.isInternal = _isInternal;
 
     /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    /* ... (already set in parent) */
   }
 
   equals(other: any): boolean {
@@ -2374,10 +2199,88 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
     if (!this.object.equals(other.object)) {
       return false;
     }
     if (!this.originalObject.equals(other.originalObject)) {
+      return false;
+    }
+    if (this.taggings.length != other.taggings.length) {
+      return false;
+    }
+    for (let i = 0; i < this.taggings.length; i++) {
+      if (!(this.taggings[i] === other.taggings[i])) {
+        return false;
+      }
+    }
+    if (!(this.edgeType === other.edgeType)) {
+      return false;
+    }
+    if (!(this.cascade === other.cascade)) {
+      return false;
+    }
+    if (!(this.isIdentity === other.isIdentity)) {
+      return false;
+    }
+    if (!(this.isUnique === other.isUnique)) {
+      return false;
+    }
+    if (!(this.isReadonly === other.isReadonly)) {
+      return false;
+    }
+    if (!(this.isWired === other.isWired)) {
+      return false;
+    }
+    if (!(this.isStored === other.isStored)) {
+      return false;
+    }
+    if (!(this.isRepr === other.isRepr)) {
+      return false;
+    }
+    if (!(this.isHash === other.isHash)) {
+      return false;
+    }
+    if (!(this.isEq === other.isEq)) {
+      return false;
+    }
+    if (!(this.isInternal === other.isInternal)) {
+      return false;
+    }
+    if (!(this.valueFactory === other.valueFactory)) {
+      return false;
+    }
+    if (
+      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
+      (this.collectionConstraint != null &&
+        !this.collectionConstraint.equals(other.collectionConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
+      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
+      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+    ) {
+      return false;
+    }
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
+    if (!(this.isMain === other.isMain)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -2415,96 +2318,22 @@ export class PropertyDefinition extends BuiltinDefinition {
     ) {
       return false;
     }
-    if (!(this.valueFactory === other.valueFactory)) {
-      return false;
-    }
-    if (
-      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
-      (this.collectionConstraint != null &&
-        !this.collectionConstraint.equals(other.collectionConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
-      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
-      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
-    ) {
-      return false;
-    }
-    if (!(this.edgeType === other.edgeType)) {
-      return false;
-    }
-    if (!(this.cascade === other.cascade)) {
-      return false;
-    }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
-    if (!(this.isIdentity === other.isIdentity)) {
-      return false;
-    }
-    if (!(this.isUnique === other.isUnique)) {
-      return false;
-    }
-    if (!(this.isReadonly === other.isReadonly)) {
-      return false;
-    }
-    if (!(this.isMain === other.isMain)) {
-      return false;
-    }
-    if (!(this.isWired === other.isWired)) {
-      return false;
-    }
-    if (!(this.isStored === other.isStored)) {
-      return false;
-    }
-    if (!(this.isRepr === other.isRepr)) {
-      return false;
-    }
-    if (!(this.isHash === other.isHash)) {
-      return false;
-    }
-    if (!(this.isEq === other.isEq)) {
-      return false;
-    }
-    if (!(this.isInternal === other.isInternal)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      if (this.name != null) {
+        propertyReprs.push(`name=${`"${this.name}"`}`);
+      }
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
+      propertyReprs.push(`isIdentity=${this.isIdentity}`);
+      propertyReprs.push(`isUnique=${this.isUnique}`);
+      propertyReprs.push(`isReadonly=${this.isReadonly}`);
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
       if (this.primitiveType != null) {
@@ -2527,18 +2356,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       if (this.value != null) {
         propertyReprs.push(`value=${this.value.repr()}`);
       }
-      if (this.valueFactory != null) {
-        propertyReprs.push(`valueFactory=${ValueFactory[this.valueFactory]}`);
-      }
-      propertyReprs.push(`isRequired=${this.isRequired}`);
-      propertyReprs.push(`isIdentity=${this.isIdentity}`);
-      propertyReprs.push(`isUnique=${this.isUnique}`);
-      propertyReprs.push(`isReadonly=${this.isReadonly}`);
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
       // @ts-expect-error(readonly) */
       this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -2552,8 +2369,53 @@ export class PropertyDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    if (this.name != null) {
+      h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
     h = (h * 31 + this.object.hash()) & 0xffffffff;
     h = (h * 31 + this.originalObject.hash()) & 0xffffffff;
+    if (this.taggings && this.taggings.length > 0) {
+      for (const _item of this.taggings) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.edgeType != null) {
+      h = (h * 31 + this.edgeType) & 0xffffffff;
+    }
+    if (this.cascade != null) {
+      h = (h * 31 + this.cascade) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isIdentity)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isHash)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isInternal)) & 0xffffffff;
+    if (this.valueFactory != null) {
+      h = (h * 31 + this.valueFactory) & 0xffffffff;
+    }
+    if (this.collectionConstraint != null) {
+      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    }
+    if (this.stringConstraint != null) {
+      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    }
+    if (this.numberConstraint != null) {
+      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    }
+    if (this.isRequired != null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isMain != null) {
+      h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
+    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType != null) {
@@ -2575,48 +2437,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
-    }
-    if (this.valueFactory != null) {
-      h = (h * 31 + this.valueFactory) & 0xffffffff;
-    }
-    if (this.collectionConstraint != null) {
-      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
-    }
-    if (this.stringConstraint != null) {
-      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
-    }
-    if (this.numberConstraint != null) {
-      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
-    }
-    if (this.edgeType != null) {
-      h = (h * 31 + this.edgeType) & 0xffffffff;
-    }
-    if (this.cascade != null) {
-      h = (h * 31 + this.cascade) & 0xffffffff;
-    }
-    h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isIdentity)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isHash)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isInternal)) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2773,12 +2593,12 @@ registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
 /**
  * Definition of a builtin Enum Option.
  */
-export class OptionDefinition extends BuiltinDefinition {
+export class OptionDefinition extends StructFrozen {
   static metatype: StructType = StructType.OPTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * OptionDefinition.id
    */
   readonly id: number;
 
@@ -2788,22 +2608,22 @@ export class OptionDefinition extends BuiltinDefinition {
   readonly type: EnumType;
 
   /**
-   * BuiltinDefinition.name
+   * OptionDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
+   * OptionDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * BuiltinDefinition.description
+   * OptionDefinition.description
    */
   readonly description: string | null;
 
   /**
-   * BuiltinDefinition.taggings
+   * OptionDefinition.taggings
    */
   readonly taggings: readonly number[];
 
@@ -2864,10 +2684,10 @@ export class OptionDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.id === other.id)) {
       return false;
     }
-    if (!(this.id === other.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -2896,8 +2716,8 @@ export class OptionDefinition extends BuiltinDefinition {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
@@ -2914,8 +2734,8 @@ export class OptionDefinition extends BuiltinDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
@@ -2948,32 +2768,27 @@ registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
 /**
  * Definition of a builtin Constant.
  */
-export class ConstantDefinition extends BuiltinDefinition {
+export class ConstantDefinition extends StructFrozen {
   static metatype: StructType = StructType.CONSTANT_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * ConstantDefinition.id
    */
   readonly id: number;
 
   /**
-   * BuiltinDefinition.name
+   * ConstantDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * ConstantDefinition.description
    */
   readonly description: string | null;
 
   /**
-   * BuiltinDefinition.taggings
+   * ConstantDefinition.taggings
    */
   readonly taggings: readonly number[];
 
@@ -2985,7 +2800,6 @@ export class ConstantDefinition extends BuiltinDefinition {
   constructor(options: {
     id: number;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
     taggings?: readonly number[];
     value: Value;
@@ -3011,8 +2825,6 @@ export class ConstantDefinition extends BuiltinDefinition {
       throw new Error(`ConstantDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
     let _taggings = options.taggings ?? null;
@@ -3039,19 +2851,10 @@ export class ConstantDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!this.value.equals(other.value)) {
-      return false;
-    }
     if (!(this.id === other.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -3064,6 +2867,9 @@ export class ConstantDefinition extends BuiltinDefinition {
       if (!(this.taggings[i] === other.taggings[i])) {
         return false;
       }
+    }
+    if (!this.value.equals(other.value)) {
+      return false;
     }
     return true;
   }
@@ -3088,12 +2894,8 @@ export class ConstantDefinition extends BuiltinDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.value.hash()) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
@@ -3102,6 +2904,7 @@ export class ConstantDefinition extends BuiltinDefinition {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
+    h = (h * 31 + this.value.hash()) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -3122,41 +2925,29 @@ registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
 /**
  * Definition of a builtin Tag to associate builtin definitions to.
  */
-export class TagDefinition extends BuiltinDefinition {
+export class TagDefinition extends StructFrozen {
   static metatype: StructType = StructType.TAG_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * TagDefinition.id
    */
   readonly id: number;
 
   /**
-   * BuiltinDefinition.name
+   * TagDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * TagDefinition.description
    */
   readonly description: string | null;
-
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
 
   constructor(options: {
     id: number;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -3179,15 +2970,8 @@ export class TagDefinition extends BuiltinDefinition {
       throw new Error(`TagDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -3208,22 +2992,8 @@ export class TagDefinition extends BuiltinDefinition {
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.description === other.description)) {
       return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
     }
     return true;
   }
@@ -3250,16 +3020,8 @@ export class TagDefinition extends BuiltinDefinition {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -3281,12 +3043,12 @@ registerStructClass(StructType.TAG_DEFINITION, TagDefinition);
 /**
  * Definition of a builtin Index.
  */
-export class IndexDefinition extends BuiltinDefinition {
+export class IndexDefinition extends StructFrozen {
   static metatype: StructType = StructType.INDEX_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * IndexDefinition.id
    */
   readonly id: number;
 
@@ -3296,17 +3058,12 @@ export class IndexDefinition extends BuiltinDefinition {
   readonly type: IndexType;
 
   /**
-   * BuiltinDefinition.name
+   * IndexDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * IndexDefinition.description
    */
   readonly description: string | null;
 
@@ -3320,20 +3077,13 @@ export class IndexDefinition extends BuiltinDefinition {
    */
   readonly cover: readonly PropertyReference[];
 
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
-
   constructor(options: {
     id: number;
     type: IndexType;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyReference[];
     cover?: readonly PropertyReference[];
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -3361,8 +3111,6 @@ export class IndexDefinition extends BuiltinDefinition {
       throw new Error(`IndexDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
@@ -3375,11 +3123,6 @@ export class IndexDefinition extends BuiltinDefinition {
       _cover = [];
     }
     this.cover = _cover;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -3394,7 +3137,16 @@ export class IndexDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length != other.properties.length) {
@@ -3413,37 +3165,14 @@ export class IndexDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${IndexType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${IndexType[this.type]}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
@@ -3460,7 +3189,12 @@ export class IndexDefinition extends BuiltinDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -3469,19 +3203,6 @@ export class IndexDefinition extends BuiltinDefinition {
     if (this.cover && this.cover.length > 0) {
       for (const _item of this.cover) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
     // @ts-expect-error(readonly)
@@ -3504,12 +3225,12 @@ registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
 /**
  * Definition of a builtin Constraint.
  */
-export class ConstraintDefinition extends BuiltinDefinition {
+export class ConstraintDefinition extends StructFrozen {
   static metatype: StructType = StructType.CONSTRAINT_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * ConstraintDefinition.id
    */
   readonly id: number;
 
@@ -3519,17 +3240,12 @@ export class ConstraintDefinition extends BuiltinDefinition {
   readonly type: ConstraintType;
 
   /**
-   * BuiltinDefinition.name
+   * ConstraintDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * ConstraintDefinition.description
    */
   readonly description: string | null;
 
@@ -3538,19 +3254,12 @@ export class ConstraintDefinition extends BuiltinDefinition {
    */
   readonly properties: readonly PropertyReference[];
 
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
-
   constructor(options: {
     id: number;
     type: ConstraintType;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyReference[];
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -3578,8 +3287,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
       throw new Error(`ConstraintDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
     let _properties = options.properties ?? null;
@@ -3587,11 +3294,6 @@ export class ConstraintDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -3606,7 +3308,16 @@ export class ConstraintDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length != other.properties.length) {
@@ -3617,37 +3328,14 @@ export class ConstraintDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${ConstraintType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${ConstraintType[this.type]}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
@@ -3664,23 +3352,15 @@ export class ConstraintDefinition extends BuiltinDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     // @ts-expect-error(readonly)
@@ -3703,41 +3383,29 @@ registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
 /**
  * Definition of a builtin Permission for a builtin Node.
  */
-export class PermissionDefinition extends BuiltinDefinition {
+export class PermissionDefinition extends StructFrozen {
   static metatype: StructType = StructType.PERMISSION_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * PermissionDefinition.id
    */
   readonly id: number;
 
   /**
-   * BuiltinDefinition.name
+   * PermissionDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * PermissionDefinition.description
    */
   readonly description: string | null;
-
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
 
   constructor(options: {
     id: number;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -3760,15 +3428,8 @@ export class PermissionDefinition extends BuiltinDefinition {
       throw new Error(`PermissionDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -3789,22 +3450,8 @@ export class PermissionDefinition extends BuiltinDefinition {
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.description === other.description)) {
       return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
     }
     return true;
   }
@@ -3831,16 +3478,8 @@ export class PermissionDefinition extends BuiltinDefinition {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
     }
     // @ts-expect-error(readonly)
     this._hash = h;

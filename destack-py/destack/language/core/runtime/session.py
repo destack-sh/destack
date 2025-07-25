@@ -18,8 +18,8 @@ from ..builtin import (
     Event,
     NodeReference,
     PropertyDeclaration,
+    to_value,
 )
-from ..common import to_value
 from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle
 

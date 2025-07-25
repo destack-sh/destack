@@ -23,7 +23,16 @@ export class ActionDefinition extends MethodDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length != other.properties.length) {
@@ -53,29 +62,6 @@ export class ActionDefinition extends MethodDefinition {
         return false;
       }
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
-    }
     return true;
   }
 
@@ -83,7 +69,6 @@ export class ActionDefinition extends MethodDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
@@ -99,7 +84,12 @@ export class ActionDefinition extends MethodDefinition {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -114,19 +104,6 @@ export class ActionDefinition extends MethodDefinition {
     if (this.languages && this.languages.length > 0) {
       for (const _item of this.languages) {
         h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
     // @ts-expect-error(readonly)

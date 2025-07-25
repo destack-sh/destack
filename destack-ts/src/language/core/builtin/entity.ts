@@ -3,9 +3,9 @@ import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/co
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { hasTrait, Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import {
   NODE_CLASS_BY_TYPE,

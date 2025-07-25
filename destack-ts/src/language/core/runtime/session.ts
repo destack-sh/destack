@@ -8,7 +8,7 @@ import type {
 } from "@destack/language";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
-import { toValue, type Value } from "@destack/language/core/common/value";
+import { toValue, type Value } from "@destack/language/core/builtin/value";
 import type { Graph } from "@destack/language/core/runtime/graph";
 import { type Oracle, WORLD_ORACLE } from "@destack/language/core/runtime/oracle";
 import { Casing, toCasing } from "@destack/utils";

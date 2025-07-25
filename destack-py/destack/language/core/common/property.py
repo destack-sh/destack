@@ -2,25 +2,23 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from ..builtin import (
     CascadeAction,
+    CollectionConstraint,
     EdgeType,
     Entity,
     EnumType,
     NodeType,
-    PropertyType,
-    builtin_node,
-    builtin_property,
-)
-from .query import Condition, ConditionalType, Sort, SortType
-from .type import (
-    CollectionConstraint,
     NumberConstraint,
     PrimitiveType,
+    PropertyType,
     ScalarType,
     StringConstraint,
     StructType,
     TypeCardinality,
     ValueFactory,
+    builtin_node,
+    builtin_property,
 )
+from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
     from destack.language import (

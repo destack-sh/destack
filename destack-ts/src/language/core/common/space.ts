@@ -15,9 +15,9 @@ import type {
   IsOwnable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import { BranchType, SnapshotType } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -40,7 +40,7 @@ export abstract class Universe extends Entity {
   /**
    * The current version of Destack.
    */
-  static readonly VERSION: string = "2025.07.24.2";
+  static readonly VERSION: string = "2025.07.25.0";
 
   /**
    * The float epsilon used for floating point comparisons.

@@ -1,15 +1,14 @@
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
-import { BuiltinDefinition } from "@destack/language/core/builtin/definition";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Icon } from "@destack/language/core/common/icon";
+import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import type { Value } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -39,14 +38,9 @@ registerEnumClass(EnumType.MIGRATION_TYPE, MigrationType);
 /**
  * Definition of a builtin Migration.
  */
-export class MigrationDefinition extends BuiltinDefinition {
+export class MigrationDefinition extends StructFrozen {
   static metatype: StructType = StructType.MIGRATION_DEFINITION;
   static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
 
   /**
    * MigrationDefinition.type
@@ -54,32 +48,19 @@ export class MigrationDefinition extends BuiltinDefinition {
   readonly type: MigrationType;
 
   /**
-   * BuiltinDefinition.name
+   * MigrationDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * MigrationDefinition.description
    */
   readonly description: string | null;
 
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
-
   constructor(options: {
-    id: number;
     type: MigrationType;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -92,11 +73,6 @@ export class MigrationDefinition extends BuiltinDefinition {
     );
 
     /* properties */
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MigrationDefinition.id is required`);
-    }
-    this.id = _id;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`MigrationDefinition.type is required`);
@@ -107,15 +83,8 @@ export class MigrationDefinition extends BuiltinDefinition {
       throw new Error(`MigrationDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -133,28 +102,11 @@ export class MigrationDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.id === other.id)) {
-      return false;
-    }
     if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
       return false;
     }
     if (!(this.description === other.description)) {
       return false;
-    }
-    if (this.taggings.length != other.taggings.length) {
-      return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
     }
     return true;
   }
@@ -163,7 +115,6 @@ export class MigrationDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${MigrationType[this.type]}`);
-      propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
@@ -181,18 +132,9 @@ export class MigrationDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -214,41 +156,35 @@ registerStructClass(StructType.MIGRATION_DEFINITION, MigrationDefinition);
 /**
  * Definition of a builtin MigrationOperation.
  */
-export class MigrationOperationDefinition extends BuiltinDefinition {
+export class MigrationOperationDefinition extends StructFrozen {
   static metatype: StructType = StructType.MIGRATION_OPERATION_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * BuiltinDefinition.id
+   * MigrationOperationDefinition.id
    */
   readonly id: number;
 
   /**
-   * BuiltinDefinition.name
+   * MigrationOperationDefinition.type
+   */
+  readonly type: MigrationType;
+
+  /**
+   * MigrationOperationDefinition.name
    */
   readonly name: string;
 
   /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
+   * MigrationOperationDefinition.description
    */
   readonly description: string | null;
 
-  /**
-   * BuiltinDefinition.taggings
-   */
-  readonly taggings: readonly number[];
-
   constructor(options: {
     id: number;
+    type: MigrationType;
     name: string;
-    icon?: Icon | null;
     description?: string | null;
-    taggings?: readonly number[];
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -266,20 +202,18 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
       throw new Error(`MigrationOperationDefinition.id is required`);
     }
     this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`MigrationOperationDefinition.type is required`);
+    }
+    this.type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`MigrationOperationDefinition.name is required`);
     }
     this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _taggings = options.taggings ?? null;
-    if (_taggings === null) {
-      _taggings = [];
-    }
-    this.taggings = _taggings;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -300,22 +234,11 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
     if (!(this.description === other.description)) {
       return false;
     }
-    if (this.taggings.length != other.taggings.length) {
+    if (!(this.type === other.type)) {
       return false;
-    }
-    for (let i = 0; i < this.taggings.length; i++) {
-      if (!(this.taggings[i] === other.taggings[i])) {
-        return false;
-      }
     }
     return true;
   }
@@ -328,6 +251,7 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
       if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
+      propertyReprs.push(`type=${MigrationType[this.type]}`);
       // @ts-expect-error(readonly) */
       this._repr = `<MigrationOperationDefinition ${propertyReprs.join(" ")}>`;
     }
@@ -342,17 +266,10 @@ export class MigrationOperationDefinition extends BuiltinDefinition {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
     if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
-    if (this.taggings && this.taggings.length > 0) {
-      for (const _item of this.taggings) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
+    h = (h * 31 + this.type) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -663,8 +580,24 @@ export class Migration extends Entity {
   }
   _type: MigrationType;
 
+  /**
+   * Migration.description
+   */
+  /**
+   * Migration.description
+   */
+  get description(): string | null {
+    return this._description;
+  }
+  set description(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["description"];
+    this._session.updateSetProperty(this, prop, value);
+    this._description = value;
+  }
+  _description: string | null;
+
   constructor(options: {
-    id?: string;
+    id: number;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
@@ -689,6 +622,7 @@ export class Migration extends Entity {
     source?: Script | NodeReference | null;
     key?: string | null;
     type: MigrationType;
+    description?: string | null;
     _session?: Session | null;
   }) {
     /* super */
@@ -824,6 +758,8 @@ export class Migration extends Entity {
       throw new Error(`Migration.type is required`);
     }
     this._type = _type;
+    let _description = options.description ?? null;
+    this._description = _description;
 
     /* identity */
     if (options.id == null) {
@@ -861,7 +797,13 @@ export class Migration extends Entity {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this._id === other._id)) {
+      return false;
+    }
     if (!(this._type === other._type)) {
+      return false;
+    }
+    if (!(this._description === other._description)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -905,7 +847,11 @@ export class Migration extends Entity {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this._id)) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
+    if (this._description != null) {
+      h = (h * 31 + hashString(this._description)) & 0xffffffff;
+    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -942,7 +888,6 @@ export class Migration extends Entity {
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -986,7 +931,11 @@ export class Migration extends Entity {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`id=${this.id}`);
     propertyReprs.push(`type=${MigrationType[this.type]}`);
+    if (this.description != null) {
+      propertyReprs.push(`description=${`"${this.description}"`}`);
+    }
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }

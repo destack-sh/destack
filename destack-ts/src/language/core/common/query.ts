@@ -15,10 +15,10 @@ import type {
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { Type } from "@destack/language/core/builtin/type";
+import type { Value } from "@destack/language/core/builtin/value";
+import { toValue } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import { Type } from "@destack/language/core/common/type";
-import type { Value } from "@destack/language/core/common/value";
-import { toValue } from "@destack/language/core/common/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   registerEnumClass,

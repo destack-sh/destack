@@ -11,7 +11,7 @@ import {
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Value } from "@destack/language/core/common/value";
+import type { Value } from "@destack/language/core/builtin/value";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
@@ -510,89 +510,53 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
- * A Type in the type system.
+ * A basic Type in the type system.
  */
-export class Type extends StructFrozen {
-  static metatype: StructType = StructType.TYPE;
+export class BasicType extends StructFrozen {
+  static metatype: StructType = StructType.BASIC_TYPE;
   static __isFrozen__: boolean = true;
 
   /**
-   * The name of this Type when it was used.
-   */
-  readonly name: string | null;
-
-  /**
-   * Type.cardinality
+   * BasicType.cardinality
    */
   readonly cardinality: TypeCardinality;
 
   /**
-   * Type.scalarType
+   * BasicType.scalarType
    */
   readonly scalarType: ScalarType;
 
   /**
-   * Type.primitiveType
+   * BasicType.primitiveType
    */
   readonly primitiveType: PrimitiveType | null;
 
   /**
-   * Type.enumType
+   * BasicType.enumType
    */
   readonly enumType: EnumType | null;
 
   /**
-   * Type.nodeTypes
+   * BasicType.nodeTypes
    */
   readonly nodeTypes: readonly NodeType[];
 
   /**
-   * Type.structType
+   * BasicType.structType
    */
   readonly structType: StructType | null;
 
   /**
-   * Type.keyType
+   * BasicType.keyType
    */
   readonly keyType: Type | null;
 
   /**
-   * Type.value
+   * BasicType.value
    */
   readonly value: Value | null;
 
-  /**
-   * Type.valueFactory
-   */
-  readonly valueFactory: ValueFactory | null;
-
-  /**
-   * Type.collectionConstraint
-   */
-  readonly collectionConstraint: CollectionConstraint | null;
-
-  /**
-   * Type.stringConstraint
-   */
-  readonly stringConstraint: StringConstraint | null;
-
-  /**
-   * Type.numberConstraint
-   */
-  readonly numberConstraint: NumberConstraint | null;
-
-  /**
-   * Type.isRequired
-   */
-  readonly isRequired: boolean | null;
-
-  /**
-   * Type.isMain
-   */
-  readonly isMain: boolean | null;
-
   constructor(options: {
-    name?: string | null;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
@@ -601,12 +565,6 @@ export class Type extends StructFrozen {
     structType?: StructType | null;
     keyType?: Type | null;
     value?: Value | null;
-    valueFactory?: ValueFactory | null;
-    collectionConstraint?: CollectionConstraint | null;
-    stringConstraint?: StringConstraint | null;
-    numberConstraint?: NumberConstraint | null;
-    isRequired?: boolean | null;
-    isMain?: boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -619,19 +577,17 @@ export class Type extends StructFrozen {
     );
 
     /* properties */
-    let _name = options.name ?? null;
-    this.name = _name;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
     }
     if (_cardinality === null) {
-      throw new Error(`Type.cardinality is required`);
+      throw new Error(`BasicType.cardinality is required`);
     }
     this.cardinality = _cardinality;
     let _scalarType = options.scalarType;
     if (_scalarType === null) {
-      throw new Error(`Type.scalarType is required`);
+      throw new Error(`BasicType.scalarType is required`);
     }
     this.scalarType = _scalarType;
     let _primitiveType = options.primitiveType ?? null;
@@ -649,18 +605,6 @@ export class Type extends StructFrozen {
     this.keyType = _keyType;
     let _value = options.value ?? null;
     this.value = _value;
-    let _valueFactory = options.valueFactory ?? null;
-    this.valueFactory = _valueFactory;
-    let _collectionConstraint = options.collectionConstraint ?? null;
-    this.collectionConstraint = _collectionConstraint;
-    let _stringConstraint = options.stringConstraint ?? null;
-    this.stringConstraint = _stringConstraint;
-    let _numberConstraint = options.numberConstraint ?? null;
-    this.numberConstraint = _numberConstraint;
-    let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
-    let _isMain = options.isMain ?? null;
-    this.isMain = _isMain;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -673,9 +617,6 @@ export class Type extends StructFrozen {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -713,43 +654,12 @@ export class Type extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.valueFactory === other.valueFactory)) {
-      return false;
-    }
-    if (
-      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
-      (this.collectionConstraint != null &&
-        !this.collectionConstraint.equals(other.collectionConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
-      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
-      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
-    ) {
-      return false;
-    }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
-    if (!(this.isMain === other.isMain)) {
-      return false;
-    }
     return true;
   }
 
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.name != null) {
-        propertyReprs.push(`name=${`"${this.name}"`}`);
-      }
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
       if (this.primitiveType != null) {
@@ -769,8 +679,11 @@ export class Type extends StructFrozen {
       if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
+      if (this.value != null) {
+        propertyReprs.push(`value=${this.value.repr()}`);
+      }
       // @ts-expect-error(readonly) */
-      this._repr = `<Type ${propertyReprs.join(" ")}>`;
+      this._repr = `<BasicType ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -781,9 +694,6 @@ export class Type extends StructFrozen {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.name != null) {
-      h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType != null) {
@@ -806,24 +716,6 @@ export class Type extends StructFrozen {
     if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.valueFactory != null) {
-      h = (h * 31 + this.valueFactory) & 0xffffffff;
-    }
-    if (this.collectionConstraint != null) {
-      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
-    }
-    if (this.stringConstraint != null) {
-      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
-    }
-    if (this.numberConstraint != null) {
-      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
-    }
-    if (this.isRequired != null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    }
-    if (this.isMain != null) {
-      h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
-    }
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
@@ -837,7 +729,7 @@ export class Type extends StructFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.TYPE, Type);
+registerStructClass(StructType.BASIC_TYPE, BasicType);
 /* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
@@ -876,3 +768,245 @@ export enum NumberFormat {
 }
 registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
 /* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
+/**
+ * A full Type in the type system.
+ */
+export class Type extends BasicType {
+  static metatype: StructType = StructType.TYPE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Type.valueFactory
+   */
+  readonly valueFactory: ValueFactory | null;
+
+  /**
+   * Type.collectionConstraint
+   */
+  readonly collectionConstraint: CollectionConstraint | null;
+
+  /**
+   * Type.stringConstraint
+   */
+  readonly stringConstraint: StringConstraint | null;
+
+  /**
+   * Type.numberConstraint
+   */
+  readonly numberConstraint: NumberConstraint | null;
+
+  /**
+   * Type.isRequired
+   */
+  readonly isRequired: boolean | null;
+
+  /**
+   * Type.isMain
+   */
+  readonly isMain: boolean | null;
+
+  constructor(options: {
+    cardinality?: TypeCardinality;
+    scalarType: ScalarType;
+    primitiveType?: PrimitiveType | null;
+    enumType?: EnumType | null;
+    nodeTypes?: readonly NodeType[];
+    structType?: StructType | null;
+    keyType?: Type | null;
+    value?: Value | null;
+    valueFactory?: ValueFactory | null;
+    collectionConstraint?: CollectionConstraint | null;
+    stringConstraint?: StringConstraint | null;
+    numberConstraint?: NumberConstraint | null;
+    isRequired?: boolean | null;
+    isMain?: boolean | null;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _packedCache?: PackedCache[] | null;
+  }) {
+    /* super */
+    super(options);
+
+    /* properties */
+    let _valueFactory = options.valueFactory ?? null;
+    this.valueFactory = _valueFactory;
+    let _collectionConstraint = options.collectionConstraint ?? null;
+    this.collectionConstraint = _collectionConstraint;
+    let _stringConstraint = options.stringConstraint ?? null;
+    this.stringConstraint = _stringConstraint;
+    let _numberConstraint = options.numberConstraint ?? null;
+    this.numberConstraint = _numberConstraint;
+    let _isRequired = options.isRequired ?? null;
+    this.isRequired = _isRequired;
+    let _isMain = options.isMain ?? null;
+    this.isMain = _isMain;
+
+    /* identity */
+    /* ... (already set in parent) */
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.valueFactory === other.valueFactory)) {
+      return false;
+    }
+    if (
+      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
+      (this.collectionConstraint != null &&
+        !this.collectionConstraint.equals(other.collectionConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
+      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
+      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+    ) {
+      return false;
+    }
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
+    if (!(this.isMain === other.isMain)) {
+      return false;
+    }
+    if (!(this.cardinality === other.cardinality)) {
+      return false;
+    }
+    if (!(this.scalarType === other.scalarType)) {
+      return false;
+    }
+    if (!(this.primitiveType === other.primitiveType)) {
+      return false;
+    }
+    if (!(this.enumType === other.enumType)) {
+      return false;
+    }
+    if (this.nodeTypes.length != other.nodeTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodeTypes.length; i++) {
+      if (!(this.nodeTypes[i] === other.nodeTypes[i])) {
+        return false;
+      }
+    }
+    if (!(this.structType === other.structType)) {
+      return false;
+    }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.primitiveType != null) {
+        propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
+      }
+      if (this.enumType != null) {
+        propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
+      }
+      if (this.nodeTypes.length > 0) {
+        propertyReprs.push(
+          `nodeTypes=${this.nodeTypes.map((_item) => NodeType[_item]).join(", ")}`,
+        );
+      }
+      if (this.structType != null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.keyType != null) {
+        propertyReprs.push(`keyType=${this.keyType.repr()}`);
+      }
+      if (this.value != null) {
+        propertyReprs.push(`value=${this.value.repr()}`);
+      }
+      // @ts-expect-error(readonly) */
+      this._repr = `<Type ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.valueFactory != null) {
+      h = (h * 31 + this.valueFactory) & 0xffffffff;
+    }
+    if (this.collectionConstraint != null) {
+      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    }
+    if (this.stringConstraint != null) {
+      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    }
+    if (this.numberConstraint != null) {
+      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    }
+    if (this.isRequired != null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isMain != null) {
+      h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
+    }
+    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.primitiveType != null) {
+      h = (h * 31 + this.primitiveType) & 0xffffffff;
+    }
+    if (this.enumType != null) {
+      h = (h * 31 + this.enumType) & 0xffffffff;
+    }
+    if (this.nodeTypes && this.nodeTypes.length > 0) {
+      for (const _item of this.nodeTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.structType != null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.keyType != null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.value != null) {
+      h = (h * 31 + this.value.hash()) & 0xffffffff;
+    }
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.TYPE, Type);
+/* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */

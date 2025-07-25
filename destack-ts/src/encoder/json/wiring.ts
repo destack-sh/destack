@@ -9,8 +9,8 @@ import {
 } from "@destack/language/core/builtin/common";
 import type { PropertyDefinition } from "@destack/language/core/builtin/definition";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { Type } from "@destack/language/core/builtin/type";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import type { Type } from "@destack/language/core/common/type";
 import type { Session } from "@destack/language/core/runtime/session";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {

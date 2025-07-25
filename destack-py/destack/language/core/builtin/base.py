@@ -3,7 +3,6 @@ from typing import (
     Optional,
 )
 
-from .common import ResourceStatus
 from .const import UNSET
 from .node import NodeType, builtin_node
 from .property import (
@@ -64,7 +63,6 @@ class Resource(
     The lifecycle of a Resource may be managed by some Provisioner (Service).
     """
 
-    status: Optional[ResourceStatus] = builtin_property(110)
     region: Optional["Region"] = builtin_property(111)
 
 

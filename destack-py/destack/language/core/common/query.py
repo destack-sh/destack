@@ -14,12 +14,13 @@ from ..builtin import (
     StructType,
     Trait,
     TypeCardinality,
+    Value,
     ValueFactory,
     builtin_enum,
     builtin_property,
     builtin_struct,
+    to_value,
 )
-from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -119,8 +120,6 @@ class Condition(StructFrozen):
         type: ConditionalType = ConditionalType.EQUALS,
         value: Any = None,
     ) -> "Condition":
-        from .value import to_value
-
         left = Expression.of(attribute)
         if value is not None:
             value_type = attribute.to_type()
