@@ -1,6 +1,5 @@
 import type {
   EnumClass,
-  Type,
   EnumType,
   NodeClass,
   NodeDefinitionReference,
@@ -9,6 +8,7 @@ import type {
   StructType,
   TraitClass,
   TraitType,
+  Type,
 } from "@destack/language";
 
 // basic class/type mappings

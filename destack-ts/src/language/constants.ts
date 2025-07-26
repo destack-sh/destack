@@ -1,6 +1,6 @@
 // biome-ignore-all lint assist format: generated
 
-import { Client, Entity, NodeReference, Space, Universe } from '@destack/language';
+import { Client, Entity, EnumDefinition, NodeDefinition, NodeReference, Space, StructDefinition, TraitDefinition, Universe } from '@destack/language';
 
 let loaded = false;
 

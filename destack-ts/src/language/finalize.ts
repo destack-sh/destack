@@ -8,11 +8,11 @@ import {
   NodeDefinitionReference,
   NodeType,
   ScalarType,
-  Type,
   type StructClass,
   type StructDefinition,
   StructType,
   TraitType,
+  Type,
   TypeCardinality,
   Universe,
 } from "@destack/language";

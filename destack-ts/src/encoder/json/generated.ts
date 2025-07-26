@@ -392,6 +392,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Tag {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -535,6 +536,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Tagging {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -686,6 +688,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): CustomEvent {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -971,6 +974,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Permission {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -1123,6 +1127,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Method {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
@@ -1292,6 +1297,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Action {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
@@ -1449,6 +1455,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): CustomEnum {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -1594,6 +1601,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): CustomOption {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectJson["parent"];
@@ -1742,7 +1750,9 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Index {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
       for (const item of objectJson["properties"]) {
         unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
@@ -1891,7 +1901,9 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Constraint {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
       for (const item of objectJson["properties"]) {
         unpackedProperties.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
@@ -2038,6 +2050,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Migration {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
@@ -2179,6 +2192,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): MigrationOperation {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -2336,6 +2350,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): CustomProperty {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _CheckedType = STRUCT_CLASS_BY_TYPE[102] as typeof CheckedType;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
@@ -2503,6 +2518,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Space {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const handlePtrValue = objectJson["handle"];
       const unpackedHandlePtr =
@@ -2656,6 +2672,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): CustomStruct {
       const _StructDefinitionReference =
         STRUCT_CLASS_BY_TYPE[16] as typeof StructDefinitionReference;
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -2809,6 +2826,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Branch {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -2949,6 +2967,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Snapshot {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -3389,6 +3408,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Entitlement {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const expiresAtValue = objectJson["expiresAt"];
       const unpackedExpiresAt =
@@ -3853,6 +3873,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Invite {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const rolePtrValue = objectJson["role"];
       const unpackedRolePtr =
@@ -4164,6 +4185,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Membership {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const rolePtrValue = objectJson["role"];
       const unpackedRolePtr =
@@ -4464,6 +4486,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Role {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -4908,6 +4931,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Sanction {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const expiresAtValue = objectJson["expiresAt"];
       const unpackedExpiresAt =
@@ -5078,6 +5102,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): ColorStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const hueValue = objectJson["hue"];
@@ -5253,6 +5278,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): BorderStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
@@ -5422,8 +5448,10 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): GradientStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
+      const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const angleValue = objectJson["angle"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
@@ -5596,6 +5624,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): FillStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
@@ -5784,6 +5813,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): FontStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -5961,6 +5991,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Palette {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -6120,6 +6151,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): ShadowStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
@@ -6290,6 +6322,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): StrokeStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _StrokeCap = STRUCT_CLASS_BY_TYPE[2101101] as typeof StrokeCap;
       const startValue = objectJson["start"];
@@ -6444,6 +6477,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Theme {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -6608,6 +6642,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): TransitionStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const delayValue = objectJson["delay"];
       const unpackedDelay = delayValue != undefined ? Number(delayValue) : undefined;
@@ -6816,6 +6851,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): EffectStyle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -7064,6 +7100,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): File {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -7261,6 +7298,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Environment {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectJson["parent"];
@@ -8244,6 +8282,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): ArrowShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8451,6 +8490,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): EllipseShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8656,6 +8696,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): LineShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8866,6 +8907,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): PathShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -9079,6 +9121,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): PolygonShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -9293,6 +9336,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): RectangleShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -9500,6 +9544,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Database {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -9678,6 +9723,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Machine {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const externalNameValue = objectJson["externalName"];
       const unpackedExternalName = externalNameValue != undefined ? externalNameValue : undefined;
@@ -12073,6 +12119,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Script {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -12214,6 +12261,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Service {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -12720,6 +12768,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Timer {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Schedule = STRUCT_CLASS_BY_TYPE[700001] as typeof Schedule;
       const scheduleValue = objectJson["schedule"];
@@ -12883,6 +12932,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Trigger {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
@@ -13052,6 +13102,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): GaugeMetric {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -13269,6 +13320,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): CounterMetric {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -13486,6 +13538,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): HistogramMetric {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -13710,6 +13763,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Layer {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
@@ -13946,6 +14000,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): FrameView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14313,6 +14368,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): LabelView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14656,6 +14712,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): NumberInputView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14957,6 +15014,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): SliderInputView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -15282,6 +15340,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): SplitView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -15628,6 +15687,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): TextView {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
@@ -15883,6 +15943,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Scene {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const rootViewPtrValue = objectJson["rootView"];
@@ -16031,6 +16092,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Stage {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -16168,6 +16230,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Follow {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -16886,6 +16949,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Notification {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectJson["text"];
@@ -17031,6 +17095,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Reaction {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -17391,6 +17456,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Star {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -17754,6 +17820,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Folder {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectJson["parent"];
@@ -17937,6 +18004,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Client {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const machinePtrValue = objectJson["machine"];
       const unpackedMachinePtr =
@@ -18120,6 +18188,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Handle {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -18263,6 +18332,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Organization {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -18409,6 +18479,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Team {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -18565,6 +18636,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): User {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectJson["parent"];
       const unpackedParentPtr =
@@ -19473,6 +19545,13 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): NodeDefinition {
+      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
+      const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition;
+      const _IndexDefinition = STRUCT_CLASS_BY_TYPE[30100] as typeof IndexDefinition;
+      const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[30200] as typeof ConstraintDefinition;
+      const _MethodDefinition = STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition;
+      const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
+      const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
@@ -19695,6 +19774,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): TraitDefinition {
+      const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
@@ -19837,6 +19917,11 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): StructDefinition {
+      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
+      const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition;
+      const _TagDefinition = STRUCT_CLASS_BY_TYPE[21] as typeof TagDefinition;
+      const _MethodDefinition = STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition;
+      const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
@@ -19948,6 +20033,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): EnumDefinition {
+      const _OptionDefinition = STRUCT_CLASS_BY_TYPE[20] as typeof OptionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectJson["icon"];
       const unpackedIcon =
@@ -20367,6 +20453,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): IndexDefinition {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20411,6 +20498,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): ConstraintDefinition {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20488,6 +20576,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): MethodDefinition {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20549,6 +20638,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): ActionDefinition {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectJson["description"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20896,6 +20986,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Select {
+      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedAttributes: any[] = [];
       for (const item of objectJson["attributes"]) {
         unpackedAttributes.push(_PropertyReference.unpack(1, item, _session) as PropertyReference);
@@ -20989,10 +21080,13 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Query {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
+      const _Expression = STRUCT_CLASS_BY_TYPE[200] as typeof Expression;
       const _Join = STRUCT_CLASS_BY_TYPE[202] as typeof Join;
       const _Aggregation = STRUCT_CLASS_BY_TYPE[203] as typeof Aggregation;
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
+      const _Sort = STRUCT_CLASS_BY_TYPE[205] as typeof Sort;
       const _Select = STRUCT_CLASS_BY_TYPE[206] as typeof Select;
+      const _Query = STRUCT_CLASS_BY_TYPE[300] as typeof Query;
       const unpackedSubqueries: any[] = [];
       for (const item of objectJson["subqueries"]) {
         unpackedSubqueries.push(_Query.unpack(1, item, _session) as Query);
@@ -21158,6 +21252,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Text {
+      const _TextSpan = STRUCT_CLASS_BY_TYPE[400021] as typeof TextSpan;
       const unpackedSpans: any[] = [];
       for (const item of objectJson["spans"]) {
         unpackedSpans.push(_TextSpan.unpack(1, item, _session) as TextSpan);
@@ -21337,6 +21432,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Gradient {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
@@ -21713,6 +21809,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): StrokePath {
+      const _StrokePoint = STRUCT_CLASS_BY_TYPE[2101103] as typeof StrokePoint;
       const unpackedPoints: any[] = [];
       for (const item of objectJson["points"]) {
         unpackedPoints.push(_StrokePoint.unpack(1, item, _session) as StrokePoint);
@@ -22036,6 +22133,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Path2D {
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
@@ -22071,6 +22169,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Polygon2D {
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
