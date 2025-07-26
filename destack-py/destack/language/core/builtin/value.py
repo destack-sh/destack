@@ -7,7 +7,7 @@ from .common import Cson, Encoding
 from .const import ENCODERS, active_session
 from .property import builtin_property, builtin_property_runtime
 from .struct import StructFrozen, StructType, builtin_struct
-from .type import BasicType, ScalarType, Type, TypeCardinality
+from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
     pass
@@ -27,7 +27,7 @@ class Value(StructFrozen):
     Values are used to represent any generic or user-provided data.
     """
 
-    type: BasicType = builtin_property(100, is_repr=True)
+    type: Type = builtin_property(100, is_repr=True)
     # nocheckin: Value.value should be KOMPAKT
     value: Cson | None = builtin_property(110, default=None)
 
@@ -63,7 +63,7 @@ class Value(StructFrozen):
             if value_unpacked is None:
                 raise ValueError("cannot infer type for None")
             type = Type.infer(value_unpacked, node_as_value=node_as_value)
-            if is_required:
+            if is_required and not type.is_required:
                 type = type.clone(is_required=True)
         # coerce nodes into node references
         if type.scalar_type == ScalarType.NODE_REFERENCE:

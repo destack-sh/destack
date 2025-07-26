@@ -3,7 +3,6 @@ from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language.core import (
-    BasicType,
     BuiltinObject,
     Cson,
     Encoding,
@@ -11,6 +10,7 @@ from destack.language.core import (
     NodeType,
     PrimitiveType,
     ScalarType,
+    Type,
     TypeCardinality,
 )
 from destack.language.registry import (
@@ -35,7 +35,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def pack_cson(type: BasicType, value: Any) -> Cson:
+def pack_cson(type: Type, value: Any) -> Cson:
     """Pack a generic typed value to a CSON object."""
 
     # scalar
@@ -78,7 +78,7 @@ def pack_cson(type: BasicType, value: Any) -> Cson:
         assert_never(type.cardinality)
 
 
-def unpack_cson(type: BasicType, value: Cson, session: "Session | None") -> Any:
+def unpack_cson(type: Type, value: Cson, session: "Session | None") -> Any:
     """Unpack a CSON object to a generic typed value."""
 
     # scalar
@@ -122,7 +122,7 @@ def unpack_cson(type: BasicType, value: Cson, session: "Session | None") -> Any:
         assert_never(type.cardinality)
 
 
-def _pack_scalar_cson(type: BasicType, value: Any) -> Cson:
+def _pack_scalar_cson(type: Type, value: Any) -> Cson:
     """Pack a scalar value to CSON."""
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
@@ -189,7 +189,7 @@ def _pack_scalar_cson(type: BasicType, value: Any) -> Cson:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_cson(type: BasicType, value: Cson, session: "Session | None") -> Any:
+def _unpack_scalar_cson(type: Type, value: Cson, session: "Session | None") -> Any:
     """Unpack a scalar value from CSON."""
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:

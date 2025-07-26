@@ -1,7 +1,6 @@
 from typing import Any, ClassVar, override
 
 from destack.language.core import (
-    BasicType,
     BinaryReader,
     BinaryWriter,
     BuiltinObject,
@@ -11,6 +10,7 @@ from destack.language.core import (
     ObjectKind,
     Session,
     StructType,
+    Type,
 )
 
 
@@ -66,7 +66,7 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def pack_value(
         self,
-        type: BasicType,
+        type: Type,
         value: Any,
     ) -> Any:
         raise NotImplementedError
@@ -74,7 +74,7 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def pack_value_binary(
         self,
-        type: BasicType,
+        type: Type,
         value: Any,
         writer: BinaryWriter,
     ) -> None:
@@ -83,7 +83,7 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def unpack_value(
         self,
-        type: BasicType,
+        type: Type,
         value: Any,
         session: Session | None,
     ) -> Any:
@@ -92,7 +92,7 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def unpack_value_binary(
         self,
-        type: BasicType,
+        type: Type,
         reader: BinaryReader,
         session: Session | None,
     ) -> Any:

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, assert_never
 from destack.language import (
     BinaryWriter,
     BuiltinObject,
+    CheckedType,
     Encoding,
     Node,
     NodeReference,
@@ -16,7 +17,6 @@ from destack.language import (
     ScalarType,
     Struct,
     StructType,
-    Type,
     TypeCardinality,
     TypeDeclaration,
 )
@@ -469,7 +469,9 @@ def _generate_unpack_json_scalar(
         return value_expr
 
 
-def generate_json_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def generate_json_value(
+    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
+) -> str:
     """Generate a Typescript value literal."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _generate_json_scalar(type, value)
@@ -484,7 +486,9 @@ def generate_json_value(type: Type | TypeDeclaration | PropertyDeclaration, valu
         assert_never(type.cardinality)
 
 
-def _generate_json_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def _generate_json_scalar(
+    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
+) -> str:
     """Generate a Typescript scalar value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"

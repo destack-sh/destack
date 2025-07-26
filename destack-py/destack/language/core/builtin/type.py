@@ -95,14 +95,14 @@ class CollectionConstraint(StructFrozen):
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 
-@builtin_struct(StructType.BASIC_TYPE, frozen=True)
-class BasicType(StructFrozen):
+@builtin_struct(StructType.TYPE, frozen=True)
+class Type(StructFrozen):
     """
     A basic Type in the type system. Types compose like a tree, with scalars at the leaves:
      - Scalar: a single value (primitive, enum, node, struct, etc.)
-     - List: a dynamic-length list of homogeneous values
-     - Tuple: a fixed-length list of heterogeneous values
-     - Map: a dict of homogenous keys to homogeneous values
+     - List: a dynamic-length sequence of homogeneous values
+     - Tuple: a fixed-length sequence of heterogeneous values
+     - Map: a mapping of homogenous keys to homogeneous values
      - Literal: a constant value
      - Union: a tagged union of heterogeneous values (declaration only)
     """
@@ -114,17 +114,17 @@ class BasicType(StructFrozen):
         is_repr=True,
         description="Cardinality of this Type (scalar, list, map, etc.)",
     )
-    key_type: Optional["BasicType"] = builtin_property(
+    key_type: Optional["Type"] = builtin_property(
         111,
         is_repr=True,
         description="Key type of this Type (if it's a map).",
     )
-    value_type: Optional["BasicType"] = builtin_property(
+    value_type: Optional["Type"] = builtin_property(
         112,
         is_repr=True,
         description="Value type of this Type (if it's a list, map, etc.).",
     )
-    element_types: list["BasicType"] | None = builtin_property(
+    element_types: list["Type"] | None = builtin_property(
         113,
         is_repr=True,
         description="Element types of this Type (if it's a tuple).",
@@ -161,31 +161,14 @@ class BasicType(StructFrozen):
         is_repr=True,
         description="Literal value of this Type (if it's a literal scalar).",
     )
-    union_types: list["BasicType"] | None = builtin_property(
+    union_types: list["Type"] | None = builtin_property(
         126,
         is_repr=True,
         description="Union types of this Type (if it's a union scalar).",
     )
 
-
-@builtin_struct(StructType.TYPE, frozen=True)
-class Type(BasicType):
-    """
-    A full Type in the type system.
-    Extends the BasicType with defaults, constraints, and supporting flags.
-    """
-
-    # default
-    default_value: Optional["Value"] = builtin_property(150)
-    default_factory: Optional[ValueFactory] = builtin_property(151)
-
-    # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(160)
-    string_constraint: Optional["StringConstraint"] = builtin_property(161)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(162)
-
     # flags
-    is_required: bool = builtin_property(170, default=False)
+    is_required: bool = builtin_property(130, default=True)
 
     @classmethod
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
@@ -196,15 +179,18 @@ class Type(BasicType):
         """
         from ..builtin import Node, NodeReference, parse_type_annotation
 
-        if value_or_type is None:
-            raise ValueError("None is not a valid Type")
-
         #
-        # Values - handle actual runtime values
+        # Values
         #
 
         # scalar values
-        if isinstance(value_or_type, NodeReference):
+        if value_or_type is None:
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.PRIMITIVE,
+                primitive_type=PrimitiveType.NONE,
+            )
+        elif isinstance(value_or_type, NodeReference):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
@@ -235,11 +221,11 @@ class Type(BasicType):
                 primitive_type=PRIMITIVE_TYPE_BY_ANNOTATION[type(value_or_type)],
             )
 
-        # collections - handle actual values
+        # collections
         if isinstance(value_or_type, tuple):
             # tuples are heterogeneous
             element_types = [
-                Type.infer(elem, node_as_value=node_as_value) for elem in value_or_type
+                CheckedType.infer(elem, node_as_value=node_as_value) for elem in value_or_type
             ]
             return Type(
                 cardinality=TypeCardinality.TUPLE,
@@ -248,7 +234,7 @@ class Type(BasicType):
         elif isinstance(value_or_type, list):
             assert value_or_type, f"cannot infer type of empty list: {value_or_type!r}"
             # lists are homogeneous - infer from first element
-            element_type = Type.infer(value_or_type[0], node_as_value=node_as_value)
+            element_type = CheckedType.infer(value_or_type[0], node_as_value=node_as_value)
             return Type(
                 cardinality=TypeCardinality.LIST,
                 value_type=element_type,
@@ -257,8 +243,8 @@ class Type(BasicType):
             assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
             sample_key = next(iter(value_or_type))
             sample_value = value_or_type[sample_key]
-            key_type = Type.infer(sample_key, node_as_value=node_as_value)
-            value_type = Type.infer(sample_value, node_as_value=node_as_value)
+            key_type = CheckedType.infer(sample_key, node_as_value=node_as_value)
+            value_type = CheckedType.infer(sample_value, node_as_value=node_as_value)
             return Type(
                 cardinality=TypeCardinality.MAP,
                 key_type=key_type,
@@ -270,5 +256,25 @@ class Type(BasicType):
         #
 
         # parse as annotation
-        type_decl = parse_type_annotation(value_or_type, is_builtin=False)
+        type_decl = parse_type_annotation(value_or_type, is_builtin_member=False)
         return type_decl.to_type()
+
+
+@builtin_struct(StructType.CHECKED_TYPE, frozen=True)
+class CheckedType(Type):
+    """
+    A full Type in the type system.
+    Extends Type with defaults, constraints, and supporting flags.
+    """
+
+    # default
+    default_value: Optional["Value"] = builtin_property(150)
+    default_factory: Optional[ValueFactory] = builtin_property(151)
+
+    # constraints
+    collection_constraint: Optional["CollectionConstraint"] = builtin_property(160)
+    string_constraint: Optional["StringConstraint"] = builtin_property(161)
+    number_constraint: Optional["NumberConstraint"] = builtin_property(162)
+
+    # flags
+    # ...

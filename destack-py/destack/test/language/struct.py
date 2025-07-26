@@ -1,5 +1,5 @@
 from destack.language import (
-    BasicType,
+    CheckedType,
     PropertyDefinition,
     Session,
     Struct,
@@ -15,23 +15,23 @@ def test_struct_inheritance(session: Session):
     assert Struct.__is_abstract__
 
     # test BasicType extends Struct
-    assert BasicType.metatype == StructType.BASIC_TYPE
-    assert not BasicType.__is_abstract__
-    assert BasicType.__base_type__ == StructType.STRUCT
-    assert BasicType.__inherits__ == (StructType.STRUCT,)
-
-    # test Type extends BasicType
     assert Type.metatype == StructType.TYPE
     assert not Type.__is_abstract__
-    assert Type.__base_type__ == StructType.BASIC_TYPE
-    assert Type.__inherits__ == (StructType.STRUCT, StructType.BASIC_TYPE)
+    assert Type.__base_type__ == StructType.STRUCT
+    assert Type.__inherits__ == (StructType.STRUCT,)
+
+    # test Type extends BasicType
+    assert CheckedType.metatype == StructType.CHECKED_TYPE
+    assert not CheckedType.__is_abstract__
+    assert CheckedType.__base_type__ == StructType.TYPE
+    assert CheckedType.__inherits__ == (StructType.STRUCT, StructType.TYPE)
 
     # test PropertyDefinition extends Type
     assert PropertyDefinition.metatype == StructType.PROPERTY_DEFINITION
     assert not PropertyDefinition.__is_abstract__
-    assert PropertyDefinition.__base_type__ == StructType.TYPE
+    assert PropertyDefinition.__base_type__ == StructType.CHECKED_TYPE
     assert PropertyDefinition.__inherits__ == (
         StructType.STRUCT,
-        StructType.BASIC_TYPE,
         StructType.TYPE,
+        StructType.CHECKED_TYPE,
     )

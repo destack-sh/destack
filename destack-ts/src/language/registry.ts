@@ -1,4 +1,5 @@
 import type {
+  BasicType,
   EnumClass,
   EnumType,
   NodeClass,
@@ -8,7 +9,6 @@ import type {
   StructType,
   TraitClass,
   TraitType,
-  Type,
 } from "@destack/language";
 
 // basic class/type mappings
@@ -45,7 +45,7 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
 
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
-export const NODE_TYPE_SCALAR_BY_TYPE: Record<NodeType, Type> = {} as any;
+export const NODE_TYPE_SCALAR_BY_TYPE: Record<NodeType, BasicType> = {} as any;
 
 /** Get the known (inherited, concrete) subdefinitions for a NodeType (including self). */
 export function getSubdefinitionsForNodeType(nodeType: NodeType): NodeDefinitionReference[] {

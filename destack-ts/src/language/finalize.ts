@@ -1,5 +1,6 @@
 import { CsonEncoder, JsonEncoder, KompaktEncoder } from "@destack/encoder";
 import {
+  BasicType,
   ENCODERS,
   Encoding,
   loadConstants,
@@ -12,7 +13,6 @@ import {
   type StructDefinition,
   StructType,
   TraitType,
-  Type,
   TypeCardinality,
   Universe,
 } from "@destack/language";
@@ -125,7 +125,7 @@ export function finalize(): void {
 
   // index node scalar types
   for (const nodeType of NODE_TYPE_BY_CLASS.values()) {
-    const scalarType = new Type({
+    const scalarType = new BasicType({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.NODE_VALUE,
       nodeTypes: [nodeType],

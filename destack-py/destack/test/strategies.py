@@ -12,15 +12,15 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 from destack.language import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
-    BasicType,
     BuiltinObject,
+    CheckedType,
     CustomProperty,
     EnumType,
     IconType,
     NodeReference,
     NodeType,
     PrimitiveType,
-    PropertyType,
+    PropertyZone,
     ScalarType,
     StructType,
     Type,
@@ -99,7 +99,7 @@ def properties(object_type: NodeType | StructType | None = None):
 @cacheable
 @defines_strategy()
 def get_scalar_type_strategy(
-    typ: BasicType,
+    typ: Type,
 ) -> st.SearchStrategy[Any]:
     """Get a strategy for generating scalar values based on the scalar type and specific type info."""
     if typ.scalar_type == ScalarType.PRIMITIVE:
@@ -150,7 +150,7 @@ def _wrap_value_scalar_strategy(
     cardinality: TypeCardinality,
     min_length: int = 0,
     max_length: int | None = None,
-    key_type: BasicType | None = None,
+    key_type: Type | None = None,
 ) -> st.SearchStrategy[Any]:
     """Wrap a scalar strategy based on cardinality and requirements."""
     if cardinality == TypeCardinality.LIST:
@@ -167,12 +167,12 @@ def _wrap_value_scalar_strategy(
 
 @cacheable
 @defines_strategy()
-def get_type_strategy(typ: BasicType) -> st.SearchStrategy[Any]:
+def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
     """Generate a strategy from a Type object, handling all cardinalities and constraints."""
     scalar_strategy = get_scalar_type_strategy(typ)
     return _wrap_value_scalar_strategy(
         scalar_strategy,
-        is_required=(isinstance(typ, Type) and typ.is_required) or False,
+        is_required=(isinstance(typ, CheckedType) and typ.is_required) or False,
         cardinality=typ.cardinality,
         min_length=0,
         max_length=None,
@@ -215,7 +215,7 @@ def from_object_type(
 ) -> st.SearchStrategy[BuiltinObject]:
     # special cases
     if isinstance(object_type, StructType):
-        if object_type == StructType.TYPE:
+        if object_type == StructType.CHECKED_TYPE:
             return cast(st.SearchStrategy[BuiltinObject], types(SIMPLE_TYPE_CARDINALITIES))
         elif object_type == StructType.PROPERTY_REFERENCE:
             return cast(
@@ -353,14 +353,14 @@ SIMPLE_TYPE_CARDINALITIES = st.sampled_from([TypeCardinality.SCALAR])
 @st.composite
 def types(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
     base_dict = draw_type_base_dict(draw, cardinalities)
-    return BasicType(**base_dict)
+    return Type(**base_dict)
 
 
 @st.composite
 def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
     type_base_dict = draw_type_base_dict(draw, cardinalities)
     naive_base_dict = get_naive_object_strategy(CustomProperty)
-    naive_base_dict["type"] = st.just(PropertyType.INPUT)
+    naive_base_dict["type"] = st.just(PropertyZone.INPUT)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

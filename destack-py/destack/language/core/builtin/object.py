@@ -114,7 +114,7 @@ def _generate_init[ObjectT: BuiltinObject](
         p
         for p in properties_in_order
         if not p.is_computed
-        and p.default is UNSET
+        and p.default_value is UNSET
         and p.default_factory is None
         and not p.is_internal
         and p.cardinality == TypeCardinality.SCALAR
@@ -131,16 +131,18 @@ def _generate_init[ObjectT: BuiltinObject](
     for prop in properties_in_order:
         if prop.is_computed or prop in required_properties:
             continue
-        elif prop.default is UNSET:
+        elif prop.default_value is UNSET:
             default_str = "None"
-        elif isinstance(prop.default, Enum):
-            default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
-            extra_glbls[prop.default.__class__.__name__] = prop.default.__class__
-        elif prop.default is None or isinstance(prop.default, (bool, int, float, str, bytes, UUID)):
-            default_str = repr(prop.default)
+        elif isinstance(prop.default_value, Enum):
+            default_str = f"{prop.default_value.__class__.__name__}.{prop.default_value.name}"
+            extra_glbls[prop.default_value.__class__.__name__] = prop.default_value.__class__
+        elif prop.default_value is None or isinstance(
+            prop.default_value, (bool, int, float, str, bytes, UUID)
+        ):
+            default_str = repr(prop.default_value)
         else:
             default_name = f"_default_{prop.name}"
-            extra_glbls[default_name] = prop.default
+            extra_glbls[default_name] = prop.default_value
             default_str = default_name
         method_header_lines.append(f"{prop.name}={default_str}")
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -1085,7 +1087,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     metatype = PropertyDeclaration(
         id=1,
         name="metatype",
-        default=None,
         py_type=NodeType if is_node else StructType,
         cardinality=TypeCardinality.SCALAR,
         is_required=True,

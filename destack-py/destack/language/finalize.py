@@ -13,23 +13,19 @@ from .core.builtin.builtin import (
     TraitType,
 )
 from .registry import (
-    ANCESTOR_NODE_TYPES_BY_TYPE,
-    DESCENDANT_NODE_TYPES_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
-    NODE_TYPE_SCALAR_BY_NODE_TYPE,
+    NODE_TYPE_SCALAR_BY_TYPE,
     NODE_TYPES_BY_TRAIT_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
-    SUBDEFINITIONS_BY_NODE_TYPE,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_DEFINITION_BY_TYPE,
     get_node_or_trait_cls,
-    get_subdefinitions_for_node_type,
 )
 
 if TYPE_CHECKING:
@@ -150,8 +146,6 @@ def finalize():
 
         node_cls.__ancestor_types__ = tuple(ancestors)
         node_cls.__descendant_types__ = tuple(descendants)
-        DESCENDANT_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__descendant_types__
-        ANCESTOR_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__ancestor_types__
 
     # index Node event types
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), TRAIT_CLASS_BY_TYPE.values()):
@@ -191,12 +185,12 @@ def finalize():
 
     # generate meta info
     from destack.language.core import (
-        BasicType,
         EnumDefinition,
         NodeDefinition,
         ScalarType,
         StructDefinition,
         TraitDefinition,
+        Type,
         TypeCardinality,
     )
 
@@ -218,16 +212,12 @@ def finalize():
 
     # index node scalar types
     for node_type in NodeType:
-        scalar_type = BasicType(
+        scalar_type = Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.NODE_VALUE,
             node_types=[node_type],
         )
-        NODE_TYPE_SCALAR_BY_NODE_TYPE[node_type] = scalar_type
-
-    # index subdefinitions
-    for node_type in NodeType:
-        SUBDEFINITIONS_BY_NODE_TYPE[node_type] = get_subdefinitions_for_node_type(node_type)
+        NODE_TYPE_SCALAR_BY_TYPE[node_type] = scalar_type
 
     # finalize constants
     from destack.language.core import ConstantDeclaration, ConstantDefinition

@@ -7,8 +7,8 @@ from typing import assert_never, cast
 from destack.language import (
     EMPTY_DICT,
     UNSET,
-    BasicType,
     BuiltinObject,
+    CheckedType,
     ConstantDefinition,
     EdgeType,
     Entity,
@@ -124,13 +124,13 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
 
 
 def _generate_type_scalar(
-    prop: PropertyDeclaration | TypeDeclaration | BasicType, as_ptr: bool = True
+    prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True
 ) -> str:
     """Generate a scalar property Typescript type annotation."""
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         if as_ptr:
             return "NodeReference"
-        if isinstance(prop, Type):
+        if isinstance(prop, CheckedType):
             return "Node"  # don't know
         resolved_node_types = expand_node_types(prop.node_types, expand_inheritance=False)
         if not resolved_node_types or len(resolved_node_types) == len(NodeType):
@@ -164,7 +164,9 @@ def _generate_type_scalar(
         assert_never(prop.scalar_type)
 
 
-def _generate_type(prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True) -> str:
+def _generate_type(
+    prop: PropertyDeclaration | TypeDeclaration | CheckedType, as_ptr: bool = True
+) -> str:
     """Generate a property Typescript type annotation."""
     type_str = _generate_type_scalar(prop, as_ptr=as_ptr)
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -363,7 +365,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
     def _is_property_required(prop: PropertyDeclaration) -> bool:
         return (
             prop.is_required
-            and prop.default is UNSET
+            and prop.default_value is UNSET
             and prop.default_factory is None
             and prop.cardinality == TypeCardinality.SCALAR
             and not prop.is_internal
@@ -496,8 +498,8 @@ if (_{ts_name_in} == null) {{
 }}""")
 
         # init default
-        if prop.default is not UNSET and prop.default is not None:
-            default_str = generate_value(prop, prop.default)
+        if prop.default_value is not UNSET and prop.default_value is not None:
+            default_str = generate_value(prop, prop.default_value)
             body_parts.append(f"""\
 if (_{ts_name_in} == null) {{
     _{ts_name_in} = {default_str};
@@ -1514,7 +1516,7 @@ static readonly {definition.name}: {type_str} = {value_str};
 
 
 def _get_type_dependencies(
-    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
+    type: CheckedType | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
     is_abstract: bool,
     is_value: bool = False,
 ) -> tuple[dict[str, Definition], set[str]]:
