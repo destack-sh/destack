@@ -5,11 +5,13 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
+    METATYPE_PROPERTY_KEY,
     BuiltinObject,
+    Encoding,
     Jsonc,
     NodeType,
     ObjectKind,
-    PackedCache,
+    PackedObjectCache,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -21,7 +23,6 @@ from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
-    get_builtin_type,
 )
 from destack.utils.code import exec_
 from destack.utils.log import get_logger
@@ -43,12 +44,17 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
+def _get_encoder_name(cls: type["BuiltinObject"]) -> str:
+    """Get the name of the encoder class for a BuiltinObject."""
+    return f"{cls.__name__}JsoncEncoder"
+
+
 def _generate_jsonc_object_encoder(cls: type["BuiltinObject"]) -> tuple[str, str, dict[str, Any]]:
     """Generate the JsoncObjectEncoder class for a BuiltinObject."""
 
     pack_jsonc = textwrap.indent(_generate_pack_jsonc(cls), " " * 8)
     unpack_jsonc = textwrap.indent(_generate_unpack_jsonc(cls), " " * 8)
-    encoder_name = f"{cls.__name__}JsoncEncoder"
+    encoder_name = _get_encoder_name(cls)
 
     impl = f"""
 class {encoder_name}(JsoncObjectEncoder):
@@ -84,24 +90,23 @@ class {encoder_name}(JsoncObjectEncoder):
             "Self": cls,
             "cls": cls,
             "BuiltinObject": BuiltinObject,
-            "PackedCache": PackedCache,
+            "Encoding": Encoding,
+            "PackedObjectCache": PackedObjectCache,
         },
     )
 
 
 def _generate_pack_jsonc(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
-    pack_method_parts: list[str] = []
-    pack_method_parts.append("_object_jsonc = {}")
+    pack_method_parts: list[str] = [
+        f"_object_jsonc = {{{METATYPE_PROPERTY_KEY}: {cls.metatype.value}}}",
+    ]
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
-        if prop.name == "metatype":
-            metatype = get_builtin_type(cls)
-            pack_method_parts.append(f'_object_jsonc["{prop.id}"] = {metatype.value}')
+        if prop.is_computed:
             continue
-
         pack_code = _generate_pack_jsonc_property(prop)
         if pack_code:
             pack_method_parts.extend(pack_code)
@@ -115,7 +120,9 @@ def _generate_unpack_jsonc(cls: type["BuiltinObject"]) -> str:
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []
 
-    for prop in cls.__wired_properties__.values():
+    wired_properties_in_order = list(cls.__wired_properties__.values())
+    wired_properties_in_order.sort(key=lambda p: p.id or 0)
+    for prop in wired_properties_in_order:
         if prop.is_computed:
             continue  # set implicitly
         prop_name = (
@@ -129,7 +136,7 @@ def _generate_unpack_jsonc(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append(
-            "_packed_cache = (PackedCache(Encoding.JSONC, False, _object_jsonc),)"
+            "_packed_cache = (PackedObjectCache(Encoding.JSONC, False, _object_jsonc),)"
         )
 
     unpack_method_parts.append("return cls(")
@@ -444,6 +451,8 @@ def _generate():
         }
     )
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        if node_cls.__is_abstract__:
+            continue
         encoder_name, impl, extra_glbls = _generate_jsonc_object_encoder(node_cls)
         locals_ = {}
         exec_(

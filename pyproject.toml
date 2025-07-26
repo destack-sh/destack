@@ -111,7 +111,6 @@ addopts = [
 	"--import-mode=importlib",
 	"--color=yes",
 	'--strict-markers',
-	'--hypothesis-show-statistics',
 ]
-markers = ["hypothesis: test uses hypothesis"]
+markers = []
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

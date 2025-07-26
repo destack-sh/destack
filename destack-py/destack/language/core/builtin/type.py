@@ -20,7 +20,6 @@ from .common import (
     TypeCardinality,
     UInt32,
     ValueFactory,
-    builtin_enum,
 )
 from .property import builtin_property
 from .struct import Struct, StructFrozen, builtin_struct
@@ -34,71 +33,10 @@ logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 
 
-@builtin_enum(EnumType.STRING_FORMAT)
-class StringFormat(Enum):
-    """The format of a string."""
-
-    NAME = 1
-    SLUG = 2
-    EMAIL = 3
-    UUID = 10
-    URL = 11
-    EMOJI = 12
-    MIME = 13
-    BASE64 = 20
-
-
-@builtin_enum(EnumType.NUMBER_FORMAT)
-class NumberFormat(Enum):
-    """The format of a number."""
-
-    PERCENTAGE = 1
-    ANGLE = 2
-    CURRENCY = 3
-
-
-@builtin_struct(StructType.STRING_CONSTRAINT, frozen=True)
-class StringConstraint(StructFrozen):
-    """The constraint of a string."""
-
-    format: Optional[StringFormat] = builtin_property(40)
-    regex: Optional[str] = builtin_property(41)
-    starts_with: Optional[str] = builtin_property(42)
-    ends_with: Optional[str] = builtin_property(43)
-
-
-SLUG_REGEX_CHAR = r"a-z0-9-"
-SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
-EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
-PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
-
-
-@builtin_struct(StructType.NUMBER_CONSTRAINT, frozen=True)
-class NumberConstraint(StructFrozen):
-    """The constraint of a number."""
-
-    format: Optional[NumberFormat] = builtin_property(40)
-    min_value: Optional[Float32] = builtin_property(41)
-    max_value: Optional[Float32] = builtin_property(42)
-    step_value: Optional[Float32] = builtin_property(43)
-
-
-@builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
-class CollectionConstraint(StructFrozen):
-    """The constraint of a collection."""
-
-    min_length: Optional[UInt32] = builtin_property(41)
-    max_length: Optional[UInt32] = builtin_property(42)
-
-
-TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
-
-
 @builtin_struct(StructType.TYPE, frozen=True)
 class Type(StructFrozen):
     """
-    A basic Type in the type system. Types compose like a tree, with scalars at the leaves:
+    A basic Type in the type system. Types compose like a tree (with scalars at the leaves):
      - Scalar: a single value (primitive, enum, node, struct, etc.)
      - List: a dynamic-length sequence of homogeneous values
      - Tuple: a fixed-length sequence of heterogeneous values
@@ -129,6 +67,7 @@ class Type(StructFrozen):
         is_repr=True,
         description="Element types of this Type (if it's a tuple).",
     )
+    # length: UInt16 | None (for fixed-length collections)
 
     # scalar
     scalar_type: Optional[ScalarType] = builtin_property(
@@ -258,6 +197,42 @@ class Type(StructFrozen):
         # parse as annotation
         type_decl = parse_type_annotation(value_or_type, is_builtin_member=False)
         return type_decl.to_type()
+
+
+@builtin_struct(StructType.STRING_CONSTRAINT, frozen=True)
+class StringConstraint(StructFrozen):
+    """The constraint of a string."""
+
+    regex: Optional[str] = builtin_property(41)
+    starts_with: Optional[str] = builtin_property(42)
+    ends_with: Optional[str] = builtin_property(43)
+
+
+SLUG_REGEX_CHAR = r"a-z0-9-"
+SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
+EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
+URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
+PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
+
+
+@builtin_struct(StructType.NUMBER_CONSTRAINT, frozen=True)
+class NumberConstraint(StructFrozen):
+    """The constraint of a number."""
+
+    min_value: Optional[Float32] = builtin_property(41)
+    max_value: Optional[Float32] = builtin_property(42)
+    step_value: Optional[Float32] = builtin_property(43)
+
+
+@builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
+class CollectionConstraint(StructFrozen):
+    """The constraint of a collection."""
+
+    min_length: Optional[UInt32] = builtin_property(41)
+    max_length: Optional[UInt32] = builtin_property(42)
+
+
+TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
 
 @builtin_struct(StructType.CHECKED_TYPE, frozen=True)

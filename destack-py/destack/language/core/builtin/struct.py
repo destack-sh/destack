@@ -15,7 +15,7 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
 from .builtin import EnumType, ObjectKind, StructType
-from .common import Encoding, PackedCache
+from .common import Encoding, PackedObjectCache
 from .const import ENCODERS
 from .meta import builtin_method
 from .object import (
@@ -174,7 +174,7 @@ class StructFrozen(Struct):
     """Cached repr of the Struct."""
     _repr: "str | None" = builtin_property_runtime()
     """Cached packed representations (first N = each Encoding, next N = each Encoding as bytes)."""
-    _packed_cache: "tuple[PackedCache, ...] | None" = builtin_property_runtime()
+    _packed_cache: "tuple[PackedObjectCache, ...] | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
@@ -193,7 +193,7 @@ class StructFrozen(Struct):
         encoder = ENCODERS[encoding]
         packed_object = encoder.pack_object(self.__kind__, self.metatype, self)
         # cache the result
-        new_cache = PackedCache(encoding=encoding, is_bytes=False, packed=packed_object)
+        new_cache = PackedObjectCache(encoding=encoding, is_bytes=False, packed=packed_object)
         if self._packed_cache is None:
             object.__setattr__(self, "_packed_cache", (new_cache,))
         else:
@@ -213,7 +213,7 @@ class StructFrozen(Struct):
         encoder = ENCODERS[encoding]
         encoder.pack_object_binary(self.__kind__, self.metatype, self, writer)
         # cache the result
-        new_cache = PackedCache(encoding=encoding, is_bytes=True, packed=writer.to_bytes())
+        new_cache = PackedObjectCache(encoding=encoding, is_bytes=True, packed=writer.to_bytes())
         if self._packed_cache is None:
             object.__setattr__(self, "_packed_cache", (new_cache,))
         else:

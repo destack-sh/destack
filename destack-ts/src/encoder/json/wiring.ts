@@ -22,13 +22,13 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Pack a generic typed value to a JSON object.
  */
-export function packJson(value: any, type: Type): any {
+export function packJson(type: Type, value: any): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
     if (value == null) {
       return null;
     } else {
-      return _packScalarJson(value, type);
+      return _packScalarJson(type, value);
     }
   }
 
@@ -42,7 +42,7 @@ export function packJson(value: any, type: Type): any {
       }
       const packedList: any[] = [];
       for (const item of value) {
-        packedList.push(_packScalarJson(item, type.valueType));
+        packedList.push(_packScalarJson(type.valueType, item));
       }
       return packedList;
     }
@@ -58,7 +58,7 @@ export function packJson(value: any, type: Type): any {
       }
       const packedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        packedTuple.push(_packScalarJson(value[i], type.elementTypes[i]));
+        packedTuple.push(_packScalarJson(type.elementTypes[i], value[i]));
       }
       return packedTuple;
     }
@@ -76,8 +76,8 @@ export function packJson(value: any, type: Type): any {
       }
       const packedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const packedKey = _packScalarJson(key, type.keyType);
-        const packedVal = _packScalarJson(val, type.valueType);
+        const packedKey = _packScalarJson(type.keyType, key);
+        const packedVal = _packScalarJson(type.valueType, val);
         packedMap[String(packedKey)] = packedVal;
       }
       return packedMap;
@@ -93,10 +93,10 @@ export function packJson(value: any, type: Type): any {
 /**
  * Unpack a JSON object to a generic typed value.
  */
-export function unpackJson(value: any, type: Type, _session: Session | null): any {
+export function unpackJson(type: Type, value: any, session: Session | null): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
-    return _unpackScalarJson(value, type, _session);
+    return _unpackScalarJson(type, value, session);
   }
 
   // list
@@ -106,7 +106,7 @@ export function unpackJson(value: any, type: Type, _session: Session | null): an
     } else {
       const unpackedList = [];
       for (const item of value) {
-        unpackedList.push(_unpackScalarJson(item, type, _session));
+        unpackedList.push(_unpackScalarJson(type, item, session));
       }
       return unpackedList;
     }
@@ -122,7 +122,7 @@ export function unpackJson(value: any, type: Type, _session: Session | null): an
       }
       const unpackedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        unpackedTuple.push(_unpackScalarJson(value[i], type.elementTypes[i], _session));
+        unpackedTuple.push(_unpackScalarJson(type.elementTypes[i], value[i], session));
       }
       return unpackedTuple;
     }
@@ -140,8 +140,8 @@ export function unpackJson(value: any, type: Type, _session: Session | null): an
       }
       const unpackedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const unpackedKey = type.keyType ? _unpackScalarJson(key, type.keyType, _session) : key;
-        const unpackedVal = _unpackScalarJson(val, type.valueType, _session);
+        const unpackedKey = type.keyType ? _unpackScalarJson(type.keyType, key, session) : key;
+        const unpackedVal = _unpackScalarJson(type.valueType, val, session);
         unpackedMap[unpackedKey] = unpackedVal;
       }
       return unpackedMap;
@@ -155,7 +155,7 @@ export function unpackJson(value: any, type: Type, _session: Session | null): an
 }
 
 /** Pack a scalar value to a JSON object. */
-function _packScalarJson(value: any, type: Type): any {
+function _packScalarJson(type: Type, value: any): any {
   if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
     throw new Error(`expected scalar type, got ${type.repr()}`);
   }
@@ -241,7 +241,7 @@ function _packScalarJson(value: any, type: Type): any {
 }
 
 /** Unpack a JSON object to a scalar value. */
-function _unpackScalarJson(value: any, type: Type, _session: Session | null): any {
+function _unpackScalarJson(type: Type, value: any, session: Session | null): any {
   if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
     throw new Error(`expected scalar type, got ${type.repr()}`);
   }
@@ -302,14 +302,14 @@ function _unpackScalarJson(value: any, type: Type, _session: Session | null): an
   // node reference
   else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.unpack(Encoding.JSON, value, _session);
+    return _NodeReference.unpack(Encoding.JSON, value, session);
   }
 
   // node value
   else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["type"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.unpack(Encoding.JSON, value, _session);
+    return nodeClass.unpack(Encoding.JSON, value, session);
   }
 
   // struct
@@ -318,7 +318,7 @@ function _unpackScalarJson(value: any, type: Type, _session: Session | null): an
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.unpack(Encoding.JSON, value, _session);
+    return structClass.unpack(Encoding.JSON, value, session);
   }
 
   // literal

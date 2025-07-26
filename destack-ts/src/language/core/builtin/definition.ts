@@ -10,7 +10,7 @@ import {
   type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type {
   ObjectDefinitionReference,
   PropertyReference,
@@ -270,7 +270,7 @@ export class NodeDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -454,7 +454,7 @@ export class NodeDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1042,7 +1042,7 @@ export class TraitDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -1127,7 +1127,7 @@ export class TraitDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1451,7 +1451,7 @@ export class StructDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -1558,7 +1558,7 @@ export class StructDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1854,7 +1854,7 @@ export class EnumDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -1899,7 +1899,7 @@ export class EnumDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -2141,7 +2141,7 @@ export class PropertyDefinition extends CheckedType {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(options);
@@ -2741,7 +2741,7 @@ export class OptionDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -2781,7 +2781,7 @@ export class OptionDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -2907,7 +2907,7 @@ export class ConstantDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -2945,7 +2945,7 @@ export class ConstantDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -3049,7 +3049,7 @@ export class TagDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -3077,7 +3077,7 @@ export class TagDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -3181,7 +3181,7 @@ export class IndexDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -3224,7 +3224,7 @@ export class IndexDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -3355,7 +3355,7 @@ export class ConstraintDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -3393,7 +3393,7 @@ export class ConstraintDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -3498,7 +3498,7 @@ export class PermissionDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -3526,7 +3526,7 @@ export class PermissionDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {

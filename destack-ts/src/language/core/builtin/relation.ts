@@ -4,7 +4,7 @@ import type { PropertyDefinition } from "@destack/language/core/builtin/definiti
 import type { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import type { UInt8, UUID } from "@destack/language/core/builtin/types";
@@ -61,7 +61,7 @@ export class NodeDefinitionReference extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -92,7 +92,7 @@ export class NodeDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -287,7 +287,7 @@ export class PropertyReference extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -321,7 +321,7 @@ export class PropertyReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -590,7 +590,7 @@ export class NodeReference extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -635,7 +635,7 @@ export class NodeReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -772,7 +772,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -804,7 +804,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -927,7 +927,7 @@ export class StructDefinitionReference extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -958,7 +958,7 @@ export class StructDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {

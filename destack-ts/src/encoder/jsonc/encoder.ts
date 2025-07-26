@@ -77,22 +77,22 @@ export class JsoncEncoder implements Encoder<any> {
   }
 
   packValue(value: any, type: Type): any {
-    const jsonc = packJsonc(value, type);
+    const jsonc = packJsonc(type, value);
     return jsonc;
   }
 
   packValueBytes(value: any, type: Type, writer: BinaryWriter): void {
-    const jsonc = packJsonc(value, type);
+    const jsonc = packJsonc(type, value);
     writer.writeJson(jsonc);
   }
 
   unpackValue(type: Type, value: any, session: Session | null): any {
-    const jsonc = unpackJsonc(value, type);
+    const jsonc = unpackJsonc(type, value, session);
     return jsonc;
   }
 
   unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
-    const jsonc = unpackJsonc(reader.readJson(), type);
+    const jsonc = unpackJsonc(type, reader.readJson(), session);
     return jsonc;
   }
 }

@@ -21,13 +21,13 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Pack a generic typed value to a JSONC object.
  */
-export function packJsonc(value: any, type: Type): any {
+export function packJsonc(type: Type, value: any): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
     if (value == null) {
       return null;
     } else {
-      return _packScalarJsonc(value, type);
+      return _packScalarJsonc(type, value);
     }
   }
 
@@ -41,7 +41,7 @@ export function packJsonc(value: any, type: Type): any {
       }
       const packedList: any[] = [];
       for (const item of value) {
-        packedList.push(_packScalarJsonc(item, type.valueType));
+        packedList.push(_packScalarJsonc(type.valueType, item));
       }
       return packedList;
     }
@@ -57,7 +57,7 @@ export function packJsonc(value: any, type: Type): any {
       }
       const packedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        packedTuple.push(_packScalarJsonc(value[i], type.elementTypes![i]));
+        packedTuple.push(_packScalarJsonc(type.elementTypes![i], value[i]));
       }
       return packedTuple;
     }
@@ -75,8 +75,8 @@ export function packJsonc(value: any, type: Type): any {
       }
       const packedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const packedKey = _packScalarJsonc(key, type.keyType);
-        const packedVal = _packScalarJsonc(val, type.valueType);
+        const packedKey = _packScalarJsonc(type.keyType, key);
+        const packedVal = _packScalarJsonc(type.valueType, val);
         packedMap[String(packedKey)] = packedVal;
       }
       return packedMap;
@@ -92,18 +92,10 @@ export function packJsonc(value: any, type: Type): any {
 /**
  * Unpack a JSONC object to a generic typed value.
  */
-export function unpackJsonc(
-  value: any,
-  type: Type,
-  options?: {
-    _session?: Session | null;
-    _graph?: any | null;
-    _connection?: any | null;
-  },
-): any {
+export function unpackJsonc(type: Type, value: any, session: Session | null): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
-    return _unpackScalarJsonc(value, type, options);
+    return _unpackScalarJsonc(type, value, session);
   }
 
   // list
@@ -116,7 +108,7 @@ export function unpackJsonc(
       }
       const unpackedList = [];
       for (const item of value) {
-        unpackedList.push(_unpackScalarJsonc(item, type.valueType, options));
+        unpackedList.push(_unpackScalarJsonc(type.valueType, item, session));
       }
       return unpackedList;
     }
@@ -132,7 +124,7 @@ export function unpackJsonc(
       }
       const unpackedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        unpackedTuple.push(_unpackScalarJsonc(value[i], type.elementTypes![i], options));
+        unpackedTuple.push(_unpackScalarJsonc(type.elementTypes![i], value[i], session));
       }
       return unpackedTuple;
     }
@@ -150,8 +142,8 @@ export function unpackJsonc(
       }
       const unpackedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const unpackedKey = _unpackScalarJsonc(key, type.keyType, options);
-        const unpackedVal = _unpackScalarJsonc(val, type.valueType, options);
+        const unpackedKey = _unpackScalarJsonc(type.keyType, key, session);
+        const unpackedVal = _unpackScalarJsonc(type.valueType, val, session);
         unpackedMap[unpackedKey] = unpackedVal;
       }
       return unpackedMap;
@@ -165,7 +157,7 @@ export function unpackJsonc(
 }
 
 /** Pack a scalar value to a JSONC object. */
-function _packScalarJsonc(value: any, type: Type): any {
+function _packScalarJsonc(type: Type, value: any): any {
   if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
     throw new Error(`expected scalar type, got ${type.repr()}`);
   }
@@ -251,15 +243,7 @@ function _packScalarJsonc(value: any, type: Type): any {
 }
 
 /** Unpack a JSONC object to a scalar value. */
-function _unpackScalarJsonc(
-  value: any,
-  type: Type,
-  options?: {
-    _session?: Session | null;
-    _graph?: any | null;
-    _connection?: any | null;
-  },
-): any {
+function _unpackScalarJsonc(type: Type, value: any, session: Session | null): any {
   if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
     throw new Error(`expected scalar type, got ${type.repr()}`);
   }
@@ -320,14 +304,14 @@ function _unpackScalarJsonc(
   // node reference
   else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.unpack(Encoding.JSONC, value, options?._session ?? null);
+    return _NodeReference.unpack(Encoding.JSONC, value, session);
   }
 
   // node value
   else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.unpack(Encoding.JSONC, value, options?._session ?? null);
+    return nodeClass.unpack(Encoding.JSONC, value, session);
   }
 
   // struct
@@ -336,7 +320,7 @@ function _unpackScalarJsonc(
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.unpack(Encoding.JSONC, value, options?._session ?? null);
+    return structClass.unpack(Encoding.JSONC, value, session);
   }
 
   // literal

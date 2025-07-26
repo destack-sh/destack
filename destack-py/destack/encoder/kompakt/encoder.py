@@ -13,6 +13,8 @@ from destack.language.core import (
     Type,
 )
 
+from .generate import KOMPAKT_OBJECT_ENCODERS
+
 
 class KompaktEncoder(Encoder[bytes]):
     """Encoder for our Kompakt format."""
@@ -39,7 +41,9 @@ class KompaktEncoder(Encoder[bytes]):
         object: BuiltinObject,
         writer: BinaryWriter,
     ) -> None:
-        raise NotImplementedError
+        encoder = KOMPAKT_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{metatype.name}"
+        encoder.pack_object(object, writer)
 
     @override
     def unpack_object(
@@ -61,7 +65,9 @@ class KompaktEncoder(Encoder[bytes]):
         reader: BinaryReader,
         session: Session | None,
     ) -> BuiltinObject:
-        raise NotImplementedError
+        encoder = KOMPAKT_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{metatype.name}"
+        return encoder.unpack_object(reader, session)
 
     @override
     def pack_value(

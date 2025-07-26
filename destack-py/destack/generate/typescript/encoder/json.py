@@ -185,7 +185,7 @@ def _generate_from_json(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append(
-            f"_packedCache: [{{ encoding: {Encoding.JSON.value}, isBytes: false, packed: objectJson }}]"
+            f"_PackedObjectCache: [{{ encoding: {Encoding.JSON.value}, isBytes: false, packed: objectJson }}]"
         )
 
     unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")

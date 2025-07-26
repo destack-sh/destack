@@ -5,10 +5,11 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
+    METATYPE_PROPERTY_KEY,
     BuiltinObject,
     NodeType,
     ObjectKind,
-    PackedCache,
+    PackedObjectCache,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -20,7 +21,6 @@ from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
-    get_builtin_type,
 )
 from destack.utils.code import exec_
 from destack.utils.log import get_logger
@@ -85,29 +85,22 @@ class {encoder_name}(JsonObjectEncoder):
             "Self": cls,
             "cls": cls,
             "BuiltinObject": BuiltinObject,
-            "PackedCache": PackedCache,
+            "PackedObjectCache": PackedObjectCache,
         },
     )
 
 
 def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
-    pack_method_parts: list[str] = []
-    pack_method_parts.append("_object_json: dict[str, Any] = {}")
+    pack_method_parts: list[str] = [
+        f"_object_json: dict[str, Any] = {{{METATYPE_PROPERTY_KEY}: {cls.metatype.value}}}",
+    ]
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
-        if prop.name == "metatype":
-            metatype = get_builtin_type(cls)
-            # use the enum name in CONSTANT_UPPER_CASE for metatype
-            if isinstance(metatype, NodeType):
-                metatype_name = NodeType(metatype).name
-            else:
-                metatype_name = StructType(metatype).name
-            pack_method_parts.append(f'_object_json["metatype"] = "{metatype_name}"')
+        if prop.is_computed:
             continue
-
         pack_code = _generate_pack_json_property(prop)
         if pack_code:
             pack_method_parts.extend(pack_code)
@@ -121,7 +114,9 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
     unpack_assignments: list[str] = []
     unpack_method_parts: list[str] = []
 
-    for prop in cls.__wired_properties__.values():
+    wired_properties_in_order = list(cls.__wired_properties__.values())
+    wired_properties_in_order.sort(key=lambda p: p.id or 0)
+    for prop in wired_properties_in_order:
         if prop.is_computed:
             continue  # set implicitly
         prop_name = (
@@ -135,7 +130,7 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append(
-            "_packed_cache=PackedCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
+            "_packed_cache=PackedObjectCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
         )
 
     unpack_method_parts.append("return cls(")
@@ -462,6 +457,8 @@ def _generate():
         }
     )
     for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+        if node_cls.__is_abstract__:
+            continue
         encoder_name, impl, extra_glbls = _generate_json_object_encoder(node_cls)
         locals_ = {}
         exec_(

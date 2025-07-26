@@ -1,4 +1,4 @@
-import type { Encoding, PackedCache, StructDefinition } from "@destack/language/core";
+import type { Encoding, PackedObjectCache, StructDefinition } from "@destack/language/core";
 import { ObjectKind, StructType } from "@destack/language/core/builtin/builtin";
 import { ACTIVE_SESSION, ENCODERS } from "@destack/language/core/builtin/const";
 import { BuiltinObject, type BuiltinObjectClass } from "@destack/language/core/builtin/object";
@@ -34,7 +34,7 @@ export abstract class StructFrozen extends Struct {
   /** Cached repr of the Struct. */
   readonly _repr: string | null = null;
   /** Cached packed representations (first N = each Encoding, next N = each Encoding as bytes). */
-  readonly _packedCache: PackedCache[] | null = null;
+  readonly _PackedObjectCache: PackedObjectCache[] | null = null;
 
   _invalidateFrozenCache(): void {
     // frozen Structs should be immutable, but sometimes we need to break out of that
@@ -43,13 +43,13 @@ export abstract class StructFrozen extends Struct {
     // @ts-ignore
     this._repr = null;
     // @ts-ignore
-    this._packedCache = null;
+    this._PackedObjectCache = null;
   }
 
   override pack(encoding: Encoding): any {
     // check if we have a cached packed representation
-    if (this._packedCache != null) {
-      for (const cached of this._packedCache) {
+    if (this._PackedObjectCache != null) {
+      for (const cached of this._PackedObjectCache) {
         if (cached.encoding === encoding && !cached.isBytes) {
           return cached.packed;
         }
@@ -59,25 +59,25 @@ export abstract class StructFrozen extends Struct {
     const encoder = ENCODERS[encoding]!;
     const packedObject = encoder.packObject(ObjectKind.STRUCT, this.metatype, this);
     // cache the result
-    const newCache: PackedCache = {
+    const newCache: PackedObjectCache = {
       encoding: encoding,
       isBytes: false,
       packed: packedObject,
     };
-    if (this._packedCache == null) {
+    if (this._PackedObjectCache == null) {
       // @ts-expect-error(readonly)
-      this._packedCache = [newCache];
+      this._PackedObjectCache = [newCache];
     } else {
       // @ts-expect-error(readonly)
-      this._packedCache = [...this._packedCache, newCache];
+      this._PackedObjectCache = [...this._PackedObjectCache, newCache];
     }
     return packedObject;
   }
 
   packBinary(encoding: Encoding): Uint8Array {
     // check if we have a cached packed bytes representation
-    if (this._packedCache != null) {
-      for (const cached of this._packedCache) {
+    if (this._PackedObjectCache != null) {
+      for (const cached of this._PackedObjectCache) {
         if (cached.encoding === encoding && cached.isBytes) {
           return cached.packed;
         }
@@ -89,17 +89,17 @@ export abstract class StructFrozen extends Struct {
     encoder.packObjectBinary(ObjectKind.STRUCT, this.metatype, this, writer);
     const packedObjectBytes = writer.toBytes();
     // cache the result
-    const newCache: PackedCache = {
+    const newCache: PackedObjectCache = {
       encoding: encoding,
       isBytes: true,
       packed: packedObjectBytes,
     };
-    if (this._packedCache == null) {
+    if (this._PackedObjectCache == null) {
       // @ts-expect-error(readonly)
-      this._packedCache = [newCache];
+      this._PackedObjectCache = [newCache];
     } else {
       // @ts-expect-error(readonly)
-      this._packedCache = [...this._packedCache, newCache];
+      this._PackedObjectCache = [...this._PackedObjectCache, newCache];
     }
     return packedObjectBytes;
   }

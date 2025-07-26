@@ -2,7 +2,7 @@ import { packJsonc, unpackJsonc } from "@destack/encoder/jsonc/wiring";
 import { StructType } from "@destack/language/core/builtin/builtin";
 import { ScalarType, TypeCardinality } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import { toType } from "@destack/language/core/builtin/type";
@@ -36,7 +36,7 @@ export class Value extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -59,7 +59,7 @@ export class Value extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -107,7 +107,7 @@ export class Value extends StructFrozen {
   /** Get the unpacked value of this generic Value. */
   unpack(): any {
     if (this._unpacked === null) {
-      this._unpacked = unpackJsonc(this.value, this.type);
+      this._unpacked = unpackJsonc(this.type, this.value, this._session);
     }
     return this._unpacked;
   }
@@ -142,7 +142,7 @@ export function toValue(
     }
   }
   // pack value
-  const valuePacked = packJsonc(valueUnpacked, type);
+  const valuePacked = packJsonc(type, valueUnpacked);
   const value = new Value({ type: type, value: valuePacked });
   return value;
 }

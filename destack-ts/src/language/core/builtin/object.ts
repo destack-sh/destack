@@ -165,7 +165,7 @@ export type BuiltinObjectClass<ObjectT extends BuiltinObject = BuiltinObject> = 
 };
 
 /** A cached packed representation of a BuiltinObject. */
-export type PackedCache = {
+export type PackedObjectCache = {
   encoding: Encoding;
   isBytes: boolean;
   packed: any;

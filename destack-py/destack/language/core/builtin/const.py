@@ -38,7 +38,8 @@ class _Unset:
 VERSION = "2025.07.25.1"
 EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
-
+METATYPE_PROPERTY_ID = 1
+METATYPE_PROPERTY_KEY = str(METATYPE_PROPERTY_ID)
 
 # runtime constants
 NONCE = uuid4()

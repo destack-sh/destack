@@ -1,4 +1,4 @@
-import type { Float32, Int32, PackedCache, Session } from "@destack/language/core";
+import type { Float32, Int32, PackedObjectCache, Session } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
@@ -27,7 +27,7 @@ export class Vector2 extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -53,7 +53,7 @@ export class Vector2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -288,7 +288,7 @@ export class Vector3 extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -319,7 +319,7 @@ export class Vector3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -591,7 +591,7 @@ export class Vector4 extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -627,7 +627,7 @@ export class Vector4 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -908,7 +908,7 @@ export class Vector2i extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -934,7 +934,7 @@ export class Vector2i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1169,7 +1169,7 @@ export class Vector3i extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -1200,7 +1200,7 @@ export class Vector3i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -1462,7 +1462,7 @@ export class Vector4i extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -1498,7 +1498,7 @@ export class Vector4i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
