@@ -1,286 +1,48 @@
-import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
-import type { Region } from "@destack/language/core/builtin/common";
-import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/const";
 import type {
-  EnumDefinition,
-  NodeDefinition,
-  StructDefinition,
-  TraitDefinition,
-} from "@destack/language/core/builtin/definition";
-import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
-import type { Node, NodeClass } from "@destack/language/core/builtin/node";
-import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type {
-  IsFollowable,
-  IsJoinable,
-  IsOwnable,
-  IsStarable,
-} from "@destack/language/core/builtin/trait";
-import type { Datetime, Float64, UInt128, UUID } from "@destack/language/core/builtin/types";
-import type { Value } from "@destack/language/core/builtin/value";
-import type { Branch, Snapshot } from "@destack/language/core/common/time";
-import { BranchType, SnapshotType } from "@destack/language/core/common/time";
-import type { Session } from "@destack/language/core/runtime/session";
+  Branch,
+  Datetime,
+  Float32,
+  NodeClass,
+  NodeReference,
+  PackedObjectCache,
+  Session,
+  Snapshot,
+  Space,
+  UInt128,
+  UUID,
+  Value,
+} from "@destack/language/core";
+import {
+  ACTIVE_BRANCH,
+  ACTIVE_SNAPSHOT,
+  ACTIVE_SPACE,
+  type Entity,
+  type Event,
+  type Materialization,
+  type Node,
+  NodeType,
+  StructFrozen,
+  StructType,
+} from "@destack/language/core";
+import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
+import { Shape2D } from "@destack/language/geometry/shape";
+import type { Vector2 } from "@destack/language/geometry/vector";
 import type { Script } from "@destack/language/logic";
 import {
-  NODE_CLASS_BY_TYPE,
   registerNodeClass,
+  registerStructClass,
   STRUCT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
-import type { Handle } from "@destack/language/universe";
-import { hashBool, hashString } from "@destack/utils/hash";
-import { uuid4 } from "@destack/utils/uuid";
+import type { Stroke } from "@destack/language/style";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2410500 ==== */
 /**
- * The Destack computational universe.
+ * A CapsuleShape is a shape that represents a capsule.
  */
-export abstract class Universe extends Entity {
-  static metatype: NodeType = NodeType.UNIVERSE;
-
-  /**
-   * The current version of Destack.
-   */
-  static readonly VERSION: string = "2025.07.26.0";
-
-  /**
-   * The float epsilon used for floating point comparisons.
-   */
-  static readonly EPSILON: Float64 = 1e-6;
-
-  /**
-   * The beginning of time. (1970-01-01T00:00:00+00:00)
-   */
-  static readonly BEGINNING_OF_TIME: Datetime = Temporal.Instant.from(
-    "1970-01-01 00:00:00+00:00",
-  ).toZonedDateTimeISO("UTC");
-
-  /**
-   * All Node definitions.
-   */
-  static readonly NODES: readonly NodeDefinition[] = undefined as any /* (deferred) */;
-
-  /**
-   * All Trait definitions.
-   */
-  static readonly TRAITS: readonly TraitDefinition[] = undefined as any /* (deferred) */;
-
-  /**
-   * All Struct definitions.
-   */
-  static readonly STRUCTS: readonly StructDefinition[] = undefined as any /* (deferred) */;
-
-  /**
-   * All Enum definitions.
-   */
-  static readonly ENUMS: readonly EnumDefinition[] = undefined as any /* (deferred) */;
-
-  /**
-   * The system Space ID.
-   */
-  static readonly SPACE_ID: UUID = "00000000-0000-0000-0000-000000000000";
-
-  /**
-   * The system Space.
-   */
-  static readonly SPACE: NodeReference = undefined as any /* (deferred) */;
-
-  /**
-   * The 'meta' Snapshot.id, the Snapshot containing time-related Entities (like Snapshots, Branches, etc.)
-   */
-  static readonly META_SNAPSHOT_ID: UUID = "00000000-0000-0000-0000-000000000014";
-
-  /**
-   * The 'meta' Branch.id, the Branch containing time-related Entities (like Snapshots, Branches, etc.)
-   */
-  static readonly META_BRANCH_ID: UUID = "00000000-0000-0000-0000-000000000015";
-
-  /**
-   * The 'root' Branch.id, the Branch all other Branches originate from.
-   */
-  static readonly ROOT_BRANCH_ID: UUID = "00000000-0000-0000-0000-00000000001f";
-
-  /**
-   * The 'head' Snapshot.id, the current active Snapshot.
-   */
-  static readonly HEAD_SNAPSHOT_ID: UUID = "00000000-0000-0000-0000-00000000001e";
-
-  /**
-   * God himself, the creator of the Universe.
-   */
-  static readonly ACTOR: NodeReference = undefined as any /* (deferred) */;
-
-  /**
-   * God's terminal, for when He needs to do something.
-   */
-  static readonly CLIENT: NodeReference = undefined as any /* (deferred) */;
-
-  /**
-   * The parent of this Entity. Most Entities can be attached to any other Entity.
-   */
-  abstract get parent(): Entity | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
-
-  /**
-   * The definition this Entity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * The Branch this Entity is part of.
-   */
-  abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
-
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
-
-  /**
-   * The previous Entity this Entity is based on (from the base Branch, if any).
-   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
-   */
-  abstract get precededBy(): Universe | null;
-  declare readonly precededByPtr: NodeReference | null;
-
-  /**
-   * The (root) Entity that is being instantiated.
-   */
-  abstract get instance(): Entity | null;
-  declare readonly instancePtr: NodeReference | null;
-
-  /**
-   * The time this Entity was created (system time).
-   */
-  declare readonly createdAt: Datetime;
-
-  /**
-   * The logical time this Entity was created (system time).
-   */
-  declare readonly createdEpoch: UInt128;
-
-  /**
-   * The Actor that created this Entity.
-   */
-  abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
-
-  /**
-   * The time this Entity was last updated (system time).
-   */
-  declare readonly updatedAt: Datetime;
-
-  /**
-   * The logical time this Entity was last updated (system time).
-   */
-  declare readonly updatedEpoch: UInt128;
-
-  /**
-   * The Actor that last updated this Entity.
-   */
-  abstract get updatedBy(): Entity | null;
-  declare readonly updatedByPtr: NodeReference;
-
-  /**
-   * The time this Entity was deleted (system time).
-   * Only set if the Entity is currently 'deleted'.
-   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
-   */
-  declare readonly deletedAt: Datetime | null;
-
-  /**
-   * Entity.ownedBy
-   */
-  abstract get ownedBy(): Entity | null;
-  abstract set ownedBy(value: Entity | null);
-  /**
-   * Entity.ownedBy
-   */
-  abstract get ownedByPtr(): NodeReference | null;
-  abstract set ownedByPtr(value: NodeReference | null);
-
-  /**
-   * Entity.name
-   */
-  /**
-   * Entity.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
-
-  /**
-   * The absolute order key of this Entity in its parent.
-   */
-  declare readonly orderKey: string;
-
-  /**
-   * The custom Values of this Entity, keyed by custom Property id..
-   */
-  /**
-   * The custom Values of this Entity, keyed by custom Property id..
-   */
-  abstract get customValues(): { readonly [key: UUID]: Value };
-  abstract set customValues(value: { readonly [key: UUID]: Value });
-
-  /**
-   * The Script of this Entity.
-   */
-  abstract get script(): Script | null;
-  abstract set script(value: Script | null);
-  /**
-   * The Script of this Entity.
-   */
-  abstract get scriptPtr(): NodeReference | null;
-  abstract set scriptPtr(value: NodeReference | null);
-
-  /**
-   * Whether this Entity can be instanced.
-   */
-  declare readonly isExtensible: boolean | null;
-
-  /**
-   * The Script that defines this Node.
-   */
-  abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.UNIVERSE, Universe);
-/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:1100 ==== */
-/**
- * A Space is the home of your personal software studio.
- */
-export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable, IsStarable {
-  static metatype: NodeType = NodeType.SPACE;
+export class CapsuleShape2D extends Shape2D {
+  static metatype: NodeType = NodeType.CAPSULE_SHAPE2D;
 
   /**
    * The parent of this Entity. Most Entities can be attached to any other Entity.
@@ -351,10 +113,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
-  get precededBy(): Space | null {
+  get precededBy(): CapsuleShape2D | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+      return this._session.graph.get(nodePtr) as CapsuleShape2D | null;
     }
     return null;
   }
@@ -554,66 +316,180 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   _key: string | null;
 
   /**
-   * Space.slug
+   * Entity2D.position
    */
   /**
-   * Space.slug
+   * Entity2D.position
    */
-  get slug(): string {
-    return this._slug;
+  get position(): Vector2 | null {
+    return this._position;
   }
-  set slug(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["slug"];
+  set position(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["position"];
     this._session.updateSetProperty(this, prop, value);
-    this._slug = value;
+    this._position = value;
   }
-  _slug: string;
+  _position: Vector2 | null;
 
   /**
-   * Space.handle
+   * Entity2D.offset
    */
-  get handle(): Handle | null {
-    const nodePtr: NodeReference | null = this.handlePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Handle | null;
-    }
-    return null;
-  }
-  set handle(node: Handle | null) {
-    if (node === null) {
-      this.handlePtr = null;
-    } else {
-      this.handlePtr = node.toRef();
-    }
-  }
   /**
-   * Space.handle
+   * Entity2D.offset
    */
-  get handlePtr(): NodeReference | null {
-    return this._handlePtr;
+  get offset(): Offset2 | null {
+    return this._offset;
   }
-  set handlePtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["handle"];
+  set offset(value: Offset2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["offset"];
     this._session.updateSetProperty(this, prop, value);
-    this._handlePtr = value;
+    this._offset = value;
   }
-  _handlePtr: NodeReference | null;
+  _offset: Offset2 | null;
 
   /**
-   * Space.region
+   * Entity2D.scale
    */
   /**
-   * Space.region
+   * Entity2D.scale
    */
-  get region(): Region {
-    return this._region;
+  get scale(): Vector2 | null {
+    return this._scale;
   }
-  set region(value: Region) {
-    const prop = (this.constructor as NodeClass).__properties__["region"];
+  set scale(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
     this._session.updateSetProperty(this, prop, value);
-    this._region = value;
+    this._scale = value;
   }
-  _region: Region;
+  _scale: Vector2 | null;
+
+  /**
+   * Entity2D.rotation
+   */
+  /**
+   * Entity2D.rotation
+   */
+  get rotation(): Vector2 | null {
+    return this._rotation;
+  }
+  set rotation(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
+    this._rotation = value;
+  }
+  _rotation: Vector2 | null;
+
+  /**
+   * Entity2D.skew
+   */
+  /**
+   * Entity2D.skew
+   */
+  get skew(): Vector2 | null {
+    return this._skew;
+  }
+  set skew(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
+    this._skew = value;
+  }
+  _skew: Vector2 | null;
+
+  /**
+   * Entity2D.origin
+   */
+  /**
+   * Entity2D.origin
+   */
+  get origin(): Vector2 | null {
+    return this._origin;
+  }
+  set origin(value: Vector2 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["origin"];
+    this._session.updateSetProperty(this, prop, value);
+    this._origin = value;
+  }
+  _origin: Vector2 | null;
+
+  /**
+   * Entity2D.anchor
+   */
+  /**
+   * Entity2D.anchor
+   */
+  get anchor(): Anchor | null {
+    return this._anchor;
+  }
+  set anchor(value: Anchor | null) {
+    const prop = (this.constructor as NodeClass).__properties__["anchor"];
+    this._session.updateSetProperty(this, prop, value);
+    this._anchor = value;
+  }
+  _anchor: Anchor | null;
+
+  /**
+   * Shape2D.stroke
+   */
+  /**
+   * Shape2D.stroke
+   */
+  get stroke(): Stroke | null {
+    return this._stroke;
+  }
+  set stroke(value: Stroke | null) {
+    const prop = (this.constructor as NodeClass).__properties__["stroke"];
+    this._session.updateSetProperty(this, prop, value);
+    this._stroke = value;
+  }
+  _stroke: Stroke | null;
+
+  /**
+   * CapsuleShape2D.centerA
+   */
+  /**
+   * CapsuleShape2D.centerA
+   */
+  get centerA(): Vector2 {
+    return this._centerA;
+  }
+  set centerA(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["center_a"];
+    this._session.updateSetProperty(this, prop, value);
+    this._centerA = value;
+  }
+  _centerA: Vector2;
+
+  /**
+   * CapsuleShape2D.centerB
+   */
+  /**
+   * CapsuleShape2D.centerB
+   */
+  get centerB(): Vector2 {
+    return this._centerB;
+  }
+  set centerB(value: Vector2) {
+    const prop = (this.constructor as NodeClass).__properties__["center_b"];
+    this._session.updateSetProperty(this, prop, value);
+    this._centerB = value;
+  }
+  _centerB: Vector2;
+
+  /**
+   * CapsuleShape2D.radius
+   */
+  /**
+   * CapsuleShape2D.radius
+   */
+  get radius(): Float32 {
+    return this._radius;
+  }
+  set radius(value: Float32) {
+    const prop = (this.constructor as NodeClass).__properties__["radius"];
+    this._session.updateSetProperty(this, prop, value);
+    this._radius = value;
+  }
+  _radius: Float32;
 
   constructor(options: {
     id?: UUID;
@@ -623,7 +499,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     definition?: Entity | NodeReference | null;
     branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: Space | NodeReference | null;
+    precededBy?: CapsuleShape2D | NodeReference | null;
     instance?: Entity | NodeReference | null;
     createdAt?: Datetime;
     createdEpoch?: UInt128;
@@ -640,9 +516,17 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
-    slug: string;
-    handle?: Handle | NodeReference | null;
-    region: Region;
+    position?: Vector2 | null;
+    offset?: Offset2 | null;
+    scale?: Vector2 | null;
+    rotation?: Vector2 | null;
+    skew?: Vector2 | null;
+    origin?: Vector2 | null;
+    anchor?: Anchor | null;
+    stroke?: Stroke | null;
+    centerA: Vector2;
+    centerB: Vector2;
+    radius: Float32;
     _session?: Session | null;
   }) {
     /* super */
@@ -668,10 +552,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       _space = (_space as Node).toRef();
     }
     if (_space == null) {
-      _space = this.toRef();
+      _space = ACTIVE_SPACE.get();
+      if (_space == null) {
+        throw new Error(`no active Space for CapsuleShape2D`);
+      }
+      _space = _space.toRef();
     }
     if (_space == null) {
-      throw new Error(`Space.space is required`);
+      throw new Error(`CapsuleShape2D.space is required`);
     }
     this.spacePtr = _space as NodeReference;
     let _materialization = options.materialization ?? null;
@@ -679,7 +567,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization == null) {
-      throw new Error(`Space.materialization is required`);
+      throw new Error(`CapsuleShape2D.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -694,12 +582,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_branch == null) {
       _branch = ACTIVE_BRANCH.get();
       if (_branch == null) {
-        throw new Error(`no active Branch for Space`);
+        throw new Error(`no active Branch for CapsuleShape2D`);
       }
       _branch = _branch.toRef();
     }
     if (_branch == null) {
-      throw new Error(`Space.branch is required`);
+      throw new Error(`CapsuleShape2D.branch is required`);
     }
     this.branchPtr = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
@@ -709,12 +597,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_snapshot == null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot == null) {
-        throw new Error(`no active Snapshot for Space`);
+        throw new Error(`no active Snapshot for CapsuleShape2D`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot == null) {
-      throw new Error(`Space.snapshot is required`);
+      throw new Error(`CapsuleShape2D.snapshot is required`);
     }
     this.snapshotPtr = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
@@ -736,10 +624,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     this._ownedByPtr = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name == null) {
-      _name = "Space";
+      _name = "CapsuleShape2D";
     }
     if (_name == null) {
-      throw new Error(`Space.name is required`);
+      throw new Error(`CapsuleShape2D.name is required`);
     }
     this._name = _name;
     let _orderKey = options.orderKey ?? null;
@@ -747,7 +635,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       _orderKey = "a0";
     }
     if (_orderKey == null) {
-      throw new Error(`Space.orderKey is required`);
+      throw new Error(`CapsuleShape2D.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _customValues = options.customValues ?? null;
@@ -769,21 +657,37 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     this.sourcePtr = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
-    let _slug = options.slug;
-    if (_slug == null) {
-      throw new Error(`Space.slug is required`);
+    let _position = options.position ?? null;
+    this._position = _position;
+    let _offset = options.offset ?? null;
+    this._offset = _offset;
+    let _scale = options.scale ?? null;
+    this._scale = _scale;
+    let _rotation = options.rotation ?? null;
+    this._rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this._skew = _skew;
+    let _origin = options.origin ?? null;
+    this._origin = _origin;
+    let _anchor = options.anchor ?? null;
+    this._anchor = _anchor;
+    let _stroke = options.stroke ?? null;
+    this._stroke = _stroke;
+    let _centerA = options.centerA;
+    if (_centerA == null) {
+      throw new Error(`CapsuleShape2D.centerA is required`);
     }
-    this._slug = _slug;
-    let _handle = options.handle ?? null;
-    if (_handle != null && _handle.constructor.name !== "NodeReference") {
-      _handle = (_handle as Node).toRef();
+    this._centerA = _centerA;
+    let _centerB = options.centerB;
+    if (_centerB == null) {
+      throw new Error(`CapsuleShape2D.centerB is required`);
     }
-    this._handlePtr = _handle as NodeReference | null;
-    let _region = options.region;
-    if (_region == null) {
-      throw new Error(`Space.region is required`);
+    this._centerB = _centerB;
+    let _radius = options.radius;
+    if (_radius == null) {
+      throw new Error(`CapsuleShape2D.radius is required`);
     }
-    this._region = _region;
+    this._radius = _radius;
 
     /* identity */
     if (options.id == null) {
@@ -802,7 +706,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         options.createdEpoch == null ||
         options.updatedEpoch == null
       ) {
-        throw new Error(`Space.createdAt and Space.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `CapsuleShape2D.createdAt and CapsuleShape2D.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
@@ -819,16 +725,58 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!this._centerA.equals(other._centerA)) {
       return false;
     }
-    if (!(this._slug === other._slug)) {
+    if (!this._centerB.equals(other._centerB)) {
       return false;
     }
-    if (!(this._handlePtr?.id === other._handlePtr?.id)) {
+    if (!(this._radius === other._radius || Math.abs(this._radius - other._radius) < 1e-10)) {
       return false;
     }
-    if (!(this._region === other._region)) {
+    if (
+      (this._stroke == null) !== (other._stroke == null) ||
+      (this._stroke != null && !this._stroke.equals(other._stroke))
+    ) {
+      return false;
+    }
+    if (
+      (this._position == null) !== (other._position == null) ||
+      (this._position != null && !this._position.equals(other._position))
+    ) {
+      return false;
+    }
+    if (
+      (this._offset == null) !== (other._offset == null) ||
+      (this._offset != null && !this._offset.equals(other._offset))
+    ) {
+      return false;
+    }
+    if (
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null && !this._scale.equals(other._scale))
+    ) {
+      return false;
+    }
+    if (
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
+    ) {
+      return false;
+    }
+    if (
+      (this._origin == null) !== (other._origin == null) ||
+      (this._origin != null && !this._origin.equals(other._origin))
+    ) {
+      return false;
+    }
+    if (!(this._anchor === other._anchor)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -855,18 +803,42 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this._key === other._key)) {
       return false;
     }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this._slug)) & 0xffffffff;
-    if (this._handlePtr != null) {
-      h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
+    h = (h * 31 + this._centerA.hash()) & 0xffffffff;
+    h = (h * 31 + this._centerB.hash()) & 0xffffffff;
+    h = (h * 31 + hashFloat(this._radius)) & 0xffffffff;
+    if (this._stroke != null) {
+      h = (h * 31 + this._stroke.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this._region) & 0xffffffff;
+    if (this._position != null) {
+      h = (h * 31 + this._position.hash()) & 0xffffffff;
+    }
+    if (this._offset != null) {
+      h = (h * 31 + this._offset.hash()) & 0xffffffff;
+    }
+    if (this._scale != null) {
+      h = (h * 31 + this._scale.hash()) & 0xffffffff;
+    }
+    if (this._rotation != null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
+    }
+    if (this._skew != null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
+    }
+    if (this._origin != null) {
+      h = (h * 31 + this._origin.hash()) & 0xffffffff;
+    }
+    if (this._anchor != null) {
+      h = (h * 31 + this._anchor) & 0xffffffff;
+    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -904,6 +876,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -911,9 +884,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.SPACE,
+      type: NodeType.CAPSULE_SHAPE2D,
       id: this.id,
-      spaceId: this.id,
+      spaceId: this.spacePtr.id,
+      definitionId: this.definitionPtr?.id ?? null,
       branchId: this.branchPtr.id,
       snapshotId: this.snapshotPtr.id,
       _session: this._session,
@@ -921,187 +895,144 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   }
 
   get _pathKey(): string {
-    return this.slug ?? this.name;
+    return this.name;
   }
 
   get path(): string {
-    return this.slug ?? this.name;
+    const pathParts: string[] = [];
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
+      pathParts.push(node._pathKey);
+      lastNode = node;
+      node = node.parent;
+    }
+    if (!lastNode.isRoot) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`slug=${`"${this.slug}"`}`);
+    if (this.stroke != null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Space "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<CapsuleShape2D "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
-  /** Create a new Space with a root Branch, meta Snapshot and head Snapshot. */
-  static createSpace(options: {
-    session: Session;
-    id?: string;
-    name: string;
-    slug: string;
-    region: Region;
-    ownedBy: Entity | NodeReference;
-  }): {
-    space: Space;
-    rootBranch: Branch;
-    metaBranch: Branch;
-    metaSnapshot: Snapshot;
-    headSnapshot: Snapshot;
-  } {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
-    const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
-    const _Space = NODE_CLASS_BY_TYPE[NodeType.SPACE] as typeof Space;
-
-    const { session, id, name, slug, region, ownedBy } = options;
-
-    let ownedByPtr: NodeReference;
-    if (ownedBy instanceof Entity) {
-      ownedByPtr = ownedBy.__toRef__();
-    } else {
-      ownedByPtr = ownedBy;
-    }
-
-    const spaceId = id ?? uuid4();
-    const epoch = session.epoch;
-    const now = Temporal.Now.zonedDateTimeISO("UTC");
-
-    const spacePtr = new _NodeReference({
-      type: NodeType.SPACE,
-      id: spaceId,
-      spaceId,
-      branchId: Universe.ROOT_BRANCH_ID,
-      snapshotId: Universe.META_SNAPSHOT_ID,
-    });
-
-    // snapshots/branches live in the meta Branch/Snapshot
-    const metaBranchPtr = new _NodeReference({
-      type: NodeType.BRANCH,
-      id: Universe.META_BRANCH_ID,
-      spaceId,
-      branchId: Universe.META_BRANCH_ID,
-      snapshotId: Universe.META_SNAPSHOT_ID,
-    });
-
-    const metaSnapshotPtr = new _NodeReference({
-      type: NodeType.SNAPSHOT,
-      id: Universe.META_SNAPSHOT_ID,
-      spaceId,
-      branchId: Universe.META_BRANCH_ID,
-      snapshotId: Universe.META_SNAPSHOT_ID,
-    });
-
-    const rootBranchPtr = new _NodeReference({
-      type: NodeType.BRANCH,
-      id: Universe.ROOT_BRANCH_ID,
-      spaceId,
-      branchId: Universe.ROOT_BRANCH_ID,
-      snapshotId: Universe.META_SNAPSHOT_ID,
-    });
-
-    const headSnapshotPtr = new _NodeReference({
-      type: NodeType.SNAPSHOT,
-      id: Universe.HEAD_SNAPSHOT_ID,
-      spaceId,
-      branchId: Universe.META_BRANCH_ID,
-      snapshotId: Universe.META_BRANCH_ID,
-    });
-
-    const metaBranch = new _Branch({
-      id: Universe.META_BRANCH_ID,
-      type: BranchType.ROOT,
-      name: "Meta",
-      space: spacePtr,
-      snapshot: metaSnapshotPtr,
-      branch: metaBranchPtr,
-      createdEpoch: epoch,
-      createdAt: now,
-      createdBy: ownedByPtr,
-      updatedEpoch: epoch,
-      updatedAt: now,
-      updatedBy: ownedByPtr,
-    });
-
-    const metaSnapshot = new _Snapshot({
-      id: Universe.META_SNAPSHOT_ID,
-      name: "Meta",
-      space: spacePtr,
-      branch: metaBranchPtr,
-      snapshot: metaSnapshotPtr,
-      createdEpoch: epoch,
-      createdAt: now,
-      createdBy: ownedByPtr,
-      updatedEpoch: epoch,
-      updatedAt: now,
-      updatedBy: ownedByPtr,
-      type: SnapshotType.FULL,
-    });
-
-    const headSnapshot = new _Snapshot({
-      id: Universe.HEAD_SNAPSHOT_ID,
-      name: "Head",
-      space: spacePtr,
-      branch: metaBranchPtr,
-      snapshot: metaSnapshotPtr,
-      createdEpoch: epoch,
-      createdAt: now,
-      createdBy: ownedByPtr,
-      updatedEpoch: epoch,
-      updatedAt: now,
-      updatedBy: ownedByPtr,
-      type: SnapshotType.FULL,
-    });
-
-    const rootBranch = new _Branch({
-      id: Universe.ROOT_BRANCH_ID,
-      name: "Root",
-      space: spacePtr,
-      snapshot: metaSnapshotPtr,
-      createdEpoch: epoch,
-      createdAt: now,
-      createdBy: ownedByPtr,
-      updatedEpoch: epoch,
-      updatedAt: now,
-      updatedBy: ownedByPtr,
-      type: BranchType.ROOT,
-      branch: metaBranchPtr,
-    });
-
-    // space lives in the root Branch at head Snapshot
-    const space = new _Space({
-      id: spaceId,
-      space: spacePtr,
-      branch: rootBranchPtr,
-      snapshot: headSnapshotPtr,
-      name,
-      slug,
-      region,
-      createdEpoch: epoch,
-      createdAt: now,
-      createdBy: ownedByPtr,
-      updatedEpoch: epoch,
-      updatedAt: now,
-      updatedBy: ownedByPtr,
-      ownedBy: ownedByPtr,
-    });
-
-    session.create(space);
-    session.create(metaBranch);
-    session.create(metaSnapshot);
-    session.create(rootBranch);
-    session.create(headSnapshot);
-
-    return { space, rootBranch, metaBranch, metaSnapshot, headSnapshot };
-  }
-
+  /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.SPACE, Space);
-/* ==== DESTACK_GENERATED_END:NODE:1100 ==== */
+registerNodeClass(NodeType.CAPSULE_SHAPE2D, CapsuleShape2D);
+/* ==== DESTACK_GENERATED_END:NODE:2410500 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2410500 ==== */
+/**
+ * A Capsule2D is a cylinder with a radius and height.
+ */
+export class Capsule2D extends StructFrozen {
+  static metatype: StructType = StructType.CAPSULE2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Capsule2D.centerA
+   */
+  readonly centerA: Vector2;
+
+  /**
+   * Capsule2D.centerB
+   */
+  readonly centerB: Vector2;
+
+  /**
+   * Capsule2D.radius
+   */
+  readonly radius: Float32;
+
+  constructor(options: {
+    centerA: Vector2;
+    centerB: Vector2;
+    radius: Float32;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
+  }) {
+    /* super */
+    super(
+      /* session */
+      options._session ?? null,
+    );
+
+    /* properties */
+    let _centerA = options.centerA;
+    if (_centerA == null) {
+      throw new Error(`Capsule2D.centerA is required`);
+    }
+    this.centerA = _centerA;
+    let _centerB = options.centerB;
+    if (_centerB == null) {
+      throw new Error(`Capsule2D.centerB is required`);
+    }
+    this.centerB = _centerB;
+    let _radius = options.radius;
+    if (_radius == null) {
+      throw new Error(`Capsule2D.radius is required`);
+    }
+    this.radius = _radius;
+
+    /* identity */
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!this.centerA.equals(other.centerA)) {
+      return false;
+    }
+    if (!this.centerB.equals(other.centerB)) {
+      return false;
+    }
+    if (!(this.radius === other.radius || Math.abs(this.radius - other.radius) < 1e-10)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Capsule2D>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.centerA.hash()) & 0xffffffff;
+    h = (h * 31 + this.centerB.hash()) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.radius)) & 0xffffffff;
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.CAPSULE2D, Capsule2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2410500 ==== */

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     NodeType,
@@ -12,7 +12,7 @@ from destack.language.core import (
 from .shape import Shape2D
 
 if TYPE_CHECKING:
-    from destack.language import Stroke, Vector2
+    from destack.language import Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 class Line2D(StructFrozen):
     """A Line is a line between two points."""
 
-    stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)
     start: "Vector2" = builtin_property(210)
     end: "Vector2" = builtin_property(220)
 

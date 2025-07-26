@@ -21,6 +21,8 @@ import {
   BorderType,
   type Branch,
   BranchType,
+  type Capsule2D,
+  type CapsuleShape2D,
   CascadeAction,
   type CheckedType,
   type Client,
@@ -259,9 +261,11 @@ import {
   SpringType,
   type Stage,
   type Star,
+  type Star2D,
   type StarAddedEvent,
   type StarEvent,
   type StarRemovedEvent,
+  type StarShape2D,
   type StringConstraint,
   type Stroke,
   type StrokeCap,
@@ -5279,7 +5283,7 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
       const colorValue = objectJson["color"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
@@ -5450,7 +5454,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
       const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const angleValue = objectJson["angle"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
@@ -5813,8 +5817,8 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): FontStyle {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const weightValue = objectJson["weight"];
       const unpackedWeight =
         weightValue != undefined ? (FontWeight[weightValue] as any) : undefined;
@@ -6152,7 +6156,7 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const colorValue = objectJson["color"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
@@ -6853,7 +6857,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
+      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3;
       const opacityValue = objectJson["opacity"];
       const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const offsetValue = objectJson["offset"];
@@ -8284,7 +8288,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
@@ -8408,6 +8412,216 @@ export function loadEncoders(): void {
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410200)] = new ArrowShape2DJsonEncoder();
 
+  class CapsuleShape2DJsonEncoder implements JsonObjectEncoder {
+    packObject(object: CapsuleShape2D): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "CAPSULE_SHAPE2D";
+      objectJson["id"] = object.id;
+      if (object.parentPtr != null) {
+        objectJson["parent"] = object.parentPtr.pack(1);
+      }
+      objectJson["space"] = object.spacePtr.pack(1);
+      objectJson["materialization"] = Materialization[object.materialization];
+      if (object.definitionPtr != null) {
+        objectJson["definition"] = object.definitionPtr.pack(1);
+      }
+      objectJson["branch"] = object.branchPtr.pack(1);
+      objectJson["snapshot"] = object.snapshotPtr.pack(1);
+      if (object.precededByPtr != null) {
+        objectJson["precededBy"] = object.precededByPtr.pack(1);
+      }
+      if (object.instancePtr != null) {
+        objectJson["instance"] = object.instancePtr.pack(1);
+      }
+      objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: "never" });
+      objectJson["createdEpoch"] = Number(object.createdEpoch);
+      objectJson["createdBy"] = object.createdByPtr.pack(1);
+      objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: "never" });
+      objectJson["updatedEpoch"] = Number(object.updatedEpoch);
+      objectJson["updatedBy"] = object.updatedByPtr.pack(1);
+      if (object.deletedAt != null) {
+        objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: "never" });
+      }
+      if (object._ownedByPtr != null) {
+        objectJson["ownedBy"] = object._ownedByPtr.pack(1);
+      }
+      objectJson["name"] = object._name;
+      objectJson["orderKey"] = object.orderKey;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
+      }
+      objectJson["customValues"] = packedCustomValues;
+      if (object._scriptPtr != null) {
+        objectJson["script"] = object._scriptPtr.pack(1);
+      }
+      if (object.isExtensible != null) {
+        objectJson["isExtensible"] = object.isExtensible;
+      }
+      if (object.sourcePtr != null) {
+        objectJson["source"] = object.sourcePtr.pack(1);
+      }
+      if (object._key != null) {
+        objectJson["key"] = object._key;
+      }
+      if (object._position != null) {
+        objectJson["position"] = object._position.pack(1);
+      }
+      if (object._offset != null) {
+        objectJson["offset"] = object._offset.pack(1);
+      }
+      if (object._scale != null) {
+        objectJson["scale"] = object._scale.pack(1);
+      }
+      if (object._rotation != null) {
+        objectJson["rotation"] = object._rotation.pack(1);
+      }
+      if (object._skew != null) {
+        objectJson["skew"] = object._skew.pack(1);
+      }
+      if (object._origin != null) {
+        objectJson["origin"] = object._origin.pack(1);
+      }
+      if (object._anchor != null) {
+        objectJson["anchor"] = Anchor[object._anchor];
+      }
+      if (object._stroke != null) {
+        objectJson["stroke"] = object._stroke.pack(1);
+      }
+      objectJson["centerA"] = object._centerA.pack(1);
+      objectJson["centerB"] = object._centerB.pack(1);
+      objectJson["radius"] = Number(object._radius);
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): CapsuleShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const strokeValue = objectJson["stroke"];
+      const unpackedStroke =
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
+      const positionValue = objectJson["position"];
+      const unpackedPosition =
+        positionValue != undefined
+          ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
+          : undefined;
+      const offsetValue = objectJson["offset"];
+      const unpackedOffset =
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
+      const scaleValue = objectJson["scale"];
+      const unpackedScale =
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
+      const rotationValue = objectJson["rotation"];
+      const unpackedRotation =
+        rotationValue != undefined
+          ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
+          : undefined;
+      const skewValue = objectJson["skew"];
+      const unpackedSkew =
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
+      const originValue = objectJson["origin"];
+      const unpackedOrigin =
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
+      const anchorValue = objectJson["anchor"];
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
+      const parentPtrValue = objectJson["parent"];
+      const unpackedParentPtr =
+        parentPtrValue != undefined
+          ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
+          : undefined;
+      const definitionPtrValue = objectJson["definition"];
+      const unpackedDefinitionPtr =
+        definitionPtrValue != undefined
+          ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
+          : undefined;
+      const precededByPtrValue = objectJson["precededBy"];
+      const unpackedPrecededByPtr =
+        precededByPtrValue != undefined
+          ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
+          : undefined;
+      const instancePtrValue = objectJson["instance"];
+      const unpackedInstancePtr =
+        instancePtrValue != undefined
+          ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
+          : undefined;
+      const deletedAtValue = objectJson["deletedAt"];
+      const unpackedDeletedAt =
+        deletedAtValue != undefined
+          ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+          : undefined;
+      const ownedByPtrValue = objectJson["ownedBy"];
+      const unpackedOwnedByPtr =
+        ownedByPtrValue != undefined
+          ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
+          : undefined;
+      const unpackedCustomValues = {} as any;
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
+      }
+      const scriptPtrValue = objectJson["script"];
+      const unpackedScriptPtr =
+        scriptPtrValue != undefined
+          ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
+          : undefined;
+      const isExtensibleValue = objectJson["isExtensible"];
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
+      const sourcePtrValue = objectJson["source"];
+      const unpackedSourcePtr =
+        sourcePtrValue != undefined
+          ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
+          : undefined;
+      const keyValue = objectJson["key"];
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
+      return new (NODE_CLASS_BY_TYPE[2410500] as typeof CapsuleShape2D)({
+        centerA: _Vector2.unpack(1, objectJson["centerA"], _session) as Vector2,
+        centerB: _Vector2.unpack(1, objectJson["centerB"], _session) as Vector2,
+        radius: Number(objectJson["radius"]),
+        stroke: unpackedStroke,
+        position: unpackedPosition,
+        offset: unpackedOffset,
+        scale: unpackedScale,
+        rotation: unpackedRotation,
+        skew: unpackedSkew,
+        origin: unpackedOrigin,
+        anchor: unpackedAnchor,
+        parent: unpackedParentPtr,
+        materialization: Materialization[objectJson["materialization"]] as any,
+        definition: unpackedDefinitionPtr,
+        branch: _NodeReference.unpack(1, objectJson["branch"], _session) as NodeReference,
+        snapshot: _NodeReference.unpack(1, objectJson["snapshot"], _session) as NodeReference,
+        precededBy: unpackedPrecededByPtr,
+        instance: unpackedInstancePtr,
+        createdAt: Temporal.Instant.from(objectJson["createdAt"]).toZonedDateTimeISO("UTC"),
+        createdEpoch: Number(objectJson["createdEpoch"]),
+        createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
+        updatedAt: Temporal.Instant.from(objectJson["updatedAt"]).toZonedDateTimeISO("UTC"),
+        updatedEpoch: Number(objectJson["updatedEpoch"]),
+        updatedBy: _NodeReference.unpack(1, objectJson["updatedBy"], _session) as NodeReference,
+        deletedAt: unpackedDeletedAt,
+        ownedBy: unpackedOwnedByPtr,
+        name: objectJson["name"],
+        orderKey: objectJson["orderKey"],
+        customValues: unpackedCustomValues,
+        script: unpackedScriptPtr,
+        isExtensible: unpackedIsExtensible,
+        source: unpackedSourcePtr,
+        key: unpackedKey,
+        id: objectJson["id"],
+        space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 2410500)] = new CapsuleShape2DJsonEncoder();
+
   class EllipseShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: EllipseShape2D): any {
       const objectJson: { [key: string]: any } = {};
@@ -8492,7 +8706,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
@@ -8698,7 +8912,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
@@ -8909,7 +9123,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const unpackedPoints: any[] = [];
       for (const item of objectJson["points"]) {
         unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
@@ -8993,7 +9207,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJson["key"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[2410600] as typeof PathShape2D)({
+      return new (NODE_CLASS_BY_TYPE[2411100] as typeof PathShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
         position: unpackedPosition,
@@ -9032,7 +9246,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(1, 2410600)] = new PathShape2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 2411100)] = new PathShape2DJsonEncoder();
 
   class PolygonShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: PolygonShape2D): any {
@@ -9123,7 +9337,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const unpackedPoints: any[] = [];
       for (const item of objectJson["points"]) {
         unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
@@ -9207,7 +9421,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJson["key"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[2410500] as typeof PolygonShape2D)({
+      return new (NODE_CLASS_BY_TYPE[2411000] as typeof PolygonShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
         position: unpackedPosition,
@@ -9246,7 +9460,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(1, 2410500)] = new PolygonShape2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 2411000)] = new PolygonShape2DJsonEncoder();
 
   class RectangleShape2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: RectangleShape2D): any {
@@ -9338,7 +9552,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const widthValue = objectJson["width"];
       const unpackedWidth =
         widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : undefined;
@@ -9467,6 +9681,216 @@ export function loadEncoders(): void {
   }
 
   JSON_OBJECT_ENCODERS[getObjectKey(1, 2410300)] = new RectangleShape2DJsonEncoder();
+
+  class StarShape2DJsonEncoder implements JsonObjectEncoder {
+    packObject(object: StarShape2D): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "STAR_SHAPE2D";
+      objectJson["id"] = object.id;
+      if (object.parentPtr != null) {
+        objectJson["parent"] = object.parentPtr.pack(1);
+      }
+      objectJson["space"] = object.spacePtr.pack(1);
+      objectJson["materialization"] = Materialization[object.materialization];
+      if (object.definitionPtr != null) {
+        objectJson["definition"] = object.definitionPtr.pack(1);
+      }
+      objectJson["branch"] = object.branchPtr.pack(1);
+      objectJson["snapshot"] = object.snapshotPtr.pack(1);
+      if (object.precededByPtr != null) {
+        objectJson["precededBy"] = object.precededByPtr.pack(1);
+      }
+      if (object.instancePtr != null) {
+        objectJson["instance"] = object.instancePtr.pack(1);
+      }
+      objectJson["createdAt"] = object.createdAt.toString({ timeZoneName: "never" });
+      objectJson["createdEpoch"] = Number(object.createdEpoch);
+      objectJson["createdBy"] = object.createdByPtr.pack(1);
+      objectJson["updatedAt"] = object.updatedAt.toString({ timeZoneName: "never" });
+      objectJson["updatedEpoch"] = Number(object.updatedEpoch);
+      objectJson["updatedBy"] = object.updatedByPtr.pack(1);
+      if (object.deletedAt != null) {
+        objectJson["deletedAt"] = object.deletedAt.toString({ timeZoneName: "never" });
+      }
+      if (object._ownedByPtr != null) {
+        objectJson["ownedBy"] = object._ownedByPtr.pack(1);
+      }
+      objectJson["name"] = object._name;
+      objectJson["orderKey"] = object.orderKey;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(1);
+      }
+      objectJson["customValues"] = packedCustomValues;
+      if (object._scriptPtr != null) {
+        objectJson["script"] = object._scriptPtr.pack(1);
+      }
+      if (object.isExtensible != null) {
+        objectJson["isExtensible"] = object.isExtensible;
+      }
+      if (object.sourcePtr != null) {
+        objectJson["source"] = object.sourcePtr.pack(1);
+      }
+      if (object._key != null) {
+        objectJson["key"] = object._key;
+      }
+      if (object._position != null) {
+        objectJson["position"] = object._position.pack(1);
+      }
+      if (object._offset != null) {
+        objectJson["offset"] = object._offset.pack(1);
+      }
+      if (object._scale != null) {
+        objectJson["scale"] = object._scale.pack(1);
+      }
+      if (object._rotation != null) {
+        objectJson["rotation"] = object._rotation.pack(1);
+      }
+      if (object._skew != null) {
+        objectJson["skew"] = object._skew.pack(1);
+      }
+      if (object._origin != null) {
+        objectJson["origin"] = object._origin.pack(1);
+      }
+      if (object._anchor != null) {
+        objectJson["anchor"] = Anchor[object._anchor];
+      }
+      if (object._stroke != null) {
+        objectJson["stroke"] = object._stroke.pack(1);
+      }
+      objectJson["center"] = object._center.pack(1);
+      objectJson["radius"] = Number(object._radius);
+      objectJson["points"] = Number(object._points);
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): StarShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const strokeValue = objectJson["stroke"];
+      const unpackedStroke =
+        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
+      const positionValue = objectJson["position"];
+      const unpackedPosition =
+        positionValue != undefined
+          ? (_Vector2.unpack(1, positionValue, _session) as Vector2)
+          : undefined;
+      const offsetValue = objectJson["offset"];
+      const unpackedOffset =
+        offsetValue != undefined
+          ? (_Offset2.unpack(1, offsetValue, _session) as Offset2)
+          : undefined;
+      const scaleValue = objectJson["scale"];
+      const unpackedScale =
+        scaleValue != undefined ? (_Vector2.unpack(1, scaleValue, _session) as Vector2) : undefined;
+      const rotationValue = objectJson["rotation"];
+      const unpackedRotation =
+        rotationValue != undefined
+          ? (_Vector2.unpack(1, rotationValue, _session) as Vector2)
+          : undefined;
+      const skewValue = objectJson["skew"];
+      const unpackedSkew =
+        skewValue != undefined ? (_Vector2.unpack(1, skewValue, _session) as Vector2) : undefined;
+      const originValue = objectJson["origin"];
+      const unpackedOrigin =
+        originValue != undefined
+          ? (_Vector2.unpack(1, originValue, _session) as Vector2)
+          : undefined;
+      const anchorValue = objectJson["anchor"];
+      const unpackedAnchor = anchorValue != undefined ? (Anchor[anchorValue] as any) : undefined;
+      const parentPtrValue = objectJson["parent"];
+      const unpackedParentPtr =
+        parentPtrValue != undefined
+          ? (_NodeReference.unpack(1, parentPtrValue, _session) as NodeReference)
+          : undefined;
+      const definitionPtrValue = objectJson["definition"];
+      const unpackedDefinitionPtr =
+        definitionPtrValue != undefined
+          ? (_NodeReference.unpack(1, definitionPtrValue, _session) as NodeReference)
+          : undefined;
+      const precededByPtrValue = objectJson["precededBy"];
+      const unpackedPrecededByPtr =
+        precededByPtrValue != undefined
+          ? (_NodeReference.unpack(1, precededByPtrValue, _session) as NodeReference)
+          : undefined;
+      const instancePtrValue = objectJson["instance"];
+      const unpackedInstancePtr =
+        instancePtrValue != undefined
+          ? (_NodeReference.unpack(1, instancePtrValue, _session) as NodeReference)
+          : undefined;
+      const deletedAtValue = objectJson["deletedAt"];
+      const unpackedDeletedAt =
+        deletedAtValue != undefined
+          ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+          : undefined;
+      const ownedByPtrValue = objectJson["ownedBy"];
+      const unpackedOwnedByPtr =
+        ownedByPtrValue != undefined
+          ? (_NodeReference.unpack(1, ownedByPtrValue, _session) as NodeReference)
+          : undefined;
+      const unpackedCustomValues = {} as any;
+      for (const [key, value] of Object.entries(objectJson["customValues"])) {
+        unpackedCustomValues[key] = _Value.unpack(1, value as any, _session) as Value;
+      }
+      const scriptPtrValue = objectJson["script"];
+      const unpackedScriptPtr =
+        scriptPtrValue != undefined
+          ? (_NodeReference.unpack(1, scriptPtrValue, _session) as NodeReference)
+          : undefined;
+      const isExtensibleValue = objectJson["isExtensible"];
+      const unpackedIsExtensible = isExtensibleValue != undefined ? isExtensibleValue : undefined;
+      const sourcePtrValue = objectJson["source"];
+      const unpackedSourcePtr =
+        sourcePtrValue != undefined
+          ? (_NodeReference.unpack(1, sourcePtrValue, _session) as NodeReference)
+          : undefined;
+      const keyValue = objectJson["key"];
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
+      return new (NODE_CLASS_BY_TYPE[2410600] as typeof StarShape2D)({
+        center: _Vector2.unpack(1, objectJson["center"], _session) as Vector2,
+        radius: Number(objectJson["radius"]),
+        points: Number(objectJson["points"]),
+        stroke: unpackedStroke,
+        position: unpackedPosition,
+        offset: unpackedOffset,
+        scale: unpackedScale,
+        rotation: unpackedRotation,
+        skew: unpackedSkew,
+        origin: unpackedOrigin,
+        anchor: unpackedAnchor,
+        parent: unpackedParentPtr,
+        materialization: Materialization[objectJson["materialization"]] as any,
+        definition: unpackedDefinitionPtr,
+        branch: _NodeReference.unpack(1, objectJson["branch"], _session) as NodeReference,
+        snapshot: _NodeReference.unpack(1, objectJson["snapshot"], _session) as NodeReference,
+        precededBy: unpackedPrecededByPtr,
+        instance: unpackedInstancePtr,
+        createdAt: Temporal.Instant.from(objectJson["createdAt"]).toZonedDateTimeISO("UTC"),
+        createdEpoch: Number(objectJson["createdEpoch"]),
+        createdBy: _NodeReference.unpack(1, objectJson["createdBy"], _session) as NodeReference,
+        updatedAt: Temporal.Instant.from(objectJson["updatedAt"]).toZonedDateTimeISO("UTC"),
+        updatedEpoch: Number(objectJson["updatedEpoch"]),
+        updatedBy: _NodeReference.unpack(1, objectJson["updatedBy"], _session) as NodeReference,
+        deletedAt: unpackedDeletedAt,
+        ownedBy: unpackedOwnedByPtr,
+        name: objectJson["name"],
+        orderKey: objectJson["orderKey"],
+        customValues: unpackedCustomValues,
+        script: unpackedScriptPtr,
+        isExtensible: unpackedIsExtensible,
+        source: unpackedSourcePtr,
+        key: unpackedKey,
+        id: objectJson["id"],
+        space: _NodeReference.unpack(1, objectJson["space"], _session) as NodeReference,
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(1, 2410600)] = new StarShape2DJsonEncoder();
 
   class DatabaseJsonEncoder implements JsonObjectEncoder {
     packObject(object: Database): any {
@@ -14000,17 +14424,17 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): FrameView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJson["layout"];
       const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
@@ -14368,17 +14792,17 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): LabelView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJson["layout"];
       const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
@@ -14712,13 +15136,13 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): NumberInputView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const valueValue = objectJson["value"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const placeholderValue = objectJson["placeholder"];
@@ -15014,13 +15438,13 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): SliderInputView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const valueValue = objectJson["value"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const widthValue = objectJson["width"];
@@ -15340,17 +15764,17 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): SplitView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJson["layout"];
       const unpackedLayout = layoutValue != undefined ? (Layout[layoutValue] as any) : undefined;
       const directionValue = objectJson["direction"];
@@ -15688,14 +16112,14 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Font = STRUCT_CLASS_BY_TYPE[2100500] as typeof Font;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const textValue = objectJson["text"];
       const unpackedText =
         textValue != undefined ? (_Text.unpack(1, textValue, _session) as Text) : undefined;
@@ -21340,7 +21764,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Border {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
       const colorValue = objectJson["color"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(1, colorValue, _session) as Color) : undefined;
@@ -21417,7 +21841,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Gradient {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21554,8 +21978,8 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Font {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21636,7 +22060,7 @@ export function loadEncoders(): void {
     unpackObject(objectJson: any, _session: Session | null): Shadow {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21947,7 +22371,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
+      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3;
       const stylePtrValue = objectJson["style"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -22032,7 +22456,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJson: any, _session: Session | null): Arrow2D {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      return new (STRUCT_CLASS_BY_TYPE[2411200] as typeof Arrow2D)({
+      return new (STRUCT_CLASS_BY_TYPE[2410200] as typeof Arrow2D)({
         startType: ArrowHeadType[objectJson["startType"]] as any,
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
         endType: ArrowHeadType[objectJson["endType"]] as any,
@@ -22043,7 +22467,31 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411200)] = new Arrow2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410200)] = new Arrow2DJsonEncoder();
+
+  class Capsule2DJsonEncoder implements JsonObjectEncoder {
+    packObject(object: Capsule2D): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "CAPSULE2D";
+      objectJson["centerA"] = object.centerA.pack(1);
+      objectJson["centerB"] = object.centerB.pack(1);
+      objectJson["radius"] = Number(object.radius);
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): Capsule2D {
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      return new (STRUCT_CLASS_BY_TYPE[2410500] as typeof Capsule2D)({
+        centerA: _Vector2.unpack(1, objectJson["centerA"], _session) as Vector2,
+        centerB: _Vector2.unpack(1, objectJson["centerB"], _session) as Vector2,
+        radius: Number(objectJson["radius"]),
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410500)] = new Capsule2DJsonEncoder();
 
   class Ellipse2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Ellipse2D): any {
@@ -22060,7 +22508,7 @@ export function loadEncoders(): void {
       const strokeValue = objectJson["stroke"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411400] as typeof Ellipse2D)({
+      return new (STRUCT_CLASS_BY_TYPE[2410400] as typeof Ellipse2D)({
         stroke: unpackedStroke,
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
@@ -22068,28 +22516,20 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411400)] = new Ellipse2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410400)] = new Ellipse2DJsonEncoder();
 
   class Line2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Line2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "LINE2D";
-      if (object.stroke != null) {
-        objectJson["stroke"] = object.stroke.pack(1);
-      }
       objectJson["start"] = object.start.pack(1);
       objectJson["end"] = object.end.pack(1);
       return objectJson;
     }
 
     unpackObject(objectJson: any, _session: Session | null): Line2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJson["stroke"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411100] as typeof Line2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2410100] as typeof Line2D)({
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
         end: _Vector2.unpack(1, objectJson["end"], _session) as Vector2,
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -22098,15 +22538,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411100)] = new Line2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410100)] = new Line2DJsonEncoder();
 
   class Path2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Path2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "PATH2D";
-      if (object.stroke != null) {
-        objectJson["stroke"] = object.stroke.pack(1);
-      }
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.pack(1));
@@ -22116,17 +22553,12 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Path2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJson["stroke"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       for (const item of objectJson["points"]) {
         unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
-      return new (STRUCT_CLASS_BY_TYPE[2411600] as typeof Path2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2411100] as typeof Path2D)({
         points: unpackedPoints,
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
@@ -22134,15 +22566,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411600)] = new Path2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411100)] = new Path2DJsonEncoder();
 
   class Polygon2DJsonEncoder implements JsonObjectEncoder {
     packObject(object: Polygon2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "POLYGON2D";
-      if (object.stroke != null) {
-        objectJson["stroke"] = object.stroke.pack(1);
-      }
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.pack(1));
@@ -22152,17 +22581,12 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Polygon2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJson["stroke"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       for (const item of objectJson["points"]) {
         unpackedPoints.push(_Vector2.unpack(1, item, _session) as Vector2);
       }
-      return new (STRUCT_CLASS_BY_TYPE[2411500] as typeof Polygon2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2411000] as typeof Polygon2D)({
         points: unpackedPoints,
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
@@ -22170,7 +22594,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411500)] = new Polygon2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411000)] = new Polygon2DJsonEncoder();
 
   class Vector2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Vector2): any {
@@ -22339,9 +22763,6 @@ export function loadEncoders(): void {
     packObject(object: Rectangle2D): any {
       const objectJson: { [key: string]: any } = {};
       objectJson["metatype"] = "RECTANGLE2D";
-      if (object.stroke != null) {
-        objectJson["stroke"] = object.stroke.pack(1);
-      }
       if (object.width != null) {
         objectJson["width"] = object.width.pack(1);
       }
@@ -22352,11 +22773,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Rectangle2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJson["stroke"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       const widthValue = objectJson["width"];
       const unpackedWidth =
         widthValue != undefined ? (_Vector2.unpack(1, widthValue, _session) as Vector2) : undefined;
@@ -22365,8 +22782,7 @@ export function loadEncoders(): void {
         heightValue != undefined
           ? (_Vector2.unpack(1, heightValue, _session) as Vector2)
           : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411300] as typeof Rectangle2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2410300] as typeof Rectangle2D)({
         width: unpackedWidth,
         height: unpackedHeight,
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -22375,7 +22791,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2411300)] = new Rectangle2DJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410300)] = new Rectangle2DJsonEncoder();
 
   class LengthJsonEncoder implements JsonObjectEncoder {
     packObject(object: Length): any {
@@ -22387,7 +22803,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Length {
-      return new (STRUCT_CLASS_BY_TYPE[1800001] as typeof Length)({
+      return new (STRUCT_CLASS_BY_TYPE[2400020] as typeof Length)({
         unit: LengthType[objectJson["unit"]] as any,
         value: Number(objectJson["value"]),
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -22396,7 +22812,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 1800001)] = new LengthJsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400020)] = new LengthJsonEncoder();
 
   class Offset2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Offset2): any {
@@ -22419,7 +22835,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Offset2 {
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const topValue = objectJson["top"];
       const unpackedTop =
         topValue != undefined ? (_Length.unpack(1, topValue, _session) as Length) : undefined;
@@ -22432,7 +22848,7 @@ export function loadEncoders(): void {
       const heightValue = objectJson["height"];
       const unpackedHeight =
         heightValue != undefined ? (_Length.unpack(1, heightValue, _session) as Length) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2)({
         type: Anchor[objectJson["type"]] as any,
         top: unpackedTop,
         left: unpackedLeft,
@@ -22444,7 +22860,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400020)] = new Offset2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400021)] = new Offset2JsonEncoder();
 
   class Inset2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Inset2): any {
@@ -22475,7 +22891,7 @@ export function loadEncoders(): void {
       const unpackedRight = rightValue != undefined ? Number(rightValue) : undefined;
       const bottomValue = objectJson["bottom"];
       const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2)({
         base: Number(objectJson["base"]),
         top: unpackedTop,
         left: unpackedLeft,
@@ -22487,7 +22903,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400023)] = new Inset2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400024)] = new Inset2JsonEncoder();
 
   class Corner2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Corner2): any {
@@ -22519,7 +22935,7 @@ export function loadEncoders(): void {
       const bottomRightValue = objectJson["bottomRight"];
       const unpackedBottomRight =
         bottomRightValue != undefined ? Number(bottomRightValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2)({
         base: Number(objectJson["base"]),
         topLeft: unpackedTopLeft,
         topRight: unpackedTopRight,
@@ -22531,7 +22947,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400024)] = new Corner2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400025)] = new Corner2JsonEncoder();
 
   class Axis2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Axis2): any {
@@ -22552,7 +22968,7 @@ export function loadEncoders(): void {
       const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJson["y"];
       const unpackedY = yValue != undefined ? Number(yValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2)({
         base: Number(objectJson["base"]),
         x: unpackedX,
         y: unpackedY,
@@ -22562,7 +22978,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400025)] = new Axis2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400026)] = new Axis2JsonEncoder();
 
   class Axis3JsonEncoder implements JsonObjectEncoder {
     packObject(object: Axis3): any {
@@ -22588,7 +23004,7 @@ export function loadEncoders(): void {
       const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       const zValue = objectJson["z"];
       const unpackedZ = zValue != undefined ? Number(zValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3)({
+      return new (STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3)({
         base: Number(objectJson["base"]),
         x: unpackedX,
         y: unpackedY,
@@ -22599,7 +23015,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400026)] = new Axis3JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400027)] = new Axis3JsonEncoder();
 
   class Grid2JsonEncoder implements JsonObjectEncoder {
     packObject(object: Grid2): any {
@@ -22620,7 +23036,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): Grid2 {
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const columnWidthValue = objectJson["columnWidth"];
       const unpackedColumnWidth =
         columnWidthValue != undefined
@@ -22636,7 +23052,7 @@ export function loadEncoders(): void {
         rowHeightValue != undefined
           ? (_Length.unpack(1, rowHeightValue, _session) as Length)
           : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2)({
         columns: Number(objectJson["columns"]),
         rows: Number(objectJson["rows"]),
         columnWidth: unpackedColumnWidth,
@@ -22648,7 +23064,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400021)] = new Grid2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400022)] = new Grid2JsonEncoder();
 
   class GridSpan2JsonEncoder implements JsonObjectEncoder {
     packObject(object: GridSpan2): any {
@@ -22660,7 +23076,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJson: any, _session: Session | null): GridSpan2 {
-      return new (STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2)({
         columns: Number(objectJson["columns"]),
         rows: Number(objectJson["rows"]),
         _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
@@ -22669,7 +23085,31 @@ export function loadEncoders(): void {
     }
   }
 
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400022)] = new GridSpan2JsonEncoder();
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2400023)] = new GridSpan2JsonEncoder();
+
+  class Star2DJsonEncoder implements JsonObjectEncoder {
+    packObject(object: Star2D): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "STAR2D";
+      objectJson["center"] = object.center.pack(1);
+      objectJson["radius"] = Number(object.radius);
+      objectJson["points"] = Number(object.points);
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): Star2D {
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      return new (STRUCT_CLASS_BY_TYPE[2410600] as typeof Star2D)({
+        center: _Vector2.unpack(1, objectJson["center"], _session) as Vector2,
+        radius: Number(objectJson["radius"]),
+        points: Number(objectJson["points"]),
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 2410600)] = new Star2DJsonEncoder();
 
   class ScheduleJsonEncoder implements JsonObjectEncoder {
     packObject(object: Schedule): any {

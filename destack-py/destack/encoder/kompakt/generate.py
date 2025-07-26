@@ -86,7 +86,7 @@ class {encoder_name}(KompaktObjectEncoder):
 
 def _generate_pack_kompakt(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method implementation."""
-    pack_method_parts: list[str] = [
+    lines: list[str] = [
         f"writer.write_uint32({cls.metatype.value})",
     ]
 
@@ -97,14 +97,14 @@ def _generate_pack_kompakt(cls: type["BuiltinObject"]) -> str:
             continue
         pack_code = _generate_pack_kompakt_type(prop, f"_object.{prop.name}")
         if pack_code:
-            pack_method_parts.append(pack_code)
+            lines.append(pack_code)
 
-    return "\n".join(pack_method_parts)
+    return "\n".join(lines)
 
 
 def _generate_unpack_kompakt(cls: type["BuiltinObject"]) -> str:
     """Generate the unpack_object method implementation."""
-    unpack_method_parts: list[str] = [
+    lines: list[str] = [
         "metatype = reader.read_uint32()",
         f"assert metatype == {cls.metatype.value}",
     ]
@@ -118,35 +118,53 @@ def _generate_unpack_kompakt(cls: type["BuiltinObject"]) -> str:
         target_expr = f"_object_{prop.name}"
         unpack_code, is_simple = _generate_unpack_kompakt_type(prop, target_expr)
         if is_simple:
-            unpack_method_parts.append(f"{target_expr} = {unpack_code}")
+            lines.append(f"{target_expr} = {unpack_code}")
         else:
-            unpack_method_parts.append(unpack_code)
+            lines.append(unpack_code)
 
     # constructor
     constructor_args = ",\n".join(
         f"    {prop.name}=_object_{prop.name}" for prop in wired_properties_in_order
     )
-    unpack_method_parts.append(f"_object = {cls.__name__}(\n{constructor_args}\n)")
-    unpack_method_parts.append("return _object")
+    lines.append(f"_object = {cls.__name__}(\n{constructor_args}\n)")
+    lines.append("return _object")
 
-    return "\n".join(unpack_method_parts)
+    return "\n".join(lines)
 
 
 def _generate_pack_kompakt_type(type: TypeDeclaration, value_expr: str) -> str:
     """Generate the pack_kompakt method implementation for a property."""
 
+    lines: list[str] = []
+
     # scalar
     if type.cardinality == TypeCardinality.SCALAR:
-        return _generate_pack_kompakt_scalar(type, value_expr)
+        scalar_pack_str = _generate_pack_kompakt_scalar(type, value_expr)
+        if type.is_required:
+            lines.append(scalar_pack_str)
+        else:
+            lines.append(f"if {value_expr} is not None:")
+            lines.append("    writer.write_bool(True)")
+            lines.append(textwrap.indent(scalar_pack_str, " " * 4))
+            lines.append("else:")
+            lines.append("    writer.write_bool(False)")
 
     # list
     elif type.cardinality == TypeCardinality.LIST:
         assert type.value_type is not None, f"no value type for {type!r}"
         item_expr = _generate_pack_kompakt_type(type.value_type, "_item")
-        lines: list[str] = []
-        lines.append(f"writer.write_uint32({len(value_expr)})")
-        lines.append(f"for _item in {value_expr}:")
-        lines.append(textwrap.indent(item_expr, " " * 4))
+        if type.is_required:
+            lines.append(f"writer.write_uint32({len(value_expr)})")
+            lines.append(f"for _item in {value_expr}:")
+            lines.append(textwrap.indent(item_expr, " " * 4))
+        else:
+            lines.append(f"if {value_expr}:")
+            lines.append("    writer.write_bool(True)")
+            lines.append(f"    writer.write_uint32({len(value_expr)})")
+            lines.append(f"    for _item in {value_expr}:")
+            lines.append(textwrap.indent(item_expr, " " * 4))
+            lines.append("else:")
+            lines.append("    writer.write_bool(False)")
 
     # tuple
     elif type.cardinality == TypeCardinality.TUPLE:
@@ -158,11 +176,20 @@ def _generate_pack_kompakt_type(type: TypeDeclaration, value_expr: str) -> str:
         assert type.value_type is not None, f"no value type for {type!r}"
         key_expr = _generate_pack_kompakt_type(type.key_type, "_key")
         item_expr = _generate_pack_kompakt_type(type.value_type, "_value")
-        lines: list[str] = []
-        lines.append(f"writer.write_uint32({len(value_expr)})")
-        lines.append(f"for _key, _value in {value_expr}.items():")
-        lines.append(textwrap.indent(key_expr, " " * 4))
-        lines.append(textwrap.indent(item_expr, " " * 4))
+        if type.is_required:
+            lines.append(f"writer.write_uint32({len(value_expr)})")
+            lines.append(f"for _key, _value in {value_expr}.items():")
+            lines.append(textwrap.indent(key_expr, " " * 4))
+            lines.append(textwrap.indent(item_expr, " " * 4))
+        else:
+            lines.append(f"if {value_expr} is not None:")
+            lines.append("    writer.write_bool(True)")
+            lines.append(f"    writer.write_uint32({len(value_expr)})")
+            lines.append(f"    for _key, _value in {value_expr}.items():")
+            lines.append(textwrap.indent(key_expr, " " * 4))
+            lines.append(textwrap.indent(item_expr, " " * 4))
+            lines.append("else:")
+            lines.append("    writer.write_bool(False)")
 
     else:
         assert_never(type.cardinality)
@@ -172,22 +199,36 @@ def _generate_pack_kompakt_type(type: TypeDeclaration, value_expr: str) -> str:
 
 def _generate_unpack_kompakt_type(type: TypeDeclaration, target_expr: str) -> tuple[str, bool]:
     """Generate the unpack_kompakt method implementation for a property."""
+
+    lines: list[str] = []
+
     # scalar
     if type.cardinality == TypeCardinality.SCALAR:
-        return _generate_unpack_kompakt_scalar(type, target_expr)
+        unpack_scalar_str, is_simple = _generate_unpack_kompakt_scalar(type, target_expr)
+        if type.is_required:
+            lines.append(unpack_scalar_str)
+        else:
+            lines.append("if reader.read_bool():")
+            lines.append(textwrap.indent(unpack_scalar_str, " " * 4))
+            lines.append("else:")
+            lines.append(f"    {target_expr} = None")
 
     # list
     elif type.cardinality == TypeCardinality.LIST:
         assert type.value_type is not None, f"no value type for {type!r}"
-        item_expr, is_simple = _generate_unpack_kompakt_type(type.value_type, "_item")
+        unpack_item_expr, is_simple = _generate_unpack_kompakt_type(type.value_type, "_item")
         assert is_simple, f"cannot unpack non-simple list: {type!r}"
-        accumulate_expr = f"{target_expr}.append({item_expr})"
-        lines: list[str] = [
-            f"{target_expr} = []",
-            "for _ in range(reader.read_uint32()):",
-            textwrap.indent(accumulate_expr, " " * 4),
-        ]
-        return "\n".join(lines), True
+        if type.is_required:
+            lines.append(f"{target_expr} = []")
+            lines.append("for _ in range(reader.read_uint32()):")
+            lines.append(textwrap.indent(f"{target_expr}.append({unpack_item_expr})", " " * 4))
+        else:
+            lines.append("if reader.read_bool():")
+            lines.append(f"{target_expr} = []")
+            lines.append("for _ in range(reader.read_uint32()):")
+            lines.append(textwrap.indent(f"{target_expr}.append({unpack_item_expr})", " " * 4))
+            lines.append("else:")
+            lines.append(f"    {target_expr} = None")
 
     # tuple
     elif type.cardinality == TypeCardinality.TUPLE:
@@ -197,19 +238,25 @@ def _generate_unpack_kompakt_type(type: TypeDeclaration, target_expr: str) -> tu
     elif type.cardinality == TypeCardinality.MAP:
         assert type.key_type is not None, f"no key type for {type!r}"
         assert type.value_type is not None, f"no value type for {type!r}"
-        key_expr, is_simple = _generate_unpack_kompakt_type(type.key_type, "_key")
-        value_expr, is_simple = _generate_unpack_kompakt_type(type.value_type, "_value")
-        assert is_simple, f"cannot unpack non-simple map: {type!r}"
-        accumulate_expr = f"{target_expr}[{key_expr}] = {value_expr}"
-        lines: list[str] = [
-            f"{target_expr} = {{}}",
-            "for _ in range(reader.read_uint32()):",
-            textwrap.indent(accumulate_expr, " " * 4),
-        ]
-        return "\n".join(lines), True
+        key_expr, is_key_simple = _generate_unpack_kompakt_type(type.key_type, "_key")
+        value_expr, is_value_simple = _generate_unpack_kompakt_type(type.value_type, "_value")
+        assert is_key_simple and is_value_simple, f"cannot unpack non-simple map: {type!r}"
+        if type.is_required:
+            lines.append(f"{target_expr} = {{}}")
+            lines.append("for _ in range(reader.read_uint32()):")
+            lines.append(textwrap.indent(f"{target_expr}[{key_expr}] = {value_expr}", " " * 4))
+        else:
+            lines.append("if reader.read_bool():")
+            lines.append(f"{target_expr} = {{}}")
+            lines.append("for _ in range(reader.read_uint32()):")
+            lines.append(textwrap.indent(f"{target_expr}[{key_expr}] = {value_expr}", " " * 4))
+            lines.append("else:")
+            lines.append(f"    {target_expr} = None")
 
     else:
         assert_never(type.cardinality)
+
+    return "\n".join(lines), len(lines) == 1
 
 
 def _generate_pack_kompakt_scalar(type: TypeDeclaration, value_expr: str) -> str:

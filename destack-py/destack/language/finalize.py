@@ -4,6 +4,8 @@ from itertools import chain
 from typing import TYPE_CHECKING, Callable
 
 from destack.utils.env import IS_DEV, IS_TEST
+from destack.utils.log import get_logger
+from destack.utils.telemetry import get_tracer
 
 from .core.builtin.builtin import (
     ENUM_TYPES,
@@ -31,16 +33,22 @@ from .registry import (
 if TYPE_CHECKING:
     pass
 
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
+
+_finalize_start: float | None = None
+
 
 def finalize():
     """Finalize the Destack language SDK."""
+    global _finalize_start
 
     from destack.language.core.builtin.object import _is_finalized, _set_finalized
 
     if _is_finalized():
         return
 
-    start = time.time()
+    _finalize_start = time.time()
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)
@@ -297,4 +305,3 @@ def finalize():
                         )
 
     _set_finalized()
-    print(f"finalize took {time.time() - start:.3f}s")

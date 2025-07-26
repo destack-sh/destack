@@ -36,96 +36,6 @@ import type { Stroke } from "@destack/language/style";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2411400 ==== */
-/**
- * A Ellipse is a circle.
- */
-export class Ellipse2D extends StructFrozen {
-  static metatype: StructType = StructType.ELLIPSE2D;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Ellipse2D.stroke
-   */
-  readonly stroke: Stroke | null;
-
-  constructor(options: {
-    stroke?: Stroke | null;
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _PackedObjectCache?: PackedObjectCache[] | null;
-  }) {
-    /* super */
-    super(
-      /* session */
-      options._session ?? null,
-    );
-
-    /* properties */
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
-
-    /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._PackedObjectCache = options._PackedObjectCache ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (
-      (this.stroke == null) !== (other.stroke == null) ||
-      (this.stroke != null && !this.stroke.equals(other.stroke))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.stroke != null) {
-        propertyReprs.push(`stroke=${this.stroke.repr()}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Ellipse2D ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Ellipse2D>`;
-      }
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stroke != null) {
-      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
-    }
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.ELLIPSE2D, Ellipse2D);
-/* ==== DESTACK_GENERATED_END:STRUCT:2411400 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:2410400 ==== */
 /**
  * A EllipseShape is a shape that represents a ellipse.
@@ -942,3 +852,93 @@ export class EllipseShape2D extends Shape2D {
 }
 registerNodeClass(NodeType.ELLIPSE_SHAPE2D, EllipseShape2D);
 /* ==== DESTACK_GENERATED_END:NODE:2410400 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2410400 ==== */
+/**
+ * A Ellipse is a circle.
+ */
+export class Ellipse2D extends StructFrozen {
+  static metatype: StructType = StructType.ELLIPSE2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Ellipse2D.stroke
+   */
+  readonly stroke: Stroke | null;
+
+  constructor(options: {
+    stroke?: Stroke | null;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
+  }) {
+    /* super */
+    super(
+      /* session */
+      options._session ?? null,
+    );
+
+    /* properties */
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
+
+    /* identity */
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.stroke != null) {
+        propertyReprs.push(`stroke=${this.stroke.repr()}`);
+      }
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly) */
+        this._repr = `<Ellipse2D ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly) */
+        this._repr = `<Ellipse2D>`;
+      }
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stroke != null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.ELLIPSE2D, Ellipse2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2410400 ==== */

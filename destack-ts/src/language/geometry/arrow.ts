@@ -54,126 +54,6 @@ export enum ArrowHeadType {
 registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
 /* ==== DESTACK_GENERATED_END:ENUM:2401200 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2411200 ==== */
-/**
- * An Arrow is a shape that represents an arrow.
- */
-export class Arrow2D extends StructFrozen {
-  static metatype: StructType = StructType.ARROW2D;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Arrow2D.startType
-   */
-  readonly startType: ArrowHeadType;
-
-  /**
-   * Arrow2D.start
-   */
-  readonly start: Vector2;
-
-  /**
-   * Arrow2D.endType
-   */
-  readonly endType: ArrowHeadType;
-
-  /**
-   * Arrow2D.end
-   */
-  readonly end: Vector2;
-
-  constructor(options: {
-    startType: ArrowHeadType;
-    start: Vector2;
-    endType: ArrowHeadType;
-    end: Vector2;
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _PackedObjectCache?: PackedObjectCache[] | null;
-  }) {
-    /* super */
-    super(
-      /* session */
-      options._session ?? null,
-    );
-
-    /* properties */
-    let _startType = options.startType;
-    if (_startType == null) {
-      throw new Error(`Arrow2D.startType is required`);
-    }
-    this.startType = _startType;
-    let _start = options.start;
-    if (_start == null) {
-      throw new Error(`Arrow2D.start is required`);
-    }
-    this.start = _start;
-    let _endType = options.endType;
-    if (_endType == null) {
-      throw new Error(`Arrow2D.endType is required`);
-    }
-    this.endType = _endType;
-    let _end = options.end;
-    if (_end == null) {
-      throw new Error(`Arrow2D.end is required`);
-    }
-    this.end = _end;
-
-    /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._PackedObjectCache = options._PackedObjectCache ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.startType === other.startType)) {
-      return false;
-    }
-    if (!this.start.equals(other.start)) {
-      return false;
-    }
-    if (!(this.endType === other.endType)) {
-      return false;
-    }
-    if (!this.end.equals(other.end)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    return `<Arrow2D>`;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.startType) & 0xffffffff;
-    h = (h * 31 + this.start.hash()) & 0xffffffff;
-    h = (h * 31 + this.endType) & 0xffffffff;
-    h = (h * 31 + this.end.hash()) & 0xffffffff;
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.ARROW2D, Arrow2D);
-/* ==== DESTACK_GENERATED_END:STRUCT:2411200 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:2410200 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
@@ -1094,3 +974,123 @@ export class ArrowShape2D extends Shape2D {
 }
 registerNodeClass(NodeType.ARROW_SHAPE2D, ArrowShape2D);
 /* ==== DESTACK_GENERATED_END:NODE:2410200 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2410200 ==== */
+/**
+ * An Arrow is a shape that represents an arrow.
+ */
+export class Arrow2D extends StructFrozen {
+  static metatype: StructType = StructType.ARROW2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Arrow2D.startType
+   */
+  readonly startType: ArrowHeadType;
+
+  /**
+   * Arrow2D.start
+   */
+  readonly start: Vector2;
+
+  /**
+   * Arrow2D.endType
+   */
+  readonly endType: ArrowHeadType;
+
+  /**
+   * Arrow2D.end
+   */
+  readonly end: Vector2;
+
+  constructor(options: {
+    startType: ArrowHeadType;
+    start: Vector2;
+    endType: ArrowHeadType;
+    end: Vector2;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
+  }) {
+    /* super */
+    super(
+      /* session */
+      options._session ?? null,
+    );
+
+    /* properties */
+    let _startType = options.startType;
+    if (_startType == null) {
+      throw new Error(`Arrow2D.startType is required`);
+    }
+    this.startType = _startType;
+    let _start = options.start;
+    if (_start == null) {
+      throw new Error(`Arrow2D.start is required`);
+    }
+    this.start = _start;
+    let _endType = options.endType;
+    if (_endType == null) {
+      throw new Error(`Arrow2D.endType is required`);
+    }
+    this.endType = _endType;
+    let _end = options.end;
+    if (_end == null) {
+      throw new Error(`Arrow2D.end is required`);
+    }
+    this.end = _end;
+
+    /* identity */
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.startType === other.startType)) {
+      return false;
+    }
+    if (!this.start.equals(other.start)) {
+      return false;
+    }
+    if (!(this.endType === other.endType)) {
+      return false;
+    }
+    if (!this.end.equals(other.end)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Arrow2D>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.startType) & 0xffffffff;
+    h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.endType) & 0xffffffff;
+    h = (h * 31 + this.end.hash()) & 0xffffffff;
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.ARROW2D, Arrow2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2410200 ==== */

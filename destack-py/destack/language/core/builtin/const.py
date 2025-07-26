@@ -35,7 +35,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.07.25.1"
+VERSION = "2025.07.26.0"
 EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 METATYPE_PROPERTY_ID = 1

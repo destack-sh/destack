@@ -362,20 +362,22 @@ class StructType(Enum):
     VECTOR4 = 2_400_004, None, None, "fas fa-vector-square"
     VECTOR4I = 2_400_005, None, None, "fas fa-vector-square"
     QUATERNION = 2_400_010, None, None, "fas fa-vector-square"
-    OFFSET2 = 2_400_020, "Position", None, "fas fa-location-crosshair"
-    GRID2 = 2_400_021, "Grid", None, "fas fa-grid-2"
-    GRID_SPAN2 = 2_400_022, "Grid Span", None, "fas fa-grid-2"
-    INSET2 = 2_400_023, "Insets", None, "fas fa-corner"
-    CORNER2 = 2_400_024, "Corners", None, "fas fa-corner"
-    AXIS2 = 2_400_025, "Axis2", None, "fas fa-vector-square"
-    AXIS3 = 2_400_026, "Axis3", None, "fas fa-vector-square"
-    LINE2D = 2_411_100, "Line", None, "fas fa-line"
-    ARROW2D = 2_411_200, "Arrow", None, "fas fa-arrow-right"
-    RECTANGLE2D = 2_411_300, "Rectangle", None, "fas fa-rectangle"
-    ELLIPSE2D = 2_411_400, "Ellipse", None, "fas fa-ellipse"
-    POLYGON2D = 2_411_500, "Polygon", None, "fas fa-polygon"
-    PATH2D = 2_411_600, "Path", None, "fas fa-path"
-    LENGTH = 1_800_001, "Length", None, "fas fa-ruler"
+    LENGTH = 2_400_020, "Length", None, "fas fa-ruler"
+    OFFSET2 = 2_400_021, "Position", None, "fas fa-location-crosshair"
+    GRID2 = 2_400_022, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN2 = 2_400_023, "Grid Span", None, "fas fa-grid-2"
+    INSET2 = 2_400_024, "Insets", None, "fas fa-corner"
+    CORNER2 = 2_400_025, "Corners", None, "fas fa-corner"
+    AXIS2 = 2_400_026, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 2_400_027, "Axis3", None, "fas fa-vector-square"
+    LINE2D = 2_410_100, "Line", None, "fas fa-line"
+    ARROW2D = 2_410_200, "Arrow", None, "fas fa-arrow-right"
+    RECTANGLE2D = 2_410_300, "Rectangle", None, "fas fa-rectangle"
+    ELLIPSE2D = 2_410_400, "Ellipse", None, "fas fa-ellipse"
+    CAPSULE2D = 2_410_500, "Capsule", None, "fas fa-capsule"
+    STAR2D = 2_410_600, "Star", None, "fas fa-star"
+    POLYGON2D = 2_411_000, "Polygon", None, "fas fa-polygon"
+    PATH2D = 2_411_100, "Path", None, "fas fa-path"
 
     # physics [2_500_000-2_600_000]
     # ...
@@ -847,18 +849,19 @@ class NodeType(Enum):
     ARROW_SHAPE2D = 2_410_200, "Arrow Shape2D", None, "fas fa-arrow-right"
     RECTANGLE_SHAPE2D = 2_410_300, "Rectangle Shape2D", None, "fas fa-rectangle"
     ELLIPSE_SHAPE2D = 2_410_400, "Ellipse Shape2D", None, "fas fa-ellipse"
-    POLYGON_SHAPE2D = 2_410_500, "Polygon Shape2D", None, "fas fa-polygon"
-    PATH_SHAPE2D = 2_410_600, "Path Shape2D", None, "fas fa-path"
+    CAPSULE_SHAPE2D = 2_410_500, "Capsule Shape2D", None, "fas fa-capsule"
+    STAR_SHAPE2D = 2_410_600, "Star Shape2D", None, "fas fa-star"
+    POLYGON_SHAPE2D = 2_411_000, "Polygon Shape2D", None, "fas fa-polygon"
+    PATH_SHAPE2D = 2_411_100, "Path Shape2D", None, "fas fa-path"
     SHAPE3D = 2_415_000, "Shape3D", None, "fas fa-shapes"
 
     # physics [2_500_000-2_600_000]
     # BODY, BODY2D, ...
     # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
     # RIGID_BODY, SOFT_BODY, ...
-    # COLLIDER, COLLISION_SHAPE, ...
-    # SKELETON, BONE, JOINT, ...
-    # synthesis/procedural generation?
-    # GENERATOR, ...
+    # COLLIDER, ...
+    # SKELETON, BONE, ...
+    # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
 
     # lighting [2_600_000-2_700_000]
     # LIGHT, LIGHT2D, ...

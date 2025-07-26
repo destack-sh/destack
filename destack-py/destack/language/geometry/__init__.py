@@ -1,4 +1,5 @@
 from .arrow import Arrow2D, ArrowHeadType, ArrowShape2D
+from .capsule import Capsule2D, CapsuleShape2D
 from .ellipse import Ellipse2D, EllipseShape2D
 from .line import Line2D, LineShape2D
 from .path import Path2D, PathShape2D
@@ -23,6 +24,7 @@ from .relative import (
     Overflow,
 )
 from .shape import Shape2D, Shape3D
+from .star import Star2D, StarShape2D
 from .vector import (
     Vector2,
     Vector2i,
@@ -40,6 +42,8 @@ __all__ = [
     "ArrowShape2D",
     "Axis2",
     "Axis3",
+    "Capsule2D",
+    "CapsuleShape2D",
     "Corner2",
     "Direction",
     "Distribute",
@@ -66,6 +70,8 @@ __all__ = [
     "RectangleShape2D",
     "Shape2D",
     "Shape3D",
+    "Star2D",
+    "StarShape2D",
     "Vector2",
     "Vector2i",
     "Vector3",
