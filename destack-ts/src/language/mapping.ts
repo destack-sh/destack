@@ -213,6 +213,7 @@ import type {
 } from "@destack/language/deployment/run";
 import type { SpanEvent } from "@destack/language/deployment/span";
 import type { Arrow2D, ArrowHeadType, ArrowShape2D } from "@destack/language/geometry/arrow";
+import type { Capsule2D, CapsuleShape2D } from "@destack/language/geometry/capsule";
 import type { Ellipse2D, EllipseShape2D } from "@destack/language/geometry/ellipse";
 import type { Line2D, LineShape2D } from "@destack/language/geometry/line";
 import type { Path2D, PathShape2D } from "@destack/language/geometry/path";
@@ -237,6 +238,7 @@ import type {
   Overflow,
 } from "@destack/language/geometry/relative";
 import type { Shape2D, Shape3D } from "@destack/language/geometry/shape";
+import type { Star2D, StarShape2D } from "@destack/language/geometry/star";
 import type {
   Vector2,
   Vector2i,
@@ -501,11 +503,13 @@ export type NodeTypeMapping = {
   [NodeType.SHAPE2D]: Shape2D;
   [NodeType.SHAPE3D]: Shape3D;
   [NodeType.ARROW_SHAPE2D]: ArrowShape2D;
+  [NodeType.CAPSULE_SHAPE2D]: CapsuleShape2D;
   [NodeType.ELLIPSE_SHAPE2D]: EllipseShape2D;
   [NodeType.LINE_SHAPE2D]: LineShape2D;
   [NodeType.PATH_SHAPE2D]: PathShape2D;
   [NodeType.POLYGON_SHAPE2D]: PolygonShape2D;
   [NodeType.RECTANGLE_SHAPE2D]: RectangleShape2D;
+  [NodeType.STAR_SHAPE2D]: StarShape2D;
   [NodeType.DATABASE]: Database;
   [NodeType.MACHINE]: Machine;
   [NodeType.INPUT_EVENT]: InputEvent;
@@ -671,6 +675,7 @@ export type StructTypeMapping = {
   [StructType.TRANSITION]: Transition;
   [StructType.EFFECT]: Effect;
   [StructType.ARROW2D]: Arrow2D;
+  [StructType.CAPSULE2D]: Capsule2D;
   [StructType.ELLIPSE2D]: Ellipse2D;
   [StructType.LINE2D]: Line2D;
   [StructType.PATH2D]: Path2D;
@@ -691,6 +696,7 @@ export type StructTypeMapping = {
   [StructType.AXIS3]: Axis3;
   [StructType.GRID2]: Grid2;
   [StructType.GRID_SPAN2]: GridSpan2;
+  [StructType.STAR2D]: Star2D;
   [StructType.SCHEDULE]: Schedule;
 };
 

@@ -14,6 +14,8 @@ import type {
   Border,
   BorderStyle,
   Branch,
+  Capsule2D,
+  CapsuleShape2D,
   CheckedType,
   Client,
   CollectionConstraint,
@@ -180,9 +182,11 @@ import type {
   SplitView,
   Stage,
   Star,
+  Star2D,
   StarAddedEvent,
   StarEvent,
   StarRemovedEvent,
+  StarShape2D,
   StringConstraint,
   Stroke,
   StrokeCap,
@@ -5167,7 +5171,7 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
       const colorValue = objectJsonc["200"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(2, colorValue, _session) as Color) : undefined;
@@ -5339,7 +5343,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
       const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const angleValue = objectJsonc["102"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
       const unpackedStops: any[] = [];
@@ -5703,8 +5707,8 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): FontStyle {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const weightValue = objectJsonc["102"];
       const unpackedWeight = weightValue != undefined ? Number(weightValue) : undefined;
       const colorValue = objectJsonc["103"];
@@ -6041,7 +6045,7 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const colorValue = objectJsonc["200"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(2, colorValue, _session) as Color) : undefined;
@@ -6745,7 +6749,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
+      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3;
       const opacityValue = objectJsonc["200"];
       const unpackedOpacity = opacityValue != undefined ? Number(opacityValue) : undefined;
       const offsetValue = objectJsonc["201"];
@@ -8155,7 +8159,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJsonc["180"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
@@ -8280,6 +8284,217 @@ export function loadEncoders(): void {
 
   JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410200)] = new ArrowShape2DJsoncEncoder();
 
+  class CapsuleShape2DJsoncEncoder implements JsoncObjectEncoder {
+    packObject(object: CapsuleShape2D): any {
+      const objectJsonc: { [key: string]: any } = {};
+      objectJsonc["1"] = 2410500;
+      objectJsonc["2"] = object.id;
+      if (object.parentPtr != null) {
+        objectJsonc["3"] = object.parentPtr.pack(2);
+      }
+      objectJsonc["5"] = object.spacePtr.pack(2);
+      objectJsonc["10"] = object.materialization;
+      if (object.definitionPtr != null) {
+        objectJsonc["11"] = object.definitionPtr.pack(2);
+      }
+      objectJsonc["12"] = object.branchPtr.pack(2);
+      objectJsonc["13"] = object.snapshotPtr.pack(2);
+      if (object.precededByPtr != null) {
+        objectJsonc["14"] = object.precededByPtr.pack(2);
+      }
+      if (object.instancePtr != null) {
+        objectJsonc["15"] = object.instancePtr.pack(2);
+      }
+      objectJsonc["20"] = object.createdAt.toString({ timeZoneName: "never" });
+      objectJsonc["21"] = object.createdEpoch;
+      objectJsonc["22"] = object.createdByPtr.pack(2);
+      objectJsonc["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+      objectJsonc["24"] = object.updatedEpoch;
+      objectJsonc["25"] = object.updatedByPtr.pack(2);
+      if (object.deletedAt != null) {
+        objectJsonc["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      }
+      if (object._ownedByPtr != null) {
+        objectJsonc["30"] = object._ownedByPtr.pack(2);
+      }
+      objectJsonc["40"] = object._name;
+      objectJsonc["41"] = object.orderKey;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(2);
+      }
+      objectJsonc["45"] = packedCustomValues;
+      if (object._scriptPtr != null) {
+        objectJsonc["46"] = object._scriptPtr.pack(2);
+      }
+      if (object.isExtensible != null) {
+        objectJsonc["50"] = object.isExtensible;
+      }
+      if (object.sourcePtr != null) {
+        objectJsonc["80"] = object.sourcePtr.pack(2);
+      }
+      if (object._key != null) {
+        objectJsonc["85"] = object._key;
+      }
+      if (object._position != null) {
+        objectJsonc["110"] = object._position.pack(2);
+      }
+      if (object._offset != null) {
+        objectJsonc["111"] = object._offset.pack(2);
+      }
+      if (object._scale != null) {
+        objectJsonc["112"] = object._scale.pack(2);
+      }
+      if (object._rotation != null) {
+        objectJsonc["113"] = object._rotation.pack(2);
+      }
+      if (object._skew != null) {
+        objectJsonc["114"] = object._skew.pack(2);
+      }
+      if (object._origin != null) {
+        objectJsonc["115"] = object._origin.pack(2);
+      }
+      if (object._anchor != null) {
+        objectJsonc["116"] = object._anchor;
+      }
+      if (object._stroke != null) {
+        objectJsonc["180"] = object._stroke.pack(2);
+      }
+      objectJsonc["210"] = object._centerA.pack(2);
+      objectJsonc["211"] = object._centerB.pack(2);
+      objectJsonc["212"] = object._radius;
+      return objectJsonc;
+    }
+
+    unpackObject(objectJsonc: any, _session: Session | null): CapsuleShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const strokeValue = objectJsonc["180"];
+      const unpackedStroke =
+        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
+      const positionValue = objectJsonc["110"];
+      const unpackedPosition =
+        positionValue != undefined
+          ? (_Vector2.unpack(2, positionValue, _session) as Vector2)
+          : undefined;
+      const offsetValue = objectJsonc["111"];
+      const unpackedOffset =
+        offsetValue != undefined
+          ? (_Offset2.unpack(2, offsetValue, _session) as Offset2)
+          : undefined;
+      const scaleValue = objectJsonc["112"];
+      const unpackedScale =
+        scaleValue != undefined ? (_Vector2.unpack(2, scaleValue, _session) as Vector2) : undefined;
+      const rotationValue = objectJsonc["113"];
+      const unpackedRotation =
+        rotationValue != undefined
+          ? (_Vector2.unpack(2, rotationValue, _session) as Vector2)
+          : undefined;
+      const skewValue = objectJsonc["114"];
+      const unpackedSkew =
+        skewValue != undefined ? (_Vector2.unpack(2, skewValue, _session) as Vector2) : undefined;
+      const originValue = objectJsonc["115"];
+      const unpackedOrigin =
+        originValue != undefined
+          ? (_Vector2.unpack(2, originValue, _session) as Vector2)
+          : undefined;
+      const anchorValue = objectJsonc["116"];
+      const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : undefined;
+      const parentPtrValue = objectJsonc["3"];
+      const unpackedParentPtr =
+        parentPtrValue != undefined
+          ? (_NodeReference.unpack(2, parentPtrValue, _session) as NodeReference)
+          : undefined;
+      const definitionPtrValue = objectJsonc["11"];
+      const unpackedDefinitionPtr =
+        definitionPtrValue != undefined
+          ? (_NodeReference.unpack(2, definitionPtrValue, _session) as NodeReference)
+          : undefined;
+      const precededByPtrValue = objectJsonc["14"];
+      const unpackedPrecededByPtr =
+        precededByPtrValue != undefined
+          ? (_NodeReference.unpack(2, precededByPtrValue, _session) as NodeReference)
+          : undefined;
+      const instancePtrValue = objectJsonc["15"];
+      const unpackedInstancePtr =
+        instancePtrValue != undefined
+          ? (_NodeReference.unpack(2, instancePtrValue, _session) as NodeReference)
+          : undefined;
+      const deletedAtValue = objectJsonc["26"];
+      const unpackedDeletedAt =
+        deletedAtValue != undefined
+          ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+          : undefined;
+      const ownedByPtrValue = objectJsonc["30"];
+      const unpackedOwnedByPtr =
+        ownedByPtrValue != undefined
+          ? (_NodeReference.unpack(2, ownedByPtrValue, _session) as NodeReference)
+          : undefined;
+      const unpackedCustomValues = {} as any;
+      for (const [key, value] of Object.entries(objectJsonc["45"])) {
+        unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
+      }
+      const scriptPtrValue = objectJsonc["46"];
+      const unpackedScriptPtr =
+        scriptPtrValue != undefined
+          ? (_NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference)
+          : undefined;
+      const isExtensibleValue = objectJsonc["50"];
+      const unpackedIsExtensible =
+        isExtensibleValue != undefined ? Boolean(isExtensibleValue) : undefined;
+      const sourcePtrValue = objectJsonc["80"];
+      const unpackedSourcePtr =
+        sourcePtrValue != undefined
+          ? (_NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference)
+          : undefined;
+      const keyValue = objectJsonc["85"];
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
+      return new (NODE_CLASS_BY_TYPE[2410500] as typeof CapsuleShape2D)({
+        centerA: _Vector2.unpack(2, objectJsonc["210"], _session) as Vector2,
+        centerB: _Vector2.unpack(2, objectJsonc["211"], _session) as Vector2,
+        radius: Number(objectJsonc["212"]),
+        stroke: unpackedStroke,
+        position: unpackedPosition,
+        offset: unpackedOffset,
+        scale: unpackedScale,
+        rotation: unpackedRotation,
+        skew: unpackedSkew,
+        origin: unpackedOrigin,
+        anchor: unpackedAnchor,
+        parent: unpackedParentPtr,
+        materialization: Number(objectJsonc["10"]),
+        definition: unpackedDefinitionPtr,
+        branch: _NodeReference.unpack(2, objectJsonc["12"], _session) as NodeReference,
+        snapshot: _NodeReference.unpack(2, objectJsonc["13"], _session) as NodeReference,
+        precededBy: unpackedPrecededByPtr,
+        instance: unpackedInstancePtr,
+        createdAt: Temporal.Instant.from(objectJsonc["20"]).toZonedDateTimeISO("UTC"),
+        createdEpoch: Number(objectJsonc["21"]),
+        createdBy: _NodeReference.unpack(2, objectJsonc["22"], _session) as NodeReference,
+        updatedAt: Temporal.Instant.from(objectJsonc["23"]).toZonedDateTimeISO("UTC"),
+        updatedEpoch: Number(objectJsonc["24"]),
+        updatedBy: _NodeReference.unpack(2, objectJsonc["25"], _session) as NodeReference,
+        deletedAt: unpackedDeletedAt,
+        ownedBy: unpackedOwnedByPtr,
+        name: objectJsonc["40"],
+        orderKey: objectJsonc["41"],
+        customValues: unpackedCustomValues,
+        script: unpackedScriptPtr,
+        isExtensible: unpackedIsExtensible,
+        source: unpackedSourcePtr,
+        key: unpackedKey,
+        id: objectJsonc["2"],
+        space: _NodeReference.unpack(2, objectJsonc["5"], _session) as NodeReference,
+        _session,
+      });
+    }
+  }
+
+  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410500)] = new CapsuleShape2DJsoncEncoder();
+
   class EllipseShape2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: EllipseShape2D): any {
       const objectJsonc: { [key: string]: any } = {};
@@ -8364,7 +8579,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJsonc["180"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
@@ -8571,7 +8786,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const strokeValue = objectJsonc["180"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
@@ -8697,7 +8912,7 @@ export function loadEncoders(): void {
   class PathShape2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: PathShape2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2410600;
+      objectJsonc["1"] = 2411100;
       objectJsonc["2"] = object.id;
       if (object.parentPtr != null) {
         objectJsonc["3"] = object.parentPtr.pack(2);
@@ -8783,7 +8998,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const unpackedPoints: any[] = [];
       for (const item of objectJsonc["200"]) {
         unpackedPoints.push(_Vector2.unpack(2, item, _session) as Vector2);
@@ -8868,7 +9083,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJsonc["85"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[2410600] as typeof PathShape2D)({
+      return new (NODE_CLASS_BY_TYPE[2411100] as typeof PathShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
         position: unpackedPosition,
@@ -8907,12 +9122,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410600)] = new PathShape2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2411100)] = new PathShape2DJsoncEncoder();
 
   class PolygonShape2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: PolygonShape2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2410500;
+      objectJsonc["1"] = 2411000;
       objectJsonc["2"] = object.id;
       if (object.parentPtr != null) {
         objectJsonc["3"] = object.parentPtr.pack(2);
@@ -8998,7 +9213,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const unpackedPoints: any[] = [];
       for (const item of objectJsonc["210"]) {
         unpackedPoints.push(_Vector2.unpack(2, item, _session) as Vector2);
@@ -9083,7 +9298,7 @@ export function loadEncoders(): void {
           : undefined;
       const keyValue = objectJsonc["85"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
-      return new (NODE_CLASS_BY_TYPE[2410500] as typeof PolygonShape2D)({
+      return new (NODE_CLASS_BY_TYPE[2411000] as typeof PolygonShape2D)({
         points: unpackedPoints,
         stroke: unpackedStroke,
         position: unpackedPosition,
@@ -9122,7 +9337,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410500)] = new PolygonShape2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2411000)] = new PolygonShape2DJsoncEncoder();
 
   class RectangleShape2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: RectangleShape2D): any {
@@ -9214,7 +9429,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
       const widthValue = objectJsonc["210"];
       const unpackedWidth =
         widthValue != undefined ? (_Vector2.unpack(2, widthValue, _session) as Vector2) : undefined;
@@ -9344,6 +9559,217 @@ export function loadEncoders(): void {
   }
 
   JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410300)] = new RectangleShape2DJsoncEncoder();
+
+  class StarShape2DJsoncEncoder implements JsoncObjectEncoder {
+    packObject(object: StarShape2D): any {
+      const objectJsonc: { [key: string]: any } = {};
+      objectJsonc["1"] = 2410600;
+      objectJsonc["2"] = object.id;
+      if (object.parentPtr != null) {
+        objectJsonc["3"] = object.parentPtr.pack(2);
+      }
+      objectJsonc["5"] = object.spacePtr.pack(2);
+      objectJsonc["10"] = object.materialization;
+      if (object.definitionPtr != null) {
+        objectJsonc["11"] = object.definitionPtr.pack(2);
+      }
+      objectJsonc["12"] = object.branchPtr.pack(2);
+      objectJsonc["13"] = object.snapshotPtr.pack(2);
+      if (object.precededByPtr != null) {
+        objectJsonc["14"] = object.precededByPtr.pack(2);
+      }
+      if (object.instancePtr != null) {
+        objectJsonc["15"] = object.instancePtr.pack(2);
+      }
+      objectJsonc["20"] = object.createdAt.toString({ timeZoneName: "never" });
+      objectJsonc["21"] = object.createdEpoch;
+      objectJsonc["22"] = object.createdByPtr.pack(2);
+      objectJsonc["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+      objectJsonc["24"] = object.updatedEpoch;
+      objectJsonc["25"] = object.updatedByPtr.pack(2);
+      if (object.deletedAt != null) {
+        objectJsonc["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      }
+      if (object._ownedByPtr != null) {
+        objectJsonc["30"] = object._ownedByPtr.pack(2);
+      }
+      objectJsonc["40"] = object._name;
+      objectJsonc["41"] = object.orderKey;
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(key)] = value.pack(2);
+      }
+      objectJsonc["45"] = packedCustomValues;
+      if (object._scriptPtr != null) {
+        objectJsonc["46"] = object._scriptPtr.pack(2);
+      }
+      if (object.isExtensible != null) {
+        objectJsonc["50"] = object.isExtensible;
+      }
+      if (object.sourcePtr != null) {
+        objectJsonc["80"] = object.sourcePtr.pack(2);
+      }
+      if (object._key != null) {
+        objectJsonc["85"] = object._key;
+      }
+      if (object._position != null) {
+        objectJsonc["110"] = object._position.pack(2);
+      }
+      if (object._offset != null) {
+        objectJsonc["111"] = object._offset.pack(2);
+      }
+      if (object._scale != null) {
+        objectJsonc["112"] = object._scale.pack(2);
+      }
+      if (object._rotation != null) {
+        objectJsonc["113"] = object._rotation.pack(2);
+      }
+      if (object._skew != null) {
+        objectJsonc["114"] = object._skew.pack(2);
+      }
+      if (object._origin != null) {
+        objectJsonc["115"] = object._origin.pack(2);
+      }
+      if (object._anchor != null) {
+        objectJsonc["116"] = object._anchor;
+      }
+      if (object._stroke != null) {
+        objectJsonc["180"] = object._stroke.pack(2);
+      }
+      objectJsonc["210"] = object._center.pack(2);
+      objectJsonc["211"] = object._radius;
+      objectJsonc["212"] = object._points;
+      return objectJsonc;
+    }
+
+    unpackObject(objectJsonc: any, _session: Session | null): StarShape2D {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
+      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const strokeValue = objectJsonc["180"];
+      const unpackedStroke =
+        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
+      const positionValue = objectJsonc["110"];
+      const unpackedPosition =
+        positionValue != undefined
+          ? (_Vector2.unpack(2, positionValue, _session) as Vector2)
+          : undefined;
+      const offsetValue = objectJsonc["111"];
+      const unpackedOffset =
+        offsetValue != undefined
+          ? (_Offset2.unpack(2, offsetValue, _session) as Offset2)
+          : undefined;
+      const scaleValue = objectJsonc["112"];
+      const unpackedScale =
+        scaleValue != undefined ? (_Vector2.unpack(2, scaleValue, _session) as Vector2) : undefined;
+      const rotationValue = objectJsonc["113"];
+      const unpackedRotation =
+        rotationValue != undefined
+          ? (_Vector2.unpack(2, rotationValue, _session) as Vector2)
+          : undefined;
+      const skewValue = objectJsonc["114"];
+      const unpackedSkew =
+        skewValue != undefined ? (_Vector2.unpack(2, skewValue, _session) as Vector2) : undefined;
+      const originValue = objectJsonc["115"];
+      const unpackedOrigin =
+        originValue != undefined
+          ? (_Vector2.unpack(2, originValue, _session) as Vector2)
+          : undefined;
+      const anchorValue = objectJsonc["116"];
+      const unpackedAnchor = anchorValue != undefined ? Number(anchorValue) : undefined;
+      const parentPtrValue = objectJsonc["3"];
+      const unpackedParentPtr =
+        parentPtrValue != undefined
+          ? (_NodeReference.unpack(2, parentPtrValue, _session) as NodeReference)
+          : undefined;
+      const definitionPtrValue = objectJsonc["11"];
+      const unpackedDefinitionPtr =
+        definitionPtrValue != undefined
+          ? (_NodeReference.unpack(2, definitionPtrValue, _session) as NodeReference)
+          : undefined;
+      const precededByPtrValue = objectJsonc["14"];
+      const unpackedPrecededByPtr =
+        precededByPtrValue != undefined
+          ? (_NodeReference.unpack(2, precededByPtrValue, _session) as NodeReference)
+          : undefined;
+      const instancePtrValue = objectJsonc["15"];
+      const unpackedInstancePtr =
+        instancePtrValue != undefined
+          ? (_NodeReference.unpack(2, instancePtrValue, _session) as NodeReference)
+          : undefined;
+      const deletedAtValue = objectJsonc["26"];
+      const unpackedDeletedAt =
+        deletedAtValue != undefined
+          ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+          : undefined;
+      const ownedByPtrValue = objectJsonc["30"];
+      const unpackedOwnedByPtr =
+        ownedByPtrValue != undefined
+          ? (_NodeReference.unpack(2, ownedByPtrValue, _session) as NodeReference)
+          : undefined;
+      const unpackedCustomValues = {} as any;
+      for (const [key, value] of Object.entries(objectJsonc["45"])) {
+        unpackedCustomValues[key] = _Value.unpack(2, value as any, _session) as Value;
+      }
+      const scriptPtrValue = objectJsonc["46"];
+      const unpackedScriptPtr =
+        scriptPtrValue != undefined
+          ? (_NodeReference.unpack(2, scriptPtrValue, _session) as NodeReference)
+          : undefined;
+      const isExtensibleValue = objectJsonc["50"];
+      const unpackedIsExtensible =
+        isExtensibleValue != undefined ? Boolean(isExtensibleValue) : undefined;
+      const sourcePtrValue = objectJsonc["80"];
+      const unpackedSourcePtr =
+        sourcePtrValue != undefined
+          ? (_NodeReference.unpack(2, sourcePtrValue, _session) as NodeReference)
+          : undefined;
+      const keyValue = objectJsonc["85"];
+      const unpackedKey = keyValue != undefined ? keyValue : undefined;
+      return new (NODE_CLASS_BY_TYPE[2410600] as typeof StarShape2D)({
+        center: _Vector2.unpack(2, objectJsonc["210"], _session) as Vector2,
+        radius: Number(objectJsonc["211"]),
+        points: Number(objectJsonc["212"]),
+        stroke: unpackedStroke,
+        position: unpackedPosition,
+        offset: unpackedOffset,
+        scale: unpackedScale,
+        rotation: unpackedRotation,
+        skew: unpackedSkew,
+        origin: unpackedOrigin,
+        anchor: unpackedAnchor,
+        parent: unpackedParentPtr,
+        materialization: Number(objectJsonc["10"]),
+        definition: unpackedDefinitionPtr,
+        branch: _NodeReference.unpack(2, objectJsonc["12"], _session) as NodeReference,
+        snapshot: _NodeReference.unpack(2, objectJsonc["13"], _session) as NodeReference,
+        precededBy: unpackedPrecededByPtr,
+        instance: unpackedInstancePtr,
+        createdAt: Temporal.Instant.from(objectJsonc["20"]).toZonedDateTimeISO("UTC"),
+        createdEpoch: Number(objectJsonc["21"]),
+        createdBy: _NodeReference.unpack(2, objectJsonc["22"], _session) as NodeReference,
+        updatedAt: Temporal.Instant.from(objectJsonc["23"]).toZonedDateTimeISO("UTC"),
+        updatedEpoch: Number(objectJsonc["24"]),
+        updatedBy: _NodeReference.unpack(2, objectJsonc["25"], _session) as NodeReference,
+        deletedAt: unpackedDeletedAt,
+        ownedBy: unpackedOwnedByPtr,
+        name: objectJsonc["40"],
+        orderKey: objectJsonc["41"],
+        customValues: unpackedCustomValues,
+        script: unpackedScriptPtr,
+        isExtensible: unpackedIsExtensible,
+        source: unpackedSourcePtr,
+        key: unpackedKey,
+        id: objectJsonc["2"],
+        space: _NodeReference.unpack(2, objectJsonc["5"], _session) as NodeReference,
+        _session,
+      });
+    }
+  }
+
+  JSONC_OBJECT_ENCODERS[getObjectKey(1, 2410600)] = new StarShape2DJsoncEncoder();
 
   class DatabaseJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Database): any {
@@ -13821,17 +14247,17 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): FrameView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJsonc["150"];
       const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : undefined;
       const directionValue = objectJsonc["151"];
@@ -14188,17 +14614,17 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): LabelView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJsonc["150"];
       const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : undefined;
       const directionValue = objectJsonc["151"];
@@ -14531,13 +14957,13 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): NumberInputView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const valueValue = objectJsonc["250"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const placeholderValue = objectJsonc["251"];
@@ -14834,13 +15260,13 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): SliderInputView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const valueValue = objectJsonc["250"];
       const unpackedValue = valueValue != undefined ? Number(valueValue) : undefined;
       const widthValue = objectJsonc["120"];
@@ -15161,17 +15587,17 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): SplitView {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2;
-      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Grid2 = STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2;
+      const _GridSpan2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const layoutValue = objectJsonc["150"];
       const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : undefined;
       const directionValue = objectJsonc["151"];
@@ -15508,14 +15934,14 @@ export function loadEncoders(): void {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
       const _Font = STRUCT_CLASS_BY_TYPE[2100500] as typeof Font;
       const _Border = STRUCT_CLASS_BY_TYPE[2100600] as typeof Border;
       const _Shadow = STRUCT_CLASS_BY_TYPE[2100700] as typeof Shadow;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2;
-      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
+      const _Offset2 = STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2;
+      const _Corner2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2;
       const textValue = objectJsonc["250"];
       const unpackedText =
         textValue != undefined ? (_Text.unpack(2, textValue, _session) as Text) : undefined;
@@ -21125,7 +21551,7 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): Border {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
+      const _Inset2 = STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2;
       const colorValue = objectJsonc["101"];
       const unpackedColor =
         colorValue != undefined ? (_Color.unpack(2, colorValue, _session) as Color) : undefined;
@@ -21202,7 +21628,7 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): Gradient {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const stylePtrValue = objectJsonc["101"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21338,8 +21764,8 @@ export function loadEncoders(): void {
 
     unpackObject(objectJsonc: any, _session: Session | null): Font {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const stylePtrValue = objectJsonc["101"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21417,7 +21843,7 @@ export function loadEncoders(): void {
     unpackObject(objectJsonc: any, _session: Session | null): Shadow {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
-      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
+      const _Axis2 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2;
       const stylePtrValue = objectJsonc["101"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21727,7 +22153,7 @@ export function loadEncoders(): void {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3;
+      const _Axis3 = STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3;
       const stylePtrValue = objectJsonc["101"];
       const unpackedStylePtr =
         stylePtrValue != undefined
@@ -21799,7 +22225,7 @@ export function loadEncoders(): void {
   class Arrow2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Arrow2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411200;
+      objectJsonc["1"] = 2410200;
       objectJsonc["200"] = object.startType;
       objectJsonc["201"] = object.start.pack(2);
       objectJsonc["210"] = object.endType;
@@ -21809,7 +22235,7 @@ export function loadEncoders(): void {
 
     unpackObject(objectJsonc: any, _session: Session | null): Arrow2D {
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      return new (STRUCT_CLASS_BY_TYPE[2411200] as typeof Arrow2D)({
+      return new (STRUCT_CLASS_BY_TYPE[2410200] as typeof Arrow2D)({
         startType: Number(objectJsonc["200"]),
         start: _Vector2.unpack(2, objectJsonc["201"], _session) as Vector2,
         endType: Number(objectJsonc["210"]),
@@ -21820,12 +22246,36 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411200)] = new Arrow2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410200)] = new Arrow2DJsoncEncoder();
+
+  class Capsule2DJsoncEncoder implements JsoncObjectEncoder {
+    packObject(object: Capsule2D): any {
+      const objectJsonc: { [key: string]: any } = {};
+      objectJsonc["1"] = 2410500;
+      objectJsonc["210"] = object.centerA.pack(2);
+      objectJsonc["211"] = object.centerB.pack(2);
+      objectJsonc["212"] = object.radius;
+      return objectJsonc;
+    }
+
+    unpackObject(objectJsonc: any, _session: Session | null): Capsule2D {
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      return new (STRUCT_CLASS_BY_TYPE[2410500] as typeof Capsule2D)({
+        centerA: _Vector2.unpack(2, objectJsonc["210"], _session) as Vector2,
+        centerB: _Vector2.unpack(2, objectJsonc["211"], _session) as Vector2,
+        radius: Number(objectJsonc["212"]),
+        _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
+        _session,
+      });
+    }
+  }
+
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410500)] = new Capsule2DJsoncEncoder();
 
   class Ellipse2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Ellipse2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411400;
+      objectJsonc["1"] = 2410400;
       if (object.stroke != null) {
         objectJsonc["200"] = object.stroke.pack(2);
       }
@@ -21837,7 +22287,7 @@ export function loadEncoders(): void {
       const strokeValue = objectJsonc["200"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411400] as typeof Ellipse2D)({
+      return new (STRUCT_CLASS_BY_TYPE[2410400] as typeof Ellipse2D)({
         stroke: unpackedStroke,
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
         _session,
@@ -21845,28 +22295,20 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411400)] = new Ellipse2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410400)] = new Ellipse2DJsoncEncoder();
 
   class Line2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Line2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411100;
-      if (object.stroke != null) {
-        objectJsonc["200"] = object.stroke.pack(2);
-      }
+      objectJsonc["1"] = 2410100;
       objectJsonc["210"] = object.start.pack(2);
       objectJsonc["220"] = object.end.pack(2);
       return objectJsonc;
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Line2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJsonc["200"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411100] as typeof Line2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2410100] as typeof Line2D)({
         start: _Vector2.unpack(2, objectJsonc["210"], _session) as Vector2,
         end: _Vector2.unpack(2, objectJsonc["220"], _session) as Vector2,
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
@@ -21875,15 +22317,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411100)] = new Line2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410100)] = new Line2DJsoncEncoder();
 
   class Path2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Path2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411600;
-      if (object.stroke != null) {
-        objectJsonc["200"] = object.stroke.pack(2);
-      }
+      objectJsonc["1"] = 2411100;
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.pack(2));
@@ -21893,17 +22332,12 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Path2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJsonc["200"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       for (const item of objectJsonc["210"]) {
         unpackedPoints.push(_Vector2.unpack(2, item, _session) as Vector2);
       }
-      return new (STRUCT_CLASS_BY_TYPE[2411600] as typeof Path2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2411100] as typeof Path2D)({
         points: unpackedPoints,
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
         _session,
@@ -21911,15 +22345,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411600)] = new Path2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411100)] = new Path2DJsoncEncoder();
 
   class Polygon2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Polygon2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411500;
-      if (object.stroke != null) {
-        objectJsonc["200"] = object.stroke.pack(2);
-      }
+      objectJsonc["1"] = 2411000;
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.pack(2));
@@ -21929,17 +22360,12 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Polygon2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJsonc["200"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
       const unpackedPoints: any[] = [];
       for (const item of objectJsonc["210"]) {
         unpackedPoints.push(_Vector2.unpack(2, item, _session) as Vector2);
       }
-      return new (STRUCT_CLASS_BY_TYPE[2411500] as typeof Polygon2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2411000] as typeof Polygon2D)({
         points: unpackedPoints,
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
         _session,
@@ -21947,7 +22373,7 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411500)] = new Polygon2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411000)] = new Polygon2DJsoncEncoder();
 
   class Vector2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Vector2): any {
@@ -22115,10 +22541,7 @@ export function loadEncoders(): void {
   class Rectangle2DJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Rectangle2D): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2411300;
-      if (object.stroke != null) {
-        objectJsonc["200"] = object.stroke.pack(2);
-      }
+      objectJsonc["1"] = 2410300;
       if (object.width != null) {
         objectJsonc["210"] = object.width.pack(2);
       }
@@ -22129,11 +22552,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Rectangle2D {
-      const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
-      const strokeValue = objectJsonc["200"];
-      const unpackedStroke =
-        strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
       const widthValue = objectJsonc["210"];
       const unpackedWidth =
         widthValue != undefined ? (_Vector2.unpack(2, widthValue, _session) as Vector2) : undefined;
@@ -22142,8 +22561,7 @@ export function loadEncoders(): void {
         heightValue != undefined
           ? (_Vector2.unpack(2, heightValue, _session) as Vector2)
           : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2411300] as typeof Rectangle2D)({
-        stroke: unpackedStroke,
+      return new (STRUCT_CLASS_BY_TYPE[2410300] as typeof Rectangle2D)({
         width: unpackedWidth,
         height: unpackedHeight,
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
@@ -22152,19 +22570,19 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2411300)] = new Rectangle2DJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410300)] = new Rectangle2DJsoncEncoder();
 
   class LengthJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Length): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 1800001;
+      objectJsonc["1"] = 2400020;
       objectJsonc["101"] = object.unit;
       objectJsonc["102"] = object.value;
       return objectJsonc;
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Length {
-      return new (STRUCT_CLASS_BY_TYPE[1800001] as typeof Length)({
+      return new (STRUCT_CLASS_BY_TYPE[2400020] as typeof Length)({
         unit: Number(objectJsonc["101"]),
         value: Number(objectJsonc["102"]),
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
@@ -22173,12 +22591,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 1800001)] = new LengthJsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400020)] = new LengthJsoncEncoder();
 
   class Offset2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Offset2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400020;
+      objectJsonc["1"] = 2400021;
       objectJsonc["100"] = object.type;
       if (object.top != null) {
         objectJsonc["101"] = object.top.pack(2);
@@ -22196,7 +22614,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Offset2 {
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const topValue = objectJsonc["101"];
       const unpackedTop =
         topValue != undefined ? (_Length.unpack(2, topValue, _session) as Length) : undefined;
@@ -22209,7 +22627,7 @@ export function loadEncoders(): void {
       const heightValue = objectJsonc["104"];
       const unpackedHeight =
         heightValue != undefined ? (_Length.unpack(2, heightValue, _session) as Length) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400020] as typeof Offset2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400021] as typeof Offset2)({
         type: Number(objectJsonc["100"]),
         top: unpackedTop,
         left: unpackedLeft,
@@ -22221,12 +22639,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400020)] = new Offset2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400021)] = new Offset2JsoncEncoder();
 
   class Inset2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Inset2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400023;
+      objectJsonc["1"] = 2400024;
       objectJsonc["101"] = object.base;
       if (object.top != null) {
         objectJsonc["102"] = object.top;
@@ -22252,7 +22670,7 @@ export function loadEncoders(): void {
       const unpackedRight = rightValue != undefined ? Number(rightValue) : undefined;
       const bottomValue = objectJsonc["105"];
       const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400024] as typeof Inset2)({
         base: Number(objectJsonc["101"]),
         top: unpackedTop,
         left: unpackedLeft,
@@ -22264,12 +22682,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400023)] = new Inset2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400024)] = new Inset2JsoncEncoder();
 
   class Corner2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Corner2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400024;
+      objectJsonc["1"] = 2400025;
       objectJsonc["101"] = object.base;
       if (object.topLeft != null) {
         objectJsonc["102"] = object.topLeft;
@@ -22296,7 +22714,7 @@ export function loadEncoders(): void {
       const bottomRightValue = objectJsonc["105"];
       const unpackedBottomRight =
         bottomRightValue != undefined ? Number(bottomRightValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400024] as typeof Corner2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Corner2)({
         base: Number(objectJsonc["101"]),
         topLeft: unpackedTopLeft,
         topRight: unpackedTopRight,
@@ -22308,12 +22726,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400024)] = new Corner2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400025)] = new Corner2JsoncEncoder();
 
   class Axis2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Axis2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400025;
+      objectJsonc["1"] = 2400026;
       objectJsonc["101"] = object.base;
       if (object.x != null) {
         objectJsonc["102"] = object.x;
@@ -22329,7 +22747,7 @@ export function loadEncoders(): void {
       const unpackedX = xValue != undefined ? Number(xValue) : undefined;
       const yValue = objectJsonc["103"];
       const unpackedY = yValue != undefined ? Number(yValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis2)({
         base: Number(objectJsonc["101"]),
         x: unpackedX,
         y: unpackedY,
@@ -22339,12 +22757,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400025)] = new Axis2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400026)] = new Axis2JsoncEncoder();
 
   class Axis3JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Axis3): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400026;
+      objectJsonc["1"] = 2400027;
       objectJsonc["101"] = object.base;
       if (object.x != null) {
         objectJsonc["102"] = object.x;
@@ -22365,7 +22783,7 @@ export function loadEncoders(): void {
       const unpackedY = yValue != undefined ? Number(yValue) : undefined;
       const zValue = objectJsonc["104"];
       const unpackedZ = zValue != undefined ? Number(zValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400026] as typeof Axis3)({
+      return new (STRUCT_CLASS_BY_TYPE[2400027] as typeof Axis3)({
         base: Number(objectJsonc["101"]),
         x: unpackedX,
         y: unpackedY,
@@ -22376,12 +22794,12 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400026)] = new Axis3JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400027)] = new Axis3JsoncEncoder();
 
   class Grid2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Grid2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400021;
+      objectJsonc["1"] = 2400022;
       objectJsonc["101"] = object.columns;
       objectJsonc["102"] = object.rows;
       if (object.columnWidth != null) {
@@ -22397,7 +22815,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): Grid2 {
-      const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
+      const _Length = STRUCT_CLASS_BY_TYPE[2400020] as typeof Length;
       const columnWidthValue = objectJsonc["103"];
       const unpackedColumnWidth =
         columnWidthValue != undefined
@@ -22413,7 +22831,7 @@ export function loadEncoders(): void {
         rowHeightValue != undefined
           ? (_Length.unpack(2, rowHeightValue, _session) as Length)
           : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[2400021] as typeof Grid2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400022] as typeof Grid2)({
         columns: Number(objectJsonc["101"]),
         rows: Number(objectJsonc["102"]),
         columnWidth: unpackedColumnWidth,
@@ -22425,19 +22843,19 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400021)] = new Grid2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400022)] = new Grid2JsoncEncoder();
 
   class GridSpan2JsoncEncoder implements JsoncObjectEncoder {
     packObject(object: GridSpan2): any {
       const objectJsonc: { [key: string]: any } = {};
-      objectJsonc["1"] = 2400022;
+      objectJsonc["1"] = 2400023;
       objectJsonc["101"] = object.columns;
       objectJsonc["102"] = object.rows;
       return objectJsonc;
     }
 
     unpackObject(objectJsonc: any, _session: Session | null): GridSpan2 {
-      return new (STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2)({
+      return new (STRUCT_CLASS_BY_TYPE[2400023] as typeof GridSpan2)({
         columns: Number(objectJsonc["101"]),
         rows: Number(objectJsonc["102"]),
         _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
@@ -22446,7 +22864,31 @@ export function loadEncoders(): void {
     }
   }
 
-  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400022)] = new GridSpan2JsoncEncoder();
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2400023)] = new GridSpan2JsoncEncoder();
+
+  class Star2DJsoncEncoder implements JsoncObjectEncoder {
+    packObject(object: Star2D): any {
+      const objectJsonc: { [key: string]: any } = {};
+      objectJsonc["1"] = 2410600;
+      objectJsonc["210"] = object.center.pack(2);
+      objectJsonc["211"] = object.radius;
+      objectJsonc["212"] = object.points;
+      return objectJsonc;
+    }
+
+    unpackObject(objectJsonc: any, _session: Session | null): Star2D {
+      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
+      return new (STRUCT_CLASS_BY_TYPE[2410600] as typeof Star2D)({
+        center: _Vector2.unpack(2, objectJsonc["210"], _session) as Vector2,
+        radius: Number(objectJsonc["211"]),
+        points: Number(objectJsonc["212"]),
+        _PackedObjectCache: [{ encoding: 2, isBytes: false, packed: objectJsonc }],
+        _session,
+      });
+    }
+  }
+
+  JSONC_OBJECT_ENCODERS[getObjectKey(2, 2410600)] = new Star2DJsoncEncoder();
 
   class ScheduleJsoncEncoder implements JsoncObjectEncoder {
     packObject(object: Schedule): any {

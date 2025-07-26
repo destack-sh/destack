@@ -36,126 +36,6 @@ import type { Stroke } from "@destack/language/style";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2411100 ==== */
-/**
- * A Line is a line between two points.
- */
-export class Line2D extends StructFrozen {
-  static metatype: StructType = StructType.LINE2D;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Line2D.stroke
-   */
-  readonly stroke: Stroke | null;
-
-  /**
-   * Line2D.start
-   */
-  readonly start: Vector2;
-
-  /**
-   * Line2D.end
-   */
-  readonly end: Vector2;
-
-  constructor(options: {
-    stroke?: Stroke | null;
-    start: Vector2;
-    end: Vector2;
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _PackedObjectCache?: PackedObjectCache[] | null;
-  }) {
-    /* super */
-    super(
-      /* session */
-      options._session ?? null,
-    );
-
-    /* properties */
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
-    let _start = options.start;
-    if (_start == null) {
-      throw new Error(`Line2D.start is required`);
-    }
-    this.start = _start;
-    let _end = options.end;
-    if (_end == null) {
-      throw new Error(`Line2D.end is required`);
-    }
-    this.end = _end;
-
-    /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._PackedObjectCache = options._PackedObjectCache ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (
-      (this.stroke == null) !== (other.stroke == null) ||
-      (this.stroke != null && !this.stroke.equals(other.stroke))
-    ) {
-      return false;
-    }
-    if (!this.start.equals(other.start)) {
-      return false;
-    }
-    if (!this.end.equals(other.end)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.stroke != null) {
-        propertyReprs.push(`stroke=${this.stroke.repr()}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Line2D ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Line2D>`;
-      }
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stroke != null) {
-      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + this.start.hash()) & 0xffffffff;
-    h = (h * 31 + this.end.hash()) & 0xffffffff;
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.LINE2D, Line2D);
-/* ==== DESTACK_GENERATED_END:STRUCT:2411100 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:2410100 ==== */
 /**
  * A LineShape is a shape that represents a line between two points.
@@ -1024,3 +904,93 @@ export class LineShape2D extends Shape2D {
 }
 registerNodeClass(NodeType.LINE_SHAPE2D, LineShape2D);
 /* ==== DESTACK_GENERATED_END:NODE:2410100 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2410100 ==== */
+/**
+ * A Line is a line between two points.
+ */
+export class Line2D extends StructFrozen {
+  static metatype: StructType = StructType.LINE2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Line2D.start
+   */
+  readonly start: Vector2;
+
+  /**
+   * Line2D.end
+   */
+  readonly end: Vector2;
+
+  constructor(options: {
+    start: Vector2;
+    end: Vector2;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
+  }) {
+    /* super */
+    super(
+      /* session */
+      options._session ?? null,
+    );
+
+    /* properties */
+    let _start = options.start;
+    if (_start == null) {
+      throw new Error(`Line2D.start is required`);
+    }
+    this.start = _start;
+    let _end = options.end;
+    if (_end == null) {
+      throw new Error(`Line2D.end is required`);
+    }
+    this.end = _end;
+
+    /* identity */
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!this.start.equals(other.start)) {
+      return false;
+    }
+    if (!this.end.equals(other.end)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Line2D>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.start.hash()) & 0xffffffff;
+    h = (h * 31 + this.end.hash()) & 0xffffffff;
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.LINE2D, Line2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2410100 ==== */

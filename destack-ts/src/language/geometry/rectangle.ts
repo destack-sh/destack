@@ -36,130 +36,6 @@ import type { Stroke } from "@destack/language/style";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2411300 ==== */
-/**
- * A Rectangle is a rectangle.
- */
-export class Rectangle2D extends StructFrozen {
-  static metatype: StructType = StructType.RECTANGLE2D;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Rectangle2D.stroke
-   */
-  readonly stroke: Stroke | null;
-
-  /**
-   * Rectangle2D.width
-   */
-  readonly width: Vector2 | null;
-
-  /**
-   * Rectangle2D.height
-   */
-  readonly height: Vector2 | null;
-
-  constructor(options: {
-    stroke?: Stroke | null;
-    width?: Vector2 | null;
-    height?: Vector2 | null;
-    _session?: Session | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _PackedObjectCache?: PackedObjectCache[] | null;
-  }) {
-    /* super */
-    super(
-      /* session */
-      options._session ?? null,
-    );
-
-    /* properties */
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
-    let _width = options.width ?? null;
-    this.width = _width;
-    let _height = options.height ?? null;
-    this.height = _height;
-
-    /* identity */
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._PackedObjectCache = options._PackedObjectCache ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (
-      (this.stroke == null) !== (other.stroke == null) ||
-      (this.stroke != null && !this.stroke.equals(other.stroke))
-    ) {
-      return false;
-    }
-    if (
-      (this.width == null) !== (other.width == null) ||
-      (this.width != null && !this.width.equals(other.width))
-    ) {
-      return false;
-    }
-    if (
-      (this.height == null) !== (other.height == null) ||
-      (this.height != null && !this.height.equals(other.height))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.stroke != null) {
-        propertyReprs.push(`stroke=${this.stroke.repr()}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Rectangle2D ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Rectangle2D>`;
-      }
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stroke != null) {
-      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
-    }
-    if (this.width != null) {
-      h = (h * 31 + this.width.hash()) & 0xffffffff;
-    }
-    if (this.height != null) {
-      h = (h * 31 + this.height.hash()) & 0xffffffff;
-    }
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.RECTANGLE2D, Rectangle2D);
-/* ==== DESTACK_GENERATED_END:STRUCT:2411300 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:2410300 ==== */
 /**
  * A RectangleShape is a shape that represents a rectangle.
@@ -1032,3 +908,97 @@ export class RectangleShape2D extends Shape2D {
 }
 registerNodeClass(NodeType.RECTANGLE_SHAPE2D, RectangleShape2D);
 /* ==== DESTACK_GENERATED_END:NODE:2410300 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2410300 ==== */
+/**
+ * A Rectangle is a rectangle.
+ */
+export class Rectangle2D extends StructFrozen {
+  static metatype: StructType = StructType.RECTANGLE2D;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Rectangle2D.width
+   */
+  readonly width: Vector2 | null;
+
+  /**
+   * Rectangle2D.height
+   */
+  readonly height: Vector2 | null;
+
+  constructor(options: {
+    width?: Vector2 | null;
+    height?: Vector2 | null;
+    _session?: Session | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
+  }) {
+    /* super */
+    super(
+      /* session */
+      options._session ?? null,
+    );
+
+    /* properties */
+    let _width = options.width ?? null;
+    this.width = _width;
+    let _height = options.height ?? null;
+    this.height = _height;
+
+    /* identity */
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.width == null) !== (other.width == null) ||
+      (this.width != null && !this.width.equals(other.width))
+    ) {
+      return false;
+    }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Rectangle2D>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.width != null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height != null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    }
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  /* ... */
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.RECTANGLE2D, Rectangle2D);
+/* ==== DESTACK_GENERATED_END:STRUCT:2410300 ==== */

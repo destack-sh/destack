@@ -1,38 +1,49 @@
 import time
 
+# ruff: noqa: F401, F403, E402
+
 start = time.time()
 
-from .access import *  # noqa: F403
-from .animation import *  # noqa: F403
-from .core import *  # noqa: F403
-from .data import *  # noqa: F403
-from .deployment import *  # noqa: F403
+
+from .access import *
+from .animation import *
+from .core import *
+from .data import *
+from .deployment import *
 from .finalize import finalize
-from .finance import *  # noqa: F403
-from .geometry import *  # noqa: F403
-from .infrastructure import *  # noqa: F403
-from .intelligence import *  # noqa: F403
-from .interaction import *  # noqa: F403
-from .logic import *  # noqa: F403
-from .observability import *  # noqa: F403
+from .finance import *
+from .geometry import *
+from .infrastructure import *
+from .intelligence import *
+from .interaction import *
+from .logic import *
+from .observability import *
 from .registry import (
-    ENUM_CLASS_BY_TYPE,  # noqa: F401
-    ENUM_TYPE_BY_CLASS,  # noqa: F401
-    NODE_CLASS_BY_TYPE,  # noqa: F401
-    STRUCT_CLASS_BY_TYPE,  # noqa: F401
+    ENUM_CLASS_BY_TYPE,
+    ENUM_TYPE_BY_CLASS,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
 )
-from .scene import *  # noqa: F403
-from .social import *  # noqa: F403
-from .space import *  # noqa: F403
-from .style import *  # noqa: F403
-from .universe import *  # noqa: F403
-from .view import *  # noqa: F403
+from .scene import *
+from .social import *
+from .space import *
+from .style import *
+from .universe import *
+from .view import *
 
 finalize()
 
-from destack.language.core.builtin.object import _time_spent_in_process_object_cls
 from destack.utils.code import _time_spent_in_exec
 
-print(f"time spent in exec: {_time_spent_in_exec:.3f}s")
-print(f"time spent in process_object_cls: {_time_spent_in_process_object_cls:.3f}s")
-print(f"language took {time.time() - start:.3f}s")
+from .core.builtin.object import _time_spent_in_process_object_cls
+from .finalize import _finalize_start, logger
+
+assert _finalize_start is not None, "language not finalized"
+
+logger.debug(
+    "language.init",
+    finalize_duration=f"{(_finalize_start - start) * 1000:.2f}ms" if _finalize_start else None,
+    init_duration=f"{(time.time() - start) * 1000:.2f}ms",
+    exec_duration=f"{_time_spent_in_exec * 1000:.2f}ms",
+    process_object_duration=f"{_time_spent_in_process_object_cls * 1000:.2f}ms",
+)

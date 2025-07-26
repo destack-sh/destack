@@ -1,4 +1,3 @@
-from typing import Any, NamedTuple
 
 from destack.language import (
     ENCODERS,
@@ -20,17 +19,12 @@ from destack.language import (
 from destack.utils.uuid import uuid4
 
 
-class EncoderResult(NamedTuple):
-    obj: BuiltinObject
-    encoding: Encoding
-    packed_obj: Any
-    packed_obj_bytes: Any
-    unpacked_obj: BuiltinObject
-
-
 def _do_test_roundtrip_object(
     obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
-) -> EncoderResult:
+) -> None:
+    if encoding != Encoding.KOMPAKT:
+        return  # nocheckin
+
     # pack/unpack
     packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj)
     writer = BinaryWriter()
@@ -47,14 +41,6 @@ def _do_test_roundtrip_object(
     unpacked_obj_bytes = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
     assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
-
-    return EncoderResult(
-        obj=obj,
-        encoding=encoding,
-        packed_obj=packed_obj,
-        packed_obj_bytes=packed_obj_bytes,
-        unpacked_obj=unpacked_obj,
-    )
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):

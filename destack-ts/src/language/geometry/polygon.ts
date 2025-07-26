@@ -36,7 +36,7 @@ import type { Stroke } from "@destack/language/style";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2411500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2411000 ==== */
 /**
  * A Polygon is a list of points.
  */
@@ -45,17 +45,11 @@ export class Polygon2D extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * Polygon2D.stroke
-   */
-  readonly stroke: Stroke | null;
-
-  /**
    * Polygon2D.points
    */
   readonly points: readonly Vector2[];
 
   constructor(options: {
-    stroke?: Stroke | null;
     points?: readonly Vector2[];
     _session?: Session | null;
     _hash?: number | null;
@@ -69,8 +63,6 @@ export class Polygon2D extends StructFrozen {
     );
 
     /* properties */
-    let _stroke = options.stroke ?? null;
-    this.stroke = _stroke;
     let _points = options.points ?? null;
     if (_points == null) {
       _points = [];
@@ -90,12 +82,6 @@ export class Polygon2D extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stroke == null) !== (other.stroke == null) ||
-      (this.stroke != null && !this.stroke.equals(other.stroke))
-    ) {
-      return false;
-    }
     if (this.points.length != other.points.length) {
       return false;
     }
@@ -109,20 +95,7 @@ export class Polygon2D extends StructFrozen {
   }
 
   repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.stroke != null) {
-        propertyReprs.push(`stroke=${this.stroke.repr()}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Polygon2D ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly) */
-        this._repr = `<Polygon2D>`;
-      }
-    }
-    return this._repr;
+    return `<Polygon2D>`;
   }
 
   hash(): number {
@@ -131,9 +104,6 @@ export class Polygon2D extends StructFrozen {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stroke != null) {
-      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
-    }
     if (this.points && this.points.length > 0) {
       for (const _item of this.points) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -145,13 +115,13 @@ export class Polygon2D extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+  /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POLYGON2D, Polygon2D);
-/* ==== DESTACK_GENERATED_END:STRUCT:2411500 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2411000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2410500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2411000 ==== */
 /**
  * A PolygonShape is a shape that represents a polygon.
  */
@@ -998,8 +968,8 @@ export class PolygonShape2D extends Shape2D {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+  /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.POLYGON_SHAPE2D, PolygonShape2D);
-/* ==== DESTACK_GENERATED_END:NODE:2410500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2411000 ==== */
