@@ -149,9 +149,7 @@ import type {
   CheckedType,
   CollectionConstraint,
   NumberConstraint,
-  NumberFormat,
   StringConstraint,
-  StringFormat,
   Type,
 } from "@destack/language/core/builtin/type";
 import type { Value } from "@destack/language/core/builtin/value";
@@ -627,10 +625,10 @@ export type StructTypeMapping = {
   [StructType.STRUCT_DEFINITION_REFERENCE]: StructDefinitionReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
+  [StructType.TYPE]: Type;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
-  [StructType.TYPE]: Type;
   [StructType.CHECKED_TYPE]: CheckedType;
   [StructType.VALUE]: Value;
   [StructType.NODE_DEFINITION]: NodeDefinition;
@@ -733,8 +731,6 @@ export type EnumTypeMapping = {
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
-  [EnumType.STRING_FORMAT]: StringFormat;
-  [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;

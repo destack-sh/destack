@@ -463,7 +463,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             (
                 "_hash?: number | null",
                 "_repr?: string | null",
-                "_packedCache?: PackedCache[] | null",
+                "_PackedObjectCache?: PackedObjectCache[] | null",
             )
         )
     header_str = ",\n".join(header_parts)
@@ -711,7 +711,7 @@ this._hash = options._hash ?? null;
 // @ts-expect-error(readonly)
 this._repr = options._repr ?? null;
 // @ts-expect-error(readonly)
-this._packedCache = options._packedCache ?? null;
+this._PackedObjectCache = options._PackedObjectCache ?? null;
 """
         else:
             identity_str = """\
@@ -2199,7 +2199,7 @@ def _generate_file(
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
-    language_imports_by_module["core.builtin.object"] = {"BuiltinObject", "PackedCache"}
+    language_imports_by_module["core.builtin.object"] = {"BuiltinObject", "PackedObjectCache"}
     value_dependencies.add("BuiltinObject")
     language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
     value_dependencies.update(("Struct", "StructFrozen", "isStruct"))

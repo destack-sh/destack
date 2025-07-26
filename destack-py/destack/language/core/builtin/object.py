@@ -50,6 +50,7 @@ from .const import (
     ACTIVE_SPACE,
     EMPTY_DICT,
     ENCODERS,
+    METATYPE_PROPERTY_ID,
     REGION,
     UNSET,
 )
@@ -1085,7 +1086,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__is_frozen__ = is_frozen
 
     metatype = PropertyDeclaration(
-        id=1,
+        id=METATYPE_PROPERTY_ID,
         name="metatype",
         py_type=NodeType if is_node else StructType,
         cardinality=TypeCardinality.SCALAR,

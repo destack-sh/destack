@@ -5,7 +5,7 @@ import { Entity, type Materialization } from "@destack/language/core/builtin/ent
 import type { Event } from "@destack/language/core/builtin/event";
 import type { MethodCardinality, MethodType } from "@destack/language/core/builtin/meta";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Datetime, UInt16, UInt128, UUID } from "@destack/language/core/builtin/types";
@@ -83,7 +83,7 @@ export class MethodDefinition extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -139,7 +139,7 @@ export class MethodDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {

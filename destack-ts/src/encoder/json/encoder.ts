@@ -77,23 +77,23 @@ export class JsonEncoder implements Encoder<any> {
   }
 
   packValue(value: any, type: Type): any {
-    const json = packJson(value, type);
+    const json = packJson(type, value);
     return json;
   }
 
   packValueBytes(value: any, type: Type, writer: BinaryWriter): void {
-    const json = packJson(value, type);
+    const json = packJson(type, value);
     writer.writeJson(json);
   }
 
   unpackValue(type: Type, value: any, session: Session | null): any {
-    const json = unpackJson(value, type, session);
+    const json = unpackJson(type, value, session);
     return json;
   }
 
   unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
     const jsonValue = reader.readJson();
-    const json = unpackJson(jsonValue, type, session);
+    const json = unpackJson(type, jsonValue, session);
     return json;
   }
 }

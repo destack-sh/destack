@@ -367,132 +367,135 @@ class PrimitiveType(Enum):
     )
     # integer
     INT8 = (
-        10,
+        3,
         "Int8",
-        "8-bit signed integer (-128 to 127)",
+        "8-bit signed integer (-2^7 to 2^7-1)",
         "fas fa-tally",
     )
     INT16 = (
-        11,
+        4,
         "Int16",
-        "16-bit signed integer (-32768 to 32767)",
+        "16-bit signed integer (-2^15 to 2^15-1)",
         "fas fa-tally",
     )
     INT32 = (
-        12,
+        5,
         "Int32",
-        "32-bit signed integer (-2147483648 to 2147483647)",
+        "32-bit signed integer (-2^31 to 2^31-1)",
         "fas fa-tally",
     )
     INT64 = (
-        13,
+        6,
         "Int64",
-        "64-bit signed integer (-9223372036854775808 to 9223372036854775807)",
+        "64-bit signed integer (-2^63 to 2^63-1)",
         "fas fa-tally",
     )
     INT128 = (
-        14,
+        7,
         "Int128",
-        "128-bit signed integer (-170141183460469231731687303715884105728 to 170141183460469231731687303715884105727)",
+        "128-bit signed integer (-2^127 to 2^127-1)",
         "fas fa-tally",
     )
+    # INT256, ...
     UINT8 = (
-        15,
+        10,
         "UInt8",
-        "8-bit unsigned integer (0 to 255)",
+        "8-bit unsigned integer (0 to 2^8-1)",
         "fas fa-tally",
     )
     UINT16 = (
-        16,
+        11,
         "UInt16",
-        "16-bit unsigned integer (0 to 65535)",
+        "16-bit unsigned integer (0 to 2^16-1)",
         "fas fa-tally",
     )
     UINT32 = (
-        17,
+        12,
         "UInt32",
-        "32-bit unsigned integer (0 to 4294967295)",
+        "32-bit unsigned integer (0 to 2^32-1)",
         "fas fa-tally",
     )
     UINT64 = (
-        18,
+        13,
         "UInt64",
-        "64-bit unsigned integer (0 to 18446744073709551615)",
+        "64-bit unsigned integer (0 to 2^64-1)",
         "fas fa-tally",
     )
     UINT128 = (
-        19,
+        14,
         "UInt128",
-        "128-bit unsigned integer (0 to 340282366920938463463374607431768211455)",
+        "128-bit unsigned integer (0 to 2^128-1)",
         "fas fa-tally",
     )
+    # UINT256, ...
     # float
     FLOAT16 = (
         21,
         "Float16",
-        "16-bit half-precision float (±65504)",
+        "16-bit half-precision float (±2^14)",
         "fas fa-hashtag",
     )
     FLOAT32 = (
         22,
         "Float32",
-        "32-bit single-precision float (±3.4028234663852886e+38)",
+        "32-bit single-precision float (±2^127)",
         "fas fa-hashtag",
     )
     FLOAT64 = (
         23,
         "Float64",
-        "64-bit double-precision float (±1.7976931348623157e+308)",
+        "64-bit double-precision float (±2^1023)",
         "fas fa-hashtag",
     )
-    # complex, other numeric, ...?
+    # COMPLEX16, COMPLEX32, COMPLEX64, ...
+    # DECIMAL, ...
     # time
     DATETIME = (
-        30,
+        40,
         "Datetime",
         "Datetime (microsecond precision, with timezone)",
         "fas fa-calendar-days",
     )
     DATE = (
-        31,
+        41,
         "Date",
         "Date (day precision, no timezone)",
         "fas fa-calendar-days",
     )
     TIME = (
-        32,
+        42,
         "Time",
         "Time (microsecond precision, no timezone)",
         "fas fa-clock",
     )
     DURATION = (
-        33,
+        43,
         "Duration",
         "Duration (microsecond precision)",
         "fas fa-stopwatch",
     )
     # string
     STRING = (
-        40,
+        50,
         "String",
         "Plain text",
         "fas fa-font-case",
     )
     UUID = (
-        41,
+        51,
         "UUID",
         "Universally unique identifier (UUID4 or UUID7, 16 bytes)",
         "fas fa-fingerprint",
     )
     BYTES = (
-        42,
+        52,
         "Bytes",
         "Binary data (arbitrary bytes)",
         "fas fa-file-lines",
     )
     # VECTOR?
     JSON = (
-        45,
+        55,
         "JSON",
         "JSON (arbitrary JSON data)",
         "fas fa-brackets-curly",
@@ -591,7 +594,7 @@ class Tenancy(Enum):
     SHARED = 2
 
 
-class PackedCache(NamedTuple):
+class PackedObjectCache(NamedTuple):
     encoding: Encoding
     is_bytes: bool
     packed: Any

@@ -175,7 +175,6 @@ import {
   type NotificationSentEvent,
   NotificationStatus,
   type NumberConstraint,
-  NumberFormat,
   type NumberInputView,
   type ObjectDefinitionReference,
   ObjectDefinitionType,
@@ -264,7 +263,6 @@ import {
   type StarEvent,
   type StarRemovedEvent,
   type StringConstraint,
-  StringFormat,
   type Stroke,
   type StrokeCap,
   type StrokePath,
@@ -18767,7 +18765,7 @@ export function loadEncoders(): void {
         type: NodeDefinitionType[objectJson["type"]] as any,
         nodeType: NodeType[objectJson["nodeType"]] as any,
         definition: unpackedDefinitionPtr,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -18817,7 +18815,7 @@ export function loadEncoders(): void {
         traitType: unpackedTraitType,
         structType: unpackedStructType,
         customDefinition: unpackedCustomDefinitionPtr,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -18846,7 +18844,7 @@ export function loadEncoders(): void {
         type: StructDefinitionType[objectJson["type"]] as any,
         structType: unpackedStructType,
         definition: _NodeReference.unpack(1, objectJson["definition"], _session) as NodeReference,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -18902,7 +18900,7 @@ export function loadEncoders(): void {
         structType: unpackedStructType,
         id: unpackedId,
         customProperty: unpackedCustomPropertyPtr,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -18942,126 +18940,13 @@ export function loadEncoders(): void {
         branchId: objectJson["branchId"],
         snapshotId: objectJson["snapshotId"],
         storeKey: unpackedStoreKey,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
   }
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 1000)] = new NodeReferenceJsonEncoder();
-
-  class StringConstraintJsonEncoder implements JsonObjectEncoder {
-    packObject(object: StringConstraint): any {
-      const objectJson: { [key: string]: any } = {};
-      objectJson["metatype"] = "STRING_CONSTRAINT";
-      if (object.format != null) {
-        objectJson["format"] = StringFormat[object.format];
-      }
-      if (object.regex != null) {
-        objectJson["regex"] = object.regex;
-      }
-      if (object.startsWith != null) {
-        objectJson["startsWith"] = object.startsWith;
-      }
-      if (object.endsWith != null) {
-        objectJson["endsWith"] = object.endsWith;
-      }
-      return objectJson;
-    }
-
-    unpackObject(objectJson: any, _session: Session | null): StringConstraint {
-      const formatValue = objectJson["format"];
-      const unpackedFormat =
-        formatValue != undefined ? (StringFormat[formatValue] as any) : undefined;
-      const regexValue = objectJson["regex"];
-      const unpackedRegex = regexValue != undefined ? regexValue : undefined;
-      const startsWithValue = objectJson["startsWith"];
-      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : undefined;
-      const endsWithValue = objectJson["endsWith"];
-      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint)({
-        format: unpackedFormat,
-        regex: unpackedRegex,
-        startsWith: unpackedStartsWith,
-        endsWith: unpackedEndsWith,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
-        _session,
-      });
-    }
-  }
-
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 111)] = new StringConstraintJsonEncoder();
-
-  class NumberConstraintJsonEncoder implements JsonObjectEncoder {
-    packObject(object: NumberConstraint): any {
-      const objectJson: { [key: string]: any } = {};
-      objectJson["metatype"] = "NUMBER_CONSTRAINT";
-      if (object.format != null) {
-        objectJson["format"] = NumberFormat[object.format];
-      }
-      if (object.minValue != null) {
-        objectJson["minValue"] = Number(object.minValue);
-      }
-      if (object.maxValue != null) {
-        objectJson["maxValue"] = Number(object.maxValue);
-      }
-      if (object.stepValue != null) {
-        objectJson["stepValue"] = Number(object.stepValue);
-      }
-      return objectJson;
-    }
-
-    unpackObject(objectJson: any, _session: Session | null): NumberConstraint {
-      const formatValue = objectJson["format"];
-      const unpackedFormat =
-        formatValue != undefined ? (NumberFormat[formatValue] as any) : undefined;
-      const minValueValue = objectJson["minValue"];
-      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
-      const maxValueValue = objectJson["maxValue"];
-      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
-      const stepValueValue = objectJson["stepValue"];
-      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
-        format: unpackedFormat,
-        minValue: unpackedMinValue,
-        maxValue: unpackedMaxValue,
-        stepValue: unpackedStepValue,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
-        _session,
-      });
-    }
-  }
-
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 110)] = new NumberConstraintJsonEncoder();
-
-  class CollectionConstraintJsonEncoder implements JsonObjectEncoder {
-    packObject(object: CollectionConstraint): any {
-      const objectJson: { [key: string]: any } = {};
-      objectJson["metatype"] = "COLLECTION_CONSTRAINT";
-      if (object.minLength != null) {
-        objectJson["minLength"] = Number(object.minLength);
-      }
-      if (object.maxLength != null) {
-        objectJson["maxLength"] = Number(object.maxLength);
-      }
-      return objectJson;
-    }
-
-    unpackObject(objectJson: any, _session: Session | null): CollectionConstraint {
-      const minLengthValue = objectJson["minLength"];
-      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : undefined;
-      const maxLengthValue = objectJson["maxLength"];
-      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint)({
-        minLength: unpackedMinLength,
-        maxLength: unpackedMaxLength,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
-        _session,
-      });
-    }
-  }
-
-  JSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintJsonEncoder();
 
   class TypeJsonEncoder implements JsonObjectEncoder {
     packObject(object: Type): any {
@@ -19182,13 +19067,112 @@ export function loadEncoders(): void {
         literalValue: unpackedLiteralValue,
         unionTypes: unpackedUnionTypes,
         isRequired: objectJson["isRequired"],
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
   }
 
   JSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new TypeJsonEncoder();
+
+  class StringConstraintJsonEncoder implements JsonObjectEncoder {
+    packObject(object: StringConstraint): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "STRING_CONSTRAINT";
+      if (object.regex != null) {
+        objectJson["regex"] = object.regex;
+      }
+      if (object.startsWith != null) {
+        objectJson["startsWith"] = object.startsWith;
+      }
+      if (object.endsWith != null) {
+        objectJson["endsWith"] = object.endsWith;
+      }
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): StringConstraint {
+      const regexValue = objectJson["regex"];
+      const unpackedRegex = regexValue != undefined ? regexValue : undefined;
+      const startsWithValue = objectJson["startsWith"];
+      const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : undefined;
+      const endsWithValue = objectJson["endsWith"];
+      const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint)({
+        regex: unpackedRegex,
+        startsWith: unpackedStartsWith,
+        endsWith: unpackedEndsWith,
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 111)] = new StringConstraintJsonEncoder();
+
+  class NumberConstraintJsonEncoder implements JsonObjectEncoder {
+    packObject(object: NumberConstraint): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "NUMBER_CONSTRAINT";
+      if (object.minValue != null) {
+        objectJson["minValue"] = Number(object.minValue);
+      }
+      if (object.maxValue != null) {
+        objectJson["maxValue"] = Number(object.maxValue);
+      }
+      if (object.stepValue != null) {
+        objectJson["stepValue"] = Number(object.stepValue);
+      }
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): NumberConstraint {
+      const minValueValue = objectJson["minValue"];
+      const unpackedMinValue = minValueValue != undefined ? Number(minValueValue) : undefined;
+      const maxValueValue = objectJson["maxValue"];
+      const unpackedMaxValue = maxValueValue != undefined ? Number(maxValueValue) : undefined;
+      const stepValueValue = objectJson["stepValue"];
+      const unpackedStepValue = stepValueValue != undefined ? Number(stepValueValue) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint)({
+        minValue: unpackedMinValue,
+        maxValue: unpackedMaxValue,
+        stepValue: unpackedStepValue,
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 110)] = new NumberConstraintJsonEncoder();
+
+  class CollectionConstraintJsonEncoder implements JsonObjectEncoder {
+    packObject(object: CollectionConstraint): any {
+      const objectJson: { [key: string]: any } = {};
+      objectJson["metatype"] = "COLLECTION_CONSTRAINT";
+      if (object.minLength != null) {
+        objectJson["minLength"] = Number(object.minLength);
+      }
+      if (object.maxLength != null) {
+        objectJson["maxLength"] = Number(object.maxLength);
+      }
+      return objectJson;
+    }
+
+    unpackObject(objectJson: any, _session: Session | null): CollectionConstraint {
+      const minLengthValue = objectJson["minLength"];
+      const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : undefined;
+      const maxLengthValue = objectJson["maxLength"];
+      const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : undefined;
+      return new (STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint)({
+        minLength: unpackedMinLength,
+        maxLength: unpackedMaxLength,
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _session,
+      });
+    }
+  }
+
+  JSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintJsonEncoder();
 
   class CheckedTypeJsonEncoder implements JsonObjectEncoder {
     packObject(object: CheckedType): any {
@@ -19359,7 +19343,7 @@ export function loadEncoders(): void {
         literalValue: unpackedLiteralValue,
         unionTypes: unpackedUnionTypes,
         isRequired: objectJson["isRequired"],
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -19385,7 +19369,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[100] as typeof Value)({
         type: _Type.unpack(1, objectJson["type"], _session) as Type,
         value: unpackedValue,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -19707,7 +19691,7 @@ export function loadEncoders(): void {
         expectedAncestorTypes: unpackedExpectedAncestorTypes,
         expectedDescendantTypes: unpackedExpectedDescendantTypes,
         domain: unpackedDomain,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -19831,7 +19815,7 @@ export function loadEncoders(): void {
         selfEventTypes: unpackedSelfEventTypes,
         enumTypes: unpackedEnumTypes,
         selfEnumTypes: unpackedSelfEnumTypes,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -19998,7 +19982,7 @@ export function loadEncoders(): void {
         inheritedBy: unpackedInheritedBy,
         enumTypes: unpackedEnumTypes,
         selfEnumTypes: unpackedSelfEnumTypes,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20056,7 +20040,7 @@ export function loadEncoders(): void {
         description: unpackedDescription,
         taggings: unpackedTaggings,
         options: unpackedOptions,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20307,7 +20291,7 @@ export function loadEncoders(): void {
         literalValue: unpackedLiteralValue,
         unionTypes: unpackedUnionTypes,
         isRequired: objectJson["isRequired"],
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20354,7 +20338,7 @@ export function loadEncoders(): void {
         icon: unpackedIcon,
         description: unpackedDescription,
         taggings: unpackedTaggings,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20394,7 +20378,7 @@ export function loadEncoders(): void {
         description: unpackedDescription,
         taggings: unpackedTaggings,
         value: _Value.unpack(1, objectJson["value"], _session) as Value,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20421,7 +20405,7 @@ export function loadEncoders(): void {
         id: Number(objectJson["id"]),
         name: objectJson["name"],
         description: unpackedDescription,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20471,7 +20455,7 @@ export function loadEncoders(): void {
         description: unpackedDescription,
         properties: unpackedProperties,
         cover: unpackedCover,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20511,7 +20495,7 @@ export function loadEncoders(): void {
         name: objectJson["name"],
         description: unpackedDescription,
         properties: unpackedProperties,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20538,7 +20522,7 @@ export function loadEncoders(): void {
         id: Number(objectJson["id"]),
         name: objectJson["name"],
         description: unpackedDescription,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20600,7 +20584,7 @@ export function loadEncoders(): void {
         cardinality: MethodCardinality[objectJson["cardinality"]] as any,
         platforms: unpackedPlatforms,
         languages: unpackedLanguages,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20662,7 +20646,7 @@ export function loadEncoders(): void {
         cardinality: MethodCardinality[objectJson["cardinality"]] as any,
         platforms: unpackedPlatforms,
         languages: unpackedLanguages,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20723,7 +20707,7 @@ export function loadEncoders(): void {
         file: unpackedFilePtr,
         fileUrl: unpackedFileUrl,
         color: unpackedColor,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20750,7 +20734,7 @@ export function loadEncoders(): void {
         type: MigrationType[objectJson["type"]] as any,
         name: objectJson["name"],
         description: unpackedDescription,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20779,7 +20763,7 @@ export function loadEncoders(): void {
         name: objectJson["name"],
         description: unpackedDescription,
         type: MigrationType[objectJson["type"]] as any,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20810,7 +20794,7 @@ export function loadEncoders(): void {
         type: FunctionType[objectJson["type"]] as any,
         left: _Expression.unpack(1, objectJson["left"], _session) as Expression,
         right: unpackedRight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20841,7 +20825,7 @@ export function loadEncoders(): void {
         type: ConditionalType[objectJson["type"]] as any,
         left: _Expression.unpack(1, objectJson["left"], _session) as Expression,
         right: unpackedRight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20870,7 +20854,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[203] as typeof Aggregation)({
         type: AggregationType[objectJson["type"]] as any,
         expression: unpackedExpression,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20937,7 +20921,7 @@ export function loadEncoders(): void {
         condition: unpackedCondition,
         function: unpackedFunction,
         aggregation: unpackedAggregation,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20965,7 +20949,7 @@ export function loadEncoders(): void {
         type: SortType[objectJson["type"]] as any,
         by: _Expression.unpack(1, objectJson["by"], _session) as Expression,
         mode: unpackedMode,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -20993,7 +20977,7 @@ export function loadEncoders(): void {
       }
       return new (STRUCT_CLASS_BY_TYPE[206] as typeof Select)({
         attributes: unpackedAttributes,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21022,7 +21006,7 @@ export function loadEncoders(): void {
         type: JoinType[objectJson["type"]] as any,
         recursive: objectJson["recursive"],
         on: unpackedOn,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21144,7 +21128,7 @@ export function loadEncoders(): void {
         sort: unpackedSort,
         limit: unpackedLimit,
         offset: unpackedOffset,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21216,7 +21200,7 @@ export function loadEncoders(): void {
         isStrikethrough: unpackedIsStrikethrough,
         isUnderline: unpackedIsUnderline,
         isCode: unpackedIsCode,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21275,7 +21259,7 @@ export function loadEncoders(): void {
         isStrikethrough: unpackedIsStrikethrough,
         isUnderline: unpackedIsUnderline,
         isCode: unpackedIsCode,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21328,7 +21312,7 @@ export function loadEncoders(): void {
         y: unpackedY,
         z: unpackedZ,
         alpha: unpackedAlpha,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21373,7 +21357,7 @@ export function loadEncoders(): void {
         color: unpackedColor,
         width: unpackedWidth,
         style: unpackedStylePtr,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21400,7 +21384,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop)({
         color: unpackedColor,
         position: Number(objectJson["position"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21456,7 +21440,7 @@ export function loadEncoders(): void {
         angle: unpackedAngle,
         stops: unpackedStops,
         centerAnchor: unpackedCenterAnchor,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21525,7 +21509,7 @@ export function loadEncoders(): void {
         image: unpackedImagePtr,
         position: unpackedPosition,
         size: unpackedSize,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21614,7 +21598,7 @@ export function loadEncoders(): void {
         letterSpacing: unpackedLetterSpacing,
         decoration: unpackedDecoration,
         transform: unpackedTransform,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21679,7 +21663,7 @@ export function loadEncoders(): void {
         blur: unpackedBlur,
         spread: unpackedSpread,
         diffusion: unpackedDiffusion,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21733,7 +21717,7 @@ export function loadEncoders(): void {
         color: unpackedColor,
         start: unpackedStart,
         end: unpackedEnd,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21756,7 +21740,7 @@ export function loadEncoders(): void {
         cap: objectJson["cap"],
         taper: objectJson["taper"],
         easing: Easing[objectJson["easing"]] as any,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21788,7 +21772,7 @@ export function loadEncoders(): void {
         distance: Number(objectJson["distance"]),
         runningLength: Number(objectJson["runningLength"]),
         radius: Number(objectJson["radius"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21816,7 +21800,7 @@ export function loadEncoders(): void {
       }
       return new (STRUCT_CLASS_BY_TYPE[2101102] as typeof StrokePath)({
         points: unpackedPoints,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -21898,7 +21882,7 @@ export function loadEncoders(): void {
         mass: unpackedMass,
         bounce: unpackedBounce,
         springType: unpackedSpringType,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22027,7 +22011,7 @@ export function loadEncoders(): void {
         split: unpackedSplit,
         offscreen: unpackedOffscreen,
         transition: unpackedTransition,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22053,7 +22037,7 @@ export function loadEncoders(): void {
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
         endType: ArrowHeadType[objectJson["endType"]] as any,
         end: _Vector2.unpack(1, objectJson["end"], _session) as Vector2,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22078,7 +22062,7 @@ export function loadEncoders(): void {
         strokeValue != undefined ? (_Stroke.unpack(1, strokeValue, _session) as Stroke) : undefined;
       return new (STRUCT_CLASS_BY_TYPE[2411400] as typeof Ellipse2D)({
         stroke: unpackedStroke,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22108,7 +22092,7 @@ export function loadEncoders(): void {
         stroke: unpackedStroke,
         start: _Vector2.unpack(1, objectJson["start"], _session) as Vector2,
         end: _Vector2.unpack(1, objectJson["end"], _session) as Vector2,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22144,7 +22128,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2411600] as typeof Path2D)({
         stroke: unpackedStroke,
         points: unpackedPoints,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22180,7 +22164,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2411500] as typeof Polygon2D)({
         stroke: unpackedStroke,
         points: unpackedPoints,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22201,7 +22185,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2)({
         x: Number(objectJson["x"]),
         y: Number(objectJson["y"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22224,7 +22208,7 @@ export function loadEncoders(): void {
         x: Number(objectJson["x"]),
         y: Number(objectJson["y"]),
         z: Number(objectJson["z"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22249,7 +22233,7 @@ export function loadEncoders(): void {
         y: Number(objectJson["y"]),
         z: Number(objectJson["z"]),
         w: Number(objectJson["w"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22270,7 +22254,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2400001] as typeof Vector2i)({
         x: Number(objectJson["x"]),
         y: Number(objectJson["y"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22293,7 +22277,7 @@ export function loadEncoders(): void {
         x: Number(objectJson["x"]),
         y: Number(objectJson["y"]),
         z: Number(objectJson["z"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22318,7 +22302,7 @@ export function loadEncoders(): void {
         y: Number(objectJson["y"]),
         z: Number(objectJson["z"]),
         w: Number(objectJson["w"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22343,7 +22327,7 @@ export function loadEncoders(): void {
         y: Number(objectJson["y"]),
         z: Number(objectJson["z"]),
         w: Number(objectJson["w"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22385,7 +22369,7 @@ export function loadEncoders(): void {
         stroke: unpackedStroke,
         width: unpackedWidth,
         height: unpackedHeight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22406,7 +22390,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[1800001] as typeof Length)({
         unit: LengthType[objectJson["unit"]] as any,
         value: Number(objectJson["value"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22454,7 +22438,7 @@ export function loadEncoders(): void {
         left: unpackedLeft,
         width: unpackedWidth,
         height: unpackedHeight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22497,7 +22481,7 @@ export function loadEncoders(): void {
         left: unpackedLeft,
         right: unpackedRight,
         bottom: unpackedBottom,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22541,7 +22525,7 @@ export function loadEncoders(): void {
         topRight: unpackedTopRight,
         bottomLeft: unpackedBottomLeft,
         bottomRight: unpackedBottomRight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22572,7 +22556,7 @@ export function loadEncoders(): void {
         base: Number(objectJson["base"]),
         x: unpackedX,
         y: unpackedY,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22609,7 +22593,7 @@ export function loadEncoders(): void {
         x: unpackedX,
         y: unpackedY,
         z: unpackedZ,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22658,7 +22642,7 @@ export function loadEncoders(): void {
         columnWidth: unpackedColumnWidth,
         columnMinWidth: unpackedColumnMinWidth,
         rowHeight: unpackedRowHeight,
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }
@@ -22679,7 +22663,7 @@ export function loadEncoders(): void {
       return new (STRUCT_CLASS_BY_TYPE[2400022] as typeof GridSpan2)({
         columns: Number(objectJson["columns"]),
         rows: Number(objectJson["rows"]),
-        _packedCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
+        _PackedObjectCache: [{ encoding: 1, isBytes: false, packed: objectJson }],
         _session,
       });
     }

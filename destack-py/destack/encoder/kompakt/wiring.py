@@ -16,7 +16,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def pack_kompakt(value: Any, type: Type, writer: BinaryWriter) -> None:
+def pack_kompakt(type: Type, value: Any, writer: BinaryWriter) -> None:
     """Pack a generic typed value to Kompakt bytes."""
     raise NotImplementedError
 

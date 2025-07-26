@@ -3,7 +3,7 @@ import type {
   Datetime,
   NodeClass,
   NodeReference,
-  PackedCache,
+  PackedObjectCache,
   Session,
   Snapshot,
   Space,
@@ -231,7 +231,7 @@ export class Font extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -291,7 +291,7 @@ export class Font extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {

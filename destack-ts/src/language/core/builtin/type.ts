@@ -7,12 +7,12 @@ import {
   type ValueFactory,
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
-import type { PackedCache } from "@destack/language/core/builtin/object";
+import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { Float32, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Session } from "@destack/language/core/runtime/session";
-import { registerEnumClass, registerStructClass } from "@destack/language/registry";
+import { registerStructClass } from "@destack/language/registry";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 
 /**
@@ -144,11 +144,6 @@ export class StringConstraint extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * StringConstraint.format
-   */
-  readonly format: StringFormat | null;
-
-  /**
    * StringConstraint.regex
    */
   readonly regex: string | null;
@@ -164,14 +159,13 @@ export class StringConstraint extends StructFrozen {
   readonly endsWith: string | null;
 
   constructor(options: {
-    format?: StringFormat | null;
     regex?: string | null;
     startsWith?: string | null;
     endsWith?: string | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -180,8 +174,6 @@ export class StringConstraint extends StructFrozen {
     );
 
     /* properties */
-    let _format = options.format ?? null;
-    this.format = _format;
     let _regex = options.regex ?? null;
     this.regex = _regex;
     let _startsWith = options.startsWith ?? null;
@@ -195,14 +187,11 @@ export class StringConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.format === other.format)) {
       return false;
     }
     if (!(this.regex === other.regex)) {
@@ -227,9 +216,6 @@ export class StringConstraint extends StructFrozen {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.format != null) {
-      h = (h * 31 + this.format) & 0xffffffff;
-    }
     if (this.regex != null) {
       h = (h * 31 + hashString(this.regex)) & 0xffffffff;
     }
@@ -260,11 +246,6 @@ export class NumberConstraint extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * NumberConstraint.format
-   */
-  readonly format: NumberFormat | null;
-
-  /**
    * NumberConstraint.minValue
    */
   readonly minValue: Float32 | null;
@@ -280,14 +261,13 @@ export class NumberConstraint extends StructFrozen {
   readonly stepValue: Float32 | null;
 
   constructor(options: {
-    format?: NumberFormat | null;
     minValue?: Float32 | null;
     maxValue?: Float32 | null;
     stepValue?: Float32 | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -296,8 +276,6 @@ export class NumberConstraint extends StructFrozen {
     );
 
     /* properties */
-    let _format = options.format ?? null;
-    this.format = _format;
     let _minValue = options.minValue ?? null;
     this.minValue = _minValue;
     let _maxValue = options.maxValue ?? null;
@@ -311,14 +289,11 @@ export class NumberConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.format === other.format)) {
       return false;
     }
     if (
@@ -355,9 +330,6 @@ export class NumberConstraint extends StructFrozen {
     }
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.format != null) {
-      h = (h * 31 + this.format) & 0xffffffff;
-    }
     if (this.minValue != null) {
       h = (h * 31 + hashFloat(this.minValue)) & 0xffffffff;
     }
@@ -403,7 +375,7 @@ export class CollectionConstraint extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -423,7 +395,7 @@ export class CollectionConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -469,7 +441,7 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
- * A basic Type in the type system. Types compose like a tree, with scalars at the leaves:
+ * A basic Type in the type system. Types compose like a tree (with scalars at the leaves):
  *  - Scalar: a single value (primitive, enum, node, struct, etc.)
  *  - List: a dynamic-length sequence of homogeneous values
  *  - Tuple: a fixed-length sequence of heterogeneous values
@@ -557,7 +529,7 @@ export class Type extends StructFrozen {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(
@@ -609,7 +581,7 @@ export class Type extends StructFrozen {
     // @ts-expect-error(readonly)
     this._repr = options._repr ?? null;
     // @ts-expect-error(readonly)
-    this._packedCache = options._packedCache ?? null;
+    this._PackedObjectCache = options._PackedObjectCache ?? null;
   }
 
   equals(other: any): boolean {
@@ -791,43 +763,6 @@ export class Type extends StructFrozen {
 registerStructClass(StructType.TYPE, Type);
 /* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
-/**
- * StringFormat
- */
-export enum StringFormat {
-  NAME = 1,
-  SLUG = 2,
-  EMAIL = 3,
-  UUID = 10,
-  URL = 11,
-  EMOJI = 12,
-  MIME = 13,
-  BASE64 = 20,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
-/**
- * NumberFormat
- */
-export enum NumberFormat {
-  PERCENTAGE = 1,
-  ANGLE = 2,
-  CURRENCY = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
 /**
  * A full Type in the type system.
@@ -883,7 +818,7 @@ export class CheckedType extends Type {
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
-    _packedCache?: PackedCache[] | null;
+    _PackedObjectCache?: PackedObjectCache[] | null;
   }) {
     /* super */
     super(options);
