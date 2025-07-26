@@ -19,15 +19,15 @@ import {
 import { Temporal } from "temporal-polyfill";
 
 /**
- * Pack a generic typed value to a CSON object.
+ * Pack a generic typed value to a JSONC object.
  */
-export function packCson(value: any, type: Type): any {
+export function packJsonc(value: any, type: Type): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
     if (value == null) {
       return null;
     } else {
-      return _packScalarCson(value, type);
+      return _packScalarJsonc(value, type);
     }
   }
 
@@ -41,7 +41,7 @@ export function packCson(value: any, type: Type): any {
       }
       const packedList: any[] = [];
       for (const item of value) {
-        packedList.push(_packScalarCson(item, type.valueType));
+        packedList.push(_packScalarJsonc(item, type.valueType));
       }
       return packedList;
     }
@@ -57,7 +57,7 @@ export function packCson(value: any, type: Type): any {
       }
       const packedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        packedTuple.push(_packScalarCson(value[i], type.elementTypes![i]));
+        packedTuple.push(_packScalarJsonc(value[i], type.elementTypes![i]));
       }
       return packedTuple;
     }
@@ -75,8 +75,8 @@ export function packCson(value: any, type: Type): any {
       }
       const packedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const packedKey = _packScalarCson(key, type.keyType);
-        const packedVal = _packScalarCson(val, type.valueType);
+        const packedKey = _packScalarJsonc(key, type.keyType);
+        const packedVal = _packScalarJsonc(val, type.valueType);
         packedMap[String(packedKey)] = packedVal;
       }
       return packedMap;
@@ -90,9 +90,9 @@ export function packCson(value: any, type: Type): any {
 }
 
 /**
- * Unpack a CSON object to a generic typed value.
+ * Unpack a JSONC object to a generic typed value.
  */
-export function unpackCson(
+export function unpackJsonc(
   value: any,
   type: Type,
   options?: {
@@ -103,7 +103,7 @@ export function unpackCson(
 ): any {
   // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
-    return _unpackScalarCson(value, type, options);
+    return _unpackScalarJsonc(value, type, options);
   }
 
   // list
@@ -116,7 +116,7 @@ export function unpackCson(
       }
       const unpackedList = [];
       for (const item of value) {
-        unpackedList.push(_unpackScalarCson(item, type.valueType, options));
+        unpackedList.push(_unpackScalarJsonc(item, type.valueType, options));
       }
       return unpackedList;
     }
@@ -132,7 +132,7 @@ export function unpackCson(
       }
       const unpackedTuple: any[] = [];
       for (let i = 0; i < value.length; i++) {
-        unpackedTuple.push(_unpackScalarCson(value[i], type.elementTypes![i], options));
+        unpackedTuple.push(_unpackScalarJsonc(value[i], type.elementTypes![i], options));
       }
       return unpackedTuple;
     }
@@ -150,8 +150,8 @@ export function unpackCson(
       }
       const unpackedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const unpackedKey = _unpackScalarCson(key, type.keyType, options);
-        const unpackedVal = _unpackScalarCson(val, type.valueType, options);
+        const unpackedKey = _unpackScalarJsonc(key, type.keyType, options);
+        const unpackedVal = _unpackScalarJsonc(val, type.valueType, options);
         unpackedMap[unpackedKey] = unpackedVal;
       }
       return unpackedMap;
@@ -164,8 +164,8 @@ export function unpackCson(
   }
 }
 
-/** Pack a scalar value to a CSON object. */
-function _packScalarCson(value: any, type: Type): any {
+/** Pack a scalar value to a JSONC object. */
+function _packScalarJsonc(value: any, type: Type): any {
   if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
     throw new Error(`expected scalar type, got ${type.repr()}`);
   }
@@ -231,7 +231,7 @@ function _packScalarCson(value: any, type: Type): any {
         `expected BuiltinObject for ${type.repr()}, got ${value.constructor.name}: ${value}`,
       );
     }
-    return (value as BuiltinObject).pack(Encoding.CSON);
+    return (value as BuiltinObject).pack(Encoding.JSONC);
   }
 
   // literal
@@ -250,8 +250,8 @@ function _packScalarCson(value: any, type: Type): any {
   }
 }
 
-/** Unpack a CSON object to a scalar value. */
-function _unpackScalarCson(
+/** Unpack a JSONC object to a scalar value. */
+function _unpackScalarJsonc(
   value: any,
   type: Type,
   options?: {
@@ -320,14 +320,14 @@ function _unpackScalarCson(
   // node reference
   else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return _NodeReference.unpack(Encoding.CSON, value, options?._session ?? null);
+    return _NodeReference.unpack(Encoding.JSONC, value, options?._session ?? null);
   }
 
   // node value
   else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.unpack(Encoding.CSON, value, options?._session ?? null);
+    return nodeClass.unpack(Encoding.JSONC, value, options?._session ?? null);
   }
 
   // struct
@@ -336,7 +336,7 @@ function _unpackScalarCson(
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.unpack(Encoding.CSON, value, options?._session ?? null);
+    return structClass.unpack(Encoding.JSONC, value, options?._session ?? null);
   }
 
   // literal

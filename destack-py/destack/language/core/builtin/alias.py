@@ -3,14 +3,13 @@ from typing import Any
 
 from destack.utils.uuid import UUID
 
-# :PrimitiveType
 type Boolean = bool
 # integer
-type Int8 = int
-type Int16 = int
-type Int32 = int
-type Int64 = int
-type Int128 = int
+type SInt8 = int
+type SInt16 = int
+type SInt32 = int
+type SInt64 = int
+type SInt128 = int
 type UInt8 = int
 type UInt16 = int
 type UInt32 = int
@@ -28,7 +27,6 @@ type Duration = timedelta
 # string
 type String = str
 # type UUID = UUID
-type Bytes = bytes
 type Json = Any
 type Jsonc = Json  # just an alias
 type Kompakt = bytes  # just an alias
@@ -36,11 +34,11 @@ type Kompakt = bytes  # just an alias
 __all__ = [  # noqa: RUF022
     "Boolean",
     # integer
-    "Int8",
-    "Int16",
-    "Int32",
-    "Int64",
-    "Int128",
+    "SInt8",
+    "SInt16",
+    "SInt32",
+    "SInt64",
+    "SInt128",
     "UInt8",
     "UInt16",
     "UInt32",
@@ -58,7 +56,6 @@ __all__ = [  # noqa: RUF022
     # string
     "String",
     "UUID",
-    "Bytes",
     "Json",
     "Jsonc",
     "Kompakt",

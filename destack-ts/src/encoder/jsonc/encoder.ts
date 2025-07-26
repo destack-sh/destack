@@ -1,6 +1,6 @@
-import { CSON_OBJECT_ENCODERS, getObjectKey } from "@destack/encoder/cson/core";
-import { loadEncoders } from "@destack/encoder/cson/generated";
-import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
+import { getObjectKey, JSONC_OBJECT_ENCODERS } from "@destack/encoder/jsonc/core";
+import { loadEncoders } from "@destack/encoder/jsonc/generated";
+import { packJsonc, unpackJsonc } from "@destack/encoder/jsonc/wiring";
 import {
   type BinaryReader,
   type BinaryWriter,
@@ -13,17 +13,17 @@ import {
   type Type,
 } from "@destack/language";
 
-/** Encoder for our CSON format. */
-export class CsonEncoder implements Encoder<any> {
+/** Encoder for our JSONC format. */
+export class JsoncEncoder implements Encoder<any> {
   constructor() {
     loadEncoders();
   }
 
   packObject(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): any {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
+    const encoder = JSONC_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no JsoncObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     return encoder.packObject(object);
@@ -35,10 +35,10 @@ export class CsonEncoder implements Encoder<any> {
     object: BuiltinObject,
     writer: BinaryWriter,
   ): void {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
+    const encoder = JSONC_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no JsoncObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     const objectPacked = encoder.packObject(object);
@@ -51,10 +51,10 @@ export class CsonEncoder implements Encoder<any> {
     value: any,
     session: Session | null,
   ): BuiltinObject {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
+    const encoder = JSONC_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no JsoncObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     return encoder.unpackObject(value, session);
@@ -66,10 +66,10 @@ export class CsonEncoder implements Encoder<any> {
     reader: BinaryReader,
     session: Session | null,
   ): BuiltinObject {
-    const encoder = CSON_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
+    const encoder = JSONC_OBJECT_ENCODERS[getObjectKey(kind, metatype)];
     if (!encoder) {
       throw new Error(
-        `no CsonObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
+        `no JsoncObjectEncoder for ${ObjectKind[kind] ?? kind}:${NodeType[metatype] ?? StructType[metatype] ?? metatype}`,
       );
     }
     const objectPacked = reader.readJson();
@@ -77,22 +77,22 @@ export class CsonEncoder implements Encoder<any> {
   }
 
   packValue(value: any, type: Type): any {
-    const cson = packCson(value, type);
-    return cson;
+    const jsonc = packJsonc(value, type);
+    return jsonc;
   }
 
   packValueBytes(value: any, type: Type, writer: BinaryWriter): void {
-    const cson = packCson(value, type);
-    writer.writeJson(cson);
+    const jsonc = packJsonc(value, type);
+    writer.writeJson(jsonc);
   }
 
   unpackValue(type: Type, value: any, session: Session | null): any {
-    const cson = unpackCson(value, type);
-    return cson;
+    const jsonc = unpackJsonc(value, type);
+    return jsonc;
   }
 
   unpackValueBytes(type: Type, reader: BinaryReader, session: Session | null): any {
-    const cson = unpackCson(reader.readJson(), type);
-    return cson;
+    const jsonc = unpackJsonc(reader.readJson(), type);
+    return jsonc;
   }
 }

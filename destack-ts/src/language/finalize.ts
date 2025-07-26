@@ -1,4 +1,4 @@
-import { CsonEncoder, JsonEncoder, KompaktEncoder } from "@destack/encoder";
+import { JsoncEncoder, JsonEncoder, KompaktEncoder } from "@destack/encoder";
 import {
   ENCODERS,
   Encoding,
@@ -76,7 +76,7 @@ export function finalize(): void {
 
   // encoders
   ENCODERS[Encoding.JSON] = new JsonEncoder();
-  ENCODERS[Encoding.CSON] = new CsonEncoder();
+  ENCODERS[Encoding.JSONC] = new JsoncEncoder();
   ENCODERS[Encoding.KOMPAKT] = new KompaktEncoder();
   if (Object.keys(ENCODERS).length !== Object.keys(Encoding).length / 2) {
     throw new Error(

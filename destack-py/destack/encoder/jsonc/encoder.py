@@ -5,9 +5,9 @@ from destack.language.core import (
     BinaryReader,
     BinaryWriter,
     BuiltinObject,
-    Cson,
     Encoder,
     Encoding,
+    Jsonc,
     NodeType,
     ObjectKind,
     Session,
@@ -15,14 +15,14 @@ from destack.language.core import (
     Type,
 )
 
-from .generate import CSON_OBJECT_ENCODERS
-from .wiring import pack_cson, unpack_cson
+from .generate import JSONC_OBJECT_ENCODERS
+from .wiring import pack_jsonc, unpack_jsonc
 
 
-class CsonEncoder(Encoder[Cson]):
+class JsoncEncoder(Encoder[Jsonc]):
     """Encoder for our custom constant folded JSON format."""
 
-    encoding: ClassVar[Encoding] = Encoding.CSON
+    encoding: ClassVar[Encoding] = Encoding.JSONC
 
     @override
     def pack_object(
@@ -30,9 +30,9 @@ class CsonEncoder(Encoder[Cson]):
         kind: ObjectKind,
         metatype: NodeType | StructType,
         object: BuiltinObject,
-    ) -> Cson:
-        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+    ) -> Jsonc:
+        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.pack_object(object)
 
     @override
@@ -43,8 +43,8 @@ class CsonEncoder(Encoder[Cson]):
         object: BuiltinObject,
         writer: BinaryWriter,
     ) -> None:
-        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
         object_packed = encoder.pack_object(object)
         writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
@@ -53,11 +53,11 @@ class CsonEncoder(Encoder[Cson]):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        value: Cson,
+        value: Jsonc,
         session: Session | None,
     ) -> BuiltinObject:
-        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.unpack_object(value, session)
 
     @override
@@ -68,8 +68,8 @@ class CsonEncoder(Encoder[Cson]):
         reader: BinaryReader,
         session: Session | None,
     ) -> BuiltinObject:
-        encoder = CSON_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no CsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
+        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return encoder.unpack_object(value_decoded, session)
 
@@ -78,8 +78,8 @@ class CsonEncoder(Encoder[Cson]):
         self,
         type: Type,
         value: Any,
-    ) -> Cson:
-        return pack_cson(value, type)
+    ) -> Jsonc:
+        return pack_jsonc(value, type)
 
     @override
     def pack_value_binary(
@@ -88,16 +88,16 @@ class CsonEncoder(Encoder[Cson]):
         value: Any,
         writer: BinaryWriter,
     ) -> None:
-        writer.write_bytes(pack_cson(value, type).encode("utf-8"))
+        writer.write_bytes(pack_jsonc(value, type).encode("utf-8"))
 
     @override
     def unpack_value(
         self,
         type: Type,
-        value: Cson,
+        value: Jsonc,
         session: Session | None,
     ) -> Any:
-        return unpack_cson(value, type, session)
+        return unpack_jsonc(value, type, session)
 
     @override
     def unpack_value_binary(
@@ -107,4 +107,4 @@ class CsonEncoder(Encoder[Cson]):
         session: Session | None,
     ) -> Any:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return unpack_cson(value_decoded, type, session)
+        return unpack_jsonc(value_decoded, type, session)

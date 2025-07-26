@@ -168,7 +168,6 @@ from .type import (
     TypeConstraint,
 )
 from .types import (
-    Cson,
     Float16,
     Float32,
     Float64,
@@ -178,6 +177,7 @@ from .types import (
     Int64,
     Int128,
     Json,
+    Jsonc,
     Kompakt,
     UInt8,
     UInt16,
@@ -225,7 +225,6 @@ __all__ = [
     "ConstraintDeclaration",
     "ConstraintDefinition",
     "ConstraintType",
-    "Cson",
     "CustomEvent",
     "CustomEvent",
     "DestackError",
@@ -271,6 +270,7 @@ __all__ = [
     "IsSelectable",
     "IsStarable",
     "Json",
+    "Jsonc",
     "Kompakt",
     "Materialization",
     "MethodCardinality",

@@ -8,7 +8,6 @@ from .enum import Enum, builtin_enum
 from .types import (
     Boolean,
     Bytes,
-    Cson,
     Date,
     Datetime,
     Duration,
@@ -21,6 +20,7 @@ from .types import (
     Int64,
     Int128,
     Json,
+    Jsonc,
     Kompakt,
     String,
     Time,
@@ -289,8 +289,8 @@ class Encoding(Enum):
     """Encoding scheme."""
 
     JSON = 1, "JSON", "JSON encoding"
-    CSON = 2, "CSON", "Constant folded JSON encoding"
-    KOMPAKT = 3, "KOMPAKT", "KOMPAKT encoding"
+    JSONC = 2, "JSONC", "Constant-keyed JSON encoding"
+    KOMPAKT = 3, "KOMPAKT", "Kompakt encoding"
 
 
 assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
@@ -538,7 +538,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     UUID: PrimitiveType.UUID,
     bytes: PrimitiveType.BYTES,
     Bytes: PrimitiveType.BYTES,
-    Cson: PrimitiveType.JSON,
+    Jsonc: PrimitiveType.JSON,
     Json: PrimitiveType.JSON,
     Kompakt: PrimitiveType.BYTES,
 }

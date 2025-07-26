@@ -21,7 +21,7 @@ from .const import (
     GENERATION_PATH,
 )
 from .core import TypescriptDefinition, TypescriptFile
-from .encoder import generate_cson_encoders, generate_json_encoders
+from .encoder import generate_json_encoders, generate_jsonc_encoders
 from .language import (
     BUILTIN_NAMES,
     _generate_constants,
@@ -117,9 +117,9 @@ def generate():
     mapping_path.write_text(mapping_str)
 
     # write encoder files
-    cson_encoder_path = Path(GENERATION_PATH) / "encoder/cson/generated.ts"
-    cson_encoder_str = generate_cson_encoders()
-    cson_encoder_path.write_text(cson_encoder_str)
+    jsonc_encoder_path = Path(GENERATION_PATH) / "encoder/jsonc/generated.ts"
+    jsonc_encoder_str = generate_jsonc_encoders()
+    jsonc_encoder_path.write_text(jsonc_encoder_str)
     json_encoder_path = Path(GENERATION_PATH) / "encoder/json/generated.ts"
     json_encoder_str = generate_json_encoders()
     json_encoder_path.write_text(json_encoder_str)
