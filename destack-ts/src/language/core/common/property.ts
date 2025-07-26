@@ -815,7 +815,7 @@ export class CustomProperty extends Entity {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   toType(): Type {
-    return this.valueType;
+    return this.type;
   }
 
   eq(value: any): Condition {
