@@ -22,38 +22,69 @@ import { Temporal } from "temporal-polyfill";
  * Pack a generic typed value to a CSON object.
  */
 export function packCson(value: any, type: Type): any {
+  // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
     if (value == null) {
       return null;
     } else {
       return _packScalarCson(value, type);
     }
-  } else if (type.cardinality == TypeCardinality.LIST) {
+  }
+
+  // list
+  else if (type.cardinality == TypeCardinality.LIST) {
     if (value == null) {
       return null;
     } else {
+      if (type.valueType === null) {
+        throw new Error(`no value type for ${type.repr()}`);
+      }
       const packedList: any[] = [];
       for (const item of value) {
-        packedList.push(_packScalarCson(item, type));
+        packedList.push(_packScalarCson(item, type.valueType));
       }
       return packedList;
     }
-  } else if (type.cardinality == TypeCardinality.MAP) {
+  }
+
+  // tuple
+  else if (type.cardinality == TypeCardinality.TUPLE) {
+    if (value == null) {
+      return null;
+    } else {
+      if (type.elementTypes === null) {
+        throw new Error(`no element types for ${type.repr()}`);
+      }
+      const packedTuple: any[] = [];
+      for (let i = 0; i < value.length; i++) {
+        packedTuple.push(_packScalarCson(value[i], type.elementTypes![i]));
+      }
+      return packedTuple;
+    }
+  }
+
+  // map
+  else if (type.cardinality == TypeCardinality.MAP) {
     if (value == null) {
       return null;
     } else {
       if (type.keyType === null) {
         throw new Error(`no key type for ${type.repr()}`);
+      } else if (type.valueType === null) {
+        throw new Error(`no value type for ${type.repr()}`);
       }
       const packedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
         const packedKey = _packScalarCson(key, type.keyType);
-        const packedVal = _packScalarCson(val, type);
+        const packedVal = _packScalarCson(val, type.valueType);
         packedMap[String(packedKey)] = packedVal;
       }
       return packedMap;
     }
-  } else {
+  }
+
+  //
+  else {
     assertNever(type.cardinality);
   }
 }
@@ -70,37 +101,76 @@ export function unpackCson(
     _connection?: any | null;
   },
 ): any {
+  // scalar
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _unpackScalarCson(value, type, options);
-  } else if (type.cardinality == TypeCardinality.LIST) {
+  }
+
+  // list
+  else if (type.cardinality == TypeCardinality.LIST) {
     if (value == null) {
       return null;
     } else {
+      if (type.valueType === null) {
+        throw new Error(`no value type for ${type.repr()}`);
+      }
       const unpackedList = [];
       for (const item of value) {
-        unpackedList.push(_unpackScalarCson(item, type, options));
+        unpackedList.push(_unpackScalarCson(item, type.valueType, options));
       }
       return unpackedList;
     }
-  } else if (type.cardinality == TypeCardinality.MAP) {
+  }
+
+  // tuple
+  else if (type.cardinality == TypeCardinality.TUPLE) {
     if (value == null) {
       return null;
     } else {
+      if (type.elementTypes === null) {
+        throw new Error(`no element types for ${type.repr()}`);
+      }
+      const unpackedTuple: any[] = [];
+      for (let i = 0; i < value.length; i++) {
+        unpackedTuple.push(_unpackScalarCson(value[i], type.elementTypes![i], options));
+      }
+      return unpackedTuple;
+    }
+  }
+
+  // map
+  else if (type.cardinality == TypeCardinality.MAP) {
+    if (value == null) {
+      return null;
+    } else {
+      if (type.keyType === null) {
+        throw new Error(`no key type for ${type.repr()}`);
+      } else if (type.valueType === null) {
+        throw new Error(`no value type for ${type.repr()}`);
+      }
       const unpackedMap: { [key: string]: any } = {};
       for (const [key, val] of Object.entries(value)) {
-        const unpackedKey = type.keyType ? _unpackScalarCson(key, type.keyType) : key;
-        const unpackedVal = _unpackScalarCson(val, type, options);
+        const unpackedKey = _unpackScalarCson(key, type.keyType, options);
+        const unpackedVal = _unpackScalarCson(val, type.valueType, options);
         unpackedMap[unpackedKey] = unpackedVal;
       }
       return unpackedMap;
     }
-  } else {
+  }
+
+  //
+  else {
     assertNever(type.cardinality);
   }
 }
 
 /** Pack a scalar value to a CSON object. */
 function _packScalarCson(value: any, type: Type): any {
+  if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
+    throw new Error(`expected scalar type, got ${type.repr()}`);
+  }
+
+  // primitive
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
@@ -143,9 +213,15 @@ function _packScalarCson(value: any, type: Type): any {
     } else {
       assertNever(type.primitiveType);
     }
-  } else if (type.scalarType == ScalarType.ENUM) {
+  }
+
+  // enum
+  else if (type.scalarType == ScalarType.ENUM) {
     return value;
-  } else if (
+  }
+
+  // node reference, node value, struct
+  else if (
     type.scalarType == ScalarType.NODE_REFERENCE ||
     type.scalarType == ScalarType.NODE_VALUE ||
     type.scalarType == ScalarType.STRUCT
@@ -156,7 +232,20 @@ function _packScalarCson(value: any, type: Type): any {
       );
     }
     return (value as BuiltinObject).pack(Encoding.CSON);
-  } else {
+  }
+
+  // literal
+  else if (type.scalarType == ScalarType.LITERAL) {
+    throw new Error(`cannot pack literal: ${type.repr()}`);
+  }
+
+  // union
+  else if (type.scalarType == ScalarType.UNION) {
+    throw new Error(`cannot pack union: ${type.repr()}`);
+  }
+
+  //
+  else {
     assertNever(type.scalarType);
   }
 }
@@ -171,6 +260,11 @@ function _unpackScalarCson(
     _connection?: any | null;
   },
 ): any {
+  if (type.cardinality != TypeCardinality.SCALAR || type.scalarType == null) {
+    throw new Error(`expected scalar type, got ${type.repr()}`);
+  }
+
+  // primitive
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType === null) {
       throw new Error(`missing primitive type for ${type.repr()}`);
@@ -216,22 +310,47 @@ function _unpackScalarCson(
     } else {
       assertNever(type.primitiveType);
     }
-  } else if (type.scalarType == ScalarType.ENUM) {
+  }
+
+  // enum
+  else if (type.scalarType == ScalarType.ENUM) {
     return value;
-  } else if (type.scalarType == ScalarType.NODE_REFERENCE) {
+  }
+
+  // node reference
+  else if (type.scalarType == ScalarType.NODE_REFERENCE) {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return _NodeReference.unpack(Encoding.CSON, value, options?._session ?? null);
-  } else if (type.scalarType == ScalarType.NODE_VALUE) {
+  }
+
+  // node value
+  else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
     return nodeClass.unpack(Encoding.CSON, value, options?._session ?? null);
-  } else if (type.scalarType == ScalarType.STRUCT) {
+  }
+
+  // struct
+  else if (type.scalarType == ScalarType.STRUCT) {
     if (type.structType === null) {
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
     return structClass.unpack(Encoding.CSON, value, options?._session ?? null);
-  } else {
+  }
+
+  // literal
+  else if (type.scalarType == ScalarType.LITERAL) {
+    throw new Error(`cannot unpack literal: ${type.repr()}`);
+  }
+
+  // union
+  else if (type.scalarType == ScalarType.UNION) {
+    throw new Error(`cannot unpack union: ${type.repr()}`);
+  }
+
+  //
+  else {
     assertNever(type.scalarType);
   }
 }
