@@ -1,4 +1,4 @@
-import { packCson, unpackCson } from "@destack/encoder/cson/wiring";
+import { packJsonc, unpackJsonc } from "@destack/encoder/jsonc/wiring";
 import { StructType } from "@destack/language/core/builtin/builtin";
 import { ScalarType, TypeCardinality } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
@@ -107,7 +107,7 @@ export class Value extends StructFrozen {
   /** Get the unpacked value of this generic Value. */
   unpack(): any {
     if (this._unpacked === null) {
-      this._unpacked = unpackCson(this.value, this.type);
+      this._unpacked = unpackJsonc(this.value, this.type);
     }
     return this._unpacked;
   }
@@ -142,7 +142,7 @@ export function toValue(
     }
   }
   // pack value
-  const valuePacked = packCson(valueUnpacked, type);
+  const valuePacked = packJsonc(valueUnpacked, type);
   const value = new Value({ type: type, value: valuePacked });
   return value;
 }

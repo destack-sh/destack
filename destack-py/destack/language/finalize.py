@@ -164,11 +164,11 @@ def finalize():
         node_cls.__enum_types__ = tuple(all_enum_types)
 
     # finalize encoders
-    from destack.encoder import CsonEncoder, JsonEncoder, KompaktEncoder
+    from destack.encoder import JsoncEncoder, JsonEncoder, KompaktEncoder
     from destack.language.core import ENCODERS, Encoding
 
     ENCODERS[Encoding.JSON] = JsonEncoder()
-    ENCODERS[Encoding.CSON] = CsonEncoder()
+    ENCODERS[Encoding.JSONC] = JsoncEncoder()
     ENCODERS[Encoding.KOMPAKT] = KompaktEncoder()
     assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 

@@ -36,7 +36,7 @@ def _upper_first(s: str) -> str:
     return s[0].upper() + s[1:]
 
 
-def generate_cson_encoders() -> str:
+def generate_jsonc_encoders() -> str:
     file_parts: list[str] = []
 
     # imports
@@ -48,7 +48,7 @@ def generate_cson_encoders() -> str:
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
     )
     import_parts.append(
-        "import { CSON_OBJECT_ENCODERS, CsonObjectEncoder, getObjectKey } from '@destack/encoder/cson/core';"
+        "import { JSONC_OBJECT_ENCODERS, JsoncObjectEncoder, getObjectKey } from '@destack/encoder/jsonc/core';"
     )
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { uuid4, uuid7, toNanoId } from '@destack/utils/uuid';")
@@ -63,7 +63,7 @@ def generate_cson_encoders() -> str:
     file_parts.append("\n".join(import_parts))
 
     # body
-    file_parts.append("export const CSON_ENCODERS: { [key: string]: CsonObjectEncoder } = {};")
+    file_parts.append("export const JSONC_ENCODERS: { [key: string]: JsoncObjectEncoder } = {};")
 
     # encoders
     file_parts.append("let loaded = false;")
@@ -76,10 +76,10 @@ def generate_cson_encoders() -> str:
     for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         if cls.__is_abstract__:
             continue
-        encoder_name, encoder_str = generate_object_cson_encoder(cls)
+        encoder_name, encoder_str = generate_object_jsonc_encoder(cls)
         body_parts.append(encoder_str)
         body_parts.append(
-            f"CSON_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
+            f"JSONC_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
         )
     body_str = textwrap.indent("\n".join(body_parts), "  ")
     file_parts.append(f"""\
@@ -93,38 +93,38 @@ loadEncoders();
     return "\n".join(file_parts)
 
 
-def generate_object_cson_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
+def generate_object_jsonc_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
     """Generate the BuiltinObject Encoder class."""
 
     if cls.__is_abstract__:
-        pack_cson = f"throw new Error('cannot pack abstract {cls.__name__}');"
-        unpack_cson = f"throw new Error('cannot unpack abstract {cls.__name__}');"
+        pack_jsonc = f"throw new Error('cannot pack abstract {cls.__name__}');"
+        unpack_jsonc = f"throw new Error('cannot unpack abstract {cls.__name__}');"
     else:
-        pack_cson = _generate_to_cson(cls)
-        unpack_cson = _generate_from_cson(cls)
+        pack_jsonc = _generate_to_jsonc(cls)
+        unpack_jsonc = _generate_from_jsonc(cls)
 
-    encoder_name = f"{cls.__name__}CsonEncoder"
+    encoder_name = f"{cls.__name__}JsoncEncoder"
 
     return (
         encoder_name,
         f"""
-class {encoder_name} implements CsonObjectEncoder {{
+class {encoder_name} implements JsoncObjectEncoder {{
   packObject(object: {cls.__name__}): any {{
-{textwrap.indent(pack_cson, " " * 4)}
+{textwrap.indent(pack_jsonc, " " * 4)}
   }}
 
-  unpackObject(objectCson: any, _session: Session | null): {cls.__name__} {{
-{textwrap.indent(unpack_cson, " " * 4)}
+  unpackObject(objectJsonc: any, _session: Session | null): {cls.__name__} {{
+{textwrap.indent(unpack_jsonc, " " * 4)}
   }}
 }}
 """,
     )
 
 
-def _generate_to_cson(cls: type["BuiltinObject"]) -> str:
+def _generate_to_jsonc(cls: type["BuiltinObject"]) -> str:
     """Generate the packObject method implementation."""
     lines: list[str] = []
-    lines.append("const objectCson: { [key: string]: any } = {};")
+    lines.append("const objectJsonc: { [key: string]: any } = {};")
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
@@ -134,14 +134,14 @@ def _generate_to_cson(cls: type["BuiltinObject"]) -> str:
             from destack.language.registry import get_builtin_type
 
             metatype = get_builtin_type(cls)
-            lines.append(f'objectCson["{prop.id}"] = {metatype.value};')
+            lines.append(f'objectJsonc["{prop.id}"] = {metatype.value};')
             continue
 
-        pack_code = _generate_pack_cson_property(prop)
+        pack_code = _generate_pack_jsonc_property(prop)
         if pack_code:
             lines.extend(pack_code)
 
-    lines.append("return objectCson;")
+    lines.append("return objectJsonc;")
     return "\n".join(lines)
 
 
@@ -154,7 +154,7 @@ def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
         raise ValueError(f"unexpected type {type!r}")
 
 
-def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
+def _generate_from_jsonc(cls: type["BuiltinObject"]) -> str:
     """Generate the unpackObject method implementation."""
     from ..language import _get_object_references
 
@@ -167,7 +167,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
             continue  # set implicitly
 
         # regular unpacking
-        unpack_code = _generate_unpack_cson_property(prop)
+        unpack_code = _generate_unpack_jsonc_property(prop)
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         self_name = ts_name
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -181,7 +181,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
             unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append(
-            f"_packedCache: [{{ encoding: {Encoding.CSON.value}, isBytes: false, packed: objectCson }}]"
+            f"_packedCache: [{{ encoding: {Encoding.JSONC.value}, isBytes: false, packed: objectJsonc }}]"
         )
 
     unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
@@ -204,7 +204,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
     return "\n".join(unpack_body_parts)
 
 
-def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
+def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     from ..language import _is_property_tracked
 
@@ -212,37 +212,39 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_ts_name = prop_ts_name + "Ptr"
-    obj_cson = f"object._{prop_ts_name}" if _is_property_tracked(prop) else f"object.{prop_ts_name}"
+    obj_jsonc = (
+        f"object._{prop_ts_name}" if _is_property_tracked(prop) else f"object.{prop_ts_name}"
+    )
     packed_name = f"packed{_upper_first(prop_ts_name)}"
 
     # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
-            value_expr = _generate_pack_cson_scalar(prop, obj_cson)
-            lines.append(f'objectCson["{prop.id}"] = {value_expr};')
+            value_expr = _generate_pack_jsonc_scalar(prop, obj_jsonc)
+            lines.append(f'objectJsonc["{prop.id}"] = {value_expr};')
         else:
-            lines.append(f"if ({obj_cson} != null) {{")
-            value_expr = _generate_pack_cson_scalar(prop, obj_cson)
-            lines.append(f'  objectCson["{prop.id}"] = {value_expr};')
+            lines.append(f"if ({obj_jsonc} != null) {{")
+            value_expr = _generate_pack_jsonc_scalar(prop, obj_jsonc)
+            lines.append(f'  objectJsonc["{prop.id}"] = {value_expr};')
             lines.append("}")
 
     # list
     elif prop.cardinality == TypeCardinality.LIST:
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_pack_cson_scalar(prop.value_type, "item")
+        item_expr = _generate_pack_jsonc_scalar(prop.value_type, "item")
         if prop.is_required:
             lines.append(f"const {packed_name}: any[] = [];")
-            lines.append(f"for (const item of {obj_cson}) {{")
+            lines.append(f"for (const item of {obj_jsonc}) {{")
             lines.append(f"  {packed_name}.push({item_expr});")
             lines.append("}")
-            lines.append(f'objectCson["{prop.id}"] = {packed_name};')
+            lines.append(f'objectJsonc["{prop.id}"] = {packed_name};')
         else:
-            lines.append(f"if ({obj_cson} != null) {{")
+            lines.append(f"if ({obj_jsonc} != null) {{")
             lines.append(f"  const {packed_name}: any[] = [];")
-            lines.append(f"  for (const item of {obj_cson}) {{")
+            lines.append(f"  for (const item of {obj_jsonc}) {{")
             lines.append(f"    {packed_name}.push({item_expr});")
             lines.append("  }")
-            lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
+            lines.append(f'  objectJsonc["{prop.id}"] = {packed_name};')
             lines.append("}")
 
     # tuple
@@ -253,21 +255,21 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_pack_cson_scalar(prop.key_type, "key")
-        value_expr = _generate_pack_cson_scalar(prop.value_type, "value")
+        key_expr = _generate_pack_jsonc_scalar(prop.key_type, "key")
+        value_expr = _generate_pack_jsonc_scalar(prop.value_type, "value")
         if prop.is_required:
             lines.append(f"const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
-            lines.append(f"for (const [key, value] of Object.entries({obj_cson})) {{")
+            lines.append(f"for (const [key, value] of Object.entries({obj_jsonc})) {{")
             lines.append(f"  {packed_name}[String({key_expr})] = {value_expr};")
             lines.append("}")
-            lines.append(f'objectCson["{prop.id}"] = {packed_name};')
+            lines.append(f'objectJsonc["{prop.id}"] = {packed_name};')
         else:
-            lines.append(f"if ({obj_cson} != null) {{")
+            lines.append(f"if ({obj_jsonc} != null) {{")
             lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
-            lines.append(f"  for (const [key, value] of Object.entries({obj_cson})) {{")
+            lines.append(f"  for (const [key, value] of Object.entries({obj_jsonc})) {{")
             lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
             lines.append("  }")
-            lines.append(f'  objectCson["{prop.id}"] = {packed_name};')
+            lines.append(f'  objectJsonc["{prop.id}"] = {packed_name};')
             lines.append("}")
 
     #
@@ -277,24 +279,24 @@ def _generate_pack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     return lines
 
 
-def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
+def _generate_unpack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         ts_name = ts_name + "Ptr"
     json_key = str(prop.id)
-    data_cson = f'objectCson["{json_key}"]'
+    data_jsonc = f'objectJsonc["{json_key}"]'
     var_name = f"unpacked{_upper_first(ts_name)}"
 
     # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
-            value_expr = _generate_unpack_cson_scalar(prop, data_cson)
+            value_expr = _generate_unpack_jsonc_scalar(prop, data_jsonc)
             lines.append(f"const {var_name} = {value_expr};")
         else:
-            value_expr = _generate_unpack_cson_scalar(prop, f"{ts_name}Value")
-            lines.append(f"const {ts_name}Value = {data_cson};")
+            value_expr = _generate_unpack_jsonc_scalar(prop, f"{ts_name}Value")
+            lines.append(f"const {ts_name}Value = {data_jsonc};")
             lines.append(
                 f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
             )
@@ -302,17 +304,17 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     # list
     elif prop.cardinality == TypeCardinality.LIST:
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_unpack_cson_scalar(prop.value_type, "item")
+        item_expr = _generate_unpack_jsonc_scalar(prop.value_type, "item")
         if prop.is_required:
             lines.append(f"const {var_name}: any[] = [];")
-            lines.append(f"for (const item of {data_cson}) {{")
+            lines.append(f"for (const item of {data_jsonc}) {{")
             lines.append(f"  {var_name}.push({item_expr})")
             lines.append("}")
         else:
             lines.append(f"let {var_name}: any[] | undefined;")
-            lines.append(f"if ({data_cson} != undefined) {{")
+            lines.append(f"if ({data_jsonc} != undefined) {{")
             lines.append(f"  {var_name} = [];")
-            lines.append(f"  for (const item of {data_cson}) {{")
+            lines.append(f"  for (const item of {data_jsonc}) {{")
             lines.append(f"    {var_name}.push({item_expr})")
             lines.append("  }")
             lines.append("} else {")
@@ -327,18 +329,18 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_unpack_cson_scalar(prop.key_type, "key")
-        value_expr = _generate_unpack_cson_scalar(prop.value_type, "value as any")
+        key_expr = _generate_unpack_jsonc_scalar(prop.key_type, "key")
+        value_expr = _generate_unpack_jsonc_scalar(prop.value_type, "value as any")
         if prop.is_required:
             lines.append(f"const {var_name} = {{}} as any;")
-            lines.append(f"for (const [key, value] of Object.entries({data_cson})) {{")
+            lines.append(f"for (const [key, value] of Object.entries({data_jsonc})) {{")
             lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
             lines.append("}")
         else:
             lines.append(f"let {var_name}: {{{key_expr}: any}} | undefined;")
-            lines.append(f"if ({data_cson} != undefined) {{")
+            lines.append(f"if ({data_jsonc} != undefined) {{")
             lines.append(f"  {var_name} = {{}} as any;")
-            lines.append(f"  for (const [key, value] of Object.entries({data_cson})) {{")
+            lines.append(f"  for (const [key, value] of Object.entries({data_jsonc})) {{")
             lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
             lines.append("  }")
             lines.append("} else {")
@@ -352,7 +354,7 @@ def _generate_unpack_cson_property(prop: "PropertyDeclaration") -> list[str]:
     return lines
 
 
-def _generate_pack_cson_scalar(
+def _generate_pack_jsonc_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
@@ -414,7 +416,7 @@ def _generate_pack_cson_scalar(
 
     # struct
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.pack({Encoding.CSON.value})"
+        return f"{value_expr}.pack({Encoding.JSONC.value})"
 
     # literal
     elif prop.scalar_type == ScalarType.LITERAL:
@@ -429,7 +431,7 @@ def _generate_pack_cson_scalar(
         return value_expr
 
 
-def _generate_unpack_cson_scalar(
+def _generate_unpack_jsonc_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
@@ -493,17 +495,15 @@ def _generate_unpack_cson_scalar(
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"_{struct_cls.__name__}.unpack({Encoding.CSON.value}, {value_expr}, _session) as {struct_cls.__name__}"
+        return f"_{struct_cls.__name__}.unpack({Encoding.JSONC.value}, {value_expr}, _session) as {struct_cls.__name__}"
 
     # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return (
-            f"_NodeReference.unpack({Encoding.CSON.value}, {value_expr}, _session) as NodeReference"
-        )
+        return f"_NodeReference.unpack({Encoding.JSONC.value}, {value_expr}, _session) as NodeReference"
 
     # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack({Encoding.CSON.value}, {value_expr}, _session) as Node"
+        return f"Node.unpack({Encoding.JSONC.value}, {value_expr}, _session) as Node"
 
     # literal
     elif prop.scalar_type == ScalarType.LITERAL:

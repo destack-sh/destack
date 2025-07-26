@@ -137574,7 +137574,7 @@ export function loadConstants(): void {
           "1": 20,
           "2": 2,
           "100": 110,
-          "101": "CSON",
+          "101": "JSONC",
           "103": "Constant folded JSON encoding",
           "109": [],
         },

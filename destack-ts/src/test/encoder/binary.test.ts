@@ -600,7 +600,6 @@ test("datetime naive", () => {
   expect(result.epochMilliseconds).toBe(naiveDt.epochMilliseconds);
 });
 
-
 test("date", () => {
   const testCases = [
     Temporal.PlainDate.from("1970-01-01"), // epoch
@@ -724,4 +723,3 @@ test("json", () => {
   }
   expect(reader.remaining).toBe(0);
 });
-

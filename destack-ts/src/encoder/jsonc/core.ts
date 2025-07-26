@@ -11,11 +11,11 @@ export function getObjectKey(kind: ObjectKind, metatype: NodeType | StructType) 
   return `${kind}-${metatype}`;
 }
 
-/** All the BuiltinObject encoders for our CSON format. */
-export const CSON_OBJECT_ENCODERS: Record<string, CsonObjectEncoder> = {};
+/** All the BuiltinObject encoders for our JSONC format. */
+export const JSONC_OBJECT_ENCODERS: Record<string, JsoncObjectEncoder> = {};
 
-/** A CSON encoder for a BuiltinObject. */
-export interface CsonObjectEncoder {
+/** A JSONC encoder for a BuiltinObject. */
+export interface JsoncObjectEncoder {
   /** Pack a BuiltinObject into some encoded format. */
   packObject(object: BuiltinObject): any;
 

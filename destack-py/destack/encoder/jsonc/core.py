@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.language.core import BuiltinObject, Cson, Session
+from destack.language.core import BuiltinObject, Jsonc, Session
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
@@ -16,15 +16,15 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class CsonObjectEncoder:
-    """CSON object encoder."""
+class JsoncObjectEncoder:
+    """JSONC object encoder."""
 
-    def pack_object(self, object: BuiltinObject) -> Cson:
+    def pack_object(self, object: BuiltinObject) -> Jsonc:
         raise NotImplementedError
 
     def unpack_object(
         self,
-        cson: Cson,
+        jsonc: Jsonc,
         session: Session | None,
     ) -> BuiltinObject:
         raise NotImplementedError

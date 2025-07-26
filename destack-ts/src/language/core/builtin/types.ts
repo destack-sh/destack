@@ -27,5 +27,5 @@ export type String = string;
 export type UUID = string;
 export type Bytes = Uint8Array;
 export type Json = any;
-export type Cson = Json;
+export type Jsonc = Json;
 export type Kompakt = Uint8Array;

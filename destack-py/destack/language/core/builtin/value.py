@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .common import Cson, Encoding
+from .common import Encoding, Jsonc
 from .const import ENCODERS, active_session
 from .property import builtin_property, builtin_property_runtime
 from .struct import StructFrozen, StructType, builtin_struct
@@ -29,7 +29,7 @@ class Value(StructFrozen):
 
     type: Type = builtin_property(100, is_repr=True)
     # nocheckin: Value.value should be KOMPAKT
-    value: Cson | None = builtin_property(110, default=None)
+    value: Jsonc | None = builtin_property(110, default=None)
 
     _unpacked_value: Any | None = builtin_property_runtime()
 
@@ -37,7 +37,7 @@ class Value(StructFrozen):
         """Get the unpacked value of this generic Value."""
         if self._unpacked_value is None:
             session = active_session()
-            encoder = ENCODERS[Encoding.CSON]
+            encoder = ENCODERS[Encoding.JSONC]
             value_unpacked = encoder.unpack_value(self.type, self.value, session)
             object.__setattr__(self, "_unpacked_value", value_unpacked)
         return self._unpacked_value
@@ -56,7 +56,7 @@ class Value(StructFrozen):
         """
         from .node import Node
 
-        encoder = ENCODERS[Encoding.CSON]
+        encoder = ENCODERS[Encoding.JSONC]
 
         # infer type
         if type is None:

@@ -129,18 +129,18 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        value_cson = value.pack(Encoding.CSON)
-        value_cson_str = json.dumps(value_cson, separators=(",", ":"))
-        return f"{value.__class__.__name__}.unpack({Encoding.CSON.value}, {value_cson_str})"
+        value_jsonc = value.pack(Encoding.JSONC)
+        value_jsonc_str = json.dumps(value_jsonc, separators=(",", ":"))
+        return f"{value.__class__.__name__}.unpack({Encoding.JSONC.value}, {value_jsonc_str})"
 
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
         assert isinstance(value, NodeReference), (
             f"value is not a NodeReference for {type!r}: {value!r}"
         )
-        value_cson = value.pack(Encoding.CSON)
-        value_cson_str = json.dumps(value_cson, separators=(",", ":"))
-        return f"NodeReference.unpack({Encoding.CSON.value}, {value_cson_str})"
+        value_jsonc = value.pack(Encoding.JSONC)
+        value_jsonc_str = json.dumps(value_jsonc, separators=(",", ":"))
+        return f"NodeReference.unpack({Encoding.JSONC.value}, {value_jsonc_str})"
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
