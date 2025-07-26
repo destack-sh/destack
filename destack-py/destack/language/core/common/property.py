@@ -5,7 +5,7 @@ from ..builtin import (
     EdgeType,
     Entity,
     NodeType,
-    PropertyType,
+    PropertyZone,
     builtin_node,
     builtin_property,
 )
@@ -13,8 +13,8 @@ from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
     from destack.language import (
+        CheckedType,
         Icon,
-        Type,
     )
 
 
@@ -24,18 +24,18 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_PROPERTY)
 class CustomProperty(Entity):
     """
-    A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
+    A CustomProperty is a custom attribute of an Entity.
     """
 
-    type: PropertyType = builtin_property(
+    type: "CheckedType" = builtin_property(
         100,
-        default=PropertyType.MEMBER,
-        description="Where in the parent Entity this Property resides.",
+        description="The actual Type of this custom Property.",
     )
     icon: "Icon | None" = builtin_property(102)
-    value_type: "Type" = builtin_property(
-        110,
-        description="The actual Type of this custom Property.",
+    zone: PropertyZone = builtin_property(
+        103,
+        default=PropertyZone.MEMBER,
+        description="Where in the parent Entity this Property resides.",
     )
 
     # relationship
@@ -56,8 +56,8 @@ class CustomProperty(Entity):
         description="Whether this property is the main property of the entity.",
     )
 
-    def to_type(self) -> "Type":
-        return self.value_type
+    def to_type(self) -> "CheckedType":
+        return self.type
 
     def eq(self, value: Any) -> Condition:
         if value is None:

@@ -1,4 +1,5 @@
 import math
+from typing import Literal
 
 from destack.language import (
     Int8,
@@ -11,6 +12,7 @@ from destack.language import (
     TypeCardinality,
     UInt32,
     User,
+    Value,
 )
 
 
@@ -165,7 +167,7 @@ def test_annotation_to_type():
         primitive_type=PrimitiveType.INT8,
     )
 
-    # list[str] (type annotation)
+    # list[str]
     assert Type.infer(list[str]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -175,7 +177,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # tuple[int, str] (type annotation)
+    # tuple[int, str]
     assert Type.infer(tuple[UInt32, str]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -192,7 +194,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # tuple[str, int, bool] (type annotation)
+    # tuple[str, int, bool]
     assert Type.infer(tuple[str, int, bool]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -214,7 +216,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # dict[str, int] (type annotation)
+    # dict[str, int]
     assert Type.infer(dict[str, int]) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -230,7 +232,7 @@ def test_annotation_to_type():
     )
 
     # nested annotation collections
-    # list[tuple[int, str]] (type annotation)
+    # list[tuple[int, str]]
     assert Type.infer(list[tuple[int, str]]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -250,7 +252,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # dict[str, list[int]] (type annotation)
+    # dict[str, list[int]]
     assert Type.infer(dict[str, list[int]]) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -268,7 +270,37 @@ def test_annotation_to_type():
         ),
     )
 
-    # tuple[list[str], dict[str, int]] (type annotation)
+    # literals
+    # Literal[1]
+    assert Type.infer(Literal[1]) == Type(
+        cardinality=TypeCardinality.SCALAR,
+        scalar_type=ScalarType.LITERAL,
+        literal_value=Value.wrap(1),
+    )
+    # Literal[1, 2, 3]
+    assert Type.infer(Literal[1, 2, 3]) == Type(
+        cardinality=TypeCardinality.SCALAR,
+        scalar_type=ScalarType.UNION,
+        union_types=[
+            Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.LITERAL,
+                literal_value=Value.wrap(1),
+            ),
+            Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.LITERAL,
+                literal_value=Value.wrap(2),
+            ),
+            Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.LITERAL,
+                literal_value=Value.wrap(3),
+            ),
+        ],
+    )
+
+    # tuple[list[str], dict[str, int]]
     assert Type.infer(tuple[list[str], dict[str, int]]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -296,7 +328,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # list[dict[str, tuple[int, bool]]] (type annotation)
+    # list[dict[str, tuple[int, bool]]]
     assert Type.infer(list[dict[str, tuple[int, bool]]]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -331,11 +363,6 @@ def test_annotation_to_type():
         scalar_type=ScalarType.NODE_REFERENCE,
         node_types=[NodeType.NODE],
     )
-    assert Type.infer(Node, node_as_value=True) == Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE_VALUE,
-        node_types=[NodeType.NODE],
-    )
     # User | Organization (union of node types)
     assert Type.infer(User | Organization) == Type(
         cardinality=TypeCardinality.SCALAR,
@@ -344,7 +371,7 @@ def test_annotation_to_type():
     )
 
     # nested node references
-    # list[User] (type annotation)
+    # list[User]
     assert Type.infer(list[User]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -354,7 +381,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # dict[str, User] (type annotation)
+    # dict[str, User]
     assert Type.infer(dict[str, User]) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -369,7 +396,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # tuple[User, Organization] (type annotation)
+    # tuple[User, Organization]
     assert Type.infer(tuple[User, Organization]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -387,7 +414,7 @@ def test_annotation_to_type():
     )
 
     # unions
-    # int | str (type annotation)
+    # int | str
     assert Type.infer(int | str) == Type(
         cardinality=TypeCardinality.SCALAR,
         scalar_type=ScalarType.UNION,
@@ -405,7 +432,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # int | str | bool (type annotation)
+    # int | str | bool
     assert Type.infer(int | str | bool) == Type(
         cardinality=TypeCardinality.SCALAR,
         scalar_type=ScalarType.UNION,
@@ -428,7 +455,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # list[int | str] (type annotation)
+    # list[int | str]
     assert Type.infer(list[int | str]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(
@@ -449,7 +476,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # dict[str, int | bool] (type annotation)
+    # dict[str, int | bool]
     assert Type.infer(dict[str, int | bool]) == Type(
         cardinality=TypeCardinality.MAP,
         key_type=Type(
@@ -475,7 +502,7 @@ def test_annotation_to_type():
         ),
     )
 
-    # tuple[int | str, bool] (type annotation)
+    # tuple[int | str, bool]
     assert Type.infer(tuple[int | str, bool]) == Type(
         cardinality=TypeCardinality.TUPLE,
         element_types=[
@@ -503,7 +530,7 @@ def test_annotation_to_type():
         ],
     )
 
-    # list[User | Organization] (type annotation)
+    # list[User | Organization]
     assert Type.infer(list[User | Organization]) == Type(
         cardinality=TypeCardinality.LIST,
         value_type=Type(

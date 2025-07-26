@@ -35,11 +35,9 @@ if TYPE_CHECKING:
     pass
 
 
-@builtin_enum(EnumType.PROPERTY_TYPE)
-class PropertyType(Enum):
+@builtin_enum(EnumType.PROPERTY_ZONE)
+class PropertyZone(Enum):
     MEMBER = 1, "Member", None, None
-    CONSTANT = 2, "Constant", None, None
-    # COMPUTED?
     INPUT = 10, "Input", None, None
     OUTPUT = 11, "Output", None, None
 
@@ -303,10 +301,10 @@ class TypeCardinality(Enum):
     """The order of a Type (scalar, list, map, etc.)."""
 
     SCALAR = 1, "Scalar", "Single value"
-    LIST = 2, "List", "List of values (dynamic length)"
-    TUPLE = 3, "Tuple", "Tuple of values (fixed length)"
+    LIST = 2, "List", "Dynamic sequence of homogeneous values"
+    TUPLE = 3, "Tuple", "Fixed sequence of heterogeneous values"
     # SET? = 4, "Set", "Set of unique values (dynamic length)"
-    MAP = 5, "Map", "Map of primitive keys to any values"
+    MAP = 5, "Map", "Mapping of homogenous keys to homogeneous values"
 
 
 assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :Encoding

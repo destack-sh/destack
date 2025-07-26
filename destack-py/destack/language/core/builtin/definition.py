@@ -15,7 +15,7 @@ from .common import (
     Enum,
     EnumType,
     GraphDomain,
-    PropertyType,
+    PropertyZone,
     UInt8,
     UInt32,
 )
@@ -35,12 +35,13 @@ from .relation import (
     PropertyReferenceType,
 )
 from .struct import Struct, StructFrozen, builtin_struct
-from .type import Type
+from .type import CheckedType
 from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
+        CheckedType,
         Condition,
         ConditionalType,
         ConstantDeclaration,
@@ -53,7 +54,6 @@ if TYPE_CHECKING:
         Sort,
         SortType,
         Trait,
-        Type,
         Value,
     )
 
@@ -498,10 +498,10 @@ class EnumDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
-class PropertyDefinition(Type):
+class PropertyDefinition(CheckedType):
     """Definition of a builtin Property."""
 
-    type: PropertyType = builtin_property(100)
+    type: PropertyZone = builtin_property(100)
     id: UInt8 = builtin_property(2, is_repr=True)
     name: str | None = builtin_property(
         101, is_repr=True, description="The name of this Type when it was used."
@@ -604,7 +604,7 @@ Whether this Property is part of the object's identity.
         )
 
     @builtin_method(101)
-    def to_type(self) -> "Type":
+    def to_type(self) -> "CheckedType":
         """Convert to a Type (returns self for convenience)."""
         return self
 

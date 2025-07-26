@@ -3,7 +3,6 @@ from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language.core import (
-    BasicType,
     BuiltinObject,
     Encoding,
     Json,
@@ -11,6 +10,7 @@ from destack.language.core import (
     NodeType,
     PrimitiveType,
     ScalarType,
+    Type,
     TypeCardinality,
 )
 from destack.language.registry import (
@@ -35,7 +35,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def pack_json(type: BasicType, value: Any) -> Json:
+def pack_json(type: Type, value: Any) -> Json:
     """Pack a generic typed value to a JSON object."""
 
     # scalar
@@ -78,7 +78,7 @@ def pack_json(type: BasicType, value: Any) -> Json:
         assert_never(type.cardinality)
 
 
-def unpack_json(type: BasicType, value: Json, session: "Session | None") -> Any:
+def unpack_json(type: Type, value: Json, session: "Session | None") -> Any:
     """Unpack a JSON object to a generic typed value."""
 
     # scalar
@@ -125,7 +125,7 @@ def unpack_json(type: BasicType, value: Json, session: "Session | None") -> Any:
         assert_never(type.cardinality)
 
 
-def _pack_scalar_json(type: BasicType, value: Any) -> Any:
+def _pack_scalar_json(type: Type, value: Any) -> Any:
     """Pack a scalar value to JSON."""
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
@@ -193,7 +193,7 @@ def _pack_scalar_json(type: BasicType, value: Any) -> Any:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_json(type: BasicType, value: Any, session: "Session | None") -> Any:
+def _unpack_scalar_json(type: Type, value: Any, session: "Session | None") -> Any:
     """Unpack a scalar value from JSON."""
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:

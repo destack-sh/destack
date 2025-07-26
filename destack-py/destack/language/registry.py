@@ -10,7 +10,6 @@ from .core.builtin.enum import _ENUM_CLASS_BY_TYPE, _ENUM_TYPE_BY_CLASS
 
 if TYPE_CHECKING:
     from destack.language import (
-        BasicType,
         BuiltinObject,
         Enum,
         EnumDefinition,
@@ -22,6 +21,7 @@ if TYPE_CHECKING:
         StructDefinition,
         Trait,
         TraitDefinition,
+        Type,
     )
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
@@ -44,11 +44,7 @@ STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
 
-DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
-ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
-
-NODE_TYPE_SCALAR_BY_NODE_TYPE: dict[NodeType, "BasicType"] = {}
-SUBDEFINITIONS_BY_NODE_TYPE: dict[NodeType, tuple["NodeDefinitionReference", ...]] = {}
+NODE_TYPE_SCALAR_BY_TYPE: dict[NodeType, "Type"] = {}
 
 
 def get_builtin_object_cls(

@@ -2,7 +2,6 @@ import json
 from typing import Any, ClassVar, override
 
 from destack.language.core import (
-    BasicType,
     BinaryReader,
     BinaryWriter,
     BuiltinObject,
@@ -13,6 +12,7 @@ from destack.language.core import (
     ObjectKind,
     Session,
     StructType,
+    Type,
 )
 
 from .generate import JSON_OBJECT_ENCODERS
@@ -76,7 +76,7 @@ class JsonEncoder(Encoder[Json]):
     @override
     def pack_value(
         self,
-        type: BasicType,
+        type: Type,
         value: Any,
     ) -> Json:
         return pack_json(value, type)
@@ -84,7 +84,7 @@ class JsonEncoder(Encoder[Json]):
     @override
     def pack_value_binary(
         self,
-        type: BasicType,
+        type: Type,
         value: Any,
         writer: BinaryWriter,
     ) -> None:
@@ -93,7 +93,7 @@ class JsonEncoder(Encoder[Json]):
     @override
     def unpack_value(
         self,
-        type: BasicType,
+        type: Type,
         value: Json,
         session: Session | None,
     ) -> Any:
@@ -102,7 +102,7 @@ class JsonEncoder(Encoder[Json]):
     @override
     def unpack_value_binary(
         self,
-        type: BasicType,
+        type: Type,
         reader: BinaryReader,
         session: Session | None,
     ) -> Any:

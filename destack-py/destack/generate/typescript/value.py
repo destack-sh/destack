@@ -4,13 +4,13 @@ import textwrap
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language import (
+    CheckedType,
     Encoding,
     NodeReference,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
     Struct,
-    Type,
     TypeCardinality,
     TypeDeclaration,
 )
@@ -29,7 +29,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def generate_value(type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _generate_value_scalar(type, value)
@@ -44,7 +44,9 @@ def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: An
         assert_never(type.cardinality)
 
 
-def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def _generate_value_scalar(
+    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
+) -> str:
     """Generate a Typescript scalar value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"
