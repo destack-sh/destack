@@ -6,7 +6,6 @@ from destack.language import (
     BuiltinObject,
     Encoding,
     Node,
-    NodeType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -157,19 +156,15 @@ def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
 
 def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
     """Generate the unpackObject method implementation."""
-    unpack_references: set[NodeType | StructType] = set()
+    from ..language import _get_object_references
+
+    object_references = _get_object_references(cls, is_value=True)
     unpack_assignments: list[str] = []
     unpack_body_parts: list[str] = []
 
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
-        # initializer
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
-            unpack_references.add(StructType.NODE_REFERENCE)
-        elif prop.scalar_type == ScalarType.STRUCT:
-            assert prop.struct_type is not None, f"no struct type for {prop!r}"
-            unpack_references.add(prop.struct_type)
 
         # regular unpacking
         unpack_code = _generate_unpack_cson_property(prop)
@@ -197,7 +192,7 @@ def _generate_from_cson(cls: type["BuiltinObject"]) -> str:
 
     # initializer
     unpack_initializer_parts: list[str] = []
-    for ref in sorted(unpack_references):
+    for ref in sorted(object_references):
         ref_cls = (
             STRUCT_CLASS_BY_TYPE[ref] if isinstance(ref, StructType) else NODE_CLASS_BY_TYPE[ref]
         )

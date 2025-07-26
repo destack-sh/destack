@@ -1683,40 +1683,135 @@ def _get_type_dependencies(
     is_value: bool = False,
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a type."""
+
+    # scalar
+    if type.cardinality == TypeCardinality.SCALAR:
+        assert type.scalar_type is not None, f"no scalar type for {type!r}"
+        dependencies: dict[str, Definition] = {}
+        value_dependencies: set[str] = set()
+
+        # primitive
+        if type.scalar_type == ScalarType.PRIMITIVE:
+            pass  # no dependencies for primitives
+
+        # enum
+        elif type.scalar_type == ScalarType.ENUM:
+            assert type.enum_type is not None, f"no enum_type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[type.enum_type]
+            if not is_abstract:
+                value_dependencies.add(enum_cls.__name__)
+
+        # node reference
+        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+            if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
+                for node_type in type.node_types or ():
+                    if isinstance(node_type, NodeType):
+                        node_cls = NODE_CLASS_BY_TYPE[node_type]
+                        dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+                    elif isinstance(node_type, TraitType):
+                        trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
+                        dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
+                    else:
+                        assert_never(node_type)
+            else:
+                for node_type in type.node_types or ():
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+            if is_value:
+                dependencies["NodeReference"] = STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE]
+                value_dependencies.add("NodeReference")
+
+        # node value
+        elif type.scalar_type == ScalarType.NODE_VALUE:
+            pass  # no dependencies for node value
+
+        # struct
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct_type for {type!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
+            if is_value:
+                value_dependencies.add(struct_cls.__name__)
+
+        # literal
+        elif type.scalar_type == ScalarType.LITERAL:
+            raise NotImplementedError(f"cannot get dependencies for literal: {type!r}")
+
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get dependencies for union: {type!r}")
+
+        #
+        else:
+            assert_never(type.scalar_type)
+
+        return dependencies, value_dependencies
+
+    # list
+    elif type.cardinality == TypeCardinality.LIST:
+        assert type.value_type is not None, f"no value type for {type!r}"
+        return _get_type_dependencies(type.value_type, is_abstract, is_value)
+
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        assert type.element_types is not None, f"no element types for {type!r}"
+        dependencies: dict[str, Definition] = {}
+        value_dependencies: set[str] = set()
+        for element_type in type.element_types:
+            element_dependencies, element_value_dependencies = _get_type_dependencies(
+                element_type, is_abstract, is_value
+            )
+            dependencies.update(element_dependencies)
+            value_dependencies.update(element_value_dependencies)
+        return dependencies, value_dependencies
+
+    # map
+    elif type.cardinality == TypeCardinality.MAP:
+        assert type.key_type is not None, f"no key type for {type!r}"
+        assert type.value_type is not None, f"no value type for {type!r}"
+        dependencies: dict[str, Definition] = {}
+        value_dependencies: set[str] = set()
+        key_type_dependencies, key_value_dependencies = _get_type_dependencies(
+            type.key_type, is_abstract, is_value
+        )
+        value_type_dependencies, value_value_dependencies = _get_type_dependencies(
+            type.value_type, is_abstract, is_value
+        )
+        dependencies.update(key_type_dependencies)
+        dependencies.update(value_type_dependencies)
+        value_dependencies.update(key_value_dependencies)
+        value_dependencies.update(value_value_dependencies)
+        return dependencies, value_dependencies
+
+    #
+    else:
+        assert_never(type.cardinality)
+
+
+def _get_object_references(
+    cls: type["BuiltinObject"], is_value: bool
+) -> set[NodeType | StructType]:
+    """Get only the object references of a class."""
     dependencies: dict[str, Definition] = {}
     value_dependencies: set[str] = set()
 
-    if type.scalar_type == ScalarType.NODE_REFERENCE:
-        if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
-            for node_type in type.node_types or ():
-                if isinstance(node_type, NodeType):
-                    node_cls = NODE_CLASS_BY_TYPE[node_type]
-                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
-                elif isinstance(node_type, TraitType):
-                    trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
-                    dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
-                else:
-                    assert_never(node_type)
-        else:
-            for node_type in type.node_types or ():
-                node_cls = NODE_CLASS_BY_TYPE[node_type]
-                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
-        if is_value:
-            dependencies["NodeReference"] = STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE]
-            value_dependencies.add("NodeReference")
-    elif type.scalar_type == ScalarType.STRUCT:
-        assert type.struct_type is not None, f"no struct_type for {type!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
-        if is_value:
-            value_dependencies.add(struct_cls.__name__)
-    elif type.scalar_type == ScalarType.ENUM:
-        assert type.enum_type is not None, f"no enum_type for {type!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[type.enum_type]
-        if not is_abstract:
-            value_dependencies.add(enum_cls.__name__)
-    return dependencies, value_dependencies
+    for prop in cls.__wired_properties__.values():
+        if prop.is_computed:
+            continue  # set implicitly
+        prop_dependencies, prop_value_dependencies = _get_type_dependencies(
+            prop, is_abstract=False, is_value=is_value
+        )
+        dependencies.update(prop_dependencies)
+        value_dependencies.update(prop_value_dependencies)
+
+    object_types: set[NodeType | StructType] = set()
+    for dependency_name, dependency in dependencies.items():
+        if dependency_name in value_dependencies:
+            if isinstance(dependency, (NodeDefinition, StructDefinition)):
+                object_types.add(dependency.type)
+
+    return object_types
 
 
 def _get_builtin_object_dependencies(
