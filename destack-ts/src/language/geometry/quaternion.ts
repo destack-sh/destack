@@ -58,10 +58,6 @@ export class Quaternion extends Vector4 {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

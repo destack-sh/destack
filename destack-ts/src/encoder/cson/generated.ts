@@ -11,10 +11,10 @@ import type {
   ArrowShape2D,
   Axis2,
   Axis3,
-  BasicType,
   Border,
   BorderStyle,
   Branch,
+  CheckedType,
   Client,
   CollectionConstraint,
   Color,
@@ -296,7 +296,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Tag {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -441,7 +440,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Tagging {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -594,7 +592,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): CustomEvent {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -876,7 +873,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Permission {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -1030,7 +1026,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Method {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectCson["104"];
@@ -1201,7 +1196,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Action {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectCson["104"];
@@ -1360,7 +1354,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): CustomEnum {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -1507,7 +1500,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): CustomOption {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectCson["3"];
@@ -1657,9 +1649,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Index {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
       for (const item of objectCson["105"]) {
         unpackedProperties.push(_PropertyReference.unpack(2, item, _session) as PropertyReference);
@@ -1809,9 +1799,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Constraint {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedProperties: any[] = [];
       for (const item of objectCson["105"]) {
         unpackedProperties.push(_PropertyReference.unpack(2, item, _session) as PropertyReference);
@@ -1959,7 +1947,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Migration {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
@@ -2102,7 +2089,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): MigrationOperation {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -2237,11 +2223,11 @@ export function loadEncoders(): void {
       if (object._key != null) {
         objectCson["85"] = object._key;
       }
-      objectCson["100"] = object._type;
+      objectCson["100"] = object._type.pack(2);
       if (object._icon != null) {
         objectCson["102"] = object._icon.pack(2);
       }
-      objectCson["110"] = object._valueType.pack(2);
+      objectCson["103"] = object._zone;
       if (object._edgeType != null) {
         objectCson["140"] = object._edgeType;
       }
@@ -2261,8 +2247,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): CustomProperty {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const _CheckedType = STRUCT_CLASS_BY_TYPE[102] as typeof CheckedType;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -2329,9 +2314,9 @@ export function loadEncoders(): void {
       const keyValue = objectCson["85"];
       const unpackedKey = keyValue != undefined ? keyValue : undefined;
       return new (NODE_CLASS_BY_TYPE[20200] as typeof CustomProperty)({
-        type: Number(objectCson["100"]),
+        type: _CheckedType.unpack(2, objectCson["100"], _session) as CheckedType,
         icon: unpackedIcon,
-        valueType: _Type.unpack(2, objectCson["110"], _session) as Type,
+        zone: Number(objectCson["103"]),
         edgeType: unpackedEdgeType,
         cascade: unpackedCascade,
         isUnique: unpackedIsUnique,
@@ -2429,7 +2414,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Space {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const handlePtrValue = objectCson["111"];
       const unpackedHandlePtr =
@@ -2584,7 +2568,6 @@ export function loadEncoders(): void {
     unpackObject(objectCson: any, _session: Session | null): CustomStruct {
       const _StructDefinitionReference =
         STRUCT_CLASS_BY_TYPE[16] as typeof StructDefinitionReference;
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -2739,7 +2722,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Branch {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -2881,7 +2863,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Snapshot {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -3315,7 +3296,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Entitlement {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const expiresAtValue = objectCson["110"];
       const unpackedExpiresAt =
@@ -3773,7 +3753,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Invite {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const rolePtrValue = objectCson["111"];
       const unpackedRolePtr =
@@ -4081,7 +4060,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Membership {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const rolePtrValue = objectCson["111"];
       const unpackedRolePtr =
@@ -4378,7 +4356,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Role {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -4816,7 +4793,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Sanction {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const expiresAtValue = objectCson["110"];
       const unpackedExpiresAt =
@@ -4988,7 +4964,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): ColorStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const hueValue = objectCson["200"];
@@ -5164,7 +5139,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): BorderStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Inset2 = STRUCT_CLASS_BY_TYPE[2400023] as typeof Inset2;
@@ -5335,10 +5309,8 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): GradientStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
-      const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const angleValue = objectCson["102"];
       const unpackedAngle = angleValue != undefined ? Number(angleValue) : undefined;
@@ -5512,7 +5484,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): FillStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Gradient = STRUCT_CLASS_BY_TYPE[2100800] as typeof Gradient;
@@ -5701,7 +5672,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): FontStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -5877,7 +5847,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Palette {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -6038,7 +6007,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): ShadowStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Color = STRUCT_CLASS_BY_TYPE[2100300] as typeof Color;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
@@ -6210,7 +6178,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): StrokeStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _StrokeCap = STRUCT_CLASS_BY_TYPE[2101101] as typeof StrokeCap;
       const startValue = objectCson["205"];
@@ -6366,7 +6333,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Theme {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -6532,7 +6498,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): TransitionStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const delayValue = objectCson["102"];
       const unpackedDelay = delayValue != undefined ? Number(delayValue) : undefined;
@@ -6741,7 +6706,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): EffectStyle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Transition = STRUCT_CLASS_BY_TYPE[2200000] as typeof Transition;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -6988,7 +6952,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): File {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -7186,7 +7149,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Environment {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectCson["3"];
@@ -8151,7 +8113,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): ArrowShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8360,7 +8321,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): EllipseShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8567,7 +8527,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): LineShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8779,7 +8738,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): PathShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -8994,7 +8952,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): PolygonShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -9210,7 +9167,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): RectangleShape2D {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
       const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
@@ -9419,7 +9375,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Database {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -9599,7 +9554,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Machine {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const externalNameValue = objectCson["121"];
       const unpackedExternalName = externalNameValue != undefined ? externalNameValue : undefined;
@@ -11946,7 +11900,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Script {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -12089,7 +12042,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Service {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -12587,7 +12539,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Timer {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Schedule = STRUCT_CLASS_BY_TYPE[700001] as typeof Schedule;
       const scheduleValue = objectCson["110"];
@@ -12752,7 +12703,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): Trigger {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
@@ -12923,7 +12873,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): GaugeMetric {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -13140,7 +13089,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): CounterMetric {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -13357,7 +13305,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): HistogramMetric {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -13581,7 +13528,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Layer {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
@@ -13819,7 +13765,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): FrameView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14186,7 +14131,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): LabelView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14529,7 +14473,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): NumberInputView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -14832,7 +14775,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): SliderInputView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -15159,7 +15101,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): SplitView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
       const _Fill = STRUCT_CLASS_BY_TYPE[2100400] as typeof Fill;
@@ -15505,7 +15446,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): TextView {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const _Length = STRUCT_CLASS_BY_TYPE[1800001] as typeof Length;
@@ -15762,7 +15702,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Scene {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const rootViewPtrValue = objectCson["200"];
@@ -15912,7 +15851,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Stage {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -16051,7 +15989,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Follow {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -16755,7 +16692,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Notification {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Text = STRUCT_CLASS_BY_TYPE[400020] as typeof Text;
       const textValue = objectCson["120"];
@@ -16902,7 +16838,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Reaction {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -17258,7 +17193,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Star {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -17617,7 +17551,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Folder {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const parentPtrValue = objectCson["3"];
@@ -17802,7 +17735,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Client {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const machinePtrValue = objectCson["110"];
       const unpackedMachinePtr =
@@ -17987,7 +17919,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Handle {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -18132,7 +18063,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Organization {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -18280,7 +18210,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Team {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -18438,7 +18367,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): User {
-      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
       const parentPtrValue = objectCson["3"];
       const unpackedParentPtr =
@@ -18856,8 +18784,8 @@ export function loadEncoders(): void {
 
   CSON_OBJECT_ENCODERS[getObjectKey(2, 112)] = new CollectionConstraintCsonEncoder();
 
-  class BasicTypeCsonEncoder implements CsonObjectEncoder {
-    packObject(object: BasicType): any {
+  class TypeCsonEncoder implements CsonObjectEncoder {
+    packObject(object: Type): any {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 101;
       objectCson["110"] = object.cardinality;
@@ -18874,7 +18802,9 @@ export function loadEncoders(): void {
         }
         objectCson["113"] = packedElementTypes;
       }
-      objectCson["120"] = object.scalarType;
+      if (object.scalarType != null) {
+        objectCson["120"] = object.scalarType;
+      }
       if (object.primitiveType != null) {
         objectCson["121"] = object.primitiveType;
       }
@@ -18891,11 +18821,23 @@ export function loadEncoders(): void {
       if (object.structType != null) {
         objectCson["124"] = object.structType;
       }
+      if (object.literalValue != null) {
+        objectCson["125"] = object.literalValue.pack(2);
+      }
+      if (object.unionTypes != null) {
+        const packedUnionTypes: any[] = [];
+        for (const item of object.unionTypes) {
+          packedUnionTypes.push(item.pack(2));
+        }
+        objectCson["126"] = packedUnionTypes;
+      }
+      objectCson["130"] = object.isRequired;
       return objectCson;
     }
 
-    unpackObject(objectCson: any, _session: Session | null): BasicType {
-      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+    unpackObject(objectCson: any, _session: Session | null): Type {
+      const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
+      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
       const keyTypeValue = objectCson["111"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
@@ -18913,6 +18855,8 @@ export function loadEncoders(): void {
       } else {
         unpackedElementTypes = undefined;
       }
+      const scalarTypeValue = objectCson["120"];
+      const unpackedScalarType = scalarTypeValue != undefined ? Number(scalarTypeValue) : undefined;
       const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -18929,26 +18873,43 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[101] as typeof BasicType)({
+      const literalValueValue = objectCson["125"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
+      let unpackedUnionTypes: any[] | undefined;
+      if (objectCson["126"] != undefined) {
+        unpackedUnionTypes = [];
+        for (const item of objectCson["126"]) {
+          unpackedUnionTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedUnionTypes = undefined;
+      }
+      return new (STRUCT_CLASS_BY_TYPE[101] as typeof Type)({
         cardinality: Number(objectCson["110"]),
         keyType: unpackedKeyType,
         valueType: unpackedValueType,
         elementTypes: unpackedElementTypes,
-        scalarType: Number(objectCson["120"]),
+        scalarType: unpackedScalarType,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
+        literalValue: unpackedLiteralValue,
+        unionTypes: unpackedUnionTypes,
+        isRequired: Boolean(objectCson["130"]),
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
     }
   }
 
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new BasicTypeCsonEncoder();
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 101)] = new TypeCsonEncoder();
 
-  class TypeCsonEncoder implements CsonObjectEncoder {
-    packObject(object: Type): any {
+  class CheckedTypeCsonEncoder implements CsonObjectEncoder {
+    packObject(object: CheckedType): any {
       const objectCson: { [key: string]: any } = {};
       objectCson["1"] = 102;
       objectCson["110"] = object.cardinality;
@@ -18965,7 +18926,9 @@ export function loadEncoders(): void {
         }
         objectCson["113"] = packedElementTypes;
       }
-      objectCson["120"] = object.scalarType;
+      if (object.scalarType != null) {
+        objectCson["120"] = object.scalarType;
+      }
       if (object.primitiveType != null) {
         objectCson["121"] = object.primitiveType;
       }
@@ -18982,6 +18945,17 @@ export function loadEncoders(): void {
       if (object.structType != null) {
         objectCson["124"] = object.structType;
       }
+      if (object.literalValue != null) {
+        objectCson["125"] = object.literalValue.pack(2);
+      }
+      if (object.unionTypes != null) {
+        const packedUnionTypes: any[] = [];
+        for (const item of object.unionTypes) {
+          packedUnionTypes.push(item.pack(2));
+        }
+        objectCson["126"] = packedUnionTypes;
+      }
+      objectCson["130"] = object.isRequired;
       if (object.defaultValue != null) {
         objectCson["150"] = object.defaultValue.pack(2);
       }
@@ -18997,15 +18971,12 @@ export function loadEncoders(): void {
       if (object.numberConstraint != null) {
         objectCson["162"] = object.numberConstraint.pack(2);
       }
-      if (object.isRequired != null) {
-        objectCson["170"] = object.isRequired;
-      }
       return objectCson;
     }
 
-    unpackObject(objectCson: any, _session: Session | null): Type {
+    unpackObject(objectCson: any, _session: Session | null): CheckedType {
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
@@ -19036,9 +19007,6 @@ export function loadEncoders(): void {
         numberConstraintValue != undefined
           ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
           : undefined;
-      const isRequiredValue = objectCson["170"];
-      const unpackedIsRequired =
-        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
       const keyTypeValue = objectCson["111"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
@@ -19056,6 +19024,8 @@ export function loadEncoders(): void {
       } else {
         unpackedElementTypes = undefined;
       }
+      const scalarTypeValue = objectCson["120"];
+      const unpackedScalarType = scalarTypeValue != undefined ? Number(scalarTypeValue) : undefined;
       const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -19072,29 +19042,45 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
-      return new (STRUCT_CLASS_BY_TYPE[102] as typeof Type)({
+      const literalValueValue = objectCson["125"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
+      let unpackedUnionTypes: any[] | undefined;
+      if (objectCson["126"] != undefined) {
+        unpackedUnionTypes = [];
+        for (const item of objectCson["126"]) {
+          unpackedUnionTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedUnionTypes = undefined;
+      }
+      return new (STRUCT_CLASS_BY_TYPE[102] as typeof CheckedType)({
         defaultValue: unpackedDefaultValue,
         defaultFactory: unpackedDefaultFactory,
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
-        isRequired: unpackedIsRequired,
         cardinality: Number(objectCson["110"]),
         keyType: unpackedKeyType,
         valueType: unpackedValueType,
         elementTypes: unpackedElementTypes,
-        scalarType: Number(objectCson["120"]),
+        scalarType: unpackedScalarType,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
+        literalValue: unpackedLiteralValue,
+        unionTypes: unpackedUnionTypes,
+        isRequired: Boolean(objectCson["130"]),
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
     }
   }
 
-  CSON_OBJECT_ENCODERS[getObjectKey(2, 102)] = new TypeCsonEncoder();
+  CSON_OBJECT_ENCODERS[getObjectKey(2, 102)] = new CheckedTypeCsonEncoder();
 
   class ValueCsonEncoder implements CsonObjectEncoder {
     packObject(object: Value): any {
@@ -19108,7 +19094,7 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Value {
-      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
       const valueValue = objectCson["110"];
       const unpackedValue = valueValue != undefined ? valueValue : undefined;
       return new (STRUCT_CLASS_BY_TYPE[100] as typeof Value)({
@@ -19274,13 +19260,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): NodeDefinition {
-      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
-      const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition;
-      const _IndexDefinition = STRUCT_CLASS_BY_TYPE[30100] as typeof IndexDefinition;
-      const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[30200] as typeof ConstraintDefinition;
-      const _MethodDefinition = STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition;
-      const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
-      const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
       const unpackedIcon =
@@ -19501,7 +19480,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): TraitDefinition {
-      const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[50000] as typeof PermissionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
       const unpackedIcon =
@@ -19644,11 +19622,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): StructDefinition {
-      const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition;
-      const _ConstantDefinition = STRUCT_CLASS_BY_TYPE[19] as typeof ConstantDefinition;
-      const _TagDefinition = STRUCT_CLASS_BY_TYPE[21] as typeof TagDefinition;
-      const _MethodDefinition = STRUCT_CLASS_BY_TYPE[40000] as typeof MethodDefinition;
-      const _ActionDefinition = STRUCT_CLASS_BY_TYPE[40100] as typeof ActionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
       const unpackedIcon =
@@ -19759,7 +19732,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): EnumDefinition {
-      const _OptionDefinition = STRUCT_CLASS_BY_TYPE[20] as typeof OptionDefinition;
       const _Icon = STRUCT_CLASS_BY_TYPE[400031] as typeof Icon;
       const iconValue = objectCson["102"];
       const unpackedIcon =
@@ -19823,7 +19795,9 @@ export function loadEncoders(): void {
         }
         objectCson["113"] = packedElementTypes;
       }
-      objectCson["120"] = object.scalarType;
+      if (object.scalarType != null) {
+        objectCson["120"] = object.scalarType;
+      }
       if (object.primitiveType != null) {
         objectCson["121"] = object.primitiveType;
       }
@@ -19840,6 +19814,17 @@ export function loadEncoders(): void {
       if (object.structType != null) {
         objectCson["124"] = object.structType;
       }
+      if (object.literalValue != null) {
+        objectCson["125"] = object.literalValue.pack(2);
+      }
+      if (object.unionTypes != null) {
+        const packedUnionTypes: any[] = [];
+        for (const item of object.unionTypes) {
+          packedUnionTypes.push(item.pack(2));
+        }
+        objectCson["126"] = packedUnionTypes;
+      }
+      objectCson["130"] = object.isRequired;
       if (object.defaultValue != null) {
         objectCson["150"] = object.defaultValue.pack(2);
       }
@@ -19854,9 +19839,6 @@ export function loadEncoders(): void {
       }
       if (object.numberConstraint != null) {
         objectCson["162"] = object.numberConstraint.pack(2);
-      }
-      if (object.isRequired != null) {
-        objectCson["170"] = object.isRequired;
       }
       if (object.edgeType != null) {
         objectCson["190"] = object.edgeType;
@@ -19881,7 +19863,7 @@ export function loadEncoders(): void {
       const _ObjectDefinitionReference =
         STRUCT_CLASS_BY_TYPE[11] as typeof ObjectDefinitionReference;
       const _Value = STRUCT_CLASS_BY_TYPE[100] as typeof Value;
-      const _Type = STRUCT_CLASS_BY_TYPE[102] as typeof Type;
+      const _Type = STRUCT_CLASS_BY_TYPE[101] as typeof Type;
       const _NumberConstraint = STRUCT_CLASS_BY_TYPE[110] as typeof NumberConstraint;
       const _StringConstraint = STRUCT_CLASS_BY_TYPE[111] as typeof StringConstraint;
       const _CollectionConstraint = STRUCT_CLASS_BY_TYPE[112] as typeof CollectionConstraint;
@@ -19924,9 +19906,6 @@ export function loadEncoders(): void {
         numberConstraintValue != undefined
           ? (_NumberConstraint.unpack(2, numberConstraintValue, _session) as NumberConstraint)
           : undefined;
-      const isRequiredValue = objectCson["170"];
-      const unpackedIsRequired =
-        isRequiredValue != undefined ? Boolean(isRequiredValue) : undefined;
       const keyTypeValue = objectCson["111"];
       const unpackedKeyType =
         keyTypeValue != undefined ? (_Type.unpack(2, keyTypeValue, _session) as Type) : undefined;
@@ -19944,6 +19923,8 @@ export function loadEncoders(): void {
       } else {
         unpackedElementTypes = undefined;
       }
+      const scalarTypeValue = objectCson["120"];
+      const unpackedScalarType = scalarTypeValue != undefined ? Number(scalarTypeValue) : undefined;
       const primitiveTypeValue = objectCson["121"];
       const unpackedPrimitiveType =
         primitiveTypeValue != undefined ? Number(primitiveTypeValue) : undefined;
@@ -19960,6 +19941,20 @@ export function loadEncoders(): void {
       }
       const structTypeValue = objectCson["124"];
       const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : undefined;
+      const literalValueValue = objectCson["125"];
+      const unpackedLiteralValue =
+        literalValueValue != undefined
+          ? (_Value.unpack(2, literalValueValue, _session) as Value)
+          : undefined;
+      let unpackedUnionTypes: any[] | undefined;
+      if (objectCson["126"] != undefined) {
+        unpackedUnionTypes = [];
+        for (const item of objectCson["126"]) {
+          unpackedUnionTypes.push(_Type.unpack(2, item, _session) as Type);
+        }
+      } else {
+        unpackedUnionTypes = undefined;
+      }
       return new (STRUCT_CLASS_BY_TYPE[18] as typeof PropertyDefinition)({
         type: Number(objectCson["100"]),
         id: Number(objectCson["2"]),
@@ -19993,16 +19988,18 @@ export function loadEncoders(): void {
         collectionConstraint: unpackedCollectionConstraint,
         stringConstraint: unpackedStringConstraint,
         numberConstraint: unpackedNumberConstraint,
-        isRequired: unpackedIsRequired,
         cardinality: Number(objectCson["110"]),
         keyType: unpackedKeyType,
         valueType: unpackedValueType,
         elementTypes: unpackedElementTypes,
-        scalarType: Number(objectCson["120"]),
+        scalarType: unpackedScalarType,
         primitiveType: unpackedPrimitiveType,
         enumType: unpackedEnumType,
         nodeTypes: unpackedNodeTypes,
         structType: unpackedStructType,
+        literalValue: unpackedLiteralValue,
+        unionTypes: unpackedUnionTypes,
+        isRequired: Boolean(objectCson["130"]),
         _packedCache: [{ encoding: 2, isBytes: false, packed: objectCson }],
         _session,
       });
@@ -20149,7 +20146,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): IndexDefinition {
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20194,7 +20190,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): ConstraintDefinition {
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20272,7 +20267,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): MethodDefinition {
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20334,7 +20328,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): ActionDefinition {
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const descriptionValue = objectCson["103"];
       const unpackedDescription = descriptionValue != undefined ? descriptionValue : undefined;
       const unpackedProperties: any[] = [];
@@ -20682,7 +20675,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Select {
-      const _PropertyReference = STRUCT_CLASS_BY_TYPE[1001] as typeof PropertyReference;
       const unpackedAttributes: any[] = [];
       for (const item of objectCson["101"]) {
         unpackedAttributes.push(_PropertyReference.unpack(2, item, _session) as PropertyReference);
@@ -20776,13 +20768,10 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): Query {
       const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[13] as typeof NodeDefinitionReference;
-      const _Expression = STRUCT_CLASS_BY_TYPE[200] as typeof Expression;
       const _Join = STRUCT_CLASS_BY_TYPE[202] as typeof Join;
       const _Aggregation = STRUCT_CLASS_BY_TYPE[203] as typeof Aggregation;
       const _Condition = STRUCT_CLASS_BY_TYPE[204] as typeof Condition;
-      const _Sort = STRUCT_CLASS_BY_TYPE[205] as typeof Sort;
       const _Select = STRUCT_CLASS_BY_TYPE[206] as typeof Select;
-      const _Query = STRUCT_CLASS_BY_TYPE[300] as typeof Query;
       const unpackedSubqueries: any[] = [];
       for (const item of objectCson["109"]) {
         unpackedSubqueries.push(_Query.unpack(2, item, _session) as Query);
@@ -20949,7 +20938,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): Text {
-      const _TextSpan = STRUCT_CLASS_BY_TYPE[400021] as typeof TextSpan;
       const unpackedSpans: any[] = [];
       for (const item of objectCson["103"]) {
         unpackedSpans.push(_TextSpan.unpack(2, item, _session) as TextSpan);
@@ -21130,7 +21118,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): Gradient {
       const _NodeReference = STRUCT_CLASS_BY_TYPE[1000] as typeof NodeReference;
-      const _GradientStop = STRUCT_CLASS_BY_TYPE[2100801] as typeof GradientStop;
       const _Axis2 = STRUCT_CLASS_BY_TYPE[2400025] as typeof Axis2;
       const stylePtrValue = objectCson["101"];
       const unpackedStylePtr =
@@ -21503,7 +21490,6 @@ export function loadEncoders(): void {
     }
 
     unpackObject(objectCson: any, _session: Session | null): StrokePath {
-      const _StrokePoint = STRUCT_CLASS_BY_TYPE[2101103] as typeof StrokePoint;
       const unpackedPoints: any[] = [];
       for (const item of objectCson["101"]) {
         unpackedPoints.push(_StrokePoint.unpack(2, item, _session) as StrokePoint);
@@ -21823,7 +21809,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): Path2D {
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
-      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectCson["200"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;
@@ -21859,7 +21844,6 @@ export function loadEncoders(): void {
 
     unpackObject(objectCson: any, _session: Session | null): Polygon2D {
       const _Stroke = STRUCT_CLASS_BY_TYPE[2101100] as typeof Stroke;
-      const _Vector2 = STRUCT_CLASS_BY_TYPE[2400000] as typeof Vector2;
       const strokeValue = objectCson["200"];
       const unpackedStroke =
         strokeValue != undefined ? (_Stroke.unpack(2, strokeValue, _session) as Stroke) : undefined;

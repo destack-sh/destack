@@ -1,11 +1,11 @@
 import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
-import type { CascadeAction, EdgeType, PropertyType } from "@destack/language/core/builtin/common";
+import type { CascadeAction, EdgeType, PropertyZone } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Type } from "@destack/language/core/builtin/type";
+import type { CheckedType, Type } from "@destack/language/core/builtin/type";
 import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Icon } from "@destack/language/core/common/icon";
@@ -20,7 +20,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:20200 ==== */
 /**
- * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
+ * A CustomProperty is a custom attribute of an Entity.
  */
 export class CustomProperty extends Entity {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
@@ -297,20 +297,20 @@ export class CustomProperty extends Entity {
   _key: string | null;
 
   /**
-   * Where in the parent Entity this Property resides.
+   * The actual Type of this custom Property.
    */
   /**
-   * Where in the parent Entity this Property resides.
+   * The actual Type of this custom Property.
    */
-  get type(): PropertyType {
+  get type(): CheckedType {
     return this._type;
   }
-  set type(value: PropertyType) {
+  set type(value: CheckedType) {
     const prop = (this.constructor as NodeClass).__properties__["type"];
     this._session.updateSetProperty(this, prop, value);
     this._type = value;
   }
-  _type: PropertyType;
+  _type: CheckedType;
 
   /**
    * CustomProperty.icon
@@ -329,20 +329,20 @@ export class CustomProperty extends Entity {
   _icon: Icon | null;
 
   /**
-   * The actual Type of this custom Property.
+   * Where in the parent Entity this Property resides.
    */
   /**
-   * The actual Type of this custom Property.
+   * Where in the parent Entity this Property resides.
    */
-  get valueType(): Type {
-    return this._valueType;
+  get zone(): PropertyZone {
+    return this._zone;
   }
-  set valueType(value: Type) {
-    const prop = (this.constructor as NodeClass).__properties__["value_type"];
+  set zone(value: PropertyZone) {
+    const prop = (this.constructor as NodeClass).__properties__["zone"];
     this._session.updateSetProperty(this, prop, value);
-    this._valueType = value;
+    this._zone = value;
   }
-  _valueType: Type;
+  _zone: PropertyZone;
 
   /**
    * CustomProperty.edgeType
@@ -449,9 +449,9 @@ export class CustomProperty extends Entity {
     isExtensible?: boolean | null;
     source?: Script | NodeReference | null;
     key?: string | null;
-    type?: PropertyType;
+    type: CheckedType;
     icon?: Icon | null;
-    valueType: Type;
+    zone?: PropertyZone;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isUnique?: boolean | null;
@@ -587,21 +587,21 @@ export class CustomProperty extends Entity {
     this.sourcePtr = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
-    let _type = options.type ?? null;
-    if (_type == null) {
-      _type = 1 /* PropertyType.MEMBER */;
-    }
+    let _type = options.type;
     if (_type == null) {
       throw new Error(`CustomProperty.type is required`);
     }
     this._type = _type;
     let _icon = options.icon ?? null;
     this._icon = _icon;
-    let _valueType = options.valueType;
-    if (_valueType == null) {
-      throw new Error(`CustomProperty.valueType is required`);
+    let _zone = options.zone ?? null;
+    if (_zone == null) {
+      _zone = 1 /* PropertyZone.MEMBER */;
     }
-    this._valueType = _valueType;
+    if (_zone == null) {
+      throw new Error(`CustomProperty.zone is required`);
+    }
+    this._zone = _zone;
     let _edgeType = options.edgeType ?? null;
     this._edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -649,7 +649,7 @@ export class CustomProperty extends Entity {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._type === other._type)) {
+    if (!this._type.equals(other._type)) {
       return false;
     }
     if (
@@ -658,7 +658,7 @@ export class CustomProperty extends Entity {
     ) {
       return false;
     }
-    if (!this._valueType.equals(other._valueType)) {
+    if (!(this._zone === other._zone)) {
       return false;
     }
     if (!(this._edgeType === other._edgeType)) {
@@ -685,18 +685,9 @@ export class CustomProperty extends Entity {
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -718,11 +709,11 @@ export class CustomProperty extends Entity {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + this._type.hash()) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    h = (h * 31 + this._valueType.hash()) & 0xffffffff;
+    h = (h * 31 + this._zone) & 0xffffffff;
     if (this._edgeType != null) {
       h = (h * 31 + this._edgeType) & 0xffffffff;
     }
@@ -778,10 +769,6 @@ export class CustomProperty extends Entity {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

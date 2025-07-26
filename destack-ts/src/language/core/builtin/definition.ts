@@ -4,7 +4,7 @@ import {
   type EdgeType,
   type GraphDomain,
   PrimitiveType,
-  type PropertyType,
+  type PropertyZone,
   ScalarType,
   TypeCardinality,
   type ValueFactory,
@@ -21,10 +21,11 @@ import {
 } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import {
+  CheckedType,
   type CollectionConstraint,
   type NumberConstraint,
   type StringConstraint,
-  Type,
+  type Type,
 } from "@destack/language/core/builtin/type";
 import type { UInt8, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
@@ -911,10 +912,6 @@ export class NodeDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Resolve a Property in this definition. */
@@ -1313,10 +1310,6 @@ export class TraitDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1800,10 +1793,6 @@ export class StructDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2001,10 +1990,6 @@ export class EnumDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2016,7 +2001,7 @@ registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
 /**
  * Definition of a builtin Property.
  */
-export class PropertyDefinition extends Type {
+export class PropertyDefinition extends CheckedType {
   static metatype: StructType = StructType.PROPERTY_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -2028,7 +2013,7 @@ export class PropertyDefinition extends Type {
   /**
    * PropertyDefinition.type
    */
-  readonly type: PropertyType;
+  readonly type: PropertyZone;
 
   /**
    * The name of this Type when it was used.
@@ -2118,7 +2103,7 @@ export class PropertyDefinition extends Type {
 
   constructor(options: {
     id: UInt8;
-    type: PropertyType;
+    type: PropertyZone;
     name?: string | null;
     description?: string | null;
     object: ObjectDefinitionReference;
@@ -2128,17 +2113,19 @@ export class PropertyDefinition extends Type {
     keyType?: Type | null;
     valueType?: Type | null;
     elementTypes?: readonly Type[] | null;
-    scalarType: ScalarType;
+    scalarType?: ScalarType | null;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
+    literalValue?: Value | null;
+    unionTypes?: readonly Type[] | null;
+    isRequired?: boolean;
     defaultValue?: Value | null;
     defaultFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    isRequired?: boolean | null;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isIdentity: boolean;
@@ -2343,9 +2330,6 @@ export class PropertyDefinition extends Type {
     ) {
       return false;
     }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
@@ -2397,6 +2381,27 @@ export class PropertyDefinition extends Type {
     if (!(this.structType === other.structType)) {
       return false;
     }
+    if (
+      (this.literalValue == null) !== (other.literalValue == null) ||
+      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
+    ) {
+      return false;
+    }
+    if (this.unionTypes == null) {
+      return other.unionTypes == null;
+    }
+    if (this.unionTypes.length != other.unionTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.unionTypes.length; i++) {
+      if (!this.unionTypes[i].equals(other.unionTypes[i])) {
+        return false;
+      }
+    }
+
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
     return true;
   }
 
@@ -2426,7 +2431,9 @@ export class PropertyDefinition extends Type {
           `elementTypes=${this.elementTypes.map((_item) => _item.repr()).join(", ")}`,
         );
       }
-      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.scalarType != null) {
+        propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      }
       if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
       }
@@ -2440,6 +2447,12 @@ export class PropertyDefinition extends Type {
       }
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.literalValue != null) {
+        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
+      }
+      if (this.unionTypes != null && this.unionTypes.length > 0) {
+        propertyReprs.push(`unionTypes=${this.unionTypes.map((_item) => _item.repr()).join(", ")}`);
       }
       // @ts-expect-error(readonly) */
       this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
@@ -2499,9 +2512,6 @@ export class PropertyDefinition extends Type {
     if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.isRequired != null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
@@ -2514,7 +2524,9 @@ export class PropertyDefinition extends Type {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.scalarType != null) {
+      h = (h * 31 + this.scalarType) & 0xffffffff;
+    }
     if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
     }
@@ -2529,13 +2541,18 @@ export class PropertyDefinition extends Type {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
+    if (this.literalValue != null) {
+      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
+    }
+    if (this.unionTypes && this.unionTypes.length > 0) {
+      for (const _item of this.unionTypes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -2666,11 +2683,6 @@ export class PropertyDefinition extends Type {
         keyType: this.keyType,
         isRequired: this.isRequired,
         literalValue: this.literalValue,
-        defaultValue: this.defaultValue,
-        defaultFactory: this.defaultFactory,
-        collectionConstraint: this.collectionConstraint,
-        stringConstraint: this.stringConstraint,
-        numberConstraint: this.numberConstraint,
       });
     }
     return this._type;
@@ -2846,10 +2858,6 @@ export class OptionDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3004,10 +3012,6 @@ export class ConstantDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3120,10 +3124,6 @@ export class TagDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -3306,10 +3306,6 @@ export class IndexDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3465,10 +3461,6 @@ export class ConstraintDefinition extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3581,10 +3573,6 @@ export class PermissionDefinition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

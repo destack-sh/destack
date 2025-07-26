@@ -840,18 +840,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -915,10 +906,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

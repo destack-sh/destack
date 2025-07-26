@@ -210,10 +210,6 @@ export class Length extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -375,10 +371,6 @@ export class Offset2 extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -529,10 +521,6 @@ export class Inset2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -687,10 +675,6 @@ export class Corner2 extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -813,10 +797,6 @@ export class Axis2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -961,10 +941,6 @@ export class Axis3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1124,10 +1100,6 @@ export class Grid2 extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1223,10 +1195,6 @@ export class GridSpan2 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

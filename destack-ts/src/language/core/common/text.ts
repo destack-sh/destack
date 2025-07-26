@@ -222,10 +222,6 @@ export class TextSpan extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -379,10 +375,6 @@ export class Text extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

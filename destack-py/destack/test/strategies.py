@@ -102,20 +102,26 @@ def get_scalar_type_strategy(
     typ: Type,
 ) -> st.SearchStrategy[Any]:
     """Get a strategy for generating scalar values based on the scalar type and specific type info."""
+    assert typ.scalar_type is not None, f"scalar_type required for {typ!r}"
     if typ.scalar_type == ScalarType.PRIMITIVE:
-        assert typ.primitive_type is not None, "primitive_type required for PRIMITIVE scalar_type"
+        assert typ.primitive_type is not None, f"primitive_type required for {typ!r}"
         return get_primitive_strategy(typ.primitive_type)
     elif typ.scalar_type == ScalarType.ENUM:
-        assert typ.enum_type is not None, "enum_type required for ENUM scalar_type"
+        assert typ.enum_type is not None, f"enum_type required for {typ!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[typ.enum_type]
         return st.sampled_from(enum_cls)
     elif typ.scalar_type == ScalarType.STRUCT:
-        assert typ.struct_type is not None, "struct_type required for STRUCT scalar_type"
+        assert typ.struct_type is not None, f"struct_type required for {typ!r}"
         return from_object_type(typ.struct_type)
     elif typ.scalar_type == ScalarType.NODE_REFERENCE:
         return node_references(st.sampled_from(NODE_TYPES))
     elif typ.scalar_type == ScalarType.NODE_VALUE:
         return from_object_type(typ.node_types[0] if typ.node_types else NodeType.SPACE)
+    elif typ.scalar_type == ScalarType.LITERAL:
+        assert typ.literal_value is not None, f"literal_value required for {typ!r}"
+        return st.just(typ.literal_value.get())
+    elif typ.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate strategy for union: {typ!r}")
     else:
         assert_never(typ.scalar_type)
 

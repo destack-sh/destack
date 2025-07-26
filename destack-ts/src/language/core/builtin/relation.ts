@@ -141,10 +141,6 @@ export class NodeDefinitionReference extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Whether this definition references multiple Node definitions. */
@@ -403,10 +399,6 @@ export class PropertyReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -716,10 +708,6 @@ export class NodeReference extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Get this NodeReference (for convenience). */
@@ -887,10 +875,6 @@ export class ObjectDefinitionReference extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Get this ObjectDefinitionReference (for convenience). */
@@ -1021,10 +1005,6 @@ export class StructDefinitionReference extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

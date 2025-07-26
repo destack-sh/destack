@@ -4,7 +4,6 @@ import textwrap
 from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language import (
-    CheckedType,
     Encoding,
     NodeReference,
     PrimitiveType,
@@ -14,6 +13,7 @@ from destack.language import (
     TypeCardinality,
     TypeDeclaration,
 )
+from destack.language.core.builtin.type import Type
 from destack.language.registry import ENUM_CLASS_BY_TYPE
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
@@ -29,25 +29,49 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def generate_value(type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
+
+    # scalar
     if type.cardinality == TypeCardinality.SCALAR:
         return _generate_value_scalar(type, value)
+
+    # list
     elif type.cardinality == TypeCardinality.LIST:
+        assert type.value_type is not None, f"no value_type for {type!r}"
         elements_str = [
-            textwrap.indent(_generate_value_scalar(type, element), "  ") for element in value
+            textwrap.indent(_generate_value_scalar(type.value_type, element), "  ")
+            for element in value
         ]
         return f"[\n{',\n'.join(elements_str)}\n]"
+
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        assert type.element_types is not None, f"no element_types for {type!r}"
+        elements_str = [
+            textwrap.indent(_generate_value_scalar(element_type, element), "  ")
+            for element_type, element in zip(type.element_types, value)
+        ]
+        return f"[\n{',\n'.join(elements_str)}\n]"
+
+    # map
     elif type.cardinality == TypeCardinality.MAP:
         raise ValueError(f"unsupported value type {type.cardinality!r}: {type!r}")
+
+    #
     else:
         assert_never(type.cardinality)
 
 
-def _generate_value_scalar(
-    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
-) -> str:
+def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript scalar value literal."""
+
+    assert type.cardinality == TypeCardinality.SCALAR, (
+        f"cannot generate value for non-scalar: {type!r}"
+    )
+    assert type.scalar_type is not None, f"no scalar_type for {type!r}"
+
+    # primitive
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive_type for {type!r}"
         if type.primitive_type == PrimitiveType.NONE:
@@ -94,16 +118,22 @@ def _generate_value_scalar(
             return json.dumps(value)
         else:
             assert_never(type.primitive_type)
+
+    # enum
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
         return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
+
+    # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
         value_cson = value.pack(Encoding.CSON)
         value_cson_str = json.dumps(value_cson, separators=(",", ":"))
         return f"{value.__class__.__name__}.unpack({Encoding.CSON.value}, {value_cson_str})"
+
+    # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
         assert isinstance(value, NodeReference), (
             f"value is not a NodeReference for {type!r}: {value!r}"
@@ -111,7 +141,19 @@ def _generate_value_scalar(
         value_cson = value.pack(Encoding.CSON)
         value_cson_str = json.dumps(value_cson, separators=(",", ":"))
         return f"NodeReference.unpack({Encoding.CSON.value}, {value_cson_str})"
+
+    # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
+
+    # literal
+    elif type.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot generate value for literal: {type!r}")
+
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate value for union: {type!r}")
+
+    #
     else:
         assert_never(type.scalar_type)

@@ -244,10 +244,6 @@ export class StringConstraint extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -376,10 +372,6 @@ export class NumberConstraint extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -468,10 +460,6 @@ export class CollectionConstraint extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -481,10 +469,16 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
- * A basic Type in the type system.
+ * A basic Type in the type system. Types compose like a tree, with scalars at the leaves:
+ *  - Scalar: a single value (primitive, enum, node, struct, etc.)
+ *  - List: a dynamic-length sequence of homogeneous values
+ *  - Tuple: a fixed-length sequence of heterogeneous values
+ *  - Map: a mapping of homogenous keys to homogeneous values
+ *  - Literal: a constant value
+ *  - Union: a tagged union of heterogeneous values (declaration only)
  */
-export class BasicType extends StructFrozen {
-  static metatype: StructType = StructType.BASIC_TYPE;
+export class Type extends StructFrozen {
+  static metatype: StructType = StructType.TYPE;
   static __isFrozen__: boolean = true;
 
   /**
@@ -510,7 +504,7 @@ export class BasicType extends StructFrozen {
   /**
    * Scalar value type of this Type (primitive, enum, node, struct, etc..).
    */
-  readonly scalarType: ScalarType;
+  readonly scalarType: ScalarType | null;
 
   /**
    * Primitive type of this Type (if it's a primitive scalar).
@@ -523,7 +517,7 @@ export class BasicType extends StructFrozen {
   readonly enumType: EnumType | null;
 
   /**
-   * Node types of this Type (if it's a node reference scalar).
+   * Node types of this Type (if it's a node reference or node value scalar).
    */
   readonly nodeTypes: readonly NodeType[] | null;
 
@@ -532,16 +526,34 @@ export class BasicType extends StructFrozen {
    */
   readonly structType: StructType | null;
 
+  /**
+   * Literal value of this Type (if it's a literal scalar).
+   */
+  readonly literalValue: Value | null;
+
+  /**
+   * Union types of this Type (if it's a union scalar).
+   */
+  readonly unionTypes: readonly Type[] | null;
+
+  /**
+   * Type.isRequired
+   */
+  readonly isRequired: boolean;
+
   constructor(options: {
     cardinality?: TypeCardinality;
     keyType?: Type | null;
     valueType?: Type | null;
     elementTypes?: readonly Type[] | null;
-    scalarType: ScalarType;
+    scalarType?: ScalarType | null;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
+    literalValue?: Value | null;
+    unionTypes?: readonly Type[] | null;
+    isRequired?: boolean;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -559,7 +571,7 @@ export class BasicType extends StructFrozen {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
     }
     if (_cardinality == null) {
-      throw new Error(`BasicType.cardinality is required`);
+      throw new Error(`Type.cardinality is required`);
     }
     this.cardinality = _cardinality;
     let _keyType = options.keyType ?? null;
@@ -568,10 +580,7 @@ export class BasicType extends StructFrozen {
     this.valueType = _valueType;
     let _elementTypes = options.elementTypes ?? null;
     this.elementTypes = _elementTypes;
-    let _scalarType = options.scalarType;
-    if (_scalarType == null) {
-      throw new Error(`BasicType.scalarType is required`);
-    }
+    let _scalarType = options.scalarType ?? null;
     this.scalarType = _scalarType;
     let _primitiveType = options.primitiveType ?? null;
     this.primitiveType = _primitiveType;
@@ -581,6 +590,18 @@ export class BasicType extends StructFrozen {
     this.nodeTypes = _nodeTypes;
     let _structType = options.structType ?? null;
     this.structType = _structType;
+    let _literalValue = options.literalValue ?? null;
+    this.literalValue = _literalValue;
+    let _unionTypes = options.unionTypes ?? null;
+    this.unionTypes = _unionTypes;
+    let _isRequired = options.isRequired ?? null;
+    if (_isRequired == null) {
+      _isRequired = true;
+    }
+    if (_isRequired == null) {
+      throw new Error(`Type.isRequired is required`);
+    }
+    this.isRequired = _isRequired;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -646,6 +667,27 @@ export class BasicType extends StructFrozen {
     if (!(this.structType === other.structType)) {
       return false;
     }
+    if (
+      (this.literalValue == null) !== (other.literalValue == null) ||
+      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
+    ) {
+      return false;
+    }
+    if (this.unionTypes == null) {
+      return other.unionTypes == null;
+    }
+    if (this.unionTypes.length != other.unionTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.unionTypes.length; i++) {
+      if (!this.unionTypes[i].equals(other.unionTypes[i])) {
+        return false;
+      }
+    }
+
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
     return true;
   }
 
@@ -664,7 +706,9 @@ export class BasicType extends StructFrozen {
           `elementTypes=${this.elementTypes.map((_item) => _item.repr()).join(", ")}`,
         );
       }
-      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.scalarType != null) {
+        propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      }
       if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
       }
@@ -679,8 +723,14 @@ export class BasicType extends StructFrozen {
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
+      if (this.literalValue != null) {
+        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
+      }
+      if (this.unionTypes != null && this.unionTypes.length > 0) {
+        propertyReprs.push(`unionTypes=${this.unionTypes.map((_item) => _item.repr()).join(", ")}`);
+      }
       // @ts-expect-error(readonly) */
-      this._repr = `<BasicType ${propertyReprs.join(" ")}>`;
+      this._repr = `<Type ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -703,7 +753,9 @@ export class BasicType extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.scalarType != null) {
+      h = (h * 31 + this.scalarType) & 0xffffffff;
+    }
     if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
     }
@@ -718,20 +770,25 @@ export class BasicType extends StructFrozen {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
+    if (this.literalValue != null) {
+      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
+    }
+    if (this.unionTypes && this.unionTypes.length > 0) {
+      for (const _item of this.unionTypes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.BASIC_TYPE, BasicType);
+registerStructClass(StructType.TYPE, Type);
 /* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
@@ -774,57 +831,55 @@ registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
 /* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
 /**
  * A full Type in the type system.
+ * Extends Type with defaults, constraints, and supporting flags.
  */
-export class Type extends BasicType {
-  static metatype: StructType = StructType.TYPE;
+export class CheckedType extends Type {
+  static metatype: StructType = StructType.CHECKED_TYPE;
   static __isFrozen__: boolean = true;
 
   /**
-   * Type.defaultValue
+   * CheckedType.defaultValue
    */
   readonly defaultValue: Value | null;
 
   /**
-   * Type.defaultFactory
+   * CheckedType.defaultFactory
    */
   readonly defaultFactory: ValueFactory | null;
 
   /**
-   * Type.collectionConstraint
+   * CheckedType.collectionConstraint
    */
   readonly collectionConstraint: CollectionConstraint | null;
 
   /**
-   * Type.stringConstraint
+   * CheckedType.stringConstraint
    */
   readonly stringConstraint: StringConstraint | null;
 
   /**
-   * Type.numberConstraint
+   * CheckedType.numberConstraint
    */
   readonly numberConstraint: NumberConstraint | null;
-
-  /**
-   * Type.isRequired
-   */
-  readonly isRequired: boolean | null;
 
   constructor(options: {
     cardinality?: TypeCardinality;
     keyType?: Type | null;
     valueType?: Type | null;
     elementTypes?: readonly Type[] | null;
-    scalarType: ScalarType;
+    scalarType?: ScalarType | null;
     primitiveType?: PrimitiveType | null;
     enumType?: EnumType | null;
     nodeTypes?: readonly NodeType[] | null;
     structType?: StructType | null;
+    literalValue?: Value | null;
+    unionTypes?: readonly Type[] | null;
+    isRequired?: boolean;
     defaultValue?: Value | null;
     defaultFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
-    isRequired?: boolean | null;
     _session?: Session | null;
     _hash?: number | null;
     _repr?: string | null;
@@ -844,8 +899,6 @@ export class Type extends BasicType {
     this.stringConstraint = _stringConstraint;
     let _numberConstraint = options.numberConstraint ?? null;
     this.numberConstraint = _numberConstraint;
-    let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
 
     /* identity */
     /* ... (already set in parent) */
@@ -881,9 +934,6 @@ export class Type extends BasicType {
       (this.numberConstraint == null) !== (other.numberConstraint == null) ||
       (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
     ) {
-      return false;
-    }
-    if (!(this.isRequired === other.isRequired)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -937,6 +987,27 @@ export class Type extends BasicType {
     if (!(this.structType === other.structType)) {
       return false;
     }
+    if (
+      (this.literalValue == null) !== (other.literalValue == null) ||
+      (this.literalValue != null && !this.literalValue.equals(other.literalValue))
+    ) {
+      return false;
+    }
+    if (this.unionTypes == null) {
+      return other.unionTypes == null;
+    }
+    if (this.unionTypes.length != other.unionTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.unionTypes.length; i++) {
+      if (!this.unionTypes[i].equals(other.unionTypes[i])) {
+        return false;
+      }
+    }
+
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
     return true;
   }
 
@@ -955,7 +1026,9 @@ export class Type extends BasicType {
           `elementTypes=${this.elementTypes.map((_item) => _item.repr()).join(", ")}`,
         );
       }
-      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.scalarType != null) {
+        propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      }
       if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
       }
@@ -970,8 +1043,14 @@ export class Type extends BasicType {
       if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
+      if (this.literalValue != null) {
+        propertyReprs.push(`literalValue=${this.literalValue.repr()}`);
+      }
+      if (this.unionTypes != null && this.unionTypes.length > 0) {
+        propertyReprs.push(`unionTypes=${this.unionTypes.map((_item) => _item.repr()).join(", ")}`);
+      }
       // @ts-expect-error(readonly) */
-      this._repr = `<Type ${propertyReprs.join(" ")}>`;
+      this._repr = `<CheckedType ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -997,9 +1076,6 @@ export class Type extends BasicType {
     if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.isRequired != null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
@@ -1012,7 +1088,9 @@ export class Type extends BasicType {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.scalarType != null) {
+      h = (h * 31 + this.scalarType) & 0xffffffff;
+    }
     if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
     }
@@ -1027,18 +1105,23 @@ export class Type extends BasicType {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
+    if (this.literalValue != null) {
+      h = (h * 31 + this.literalValue.hash()) & 0xffffffff;
+    }
+    if (this.unionTypes && this.unionTypes.length > 0) {
+      for (const _item of this.unionTypes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   /* ... */
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.TYPE, Type);
+registerStructClass(StructType.CHECKED_TYPE, CheckedType);
 /* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */

@@ -206,11 +206,10 @@ registerEnumClass(EnumType.TENANCY, Tenancy);
 
 /* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
 /**
- * PropertyType
+ * PropertyZone
  */
-export enum PropertyType {
+export enum PropertyZone {
   MEMBER = 1,
-  CONSTANT = 2,
   INPUT = 10,
   OUTPUT = 11,
 
@@ -218,7 +217,7 @@ export enum PropertyType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.PROPERTY_TYPE, PropertyType);
+registerEnumClass(EnumType.PROPERTY_ZONE, PropertyZone);
 /* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
@@ -313,6 +312,7 @@ registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
 export enum TypeCardinality {
   SCALAR = 1,
   LIST = 2,
+  TUPLE = 3,
   MAP = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -332,6 +332,8 @@ export enum ScalarType {
   NODE_REFERENCE = 3,
   NODE_VALUE = 4,
   STRUCT = 5,
+  LITERAL = 6,
+  UNION = 7,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
