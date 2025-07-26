@@ -46,7 +46,7 @@ def bump(revision: int | None = typer.Option(None)):
         "destack-ts/package.json",
         "destack-ts-web/package.json",
         "destack-ts-system/package.json",
-        "destack-ts-simulation/package.json",
+        "destack-ts-test/package.json",
         "destack-ts/src/language/core/builtin/const.ts",
         "destack-ts-web/src/utils/globals.ts",
     )

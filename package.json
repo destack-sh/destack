@@ -8,7 +8,7 @@
       "destack-ts",
       "destack-ts-web",
       "destack-ts-system",
-      "destack-ts-simulation"
+      "destack-ts-test"
     ],
     "catalog": {
       "pino": "^9.7.0",

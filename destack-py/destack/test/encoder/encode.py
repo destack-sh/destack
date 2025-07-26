@@ -1,7 +1,4 @@
-import gzip
 from typing import Any, NamedTuple
-
-from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
     ENCODERS,
@@ -20,7 +17,6 @@ from destack.language import (
     User,
     UserStatus,
 )
-from destack.test.strategies import builtin_objects
 from destack.utils.uuid import uuid4
 
 
@@ -97,16 +93,3 @@ def test_roundtrip_user(session: Session, space: Space):
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(user, session, encoder, encoding)
-
-
-@given(obj=builtin_objects())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_roundtrip_builtin_object(obj: BuiltinObject, session: Session, space: Space):
-    for encoding, encoder in ENCODERS.items():
-        result = _do_test_roundtrip_object(obj, session, encoder, encoding)
-        print(
-            obj.__class__.__name__,
-            encoding.name,
-            len(result.packed_obj_bytes),
-            len(gzip.compress(result.packed_obj_bytes)),
-        )

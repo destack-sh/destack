@@ -18,7 +18,7 @@
       "@destack/*": ["../destack-ts/src/*"],
       "@destack-web/*": ["../destack-ts-web/src/*"],
       "@destack-system/*": ["../destack-ts-system/src/*"],
-      "@destack-simulation/*": ["./src/*"]
+      "@destack-test/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

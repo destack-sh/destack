@@ -1,5 +1,5 @@
 {
-  "name": "destack-ts-simulation",
+  "name": "destack-ts-test",
   "version": "2025.07.25.1",
   "private": true,
   "type": "module",
@@ -7,7 +7,10 @@
   "types": "./src/index.ts",
   "bun": {
     "alias": {
-      "@destack/*": "../destack-ts/src/*"
+      "@destack/*": "../destack-ts/src/*",
+      "@destack-system/*": "../destack-ts-system/src/*",
+      "@destack-web/*": "../destack-ts-web/src/*",
+      "@destack-test/*": "../destack-ts-test/src/*"
     }
   },
   "scripts": {
@@ -46,14 +49,11 @@
     "@biomejs/biome": "catalog:build",
     "@types/bun": "catalog:types",
     "@types/node": "catalog:types",
-    "@types/react": "catalog:types",
     "fake-indexeddb": "catalog:test",
     "fast-check": "catalog:test",
     "jsdom": "catalog:test",
     "mitata": "catalog:test",
     "pino-pretty": "catalog:dev",
-    "typescript": "catalog:build",
-    "vite": "catalog:build",
-    "vite-tsconfig-paths": "catalog:build"
+    "typescript": "catalog:build"
   }
 }

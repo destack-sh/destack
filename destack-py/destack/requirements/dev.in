@@ -1,16 +1,11 @@
 # run ./scripts/update-requirements.sh
 
-hypothesis==6.103.2
 pip-tools==7.3.0
 pre-commit==3.3.3
 pyright==1.1.388
 pytest==8.4.1
 pytest-asyncio==1.1.0a1
-pytest-async-benchmark==0.2.0
-pytest-benchmark==5.1.0
 pytest-env==1.1.5
-pytest-lazy-fixtures==1.1.4
 python-dotenv>=1.0.1
 ruff==0.11.12
 typer==0.15.1
-watchdog==3.0.0

@@ -35,7 +35,6 @@ test("sint8", () => {
 });
 
 test("sint16", () => {
-  // Map of value -> expected bytes with explanation
   const testCases: Record<number, number> = {
     0: 1, // zigzag(0) = 0 -> 1 byte
     1: 1, // zigzag(1) = 2 -> 1 byte
@@ -64,7 +63,6 @@ test("sint16", () => {
 });
 
 test("sint32", () => {
-  // Map of value -> expected bytes
   const valueToBytes: Record<number, number> = {
     0: 1, // zigzag = 0
     1: 1, // zigzag = 2
@@ -96,7 +94,6 @@ test("sint32", () => {
 });
 
 test("sint64", () => {
-  // Map of value -> expected bytes
   const valueToBytes: Record<string, number> = {
     "0": 1,
     "1": 1,
@@ -128,7 +125,6 @@ test("sint64", () => {
 });
 
 test("sint128", () => {
-  // Map of value -> expected bytes
   const valueToBytes: Record<string, number> = {
     "0": 1,
     "1": 1,
@@ -177,45 +173,104 @@ test("uint8", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("uint", () => {
-  // Map of value -> expected bytes
+test("uint16", () => {
+  // map of value -> expected bytes
+  const testCases: Record<number, number> = {
+    0: 1, // 0 -> 1 byte
+    127: 1, // fits in 7 bits
+    128: 2, // needs 2 bytes
+    16383: 2, // fits in 14 bits
+    16384: 3, // needs 3 bytes
+    32767: 3, // max int16 as uint16
+    65535: 3, // max uint16
+  };
+
+  for (const [value, expectedBytes] of Object.entries(testCases)) {
+    const writer = new BinaryWriter();
+    writer.writeUint16(Number(value));
+    const data = writer.toBytes();
+    expect(data.length).toBe(expectedBytes);
+
+    const reader = new BinaryReader(data);
+    expect(reader.readUint16()).toBe(Number(value));
+  }
+});
+
+test("uint32", () => {
+  // map of value -> expected bytes
   const valueToBytes: Record<number, number> = {
     0: 1, // 0 -> 1 byte
     127: 1, // fits in 7 bits
     128: 2, // needs 2 bytes
     16383: 2, // fits in 14 bits
     16384: 3, // needs 3 bytes
-    65535: 3, // max uint16 (65535)
-    4294967295: 5, // max uint32 (4294967295)
+    65535: 3, // max uint16
+    65536: 3, // uint16 + 1
+    2097151: 3, // fits in 21 bits
+    2097152: 4, // needs 4 bytes
+    4294967295: 5, // max uint32
   };
 
-  let totalBytes = 0;
-  for (const [value, expectedBytes] of Object.entries(valueToBytes)) {
-    const writer = new BinaryWriter();
+  const writer = new BinaryWriter();
+  for (const value of Object.keys(valueToBytes)) {
     writer.writeUint32(Number(value));
-    const data = writer.toBytes();
-    expect(data.length).toBe(expectedBytes);
-    totalBytes += expectedBytes;
-
-    const reader = new BinaryReader(data);
-    expect(reader.readUint32()).toBe(Number(value));
   }
 
-  // Total expected: 1 + 1 + 2 + 2 + 3 + 3 + 5 = 17 bytes
-  expect(totalBytes).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0));
+  // calculate total expected bytes
+  const totalExpected = Object.values(valueToBytes).reduce((a, b) => a + b, 0);
+  expect(writer.toBytes().length).toBe(totalExpected); // 28 bytes
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const value of Object.keys(valueToBytes)) {
+    expect(reader.readUint32()).toBe(Number(value));
+  }
+  expect(reader.remaining).toBe(0);
+});
+
+test("uint64", () => {
+  // map of value -> expected bytes
+  const valueToBytes: Record<string, number> = {
+    "0": 1,
+    "127": 1,
+    "128": 2,
+    "16383": 2,
+    "16384": 3,
+    "4294967295": 5, // max uint32
+    "4294967296": 5, // uint32 + 1
+    "9223372036854775807": 9, // max int64 as uint64
+    "18446744073709551615": 10, // max uint64
+    "123456789012345": 7,
+  };
+
+  const writer = new BinaryWriter();
+  for (const value of Object.keys(valueToBytes)) {
+    writer.writeUint64(BigInt(value));
+  }
+
+  // calculate total expected bytes
+  const totalExpected = Object.values(valueToBytes).reduce((a, b) => a + b, 0);
+  expect(writer.toBytes().length).toBe(totalExpected); // 50 bytes
+
+  const reader = new BinaryReader(writer.toBytes());
+  for (const value of Object.keys(valueToBytes)) {
+    expect(reader.readUint64()).toBe(BigInt(value));
+  }
+  expect(reader.remaining).toBe(0);
 });
 
 test("uint128", () => {
-  // Map of value -> expected bytes
+  // map of value -> expected bytes
   const valueToBytes: Record<string, number> = {
-    "0": 1, // 0 -> 1 byte
-    "127": 1, // fits in 7 bits
-    "128": 2, // needs 2 bytes
+    "0": 1,
+    "127": 1,
+    "128": 2,
+    "16383": 2,
+    "16384": 3,
     "4294967295": 5, // max uint32
     "18446744073709551615": 10, // max uint64
     "1267650600228229401496703205376": 15, // 2^100
     "170141183460469231731687303715884105728": 19, // 2^127
-    "340282366920938463463374607431768211455": 19, // max uint128 (2^128 - 1)
+    "340282366920938463463374607431768211455": 19, // max uint128
   };
 
   const writer = new BinaryWriter();
@@ -223,9 +278,9 @@ test("uint128", () => {
     writer.writeUint128(BigInt(value));
   }
 
-  // Calculate total expected bytes
+  // calculate total expected bytes
   const totalExpected = Object.values(valueToBytes).reduce((a, b) => a + b, 0);
-  expect(writer.toBytes().length).toBe(totalExpected); // 71 bytes
+  expect(writer.toBytes().length).toBe(totalExpected); // 82 bytes
 
   const reader = new BinaryReader(writer.toBytes());
   for (const value of Object.keys(valueToBytes)) {
@@ -340,7 +395,6 @@ test("float64", () => {
   writer.writeFloat64(Math.PI);
   expect(writer.toBytes().length).toBe(9);
 
-  // test with expected sizes
   const valueToBytes: Record<number, number> = {
     0.0: 1, // zero optimization
     [-0.0]: 1, // negative zero optimization
@@ -380,7 +434,6 @@ test("float64", () => {
 });
 
 test("string", () => {
-  // Map of string -> expected bytes
   const stringToBytes: Record<string, number> = {
     "": 1, // just length 0
     hello: 6, // 1 length + 5 chars
@@ -431,7 +484,6 @@ test("bytes", () => {
 test("mixed types", () => {
   const writer = new BinaryWriter();
 
-  // Write various types with expected sizes
   const operations: Array<[() => void, number]> = [
     [() => writer.writeBool(true), 1], // 1 byte
     [() => writer.writeInt8(-42), 1], // 1 byte
@@ -450,11 +502,9 @@ test("mixed types", () => {
     writeOp();
   }
 
-  // Calculate total expected bytes
   const totalExpected = operations.reduce((sum, [, size]) => sum + size, 0);
   expect(writer.toBytes().length).toBe(totalExpected); // 72 bytes
 
-  // read them back
   const reader = new BinaryReader(writer.toBytes());
   expect(reader.readBool()).toBe(true);
   expect(reader.readInt8()).toBe(-42);
@@ -484,9 +534,7 @@ test("int zigzag", () => {
     [-2147483648, 4294967295],
   ];
 
-  // Test zigzagEncode by comparing with expected results
   for (const [signed, _] of testCases) {
-    // we can't directly access private methods, so we'll test via writeInt32/readInt32
     const writer = new BinaryWriter();
     writer.writeInt32(signed);
     const reader = new BinaryReader(writer.toBytes());
@@ -495,7 +543,6 @@ test("int zigzag", () => {
 });
 
 test("varint", () => {
-  // Map of value -> expected bytes
   const varintSizes: Record<number, number> = {
     0: 1, // 1 byte: 0-127
     127: 1,
@@ -538,11 +585,21 @@ test("datetime", () => {
   const reader = new BinaryReader(writer.toBytes());
   for (const expected of testCases) {
     const result = reader.readDateTime();
-    // Compare epoch milliseconds since Temporal has nanosecond precision
     expect(result.epochMilliseconds).toBe(expected.epochMilliseconds);
   }
   expect(reader.remaining).toBe(0);
 });
+
+test("datetime naive", () => {
+  const naiveDt = Temporal.Now.zonedDateTimeISO();
+  const writer = new BinaryWriter();
+  writer.writeDateTime(naiveDt);
+
+  const reader = new BinaryReader(writer.toBytes());
+  const result = reader.readDateTime();
+  expect(result.epochMilliseconds).toBe(naiveDt.epochMilliseconds);
+});
+
 
 test("date", () => {
   const testCases = [
@@ -668,13 +725,3 @@ test("json", () => {
   expect(reader.remaining).toBe(0);
 });
 
-test("datetime naive", () => {
-  // In Temporal, all ZonedDateTime are timezone-aware
-  const naiveDt = Temporal.Now.zonedDateTimeISO();
-  const writer = new BinaryWriter();
-  writer.writeDateTime(naiveDt);
-
-  const reader = new BinaryReader(writer.toBytes());
-  const result = reader.readDateTime();
-  expect(result.epochMilliseconds).toBe(naiveDt.epochMilliseconds);
-});

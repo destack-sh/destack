@@ -37,23 +37,6 @@ def test_int8():
     assert reader.remaining == 0
 
 
-def test_uint8():
-    """Test unsigned 8-bit integer encoding and decoding."""
-    test_values = [0, 1, 127, 128, 255, 42]
-
-    writer = BinaryWriter()
-    for value in test_values:
-        writer.write_uint8(value)
-
-    # Expected: 6 bytes (1 byte per uint8)
-    assert len(writer.to_bytes()) == 6
-
-    reader = BinaryReader(writer.to_bytes())
-    for expected in test_values:
-        assert reader.read_uint8() == expected
-    assert reader.remaining == 0
-
-
 def test_int16():
     """Test signed 16-bit integer variable-length encoding."""
     # Map of value -> expected bytes with explanation
@@ -177,8 +160,50 @@ def test_int128():
     assert reader.remaining == 0
 
 
-def test_uint():
-    """Test unsigned integer variable-length encoding."""
+def test_uint8():
+    """Test unsigned 8-bit integer encoding and decoding."""
+    test_values = [0, 1, 127, 128, 255, 42]
+
+    writer = BinaryWriter()
+    for value in test_values:
+        writer.write_uint8(value)
+
+    # Expected: 6 bytes (1 byte per uint8)
+    assert len(writer.to_bytes()) == 6
+
+    reader = BinaryReader(writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_uint8() == expected
+    assert reader.remaining == 0
+
+
+def test_uint16():
+    """Test unsigned 16-bit integer variable-length encoding."""
+    # Map of value -> expected bytes
+    test_cases = {
+        0: 1,  # 0 -> 1 byte
+        127: 1,  # fits in 7 bits
+        128: 2,  # needs 2 bytes
+        16383: 2,  # fits in 14 bits
+        16384: 3,  # needs 3 bytes
+        32767: 3,  # max int16 as uint16
+        65535: 3,  # max uint16
+    }
+
+    for value, expected_bytes in test_cases.items():
+        writer = BinaryWriter()
+        writer.write_uint16(value)
+        data = writer.to_bytes()
+        assert len(data) == expected_bytes, (
+            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
+        )
+
+        reader = BinaryReader(data)
+        assert reader.read_uint16() == value
+
+
+def test_uint32():
+    """Test unsigned 32-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,  # 0 -> 1 byte
@@ -186,55 +211,85 @@ def test_uint():
         128: 2,  # needs 2 bytes
         16383: 2,  # fits in 14 bits
         16384: 3,  # needs 3 bytes
-        0xFFFF: 3,  # max uint16 (65535)
-        0xFFFFFFFF: 5,  # max uint32 (4294967295)
+        65535: 3,  # max uint16
+        65536: 3,  # uint16 + 1
+        2097151: 3,  # fits in 21 bits
+        2097152: 4,  # needs 4 bytes
+        4294967295: 5,  # max uint32
     }
 
-    total_bytes = 0
-    for value, expected_bytes in value_to_bytes.items():
-        writer = BinaryWriter()
+    writer = BinaryWriter()
+    for value in value_to_bytes:
         writer.write_uint32(value)
-        data = writer.to_bytes()
-        assert len(data) == expected_bytes, (
-            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
-        )
-        total_bytes += expected_bytes
 
-        reader = BinaryReader(data)
+    # Calculate total expected bytes
+    total_expected = sum(value_to_bytes.values())
+    assert len(writer.to_bytes()) == total_expected  # 28 bytes
+
+    reader = BinaryReader(writer.to_bytes())
+    for value in value_to_bytes:
         assert reader.read_uint32() == value
+    assert reader.remaining == 0
 
-    # Total expected: 1 + 1 + 2 + 2 + 3 + 3 + 5 = 17 bytes
-    assert total_bytes == sum(value_to_bytes.values())
+
+def test_uint64():
+    """Test unsigned 64-bit integer variable-length encoding."""
+    # Map of value -> expected bytes
+    value_to_bytes = {
+        0: 1,
+        127: 1,
+        128: 2,
+        16383: 2,
+        16384: 3,
+        2**32 - 1: 5,  # max uint32
+        2**32: 5,  # uint32 + 1
+        2**63 - 1: 9,  # max int64 as uint64
+        2**64 - 1: 10,  # max uint64
+        123456789012345: 7,
+    }
+
+    writer = BinaryWriter()
+    for value in value_to_bytes:
+        writer.write_uint64(value)
+
+    # Calculate total expected bytes
+    total_expected = sum(value_to_bytes.values())
+    assert len(writer.to_bytes()) == total_expected  # 50 bytes
+
+    reader = BinaryReader(writer.to_bytes())
+    for value in value_to_bytes:
+        assert reader.read_uint64() == value
+    assert reader.remaining == 0
 
 
 def test_uint128():
     """Test unsigned 128-bit integer variable-length encoding."""
     # Map of value -> expected bytes
     value_to_bytes = {
-        0: 1,  # 0 -> 1 byte
-        127: 1,  # fits in 7 bits
-        128: 2,  # needs 2 bytes
-        0xFFFFFFFF: 5,  # max uint32
-        0xFFFFFFFFFFFFFFFF: 10,  # max uint64
+        0: 1,
+        127: 1,
+        128: 2,
+        16383: 2,
+        16384: 3,
+        2**32 - 1: 5,  # max uint32
+        2**64 - 1: 10,  # max uint64
         2**100: 15,  # large value
         2**127: 19,  # large value
-        2**128 - 1: 19,  # max uint128 (varint can go up to 19 bytes)
+        2**128 - 1: 19,  # max uint128
     }
 
-    total_bytes = 0
-    for value, expected_bytes in value_to_bytes.items():
-        writer = BinaryWriter()
+    writer = BinaryWriter()
+    for value in value_to_bytes:
         writer.write_uint128(value)
-        data = writer.to_bytes()
-        assert len(data) == expected_bytes, (
-            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
-        )
-        total_bytes += expected_bytes
 
-        reader = BinaryReader(data)
+    # Calculate total expected bytes
+    total_expected = sum(value_to_bytes.values())
+    assert len(writer.to_bytes()) == total_expected  # 82 bytes
+
+    reader = BinaryReader(writer.to_bytes())
+    for value in value_to_bytes:
         assert reader.read_uint128() == value
-
-    assert total_bytes == sum(value_to_bytes.values())
+    assert reader.remaining == 0
 
 
 def test_float16():
@@ -536,6 +591,20 @@ def test_datetime():
     assert reader.remaining == 0
 
 
+def test_datetime_naive():
+    """Test that naive datetimes are converted to UTC."""
+    from datetime import UTC, datetime
+
+    naive_dt = datetime(2024, 1, 15, 14, 30, 45)  # noqa: DTZ001
+    writer = BinaryWriter()
+    writer.write_datetime(naive_dt)
+
+    reader = BinaryReader(writer.to_bytes())
+    result = reader.read_datetime()
+    assert result.tzinfo == UTC
+    assert result.replace(tzinfo=None) == naive_dt
+
+
 def test_date():
     """Test date encoding and decoding."""
     from datetime import date
@@ -652,17 +721,3 @@ def test_json():
     for expected in test_cases:
         assert reader.read_json() == expected
     assert reader.remaining == 0
-
-
-def test_datetime_naive():
-    """Test that naive datetimes are converted to UTC."""
-    from datetime import UTC, datetime
-
-    naive_dt = datetime(2024, 1, 15, 14, 30, 45)  # noqa: DTZ001
-    writer = BinaryWriter()
-    writer.write_datetime(naive_dt)
-
-    reader = BinaryReader(writer.to_bytes())
-    result = reader.read_datetime()
-    assert result.tzinfo == UTC
-    assert result.replace(tzinfo=None) == naive_dt

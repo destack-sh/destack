@@ -38,7 +38,7 @@ class MemoryGraph(Graph):
     # Write
     #
 
-    def snapshot(
+    async def snapshot(
         self,
         space_id: UUID,
         branch_id: UUID | None,
@@ -48,7 +48,7 @@ class MemoryGraph(Graph):
         """Create a Snapshot."""
         raise NotImplementedError
 
-    def insert(
+    async def insert(
         self,
         space_id: UUID,
         branch_id: UUID | None,
