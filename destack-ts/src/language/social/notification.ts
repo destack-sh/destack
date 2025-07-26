@@ -523,10 +523,6 @@ export class NotificationSentEvent extends NotificationEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -943,10 +939,6 @@ export class NotificationRescindedEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -1367,10 +1359,6 @@ export class NotificationReadEvent extends NotificationEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -1789,10 +1777,6 @@ export class NotificationDismissedEvent extends NotificationEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -2209,10 +2193,6 @@ export class NotificationExpiredEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -2815,18 +2795,9 @@ export class Notification extends Entity implements IsOwnable {
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -2893,10 +2864,6 @@ export class Notification extends Entity implements IsOwnable {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

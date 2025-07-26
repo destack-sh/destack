@@ -195,10 +195,6 @@ export class Icon extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

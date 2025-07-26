@@ -515,10 +515,6 @@ export class DragStartEvent extends DragEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -950,10 +946,6 @@ export class DragEndEvent extends DragEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -1389,10 +1381,6 @@ export class DragOverEvent extends DragEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -1824,10 +1812,6 @@ export class DragEnterEvent extends DragEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -2263,10 +2247,6 @@ export class DragLeaveEvent extends DragEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -2698,10 +2678,6 @@ export class DropEvent extends DragEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

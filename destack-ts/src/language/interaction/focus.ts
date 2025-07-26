@@ -494,10 +494,6 @@ export class FocusInEvent extends FocusEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -913,10 +909,6 @@ export class FocusOutEvent extends FocusEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

@@ -806,18 +806,9 @@ export class GaugeMetric extends Metric {
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -882,10 +873,6 @@ export class GaugeMetric extends Metric {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -1306,10 +1293,6 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -1862,18 +1845,9 @@ export class CounterMetric extends Metric {
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -1938,10 +1912,6 @@ export class CounterMetric extends Metric {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -2362,10 +2332,6 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -2918,18 +2884,9 @@ export class HistogramMetric extends Metric {
     if (!(this._name === other._name)) {
       return false;
     }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+    if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
-        return false;
-      }
-    }
-
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -2994,10 +2951,6 @@ export class HistogramMetric extends Metric {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -3418,10 +3371,6 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

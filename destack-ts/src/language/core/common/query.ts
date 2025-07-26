@@ -135,10 +135,6 @@ export class Function extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Function from a shorthand expression. */
@@ -259,10 +255,6 @@ export class Condition extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -401,10 +393,6 @@ export class Aggregation extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -593,10 +581,6 @@ export class Expression extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make an Expression from a shorthand expression. */
@@ -750,10 +734,6 @@ export class Sort extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Sort from a shorthand expression. */
@@ -855,10 +835,6 @@ export class Select extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -989,10 +965,6 @@ export class Join extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1378,10 +1350,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

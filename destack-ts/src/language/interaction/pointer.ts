@@ -619,10 +619,6 @@ export class PointerDownEvent extends PointerEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -1135,10 +1131,6 @@ export class PointerUpEvent extends PointerEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -1655,10 +1647,6 @@ export class PointerMoveEvent extends PointerEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -2171,10 +2159,6 @@ export class PointerEnterEvent extends PointerEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -2691,10 +2675,6 @@ export class PointerOverEvent extends PointerEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -3209,10 +3189,6 @@ export class PointerLeaveEvent extends PointerEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -3725,10 +3701,6 @@ export class PointerLongPressEvent extends PointerEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

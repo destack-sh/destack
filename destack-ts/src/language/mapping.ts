@@ -82,7 +82,7 @@ import type {
   OperatingSystem,
   PlatformType,
   PrimitiveType,
-  PropertyType,
+  PropertyZone,
   Region,
   RegionArea,
   RegionContinent,
@@ -146,7 +146,7 @@ import type {
   IsStarable,
 } from "@destack/language/core/builtin/trait";
 import type {
-  BasicType,
+  CheckedType,
   CollectionConstraint,
   NumberConstraint,
   NumberFormat,
@@ -630,8 +630,8 @@ export type StructTypeMapping = {
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
-  [StructType.BASIC_TYPE]: BasicType;
   [StructType.TYPE]: Type;
+  [StructType.CHECKED_TYPE]: CheckedType;
   [StructType.VALUE]: Value;
   [StructType.NODE_DEFINITION]: NodeDefinition;
   [StructType.TRAIT_DEFINITION]: TraitDefinition;
@@ -703,7 +703,7 @@ export type EnumTypeMapping = {
   [EnumType.TRAIT_TYPE]: TraitType;
   [EnumType.NODE_TYPE]: NodeType;
   [EnumType.UNIVERSE_CATEGORY]: UniverseCategory;
-  [EnumType.PROPERTY_TYPE]: PropertyType;
+  [EnumType.PROPERTY_ZONE]: PropertyZone;
   [EnumType.GRAPH_KEY]: GraphKey;
   [EnumType.GRAPH_DOMAIN]: GraphDomain;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;

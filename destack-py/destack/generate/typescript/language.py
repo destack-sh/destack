@@ -127,7 +127,25 @@ def _generate_type_scalar(
     prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True
 ) -> str:
     """Generate a scalar property Typescript type annotation."""
-    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+
+    assert prop.cardinality == TypeCardinality.SCALAR, (
+        f"cannot generate type for non-scalar: {prop!r}"
+    )
+    assert prop.scalar_type is not None, f"no scalar_type for {prop!r}"
+
+    # primitive
+    if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive_type for {prop!r}"
+        return TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
+
+    # enum
+    elif prop.scalar_type == ScalarType.ENUM:
+        assert prop.enum_type is not None, f"no enum_type for {prop!r}"
+        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+        return f"{enum_cls.__name__}"
+
+    # node reference
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         if as_ptr:
             return "NodeReference"
         if isinstance(prop, CheckedType):
@@ -147,45 +165,75 @@ def _generate_type_scalar(
             else:
                 assert_never(node_type)
         return " | ".join(node_classes)
-    elif prop.scalar_type == ScalarType.ENUM:
-        assert prop.enum_type is not None, f"no enum_type for {prop!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-        return f"{enum_cls.__name__}"
-    elif prop.scalar_type == ScalarType.PRIMITIVE:
-        assert prop.primitive_type is not None, f"no primitive_type for {prop!r}"
-        return TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct_type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         return f"{struct_cls.__name__}"
+
+    # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported scalar_type: {prop!r}")
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot generate type for literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate type for union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 
 
-def _generate_type(
-    prop: PropertyDeclaration | TypeDeclaration | CheckedType, as_ptr: bool = True
-) -> str:
+def _generate_type(prop: PropertyDeclaration | TypeDeclaration | Type, as_ptr: bool = True) -> str:
     """Generate a property Typescript type annotation."""
-    type_str = _generate_type_scalar(prop, as_ptr=as_ptr)
+
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
+        assert prop.scalar_type is not None, f"no scalar_type for {prop!r}"
+        type_str = _generate_type_scalar(prop, as_ptr=as_ptr)
         if not prop.is_required:
             type_str = f"{type_str} | null"
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
+        assert prop.value_type is not None, f"no value_type for {prop!r}"
+        value_type_str = _generate_type_scalar(prop.value_type)
         if not prop.is_required:
-            type_str = f"readonly {type_str}[] | null"
+            type_str = f"readonly {value_type_str}[] | null"
         else:
-            type_str = f"readonly {type_str}[]"
+            type_str = f"readonly {value_type_str}[]"
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key_type for {prop!r}"
+        assert prop.value_type is not None, f"no value_type for {prop!r}"
         key_type_str = _generate_type_scalar(prop.key_type)
+        value_type_str = _generate_type_scalar(prop.value_type)
         if not prop.is_required:
-            type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }} | null"
+            type_str = f"{{ readonly [key: {key_type_str}]: {value_type_str} }} | null"
         else:
-            type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }}"
+            type_str = f"{{ readonly [key: {key_type_str}]: {value_type_str} }}"
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        assert prop.element_types is not None, f"no element_types for {prop!r}"
+        element_types_str = [
+            _generate_type_scalar(element_type) for element_type in prop.element_types
+        ]
+        if not prop.is_required:
+            type_str = f"readonly [{', '.join(element_types_str)}] | null"
+        else:
+            type_str = f"readonly [{', '.join(element_types_str)}]"
+
+    #
     else:
         assert_never(prop.cardinality)
+
     return type_str
 
 
@@ -709,16 +757,13 @@ repr(): string {{
 
     def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
         """Get repr expression for a scalar value."""
+        assert prop.cardinality == TypeCardinality.SCALAR, (
+            f"cannot get repr for non-scalar: {prop!r}"
+        )
         assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
-        if prop.scalar_type == ScalarType.ENUM:
-            assert prop.enum_type is not None, f"no enum type for {prop!r}"
-            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-            return f"{enum_cls.__name__}[{value_expr}]"
-        elif prop.scalar_type == ScalarType.STRUCT:
-            return f"{value_expr}.repr()"
-        elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"{value_expr}?.repr()"
-        elif prop.scalar_type in (ScalarType.PRIMITIVE, ScalarType.NODE_VALUE):
+
+        # primitive
+        if prop.scalar_type == ScalarType.PRIMITIVE:
             if prop.primitive_type == PrimitiveType.DATETIME:
                 return f"{value_expr}.toString({{ timeZoneName: 'never'}})"
             elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
@@ -727,6 +772,34 @@ repr(): string {{
                 return f'`"${{{value_expr}}}"`'
             else:
                 return value_expr
+
+        # enum
+        elif prop.scalar_type == ScalarType.ENUM:
+            assert prop.enum_type is not None, f"no enum type for {prop!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+            return f"{enum_cls.__name__}[{value_expr}]"
+
+        # struct
+        elif prop.scalar_type == ScalarType.STRUCT:
+            return f"{value_expr}.repr()"
+
+        # node reference
+        elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+            return f"{value_expr}?.repr()"
+
+        # node value
+        elif prop.scalar_type == ScalarType.NODE_VALUE:
+            return f"{value_expr}.repr()"
+
+        # literal
+        elif prop.scalar_type == ScalarType.LITERAL:
+            raise NotImplementedError(f"cannot get repr for literal: {prop!r}")
+
+        # union
+        elif prop.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get repr for union: {prop!r}")
+
+        #
         else:
             assert_never(prop.scalar_type)
 
@@ -737,6 +810,8 @@ repr(): string {{
 
     for prop in repr_properties:
         prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+
+        # scalar
         if prop.cardinality == TypeCardinality.SCALAR:
             if prop.is_required:
                 scalar_expr = _get_scalar_repr(prop, f"this.{prop_name}")
@@ -749,8 +824,11 @@ repr(): string {{
                     f"    propertyReprs.push(`{prop_name}=${{{scalar_expr}}}`);"
                 )
                 repr_parts_lines.append("}")
+
+        # list
         elif prop.cardinality == TypeCardinality.LIST:
-            scalar_repr = _get_scalar_repr(prop, "_item")
+            assert prop.value_type is not None, f"no value type for {prop!r}"
+            scalar_repr = _get_scalar_repr(prop.value_type, "_item")
             list_expr = f"this.{prop_name}.map(_item => {scalar_repr}).join(', ')"
             if prop.is_required:
                 repr_parts_lines.append(f"if (this.{prop_name}.length > 0) {{")
@@ -762,10 +840,17 @@ repr(): string {{
                 )
                 repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
                 repr_parts_lines.append("}")
+
+        # tuple
+        elif prop.cardinality == TypeCardinality.TUPLE:
+            raise NotImplementedError(f"cannot get repr for tuple: {prop!r}")
+
+        # map
         elif prop.cardinality == TypeCardinality.MAP:
-            assert prop.key_type is not None, f"{prop!r} has no key type"
+            assert prop.key_type is not None, f"no key type for {prop!r}"
+            assert prop.value_type is not None, f"no value type for {prop!r}"
             key_repr = _get_scalar_repr(prop.key_type, "k")
-            value_repr = _get_scalar_repr(prop, "v")
+            value_repr = _get_scalar_repr(prop.value_type, "v")
             map_expr = f"'{{' + Object.entries(this.{prop_name}).map(([k, v]) => `${{{key_repr}}}: ${{{value_repr}}}`).join(', ') + '}}'"
             if prop.is_required:
                 repr_parts_lines.append(f"if (Object.keys(this.{prop_name}).length > 0) {{")
@@ -777,8 +862,11 @@ repr(): string {{
                 )
                 repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
                 repr_parts_lines.append("}")
+
+        #
         else:
             assert_never(prop.cardinality)
+
     # wrap in repr
     repr_parts_str = "\n".join(repr_parts_lines)
     if cls.__is_node__:
@@ -921,9 +1009,9 @@ def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     if _is_property_tracked(prop):
         prop_name = f"_{prop_name}"
 
-    scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
-        # scalar
+        scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
         if prop.is_required or is_simple:
             # required scalar
             return f"""\
@@ -936,8 +1024,11 @@ if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}", other_val=f"other.{p
 if ((this.{prop_name} == null) !== (other.{prop_name} == null) || (this.{prop_name} != null && !({scalar_cmps_str.format(self_val=f"this.{prop_name}", other_val=f"other.{prop_name}")}))) {{
   return false;
 }}"""
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        # list
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop.value_type)
         main_cmp = f"""\
 for (let i = 0; i < this.{prop_name}.length; i++) {{
   if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[i]", other_val=f"other.{prop_name}[i]")})) {{
@@ -961,7 +1052,17 @@ if (this.{prop_name}.length != other.{prop_name}.length) {{
 }}
 {main_cmp}
 """
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot compare tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
+        assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop.value_type)
+
         # map
         if prop.scalar_type in (
             ScalarType.STRUCT,
@@ -1005,8 +1106,15 @@ if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
+def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, (
+        f"cannot compare {prop.cardinality} property: {prop!r}"
+    )
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE or (
@@ -1048,15 +1156,31 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
             return "{self_val} === {other_val}", True
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         return "{self_val} === {other_val}", True
+
+    # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
         if prop.is_required:
             return "{self_val}.id === {other_val}.id", True
         else:
             return "{self_val}?.id === {other_val}?.id", True
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val})", False
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot compare literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot compare union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 
@@ -1104,6 +1228,7 @@ def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     if _is_property_tracked(prop):
         prop_name = f"_{prop_name}"
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             scalar_hash_str = _generate_scalar_hash_impl(prop, f"this.{prop_name}")
@@ -1114,18 +1239,28 @@ def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
 if (this.{prop_name} != null) {{
   h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;
 }}"""
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        scalar_hash_str = _generate_scalar_hash_impl(prop, "_item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        scalar_hash_str = _generate_scalar_hash_impl(prop.value_type, "_item")
         return f"""\
 if (this.{prop_name} && this.{prop_name}.length > 0) {{
   for (const _item of this.{prop_name}) {{
     h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;
   }}
 }}"""
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot hash tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"{prop.name} has no key type"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_hash_str = _generate_scalar_hash_impl(prop.key_type, "_key")
-        value_hash_str = _generate_scalar_hash_impl(prop, "_value")
+        value_hash_str = _generate_scalar_hash_impl(prop.value_type, "_value")
         return f"""\
 if (this.{prop_name} && Object.keys(this.{prop_name}).length > 0) {{
   for (const [_key, _value] of Object.entries(this.{prop_name})) {{
@@ -1133,12 +1268,21 @@ if (this.{prop_name} && Object.keys(this.{prop_name}).length > 0) {{
     h = ((h * 31) + {value_hash_str}) & 0xFFFFFFFF;
   }}
 }}"""
+
+    #
     else:
         assert_never(prop.cardinality)
 
 
 def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, value_expr: str) -> str:
     """Generate a Typescript hash method for a single scalar property."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, (
+        f"cannot hash {prop.cardinality} property: {prop!r}"
+    )
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -1181,14 +1325,32 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hashString(JSON.stringify({value_expr}))"
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         return value_expr
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         return f"{value_expr}.hash()"
+
+    # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise NotImplementedError(f"cannot hash node value: {prop!r}")
+
+    # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"hashString({value_expr}.id)"
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot hash literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot hash union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 
@@ -1516,13 +1678,14 @@ static readonly {definition.name}: {type_str} = {value_str};
 
 
 def _get_type_dependencies(
-    type: CheckedType | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
+    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
     is_abstract: bool,
     is_value: bool = False,
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a type."""
     dependencies: dict[str, Definition] = {}
     value_dependencies: set[str] = set()
+
     if type.scalar_type == ScalarType.NODE_REFERENCE:
         if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
             for node_type in type.node_types or ():

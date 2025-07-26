@@ -1,16 +1,11 @@
-import base64
-import json
 import textwrap
 from itertools import chain
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
-    BinaryWriter,
     BuiltinObject,
-    CheckedType,
     Encoding,
     Node,
-    NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -230,6 +225,7 @@ def _generate_pack_json_property(prop: "PropertyDeclaration") -> list[str]:
     obj_json = f"object._{prop_ts_name}" if _is_property_tracked(prop) else f"object.{prop_ts_name}"
     packed_name = f"packed{_upper_first(prop_ts_name)}"
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_pack_json_scalar(prop, obj_json)
@@ -239,8 +235,11 @@ def _generate_pack_json_property(prop: "PropertyDeclaration") -> list[str]:
             value_expr = _generate_pack_json_scalar(prop, obj_json)
             lines.append(f'  objectJson["{json_key}"] = {value_expr};')
             lines.append("}")
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_pack_json_scalar(prop, "item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_pack_json_scalar(prop.value_type, "item")
         if prop.is_required:
             lines.append(f"const {packed_name}: any[] = [];")
             lines.append(f"for (const item of {obj_json}) {{")
@@ -255,10 +254,17 @@ def _generate_pack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("  }")
             lines.append(f'  objectJson["{json_key}"] = {packed_name};')
             lines.append("}")
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot pack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_pack_json_scalar(prop.key_type, "key")
-        value_expr = _generate_pack_json_scalar(prop, "value")
+        value_expr = _generate_pack_json_scalar(prop.value_type, "value")
         if prop.is_required:
             lines.append(f"const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
             lines.append(f"for (const [key, value] of Object.entries({obj_json})) {{")
@@ -273,6 +279,8 @@ def _generate_pack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("  }")
             lines.append(f'  objectJson["{json_key}"] = {packed_name};')
             lines.append("}")
+
+    #
     else:
         assert_never(prop.cardinality)
 
@@ -289,6 +297,7 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
     data_json = f'objectJson["{json_key}"]'
     var_name = f"unpacked{_upper_first(ts_name)}"
 
+    # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_unpack_json_scalar(prop, data_json)
@@ -299,8 +308,11 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(
                 f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
             )
+
+    # list
     elif prop.cardinality == TypeCardinality.LIST:
-        item_expr = _generate_unpack_json_scalar(prop, "item")
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_unpack_json_scalar(prop.value_type, "item")
         if prop.is_required:
             lines.append(f"const {var_name}: any[] = [];")
             lines.append(f"for (const item of {data_json}) {{")
@@ -316,10 +328,17 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("} else {")
             lines.append(f"  {var_name} = undefined;")
             lines.append("}")
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        raise NotImplementedError(f"cannot unpack tuple: {prop!r}")
+
+    # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
         key_expr = _generate_unpack_json_scalar(prop.key_type, "key")
-        value_expr = _generate_unpack_json_scalar(prop, "value as any")
+        value_expr = _generate_unpack_json_scalar(prop.value_type, "value as any")
         if prop.is_required:
             lines.append(f"const {var_name} = {{}} as any;")
             lines.append(f"for (const [key, value] of Object.entries({data_json})) {{")
@@ -335,6 +354,8 @@ def _generate_unpack_json_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("} else {")
             lines.append(f"  {var_name} = undefined;")
             lines.append("}")
+
+    #
     else:
         assert_never(prop.cardinality)
 
@@ -345,6 +366,11 @@ def _generate_pack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {prop!r}"
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -391,12 +417,34 @@ def _generate_pack_json_scalar(
             return value_expr
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
         return f"{enum_cls.__name__}[{value_expr}]"
+
+    # struct
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack({Encoding.JSON.value})"
+
+    # node reference
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+        return f"{value_expr}.pack({Encoding.JSON.value})"
+
+    # node value
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
+        return f"{value_expr}.pack({Encoding.JSON.value})"
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot pack literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot pack union: {prop!r}")
+
+    #
     else:
         return value_expr
 
@@ -405,6 +453,11 @@ def _generate_unpack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {prop!r}"
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -455,109 +508,32 @@ def _generate_unpack_json_scalar(
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
         return f"{enum_cls.__name__}[{value_expr}] as any"
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         return f"_{struct_cls.__name__}.unpack({Encoding.JSON.value}, {value_expr}, _session) as {struct_cls.__name__}"
+
+    # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return (
             f"_NodeReference.unpack({Encoding.JSON.value}, {value_expr}, _session) as NodeReference"
         )
+
+    # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack({Encoding.JSON.value}, {value_expr}, _session) as Node"
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot unpack literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot unpack union: {prop!r}")
+
+    #
     else:
         return value_expr
 
-
-def generate_json_value(
-    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
-) -> str:
-    """Generate a Typescript value literal."""
-    if type.cardinality == TypeCardinality.SCALAR:
-        return _generate_json_scalar(type, value)
-    elif type.cardinality == TypeCardinality.LIST:
-        elements_str = [
-            textwrap.indent(_generate_json_scalar(type, element), "  ") for element in value
-        ]
-        return f"[\n{',\n'.join(elements_str)}\n]"
-    elif type.cardinality == TypeCardinality.MAP:
-        raise ValueError(f"unsupported value type {type.cardinality!r}: {type!r}")
-    else:
-        assert_never(type.cardinality)
-
-
-def _generate_json_scalar(
-    type: CheckedType | TypeDeclaration | PropertyDeclaration, value: Any
-) -> str:
-    """Generate a Typescript scalar value literal."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        assert type.primitive_type is not None, f"no primitive_type for {type!r}"
-        if type.primitive_type == PrimitiveType.NONE:
-            return "null"
-        elif type.primitive_type == PrimitiveType.BOOLEAN:
-            return "true" if value else "false"
-        elif type.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.INT128,
-        ):
-            return str(value)
-        elif type.primitive_type in (
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.UINT128,
-        ):
-            return str(value)
-        elif type.primitive_type in (
-            PrimitiveType.FLOAT16,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ):
-            return str(value)
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return f"Temporal.Instant.from(\"{value}\").toZonedDateTimeISO('UTC')"
-        elif type.primitive_type == PrimitiveType.DATE:
-            return f'Temporal.PlainDate.from("{value}")'
-        elif type.primitive_type == PrimitiveType.TIME:
-            return f'Temporal.PlainTime.from("{value}")'
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return f'Temporal.Duration.from("{value}")'
-        elif type.primitive_type == PrimitiveType.STRING:
-            return f'"{value}"'
-        elif type.primitive_type == PrimitiveType.UUID:
-            return f'"{value}"'
-        elif type.primitive_type == PrimitiveType.BYTES:
-            return f"base64Decode({base64.b64encode(value).decode()})"
-        elif type.primitive_type == PrimitiveType.JSON:
-            return json.dumps(value)
-        else:
-            assert_never(type.primitive_type)
-    elif type.scalar_type == ScalarType.ENUM:
-        assert type.enum_type is not None, f"no enum_type for {type!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        return f"({int(value)} /* {enum_cls.__name__}.{value.name} */)"
-    elif type.scalar_type == ScalarType.STRUCT:
-        assert type.struct_type is not None, f"no struct_type for {type!r}"
-        assert isinstance(value, Struct), f"value is not a Struct for {type!r}: {value!r}"
-        writer = BinaryWriter()
-        value.pack_binary(Encoding.CSON, writer)
-        value_bytes = writer.to_bytes()
-        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"{value.__class__.__name__}.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
-    elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        assert isinstance(value, NodeReference), (
-            f"value is not a NodeReference for {type!r}: {value!r}"
-        )
-        writer = BinaryWriter()
-        value.pack_binary(Encoding.CSON, writer)
-        value_bytes = writer.to_bytes()
-        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
-        return f"NodeReference.unpackBinaryBase64({Encoding.CSON.value}, {value_bytes_str!r})"
-    elif type.scalar_type == ScalarType.NODE_VALUE:
-        raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
-    else:
-        assert_never(type.scalar_type)

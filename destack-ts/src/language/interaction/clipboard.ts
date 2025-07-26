@@ -494,10 +494,6 @@ export class CopyEvent extends ClipboardEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -915,10 +911,6 @@ export class CutEvent extends ClipboardEvent {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
@@ -1334,10 +1326,6 @@ export class PasteEvent extends ClipboardEvent {
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

@@ -93,10 +93,6 @@ export class Vector2 extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
@@ -366,10 +362,6 @@ export class Vector3 extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -685,10 +677,6 @@ export class Vector4 extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
@@ -986,10 +974,6 @@ export class Vector2i extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
@@ -1259,10 +1243,6 @@ export class Vector3i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -1566,10 +1546,6 @@ export class Vector4i extends StructFrozen {
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -100,10 +100,6 @@ export class Value extends StructFrozen {
     return h;
   }
 
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
   /* ==== DESTACK_CUSTOM_START ==== */
 
   _unpacked: any | null = null;

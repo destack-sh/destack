@@ -207,71 +207,6 @@ def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
     return lines
 
 
-def _generate_pack_json_scalar(
-    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
-) -> str:
-    """Generate the packing code for a scalar value."""
-    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
-
-    if prop.scalar_type == ScalarType.PRIMITIVE:
-        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.NONE:
-            return "None"
-        elif prop.primitive_type == PrimitiveType.BOOLEAN:
-            return value_expr
-        elif prop.primitive_type in (
-            PrimitiveType.INT8,
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.INT128,
-        ):
-            return value_expr
-        elif prop.primitive_type in (
-            PrimitiveType.UINT8,
-            PrimitiveType.UINT16,
-            PrimitiveType.UINT32,
-            PrimitiveType.UINT64,
-            PrimitiveType.UINT128,
-        ):
-            return value_expr
-        elif prop.primitive_type in (
-            PrimitiveType.FLOAT16,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ):
-            return value_expr
-        elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.astimezone(UTC).isoformat()"
-        elif prop.primitive_type == PrimitiveType.DATE:
-            return f"{value_expr}.isoformat()"
-        elif prop.primitive_type == PrimitiveType.TIME:
-            return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
-        elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"timedelta_to_isoformat({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
-            return value_expr
-        elif prop.primitive_type == PrimitiveType.UUID:
-            return f"str({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64encode({value_expr}).decode()"
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return value_expr
-        else:
-            assert_never(prop.primitive_type)
-    elif prop.scalar_type == ScalarType.ENUM:
-        # use the enum name in CONSTANT_UPPER_CASE for JSON
-        return f"{value_expr}.name"
-    elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.pack(Encoding.JSON)"
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot pack literal: {prop!r}")
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot pack union: {prop!r}")
-    else:
-        assert_never(prop.scalar_type)
-
-
 def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
     """Generate code to unpack a property from JSON."""
     lines: list[str] = []
@@ -334,12 +269,101 @@ def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
     return lines
 
 
+def _generate_pack_json_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
+    """Generate the packing code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {prop!r}"
+    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+
+    # primitive
+    if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type == PrimitiveType.NONE:
+            return "None"
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.INT8,
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.INT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.UINT8,
+            PrimitiveType.UINT16,
+            PrimitiveType.UINT32,
+            PrimitiveType.UINT64,
+            PrimitiveType.UINT128,
+        ):
+            return value_expr
+        elif prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"{value_expr}.astimezone(UTC).isoformat()"
+        elif prop.primitive_type == PrimitiveType.DATE:
+            return f"{value_expr}.isoformat()"
+        elif prop.primitive_type == PrimitiveType.TIME:
+            return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            return f"timedelta_to_isoformat({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return value_expr
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"str({value_expr})"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"base64.b64encode({value_expr}).decode()"
+        elif prop.primitive_type == PrimitiveType.JSON:
+            return value_expr
+        else:
+            assert_never(prop.primitive_type)
+
+    # enum
+    elif prop.scalar_type == ScalarType.ENUM:
+        # use the enum name in CONSTANT_UPPER_CASE for JSON
+        return f"{value_expr}.name"
+
+    # struct
+    elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
+        return f"{value_expr}.pack(Encoding.JSON)"
+
+    # node reference
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+        return f"{value_expr}.pack(Encoding.JSON)"
+
+    # node value
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
+        return f"{value_expr}.pack(Encoding.JSON)"
+
+    # literal
+    elif prop.scalar_type == ScalarType.LITERAL:
+        raise NotImplementedError(f"cannot pack literal: {prop!r}")
+
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot pack union: {prop!r}")
+
+    #
+    else:
+        assert_never(prop.scalar_type)
+
+
 def _generate_unpack_json_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {prop!r}"
     assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -386,22 +410,36 @@ def _generate_unpack_json_scalar(
             return value_expr
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
         return f"{enum_cls.__name__}[{value_expr}]"
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         return f"{struct_cls.__name__}.unpack(Encoding.JSON, {value_expr}, _session)"
+
+    # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.unpack(Encoding.JSON, {value_expr}, _session)"
+
+    # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack(Encoding.JSON, {value_expr}, _session)"
+
+    # literal
     elif prop.scalar_type == ScalarType.LITERAL:
         raise NotImplementedError(f"cannot unpack literal: {prop!r}")
+
+    # union
     elif prop.scalar_type == ScalarType.UNION:
         raise NotImplementedError(f"cannot unpack union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 

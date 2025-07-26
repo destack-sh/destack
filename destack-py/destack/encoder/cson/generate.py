@@ -205,8 +205,11 @@ def _generate_pack_cson_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {prop!r}"
     assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -252,14 +255,24 @@ def _generate_pack_cson_scalar(
             return value_expr
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         return f"{value_expr}.value"
+
+    # struct
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack(Encoding.CSON)"
+
+    # literal
     elif prop.scalar_type == ScalarType.LITERAL:
         raise NotImplementedError(f"cannot pack literal: {prop!r}")
+
+    # union
     elif prop.scalar_type == ScalarType.UNION:
         raise NotImplementedError(f"cannot pack union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 
@@ -329,8 +342,11 @@ def _generate_unpack_cson_scalar(
     prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
 ) -> str:
     """Generate the unpacking code for a scalar value."""
+
+    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {prop!r}"
     assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
 
+    # primitive
     if prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
         if prop.primitive_type == PrimitiveType.NONE:
@@ -377,22 +393,36 @@ def _generate_unpack_cson_scalar(
             return value_expr
         else:
             assert_never(prop.primitive_type)
+
+    # enum
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_type_name = prop.enum_type.camel_name
         return f"{enum_type_name}(int({value_expr}))"
+
+    # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
         return f"{struct_cls.__name__}.unpack(Encoding.CSON, {value_expr}, _session)"
+
+    # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.unpack(Encoding.CSON, {value_expr}, _session)"
+
+    # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack(Encoding.CSON, {value_expr}, _session)"
+
+    # literal
     elif prop.scalar_type == ScalarType.LITERAL:
         raise NotImplementedError(f"cannot unpack literal: {prop!r}")
+
+    # union
     elif prop.scalar_type == ScalarType.UNION:
         raise NotImplementedError(f"cannot unpack union: {prop!r}")
+
+    #
     else:
         assert_never(prop.scalar_type)
 
