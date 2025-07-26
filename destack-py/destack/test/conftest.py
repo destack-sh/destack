@@ -1,7 +1,5 @@
-import enum
 from typing import TYPE_CHECKING
 
-import hypothesis
 import pytest
 from pytest_asyncio import is_async_test
 
@@ -11,20 +9,6 @@ if TYPE_CHECKING:
 # use session scoped asyncio event loop
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-
-class TestProfile(enum.StrEnum):
-    QUICK = "quick"
-    DEFAULT = "default"
-    CAREFUL = "careful"
-    PARANOID = "paranoid"
-
-
-TEST_PROFILES = list(TestProfile)
-
-hypothesis.settings.register_profile("quick", max_examples=40)
-hypothesis.settings.register_profile("default", max_examples=100)
-hypothesis.settings.register_profile("careful", max_examples=500)
-hypothesis.settings.register_profile("paranoid", max_examples=2000)
 
 _is_test_setup: bool = False
 
@@ -57,25 +41,13 @@ def _setup_test_env():
 
 _setup_test_env()
 
-from destack.utils.env import get_from_env  # noqa: E402
-
-TEST_PROFILE = get_from_env("TEST_PROFILE", typ=TestProfile, description="Test profile")
-hypothesis.settings.load_profile(TEST_PROFILE.value)
-
 
 def pytest_addoption(parser):
     pass
 
 
 def pytest_configure(config):
-    # compile test profile into pytest 'markexpr' to filter tests
-    if TEST_PROFILE == TestProfile.PARANOID:
-        markexpr = ""
-    elif TEST_PROFILE == TestProfile.CAREFUL:
-        markexpr = "not paranoid"
-    else:
-        markexpr = "not paranoid and not careful"
-    config.option.markexpr = markexpr
+    pass
 
 
 def pytest_collection_modifyitems(items):

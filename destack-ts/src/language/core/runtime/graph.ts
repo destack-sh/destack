@@ -22,13 +22,13 @@ export abstract class Graph {
   // Write
   //
 
-  /** Create a Snapshot. */
+  /** Create a Snapshot at a certain point in time. */
   abstract snapshot(options: {
     spaceId: string;
     branchId: string | null;
     snapshotId: string | null;
     epoch: number;
-  }): any;
+  }): Promise<void>;
 
   /** Insert Entities into the Graph directly. */
   abstract insert(options: {

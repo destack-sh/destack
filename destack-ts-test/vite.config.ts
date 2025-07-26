@@ -17,7 +17,7 @@ const defaultConfig = defineConfig(() => ({
       "@destack": fileURLToPath(new URL("../destack-ts/src", import.meta.url)),
       "@destack-web": fileURLToPath(new URL("../destack-ts-web/src", import.meta.url)),
       "@destack-system": fileURLToPath(new URL("../destack-ts-system/src", import.meta.url)),
-      "@destack-simulation": fileURLToPath(new URL("./src", import.meta.url)),
+      "@destack-test": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   build: {

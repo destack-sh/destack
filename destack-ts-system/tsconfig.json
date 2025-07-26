@@ -17,7 +17,7 @@
     "paths": {
       "@destack/*": ["../destack-ts/src/*"],
       "@destack-web/*": ["../destack-ts-web/src/*"],
-      "@desys/*": ["./src/*"]
+      "@destack-system/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { loadDestackPython, loadPython } from "@destack-simulation/core/pyodide";
+import { loadDestackPython, loadPython } from "@destack-test/python/pyodide";
 import { VERSION } from "destack";
 
 test("loadPython", async () => {

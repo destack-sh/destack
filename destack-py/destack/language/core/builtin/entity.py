@@ -163,7 +163,6 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The (root) Entity that is being instantiated.",
         tags=("identity",),
     )
-    # set_properties: 16
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
         branch_ptr: NodeReference = UNSET

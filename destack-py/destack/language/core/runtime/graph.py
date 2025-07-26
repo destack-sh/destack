@@ -47,7 +47,7 @@ class Graph(abc.ABC):
     # Write
     #
 
-    def snapshot(
+    async def snapshot(
         self,
         space_id: UUID,
         branch_id: UUID | None,
@@ -57,7 +57,7 @@ class Graph(abc.ABC):
         """Create a Snapshot."""
         raise NotImplementedError
 
-    def insert(
+    async def insert(
         self,
         space_id: UUID,
         branch_id: UUID | None,

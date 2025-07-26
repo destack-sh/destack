@@ -40,15 +40,16 @@ export function getFromEnv<T>(key: string, typ: "string" | "number" | "boolean")
 
 // global environment variables
 export const COMMIT = getFromEnvMaybe("COMMIT", "string") ?? "unknown";
-export const ENV: "DEV" | "PROD" | "TEST" | "STAGE" =
-  (getFromEnvMaybe("ENVIRONMENT", "string") as any) ?? "DEV";
-if (!["DEV", "PROD", "TEST", "STAGE"].includes(ENV)) {
+export const ENV: "dev" | "prod" | "test" | "stage" =
+  (getFromEnvMaybe("ENVIRONMENT", "string") as any) ?? "dev";
+if (!["dev", "prod", "test", "stage"].includes(ENV)) {
   throw new Error(`Invalid environment: ${ENV}`);
 }
 export const DISCORD_URL =
   getFromEnvMaybe("DISCORD_URL", "string") ?? "https://discord.gg/HUUzkfBn2p";
-export const IS_PROD = ENV === "PROD";
-export const IS_DEV = ENV === "DEV";
-export const IS_TEST = ENV === "TEST";
+export const IS_PROD = ENV === "prod";
+export const IS_DEV = ENV === "dev";
+export const IS_TEST = ENV === "test";
+export const IS_STAGE = ENV === "stage";
 export const IS_WEB = typeof window !== "undefined";
 export const TELEMETRY = !IS_DEV;

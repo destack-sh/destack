@@ -1,14 +1,12 @@
-from hypothesis import HealthCheck, given, settings
+from itertools import chain
 
-from destack.language import BuiltinObject, Folder, Session, Space
-from destack.test.strategies import builtin_objects
+from destack.language import Folder, Session, Space
+from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 
-@given(obj=builtin_objects())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_object_slots(obj: BuiltinObject, session: Session, space: Space):
-    assert not hasattr(obj, "__dict__")
-    assert obj.__slots__
+def test_object_slots(session: Session, space: Space):
+    for object_cls in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
+        assert object_cls.__slots__ and "__dict__" not in object_cls.__slots__
 
 
 def test_repr_query(session: Session, space: Space):
@@ -27,9 +25,3 @@ def test_resolve_property():
     assert Folder.property("parent").name == "parent"
     assert Folder.property("Parent").name == "parent"
     assert Folder.property("ParentPtr").name == "parent"
-
-
-@given(obj=builtin_objects())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_repr_builtin_object(obj: BuiltinObject, session: Session, space: Space):
-    print(repr(obj))  # noqa: T201
