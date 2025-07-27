@@ -24,7 +24,7 @@ from ..builtin import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomProperty,
+        CustomPropertyDefinition,
         PropertyDefinition,
     )
 
@@ -116,7 +116,7 @@ class Condition(StructFrozen):
     @classmethod
     def of(
         cls: type_["Condition"],
-        attribute: Union["CustomProperty", "PropertyDeclaration", "PropertyDefinition"],
+        attribute: Union["CustomPropertyDefinition", "PropertyDeclaration", "PropertyDefinition"],
         type: ConditionalType = ConditionalType.EQUALS,
         value: Any = None,
     ) -> "Condition":
@@ -217,7 +217,7 @@ ExpressionIn = Union[
     "PropertyReference",
     "PropertyDeclaration",
     "PropertyDefinition",
-    "CustomProperty",
+    "CustomPropertyDefinition",
     "Condition",
     "Function",
     "Aggregation",
@@ -245,7 +245,13 @@ class SortMode(Enum):
     MEDIAN = 5
 
 
-SortIn = Union["Sort", "Expression", "CustomProperty", "PropertyDeclaration", "PropertyDefinition"]
+SortIn = Union[
+    "Sort",
+    "Expression",
+    "CustomPropertyDefinition",
+    "PropertyDeclaration",
+    "PropertyDefinition",
+]
 
 
 @builtin_struct(StructType.SORT, frozen=True)
@@ -280,7 +286,7 @@ class Select(StructFrozen):
     attributes: list[PropertyReference] = builtin_property(101, is_repr=True)
 
     @classmethod
-    def of(cls, *attributes: "PropertyDeclaration | CustomProperty") -> "Select":
+    def of(cls, *attributes: "PropertyDeclaration | CustomPropertyDefinition") -> "Select":
         return Select(attributes=[PropertyReference.of(attribute) for attribute in attributes])
 
 

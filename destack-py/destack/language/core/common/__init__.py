@@ -1,6 +1,12 @@
 from .access import Permission
 from .action import Action, ActionDefinition
-from .enum import CustomEnum, CustomOption
+from .custom import (
+    CustomEnumDefinition,
+    CustomEventDefinition,
+    CustomOptionDefinition,
+    CustomPropertyDefinition,
+    CustomStructDefinition,
+)
 from .icon import Icon, IconIn, IconType, icon, to_icon
 from .integrity import Constraint, Index
 from .method import Method, MethodDefinition
@@ -11,7 +17,6 @@ from .migration import (
     MigrationOperationDefinition,
     MigrationType,
 )
-from .property import CustomProperty
 from .query import (
     Aggregation,
     AggregationType,
@@ -33,7 +38,6 @@ from .query import (
     SortType,
 )
 from .space import Space, Universe
-from .struct import CustomStruct
 from .text import (
     Text,
     TextIn,
@@ -57,10 +61,11 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "Constraint",
-    "CustomEnum",
-    "CustomOption",
-    "CustomProperty",
-    "CustomStruct",
+    "CustomEnumDefinition",
+    "CustomEventDefinition",
+    "CustomOptionDefinition",
+    "CustomPropertyDefinition",
+    "CustomStructDefinition",
     "Expression",
     "ExpressionIn",
     "ExpressionType",

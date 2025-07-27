@@ -154,13 +154,6 @@ class Struct(BuiltinObject, abc.ABC):
         raise NotImplementedError  # generated
 
 
-@builtin_struct(None, is_abstract=True, is_extensible=True)
-class StructMutable(Struct):
-    """A mutable Struct."""
-
-    pass
-
-
 @builtin_struct(
     None,
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)

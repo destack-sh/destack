@@ -221,7 +221,6 @@ class StructType(Enum):
     # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    # nocheckin: CUSTOM_STRUCT_INSTANCE? CUSTOM_STRUCT_INSTANCE_MUTABLE?
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
     NODE_DEFINITION_REFERENCE = 13
@@ -258,6 +257,9 @@ class StructType(Enum):
     # references
     NODE_REFERENCE = 1_000
     PROPERTY_REFERENCE = 1_001
+
+    # custom
+    CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Instance", "fas fa-shapes"
 
     # integrity
     INDEX_DEFINITION = 30_100
@@ -524,11 +526,16 @@ class NodeType(Enum):
     # TIMELINE, TRACK, (KEY)FRAME, ...
 
     # custom
-    CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
-    CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
-    CUSTOM_PROPERTY = 20_200, "Custom Property", "Custom Property Definition", "fas fa-triangle"
-    CUSTOM_ENUM = 20_300, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
-    CUSTOM_OPTION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
+    CUSTOM_EVENT_DEFINITION = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
+    CUSTOM_STRUCT_DEFINITION = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
+    CUSTOM_PROPERTY_DEFINITION = (
+        20_200,
+        "Custom Property",
+        "Custom Property Definition",
+        "fas fa-triangle",
+    )
+    CUSTOM_ENUM_DEFINITION = 20_300, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
+    CUSTOM_OPTION_DEFINITION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
     # CUSTOM_ALIAS, CUSTOM_UNION, ...
 
     # integrity
@@ -551,7 +558,7 @@ class NodeType(Enum):
     PERMISSION = 50_000, "Permission", "Permission for something", "fas fa-user-shield"
 
     # event
-    SIGNAL_EVENT = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
+    CUSTOM_EVENT = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
     EDIT_EVENT = 90_100, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
     MEASUREMENT_EVENT = 90_200, "Measurement of a Metric", None, "fas fa-gauge"
