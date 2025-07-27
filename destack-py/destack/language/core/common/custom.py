@@ -24,7 +24,6 @@ if TYPE_CHECKING:
         Icon,
         NodeDefinitionReference,
         NodeReference,
-        StructDefinitionReference,
         Value,
     )
 
@@ -52,11 +51,11 @@ class CustomEventDefinition(
 )
 class CustomEvent(Event):
     """
-    A generic Event of a CustomEvent.
+    A CustomEvent is an instance of a CustomEventDefinition.
     """
 
     definition: "CustomEventDefinition" = builtin_property(
-        6,
+        11,
         is_internal=True,
         is_readonly=True,
         description="The CustomEvent this Signal is an instance of.",
@@ -73,18 +72,16 @@ class CustomStructDefinition(
 
     icon: "Icon | None" = builtin_property(102)
 
-    base_type: Optional["StructDefinitionReference"] = builtin_property(110)
-
 
 @builtin_struct(StructType.CUSTOM_STRUCT)
 class CustomStruct(Struct):
     """A CustomStruct is an instance of a custom Struct with custom Properties."""
 
+    definition: "CustomStructDefinition" = builtin_property(11, is_repr=True)
     custom_values: dict[UUID, "Value"] = builtin_property(
         45,
         description="The custom Values of this Struct, keyed by custom Property id..",
     )
-    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
 
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
@@ -129,10 +126,6 @@ class CustomPropertyDefinition(Entity):
     is_readonly: bool | None = builtin_property(
         202,
         description="Whether this property is read-only.",
-    )
-    is_main: bool | None = builtin_property(
-        203,
-        description="Whether this property is the main property of the entity.",
     )
 
     def to_type(self) -> "CheckedType":

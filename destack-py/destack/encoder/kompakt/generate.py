@@ -209,14 +209,6 @@ def _generate_pack_kompakt_scalar(type: TypeDeclaration, value_expr: str) -> str
             f"_encoder.pack_object_binary({ObjectKind.NODE}, {value_expr}.metatype, {value_expr}, _writer, _options)"
         )
 
-    # literal
-    elif type.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot pack literal: {type!r}")
-
-    # union
-    elif type.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot pack union: {type!r}")
-
     else:
         assert_never(type.scalar_type)
 
@@ -297,19 +289,17 @@ def _generate_unpack_kompakt_scalar(type: TypeDeclaration, target_expr: str) -> 
 
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options)", True
+        return (
+            f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options)",
+            True,
+        )
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        return f"_encoder.unpack_object_binary({ObjectKind.NODE}, _reader.read_uint32(), _reader, _session, _options)", True
-
-    # literal
-    elif type.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot unpack literal: {type!r}")
-
-    # union
-    elif type.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot unpack union: {type!r}")
+        return (
+            f"_encoder.unpack_object_binary({ObjectKind.NODE}, _reader.read_uint32(), _reader, _session, _options)",
+            True,
+        )
 
     else:
         assert_never(type.scalar_type)

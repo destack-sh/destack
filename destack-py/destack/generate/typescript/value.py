@@ -146,14 +146,6 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
     elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
 
-    # literal
-    elif type.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot generate value for literal: {type!r}")
-
-    # union
-    elif type.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot generate value for union: {type!r}")
-
     #
     else:
         assert_never(type.scalar_type)

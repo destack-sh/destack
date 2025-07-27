@@ -161,7 +161,6 @@ class CheckedTypeDeclaration(TypeDeclaration):
     is_required: bool = True
     is_identity: bool = False
     is_self: bool = False
-    is_main: bool = False
 
     # constraints
     constraint: "TypeConstraint | None" = None
@@ -248,7 +247,7 @@ class PropertyDeclaration(CheckedTypeDeclaration):
     py_type: Any = None
 
     # meta
-    type: PropertyZone = PropertyZone.MEMBER
+    zone: PropertyZone = PropertyZone.MEMBER
     id: int | None = None
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
@@ -271,7 +270,6 @@ class PropertyDeclaration(CheckedTypeDeclaration):
     is_internal: bool = False  # managed internally by the system
     is_computed: bool = False  # set automatically at runtime
     is_readonly: bool = False  # can only be set once (at init time)
-    is_main: bool = False  # root property (for return types with single value)
 
     _ref: Optional["PropertyReference"] = None
     _definition: Optional["PropertyDefinition"] = None
@@ -526,30 +524,7 @@ def parse_type_annotation(
 
     # handle Literal
     if origin is typing.Literal:
-        literal_values = typing.get_args(py_type)
-        if len(literal_values) == 1:
-            # single literal value
-            return TypeDeclaration(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.LITERAL,
-                literal_value=literal_values[0],
-                is_required=is_required,
-            )
-        else:
-            # multi-value Literal (union of literals)
-            return TypeDeclaration(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.UNION,
-                union_types=[
-                    TypeDeclaration(
-                        cardinality=TypeCardinality.SCALAR,
-                        scalar_type=ScalarType.LITERAL,
-                        literal_value=value,
-                        is_required=is_required,
-                    )
-                    for value in literal_values
-                ],
-            )
+        raise ValueError(f"Literal not yet supported: {py_type!r}")
 
     # unwrap list
     if origin is list:
@@ -615,17 +590,7 @@ def parse_type_annotation(
                 )
             else:
                 # general union
-                assert not is_builtin_member, f"builtin Types don't support unions: {py_type!r}"
-                union_types = [
-                    parse_type_annotation(t, is_builtin_member=is_builtin_member)
-                    for t in non_none_types
-                ]
-                return TypeDeclaration(
-                    cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.UNION,
-                    union_types=union_types,
-                    is_required=is_required,
-                )
+                raise ValueError(f"union not yet supported: {py_type!r}")
 
     # unwrap map (dict)
     if origin is dict:
@@ -665,7 +630,8 @@ def parse_type_annotation(
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
     elif class_name == "Any":
-        scalar_type = ScalarType.LITERAL
+        scalar_type = ScalarType.PRIMITIVE
+        primitive_type = PrimitiveType.NONE  # handled manually
         is_any = True
     elif enum_t := resolve_enum_type(class_name):
         scalar_type = ScalarType.ENUM
@@ -727,7 +693,6 @@ def builtin_property(
     is_identity: bool = False,
     is_unique: bool = False,
     is_readonly: bool = False,
-    is_main: bool = False,
     tags: tuple[str, ...] = (),
 ) -> Any:
     assert id < 256, f"id must be less than 256: {id}"  # for :Encoding
@@ -749,7 +714,6 @@ def builtin_property(
         is_identity=is_identity,
         is_unique=is_unique,
         is_readonly=is_readonly,
-        is_main=is_main,
         tags=tags,
     )
 

@@ -223,14 +223,6 @@ def _pack_scalar_json(
         )
         return encoder.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
 
-    # literal
-    elif type.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot pack literal: {type!r}")
-
-    # union
-    elif type.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot pack union: {type!r}")
-
     #
     else:
         assert_never(type.scalar_type)
@@ -316,14 +308,6 @@ def _unpack_scalar_json(
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         return encoder.unpack_object(ObjectKind.STRUCT, type.struct_type, value, session, options)
-
-    # literal
-    elif type.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot unpack literal: {type!r}")
-
-    # union
-    elif type.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot unpack union: {type!r}")
 
     #
     else:

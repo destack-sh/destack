@@ -37,12 +37,12 @@ tracer = get_tracer(__name__)
 class Type(StructFrozen):
     """
     A basic Type in the type system. Types compose like a tree (with scalars at the leaves):
-     - Scalar: a single value (primitive, enum, node, struct, etc.)
-     - List: a dynamic-length sequence of homogeneous values
-     - Tuple: a fixed-length sequence of heterogeneous values
-     - Map: a mapping of homogenous keys to homogeneous values
-     - Literal: a constant value
-     - Union: a tagged union of heterogeneous values (declaration only)
+     - Scalar: a single value (self, Type.scalar_type)
+     - List: a sequence of homogeneous values (Type.value_type)
+     - Tuple: a sequence of heterogeneous values (Type.element_types)
+     - Map: a mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
+     - Literal: a constant value (self, Type.literal_value)
+     - Union: a tagged union of heterogeneous values (Type.union_types)
     """
 
     # cardinality
@@ -50,7 +50,7 @@ class Type(StructFrozen):
         110,
         default=TypeCardinality.SCALAR,
         is_repr=True,
-        description="Cardinality of this Type (scalar, list, map, etc.)",
+        description="Cardinality of this Type.",
     )
     key_type: Optional["Type"] = builtin_property(
         111,
@@ -60,14 +60,18 @@ class Type(StructFrozen):
     value_type: Optional["Type"] = builtin_property(
         112,
         is_repr=True,
-        description="Value type of this Type (if it's a list, map, etc.).",
+        description="Value type of this Type (list, map).",
     )
     element_types: list["Type"] | None = builtin_property(
         113,
         is_repr=True,
-        description="Element types of this Type (if it's a tuple).",
+        description="Element types of this Type (tuple).",
     )
-    # length: UInt16 | None (for fixed-length collections)
+    length: UInt32 | None = builtin_property(
+        114,
+        is_repr=True,
+        description="Length of this Type (list).",
+    )
 
     # scalar
     scalar_type: Optional[ScalarType] = builtin_property(
