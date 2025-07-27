@@ -446,10 +446,6 @@ def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
             return f"{value_expr}.isoformat()"
         else:
             return f"{value_expr}!r"
-    elif prop.scalar_type == ScalarType.LITERAL:
-        return f"{value_expr}!r"
-    elif prop.scalar_type == ScalarType.UNION:
-        raise ValueError(f"cannot repr union type: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
@@ -782,10 +778,6 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration | PropertyDeclaration) -> tu
         return "{self_val}.id == {other_val}.id", False
     elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val})", False
-    elif prop.scalar_type == ScalarType.LITERAL:
-        return "{self_val} == {other_val}", True
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot compare union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
@@ -937,10 +929,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
         raise NotImplementedError(f"cannot hash node value: {prop!r}")
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"{value_expr}.id.int"
-    elif prop.scalar_type == ScalarType.LITERAL:
-        return f"hash_value({value_expr})"
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot hash union: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 

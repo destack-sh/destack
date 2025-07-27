@@ -344,8 +344,9 @@ class ScalarType(Enum):
         "Struct value (structured data)",
         "fas fa-shapes",
     )
-    LITERAL = 6, "Literal", "Literal value (constant value)"
-    UNION = 7, "Union", "Tagged union of heterogeneous values"
+    # LITERAL = 6, "Literal", "Literal value (constant value)"
+    # UNION = 7, "Union", "Tagged union of heterogeneous values"
+    # NOTE :Incomplete: unions are annoying to handle in encoders/decoders
 
 
 assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding

@@ -15,7 +15,6 @@ from .common import (
     Enum,
     EnumType,
     GraphDomain,
-    PropertyZone,
     UInt8,
     UInt32,
 )
@@ -387,9 +386,9 @@ class StructDefinition(StructFrozen):
         111,
         description="Whether this Struct is abstract (cannot be instantiated directly).",
     )
-    is_extensible: bool = builtin_property(
+    is_stable: bool = builtin_property(
         112,
-        description="Whether this Struct can be extended by custom Structs.",
+        description="Whether this Struct is stable (cannot be redefined by the system).",
     )
 
     # content
@@ -446,7 +445,7 @@ class StructDefinition(StructFrozen):
             # flags
             is_frozen=struct_cls.__is_frozen__,
             is_abstract=struct_cls.__is_abstract__,
-            is_extensible=struct_cls.__is_extensible__,
+            is_stable=struct_cls.__is_stable__,
             # content
             properties=[
                 prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
@@ -501,7 +500,6 @@ class EnumDefinition(StructFrozen):
 class PropertyDefinition(CheckedType):
     """Definition of a builtin Property."""
 
-    type: PropertyZone = builtin_property(100)
     id: UInt8 = builtin_property(2, is_repr=True)
     name: str | None = builtin_property(
         101, is_repr=True, description="The name of this Type when it was used."
@@ -538,11 +536,6 @@ Whether this Property is part of the object's identity.
         is_repr=True,
         description="Whether this Property is read-only.",
     )
-    is_main: bool = builtin_property(
-        203,
-        is_repr=True,
-        description="Whether this Property is the main property of the object.",
-    )
 
     # internal flags
     is_wired: bool = builtin_property(210)
@@ -567,7 +560,6 @@ Whether this Property is part of the object's identity.
         taggings = [resolve_tagging(object_cls, tag).id for tag in prop.tags]
 
         return cls(
-            type=prop.type,
             id=prop.id,
             name=prop.name,
             description=prop.description,
@@ -594,7 +586,6 @@ Whether this Property is part of the object's identity.
             is_identity=prop.is_identity,
             is_unique=prop.is_unique,
             is_readonly=prop.is_readonly,
-            is_main=prop.is_main,
             is_wired=prop.is_wired,
             is_stored=prop.is_stored,
             is_repr=prop.is_repr,
@@ -785,7 +776,7 @@ class ConstantDefinition(StructFrozen):
             id=declaration.id,
             name=declaration.name,
             description=declaration.description,
-            value=Value.wrap(declaration.value, is_required=True),
+            value=Value.wrap(declaration.value),
             _is_deferred=declaration.is_deferred,
         )
 

@@ -418,14 +418,6 @@ def _generate_pack_jsonc_scalar(
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack({Encoding.JSONC.value})"
 
-    # literal
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot pack literal: {prop!r}")
-
-    # union
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot pack union: {prop!r}")
-
     #
     else:
         return value_expr
@@ -504,14 +496,6 @@ def _generate_unpack_jsonc_scalar(
     # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack({Encoding.JSONC.value}, {value_expr}, _session) as Node"
-
-    # literal
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot unpack literal: {prop!r}")
-
-    # union
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot unpack union: {prop!r}")
 
     #
     else:

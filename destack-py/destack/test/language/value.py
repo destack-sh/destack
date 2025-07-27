@@ -1,5 +1,4 @@
 import math
-from typing import Literal
 
 from destack.language import (
     Int8,
@@ -12,7 +11,6 @@ from destack.language import (
     TypeCardinality,
     UInt32,
     User,
-    Value,
 )
 
 
@@ -270,36 +268,6 @@ def test_annotation_to_type():
         ),
     )
 
-    # literals
-    # Literal[1]
-    assert Type.infer(Literal[1]) == Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.LITERAL,
-        literal_value=Value.wrap(1),
-    )
-    # Literal[1, 2, 3]
-    assert Type.infer(Literal[1, 2, 3]) == Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.UNION,
-        union_types=[
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.LITERAL,
-                literal_value=Value.wrap(1),
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.LITERAL,
-                literal_value=Value.wrap(2),
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.LITERAL,
-                literal_value=Value.wrap(3),
-            ),
-        ],
-    )
-
     # tuple[list[str], dict[str, int]]
     assert Type.infer(tuple[list[str], dict[str, int]]) == Type(
         cardinality=TypeCardinality.TUPLE,
@@ -409,123 +377,6 @@ def test_annotation_to_type():
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.NODE_REFERENCE,
                 node_types=[NodeType.ORGANIZATION],
-            ),
-        ],
-    )
-
-    # unions
-    # int | str
-    assert Type.infer(int | str) == Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.UNION,
-        union_types=[
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.INT64,
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.STRING,
-            ),
-        ],
-    )
-
-    # int | str | bool
-    assert Type.infer(int | str | bool) == Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.UNION,
-        union_types=[
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.INT64,
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.STRING,
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.BOOLEAN,
-            ),
-        ],
-    )
-
-    # list[int | str]
-    assert Type.infer(list[int | str]) == Type(
-        cardinality=TypeCardinality.LIST,
-        value_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.UNION,
-            union_types=[
-                Type(
-                    cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.PRIMITIVE,
-                    primitive_type=PrimitiveType.INT64,
-                ),
-                Type(
-                    cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.PRIMITIVE,
-                    primitive_type=PrimitiveType.STRING,
-                ),
-            ],
-        ),
-    )
-
-    # dict[str, int | bool]
-    assert Type.infer(dict[str, int | bool]) == Type(
-        cardinality=TypeCardinality.MAP,
-        key_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PrimitiveType.STRING,
-        ),
-        value_type=Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.UNION,
-            union_types=[
-                Type(
-                    cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.PRIMITIVE,
-                    primitive_type=PrimitiveType.INT64,
-                ),
-                Type(
-                    cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.PRIMITIVE,
-                    primitive_type=PrimitiveType.BOOLEAN,
-                ),
-            ],
-        ),
-    )
-
-    # tuple[int | str, bool]
-    assert Type.infer(tuple[int | str, bool]) == Type(
-        cardinality=TypeCardinality.TUPLE,
-        element_types=[
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.UNION,
-                union_types=[
-                    Type(
-                        cardinality=TypeCardinality.SCALAR,
-                        scalar_type=ScalarType.PRIMITIVE,
-                        primitive_type=PrimitiveType.INT64,
-                    ),
-                    Type(
-                        cardinality=TypeCardinality.SCALAR,
-                        scalar_type=ScalarType.PRIMITIVE,
-                        primitive_type=PrimitiveType.STRING,
-                    ),
-                ],
-            ),
-            Type(
-                cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.PRIMITIVE,
-                primitive_type=PrimitiveType.BOOLEAN,
             ),
         ],
     )

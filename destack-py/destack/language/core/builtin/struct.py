@@ -47,7 +47,7 @@ def builtin_struct(
     *,
     frozen: bool = False,
     is_abstract: bool = False,
-    is_extensible: bool = False,
+    is_stable: bool = False,
     enum_types: tuple[EnumType, ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
@@ -66,7 +66,7 @@ def builtin_struct(
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
-        cls.__is_extensible__ = is_extensible
+        cls.__is_stable__ = is_stable
 
         # enum types
         cls.__self_enum_types__ = tuple(enum_types)
@@ -112,7 +112,7 @@ def builtin_struct(
     return decorate
 
 
-@builtin_struct(StructType.STRUCT, is_abstract=True, is_extensible=True)
+@builtin_struct(StructType.STRUCT, is_abstract=True)
 class Struct(BuiltinObject, abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
@@ -124,8 +124,8 @@ class Struct(BuiltinObject, abc.ABC):
     __is_struct__: ClassVar[bool] = True
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
-    """Whether this Struct can be extended by custom Structs."""
-    __is_extensible__: ClassVar[bool] = False
+    """Whether this Struct is stable (cannot be redefined by the system)."""
+    __is_stable__: ClassVar[bool] = False
 
     # inheritance
     """The base type this Struct extends (directly)."""
@@ -158,7 +158,6 @@ class Struct(BuiltinObject, abc.ABC):
     None,
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
-    is_extensible=True,
 )
 class StructFrozen(Struct):
     """An immutable Struct."""

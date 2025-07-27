@@ -4,7 +4,7 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
 from .property import builtin_property
-from .struct import StructFrozen, StructType, builtin_struct
+from .struct import Struct, StructType, builtin_struct
 from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
@@ -18,8 +18,8 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-@builtin_struct(StructType.VALUE, frozen=True)
-class Value(StructFrozen):
+@builtin_struct(StructType.VALUE)
+class Value(Struct):
     """
     A generic Value of any Type.
     Values are used to represent any generic data.
@@ -31,17 +31,23 @@ class Value(StructFrozen):
         description="The Type of the Value.",
     )
     value: Any | None = builtin_property(
-        110,
+        200,
         is_repr=True,
         description="The generic Value.",
     )
 
+    def get(self):
+        return self.value
+
+    def set(self, value: Any):
+        self.type = Type.infer(value)
+        self.value = value
+
     @classmethod
     def wrap(
         cls,
-        value_unpacked: Any,
+        value: Any,
         type: "Type | None" = None,
-        is_required: bool = False,
         node_as_value: bool = False,
     ) -> "Value":
         """
@@ -52,19 +58,14 @@ class Value(StructFrozen):
 
         # infer type
         if type is None:
-            if value_unpacked is None:
+            if value is None:
                 raise ValueError("cannot infer type for None")
-            type = Type.infer(value_unpacked, node_as_value=node_as_value)
-            if is_required and not type.is_required:
-                type = type.clone(is_required=True)
+            type = Type.infer(value, node_as_value=node_as_value)
         # coerce nodes into node references
         if type.scalar_type == ScalarType.NODE_REFERENCE:
-            if type.cardinality == TypeCardinality.SCALAR and isinstance(value_unpacked, Node):
-                value_unpacked = value_unpacked.to_ref()
-            elif type.cardinality == TypeCardinality.LIST and value_unpacked:
-                value_unpacked = [
-                    item.to_ref() if isinstance(item, Node) else item for item in value_unpacked
-                ]
+            if type.cardinality == TypeCardinality.SCALAR and isinstance(value, Node):
+                value = value.to_ref()
+            elif type.cardinality == TypeCardinality.LIST and value:
+                value = [item.to_ref() if isinstance(item, Node) else item for item in value]
 
-        value = Value(type=type, value=value_unpacked)
-        return value
+        return Value(type=type, value=value)

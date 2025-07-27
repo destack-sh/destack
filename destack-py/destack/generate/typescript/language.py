@@ -176,14 +176,6 @@ def _generate_type_scalar(
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported scalar_type: {prop!r}")
 
-    # literal
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot generate type for literal: {prop!r}")
-
-    # union
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot generate type for union: {prop!r}")
-
     #
     else:
         assert_never(prop.scalar_type)
@@ -791,14 +783,6 @@ repr(): string {{
         elif prop.scalar_type == ScalarType.NODE_VALUE:
             return f"{value_expr}.repr()"
 
-        # literal
-        elif prop.scalar_type == ScalarType.LITERAL:
-            raise NotImplementedError(f"cannot get repr for literal: {prop!r}")
-
-        # union
-        elif prop.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot get repr for union: {prop!r}")
-
         #
         else:
             assert_never(prop.scalar_type)
@@ -1172,14 +1156,6 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
     elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val})", False
 
-    # literal
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot compare literal: {prop!r}")
-
-    # union
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot compare union: {prop!r}")
-
     #
     else:
         assert_never(prop.scalar_type)
@@ -1341,14 +1317,6 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"hashString({value_expr}.id)"
-
-    # literal
-    elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot hash literal: {prop!r}")
-
-    # union
-    elif prop.scalar_type == ScalarType.UNION:
-        raise NotImplementedError(f"cannot hash union: {prop!r}")
 
     #
     else:
@@ -1733,14 +1701,6 @@ def _get_type_dependencies(
             dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
             if is_value:
                 value_dependencies.add(struct_cls.__name__)
-
-        # literal
-        elif type.scalar_type == ScalarType.LITERAL:
-            raise NotImplementedError(f"cannot get dependencies for literal: {type!r}")
-
-        # union
-        elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot get dependencies for union: {type!r}")
 
         #
         else:

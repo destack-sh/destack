@@ -31,8 +31,10 @@ class MethodDefinition(StructFrozen):
     description: str | None = builtin_property(103, is_repr=True)
 
     # content
-    properties: list["PropertyReference"] = builtin_property(120)
-    cardinality: MethodCardinality = builtin_property(121, default=MethodCardinality.UNARY)
+    cardinality: MethodCardinality = builtin_property(120, default=MethodCardinality.UNARY)
+    input_properties: list["PropertyReference"] = builtin_property(121)
+    output_properties: list["PropertyReference"] | None = builtin_property(122)
+    output_property: Optional["PropertyReference"] | None = builtin_property(123)
     # runtimes/languages/...?
 
     platforms: list[PlatformType] = builtin_property(
