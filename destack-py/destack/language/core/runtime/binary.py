@@ -1,4 +1,3 @@
-import json
 import math
 import struct
 from datetime import UTC, date, datetime, time, timedelta
@@ -27,6 +26,15 @@ class BinaryWriter:
 
     def __init__(self) -> None:
         self.buffer = bytearray()
+
+    def __str__(self) -> str:
+        return f"buffer={len(self.buffer)}"
+
+    def __repr__(self) -> str:
+        return f"<BinaryWriter buffer={len(self.buffer)}>"
+
+    def __len__(self) -> int:
+        return len(self.buffer)
 
     def to_bytes(self) -> bytes:
         """Get the written bytes."""
@@ -284,10 +292,48 @@ class BinaryWriter:
     # PrimitiveType.JSON
     def write_json(self, value: "Any") -> None:
         """
-        Write JSON as compact UTF-8 string with varint length prefix.
-        Size: 1-5 bytes (length) + JSON string length in bytes.
+        Write JSON as compact binary format.
+        - 0: null
+        - 1: false
+        - 2: true
+        - 3: int64 (zigzag varint)
+        - 4: float64
+        - 5: string (length-prefixed UTF-8)
+        - 6: array (length + elements)
+        - 7: object (length + key-value pairs)
         """
-        self.write_string(json.dumps(value, separators=(",", ":")))
+        if value is None:
+            self.buffer.append(0)
+        elif value is False:
+            self.buffer.append(1)
+        elif value is True:
+            self.buffer.append(2)
+        elif isinstance(value, int):
+            # encode as int64
+            self.buffer.append(3)
+            self.write_int64(value)
+        elif isinstance(value, float):
+            # encode as float64 (handles zero, infinity, NaN, etc.)
+            self.buffer.append(4)
+            self.write_float64(value)
+        elif isinstance(value, str):
+            self.buffer.append(5)
+            self.write_string(value)
+        elif isinstance(value, list):
+            self.buffer.append(6)
+            self._write_varint(len(value))
+            for item in value:
+                self.write_json(item)
+        elif isinstance(value, dict):
+            self.buffer.append(7)
+            self._write_varint(len(value))
+            for key, val in value.items():
+                if not isinstance(key, str):
+                    raise BinaryError(f"invalid JSON key type '{type(key)}': {key!r}")
+                self.write_string(key)
+                self.write_json(val)
+        else:
+            raise BinaryError(f"invalid JSON type '{type(value)}': {value!r}")
 
     def _write_varint(self, value: int) -> None:
         """Write an unsigned integer using variable-length encoding."""
@@ -312,6 +358,12 @@ class BinaryReader:
     def __init__(self, data: bytes) -> None:
         self.buffer = data
         self.pos = 0
+
+    def __str__(self) -> str:
+        return f"pos={self.pos}, remaining={self.remaining}"
+
+    def __repr__(self) -> str:
+        return f"<BinaryReader pos={self.pos}, remaining={self.remaining}>"
 
     @property
     def remaining(self) -> int:
@@ -616,10 +668,47 @@ class BinaryReader:
     # PrimitiveType.JSON
     def read_json(self) -> Any:
         """
-        Read JSON from UTF-8 string with varint length prefix.
-        Size: 1-5 bytes (length) + JSON string length in bytes.
+        Read JSON from compact binary format.
+        - 0: null
+        - 1: false
+        - 2: true
+        - 3: int64 (zigzag varint)
+        - 4: float64
+        - 5: string (length-prefixed UTF-8)
+        - 6: array (length + elements)
+        - 7: object (length + key-value pairs)
         """
-        return json.loads(self.read_string())
+        if self.pos >= len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+
+        tag = self.buffer[self.pos]
+        self.pos += 1
+
+        if tag == 0:
+            return None
+        elif tag == 1:
+            return False
+        elif tag == 2:
+            return True
+        elif tag == 3:
+            return self.read_int64()
+        elif tag == 4:
+            return self.read_float64()
+        elif tag == 5:
+            return self.read_string()
+        elif tag == 6:
+            length = self._read_varint()
+            return [self.read_json() for _ in range(length)]
+        elif tag == 7:
+            length = self._read_varint()
+            result = {}
+            for _ in range(length):
+                key = self.read_string()
+                value = self.read_json()
+                result[key] = value
+            return result
+        else:
+            raise BinaryError(f"invalid JSON type tag at {self.pos - 1}: {tag}")
 
     def _read_varint(self) -> int:
         """Read an unsigned integer using variable-length encoding."""

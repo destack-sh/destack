@@ -25,6 +25,14 @@ export class BinaryWriter {
     this.textEncoder = new TextEncoder();
   }
 
+  toString(): string {
+    return `<BinaryWriter pos=${this.pos} size=${this.buffer.byteLength} remaining=${this.buffer.byteLength - this.pos}>`;
+  }
+
+  repr(): string {
+    return `<BinaryWriter pos=${this.pos} size=${this.buffer.byteLength} remaining=${this.buffer.byteLength - this.pos}>`;
+  }
+
   toBytes(): Uint8Array {
     return new Uint8Array(this.buffer, 0, this.pos);
   }
@@ -345,11 +353,54 @@ export class BinaryWriter {
 
   // PrimitiveType.JSON
   /**
-   * Write JSON as UTF-8 string with varint length prefix.
-   * Size: 1-5 bytes (length) + JSON string length in bytes.
+   * Write JSON as compact binary format.
+   * - 0: null
+   * - 1: false
+   * - 2: true
+   * - 3: int64 (zigzag varint)
+   * - 4: float64
+   * - 5: string (length-prefixed UTF-8)
+   * - 6: array (length + elements)
+   * - 7: object (length + key-value pairs)
    */
   writeJson(value: any): void {
-    this.writeString(JSON.stringify(value));
+    this.ensureCapacity(1);
+    if (value === null) {
+      this.view.setUint8(this.pos++, 0);
+    } else if (value === false) {
+      this.view.setUint8(this.pos++, 1);
+    } else if (value === true) {
+      this.view.setUint8(this.pos++, 2);
+    } else if (typeof value === "number") {
+      if (!Object.is(value, -0) && Number.isInteger(value) && value >= Number.MIN_SAFE_INTEGER && value <= Number.MAX_SAFE_INTEGER) {
+        // encode as int64
+        this.view.setUint8(this.pos++, 3);
+        this.writeInt64(BigInt(value));
+      } else {
+        // encode as float64 (handles zero, infinity, NaN, etc.)
+        this.view.setUint8(this.pos++, 4);
+        this.writeFloat64(value);
+      }
+    } else if (typeof value === "string") {
+      this.view.setUint8(this.pos++, 5);
+      this.writeString(value);
+    } else if (Array.isArray(value)) {
+      this.view.setUint8(this.pos++, 6);
+      this.writeVarint(value.length);
+      for (const item of value) {
+        this.writeJson(item);
+      }
+    } else if (typeof value === "object") {
+      this.view.setUint8(this.pos++, 7);
+      const entries = Object.entries(value);
+      this.writeVarint(entries.length);
+      for (const [key, val] of entries) {
+        this.writeString(key);
+        this.writeJson(val);
+      }
+    } else {
+      throw new BinaryError(`invalid JSON type '${typeof value}': ${value}`);
+    }
   }
 
   private writeVarint(value: number): void {
@@ -461,6 +512,14 @@ export class BinaryReader {
     this.view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     this.pos = 0;
     this.textDecoder = new TextDecoder();
+  }
+
+  toString(): string {
+    return `<BinaryReader pos=${this.pos} size=${this.buffer.byteLength} remaining=${this.buffer.byteLength - this.pos}>`;
+  }
+
+  repr(): string {
+    return `<BinaryReader pos=${this.pos} size=${this.buffer.byteLength} remaining=${this.buffer.byteLength - this.pos}>`;
   }
 
   get remaining(): number {
@@ -795,11 +854,54 @@ export class BinaryReader {
 
   // PrimitiveType.JSON
   /**
-   * Read JSON from UTF-8 string with varint length prefix.
-   * Size: 1-5 bytes (length) + JSON string length in bytes.
+   * Read JSON from compact binary format.
+   * - 0: null
+   * - 1: false
+   * - 2: true
+   * - 3: int64 (zigzag varint)
+   * - 4: float64
+   * - 5: string (length-prefixed UTF-8)
+   * - 6: array (length + elements)
+   * - 7: object (length + key-value pairs)
    */
   readJson(): any {
-    return JSON.parse(this.readString());
+    if (this.pos >= this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+
+    const tag = this.buffer[this.pos++];
+    
+    if (tag === 0) {
+      return null;
+    } else if (tag === 1) {
+      return false;
+    } else if (tag === 2) {
+      return true;
+    } else if (tag === 3) {
+      return Number(this.readInt64());
+    } else if (tag === 4) {
+      return this.readFloat64();
+    } else if (tag === 5) {
+      return this.readString();
+    } else if (tag === 6) {
+      const length = this.readVarint();
+      const result = [];
+      for (let i = 0; i < length; i++) {
+        result.push(this.readJson());
+      }
+      return result;
+    } else if (tag === 7) {
+      const length = this.readVarint();
+      const result: any = {};
+      for (let i = 0; i < length; i++) {
+        const key = this.readString();
+        const value = this.readJson();
+        result[key] = value;
+      }
+      return result;
+    } else {
+      throw new BinaryError(`invalid JSON type tag at ${this.pos - 1}: ${tag}`);
+    }
   }
 
   private readVarint(): number {
