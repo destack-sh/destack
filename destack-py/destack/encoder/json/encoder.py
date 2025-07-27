@@ -124,7 +124,7 @@ class JsonEncoder(Encoder[Json]):
         value: Any,
         options: EncoderOptions,
     ) -> Json:
-        return pack_json(self, value, type, options)
+        return pack_json(self, type, value, options)
 
     @override
     def pack_value_binary(
@@ -134,7 +134,7 @@ class JsonEncoder(Encoder[Json]):
         writer: BinaryWriter,
         options: EncoderOptions,
     ) -> None:
-        writer.write_bytes(json.dumps(pack_json(self, value, type, options)).encode("utf-8"))
+        writer.write_bytes(json.dumps(pack_json(self, type, value, options)).encode("utf-8"))
 
     @override
     def unpack_value(
@@ -144,7 +144,7 @@ class JsonEncoder(Encoder[Json]):
         session: Session | None,
         options: EncoderOptions,
     ) -> Any:
-        return unpack_json(self, value, type, session, options)
+        return unpack_json(self, type, value, session, options)
 
     @override
     def unpack_value_binary(

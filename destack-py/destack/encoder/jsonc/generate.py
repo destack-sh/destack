@@ -60,14 +60,21 @@ def _generate_jsonc_object_encoder(cls: type["BuiltinObject"]) -> tuple[str, str
 class {encoder_name}(JsoncObjectEncoder):
     
     @override
-    def pack_object(self, _object: "{cls.__name__}") -> Jsonc:
+    def pack_object(
+        self, 
+        _encoder: "JsoncEncoder",
+        _object: "{cls.__name__}", 
+        _options: "EncoderOptions"
+    ) -> Jsonc:
 {pack_jsonc}
 
     @override
     def unpack_object(
         self, 
+        _encoder: "JsoncEncoder",
         _object_jsonc: Jsonc,
-        _session: "Session | None" = None,
+        _session: "Session | None",
+        _options: "EncoderOptions",
     ) -> "{cls.__name__}":
 {unpack_jsonc}
 """
@@ -99,7 +106,7 @@ class {encoder_name}(JsoncObjectEncoder):
 def _generate_pack_jsonc(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
     lines: list[str] = [
-        f"_object_jsonc = {{{METATYPE_PROPERTY_KEY}: {cls.metatype.value}}}",
+        f"_object_jsonc = {{'{METATYPE_PROPERTY_KEY}': {cls.metatype.value}}}",
     ]
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
@@ -110,7 +117,7 @@ def _generate_pack_jsonc(cls: type["BuiltinObject"]) -> str:
         elif cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
-                f"_object_jsonc['{prop.id}'] = ENCODER.pack_value(_object.type, _object.value)"
+                f"_object_jsonc['{prop.id}'] = _encoder.pack_value(_object.type, _object.value, _options)"
             )
         else:
             # normal property
@@ -134,19 +141,17 @@ def _generate_unpack_jsonc(cls: type["BuiltinObject"]) -> str:
         elif cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
-                f"_unpacked_value = ENCODER.unpack_value(_object_jsonc.get({prop.id}), _session)"
+                f"_unpacked_value = _encoder.unpack_value(_unpacked_type, _object_jsonc.get('{prop.id}'), _session, _options)"
             )
+            assignments.append("value = _unpacked_value")
         else:
             # normal property
             prop_name = (
                 prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
             )
             unpack_code = _generate_unpack_jsonc_property(prop)
-            if len(unpack_code) == 1:
-                assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
-            else:
-                lines.extend(unpack_code)
-                assignments.append(f"{prop_name}=_unpacked_{prop_name}")
+            lines.extend(unpack_code)
+            assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         assignments.append(
             "_packed_cache = (PackedObjectCache(Encoding.JSONC, False, _object_jsonc),)"
@@ -472,7 +477,7 @@ def _generate():
             impl,
             {**builtin_class_by_name, **extra_glbls},
             locals_,
-            f"{node_cls.__name__}:jsonc",
+            encoder_name,
         )
         encoder_cls = locals_[encoder_name]
         JSONC_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()

@@ -304,7 +304,8 @@ def _unpack_scalar_jsonc(
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        return encoder.unpack_object(ObjectKind.NODE, NodeType(value["1"]), value, session, options)
+        node_type = NodeType(value["1"])
+        return encoder.unpack_object(ObjectKind.NODE, node_type, value, session, options)
 
     # struct
     elif type.scalar_type == ScalarType.STRUCT:

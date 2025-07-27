@@ -75,6 +75,44 @@ class KompaktEncoder(Encoder[bytes]):
         return encoder.unpack_object(self, reader, session, options)
 
     @override
+    def pack_type(
+        self,
+        type: Type,
+        options: EncoderOptions,
+    ) -> bytes:
+        writer = BinaryWriter()
+        self.pack_type_binary(type, writer, options)
+        type_bytes = writer.to_bytes()
+        return type_bytes
+
+    @override
+    def pack_type_binary(
+        self,
+        type: Type,
+        writer: BinaryWriter,
+        options: EncoderOptions,
+    ) -> None:
+        raise NotImplementedError
+
+    @override
+    def unpack_type(
+        self,
+        value: bytes,
+        options: EncoderOptions,
+    ) -> Type:
+        reader = BinaryReader(value)
+        type = self.unpack_type_binary(reader, options)
+        return type
+
+    @override
+    def unpack_type_binary(
+        self,
+        reader: BinaryReader,
+        options: EncoderOptions,
+    ) -> Type:
+        raise NotImplementedError
+
+    @override
     def pack_value(
         self,
         type: Type,

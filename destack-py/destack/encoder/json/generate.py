@@ -5,7 +5,6 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
-    METATYPE_PROPERTY_KEY,
     BuiltinObject,
     NodeType,
     ObjectKind,
@@ -100,7 +99,7 @@ class {encoder_name}(JsonObjectEncoder):
 def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
     lines: list[str] = [
-        f"_object_json: dict[str, Any] = {{{METATYPE_PROPERTY_KEY}: {cls.metatype.value}}}",
+        f"_object_json: dict[str, Any] = {{'metatype': '{cls.metatype.name}'}}",
     ]
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
@@ -111,7 +110,7 @@ def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
         elif cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
-                f"_object_json['{prop.id}'] = _encoder.pack_value(_object.type, _object.value, _options)"
+                f"_object_json['{prop.name}'] = _encoder.pack_value(_object.type, _object.value, _options)"
             )
         else:
             # normal property
@@ -135,19 +134,17 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
         elif cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
-                f"_unpacked_value = _encoder.unpack_value(_object_json.get({prop.id}), _session, _options)"
+                "_unpacked_value = _encoder.unpack_value(_unpacked_type, _object_json.get('value'), _session, _options)"
             )
+            assignments.append("value = _unpacked_value")
         else:
             # normal property
             prop_name = (
                 prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
             )
             unpack_code = _generate_unpack_json_property(prop)
-            if len(unpack_code) == 1:
-                assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
-            else:
-                lines.extend(unpack_code)
-                assignments.append(f"{prop_name}=_unpacked_{prop_name}")
+            lines.extend(unpack_code)
+            assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         assignments.append(
             "_packed_cache=PackedObjectCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
@@ -485,7 +482,7 @@ def _generate():
             impl,
             {**builtin_class_by_name, **extra_glbls},
             locals_,
-            f"{node_cls.__name__}:json",
+            encoder_name,
         )
         encoder_cls = locals_[encoder_name]
         JSON_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()

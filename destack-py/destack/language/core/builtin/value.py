@@ -30,7 +30,7 @@ class Value(StructFrozen):
         is_repr=True,
         description="The Type of the Value.",
     )
-    value: Any = builtin_property(
+    value: Any | None = builtin_property(
         110,
         is_repr=True,
         description="The generic Value.",
