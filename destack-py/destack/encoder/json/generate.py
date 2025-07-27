@@ -54,14 +54,21 @@ def _generate_json_object_encoder(cls: type["BuiltinObject"]) -> tuple[str, str,
 class {encoder_name}(JsonObjectEncoder):
     
     @override
-    def pack_object(self, _object: "{cls.__name__}") -> "dict[str, Any]":
+    def pack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object: "{cls.__name__}",
+        _options: "EncoderOptions",
+    ) -> "dict[str, Any]":
 {pack_json}
 
     @override
     def unpack_object(
-        self, 
+        self,
+        _encoder: "JsonEncoder",
         _object_json: "dict[str, Any]",
-        _session: "Session | None" = None,
+        _session: "Session | None",
+        _options: "EncoderOptions",
     ) -> "{cls.__name__}":
 {unpack_json}
 """
@@ -92,7 +99,7 @@ class {encoder_name}(JsonObjectEncoder):
 
 def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method for a BuiltinObject."""
-    pack_method_parts: list[str] = [
+    lines: list[str] = [
         f"_object_json: dict[str, Any] = {{{METATYPE_PROPERTY_KEY}: {cls.metatype.value}}}",
     ]
 
@@ -101,45 +108,58 @@ def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     for prop in wired_properties_in_order:
         if prop.is_computed:
             continue
-        pack_code = _generate_pack_json_property(prop)
-        if pack_code:
-            pack_method_parts.extend(pack_code)
+        elif cls.metatype == StructType.VALUE and prop.name == "value":
+            # generic value
+            lines.append(
+                f"_object_json['{prop.id}'] = _encoder.pack_value(_object.type, _object.value, _options)"
+            )
+        else:
+            # normal property
+            pack_code = _generate_pack_json_property(prop)
+            lines.extend(pack_code)
 
-    pack_method_parts.append("return _object_json")
-    return "\n".join(pack_method_parts)
+    lines.append("return _object_json")
+    return "\n".join(lines)
 
 
 def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
     """Generate the unpack_object method for a BuiltinObject."""
-    unpack_assignments: list[str] = []
-    unpack_method_parts: list[str] = []
+    assignments: list[str] = []
+    lines: list[str] = []
 
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
         if prop.is_computed:
             continue  # set implicitly
-        prop_name = (
-            prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
-        )
-        unpack_code = _generate_unpack_json_property(prop)
-        if len(unpack_code) == 1:
-            unpack_assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
+        elif cls.metatype == StructType.VALUE and prop.name == "value":
+            # generic value
+            lines.append(
+                f"_unpacked_value = _encoder.unpack_value(_object_json.get({prop.id}), _session, _options)"
+            )
         else:
-            unpack_method_parts.extend(unpack_code)
-            unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
+            # normal property
+            prop_name = (
+                prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+            )
+            unpack_code = _generate_unpack_json_property(prop)
+            if len(unpack_code) == 1:
+                assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
+            else:
+                lines.extend(unpack_code)
+                assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append(
+        assignments.append(
             "_packed_cache=PackedObjectCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
         )
 
-    unpack_method_parts.append("return cls(")
-    for assignment in unpack_assignments:
-        unpack_method_parts.append(f"    {assignment},")
-    unpack_method_parts.append("    _session=_session,")
-    unpack_method_parts.append(")")
+    lines.append("return cls(")
+    for assignment in assignments:
+        lines.append(f"    {assignment},")
+    lines.append("    _session=_session,")
+    lines.append(")")
 
-    return "\n".join(unpack_method_parts)
+    return "\n".join(lines)
 
 
 def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:

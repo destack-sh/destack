@@ -1,4 +1,3 @@
-
 from destack.language import (
     ENCODERS,
     BinaryReader,
@@ -22,23 +21,26 @@ from destack.utils.uuid import uuid4
 def _do_test_roundtrip_object(
     obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
 ) -> None:
-    if encoding != Encoding.KOMPAKT:
-        return  # nocheckin
-
     # pack/unpack
-    packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj)
+    packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj, Encoder.TAGGED)
     writer = BinaryWriter()
-    packed_obj_bytes = encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
-    unpacked_obj = encoder.unpack_object(obj.__kind__, obj.metatype, packed_obj, session)
+    packed_obj_bytes = encoder.pack_object_binary(
+        obj.__kind__, obj.metatype, obj, writer, Encoder.TAGGED
+    )
+    unpacked_obj = encoder.unpack_object(
+        obj.__kind__, obj.metatype, packed_obj, session, Encoder.TAGGED
+    )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
     # pack/unpack as bytes
     writer = BinaryWriter()
-    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
+    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer, Encoder.TAGGED)
     packed_obj_bytes = writer.to_bytes()
     reader = BinaryReader(packed_obj_bytes)
-    unpacked_obj_bytes = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
+    unpacked_obj_bytes = encoder.unpack_object_binary(
+        obj.__kind__, obj.metatype, reader, session, Encoder.TAGGED
+    )
     assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
 

@@ -7,13 +7,19 @@ from .binary import BinaryReader, BinaryWriter
 if TYPE_CHECKING:
     from destack.language.core import Session, Type
 
+# nocheckin: pack/unpack Struct subclasses properly
+#  (in general, but specifically for Errors/Frames/Packets/...)
+# nocheckin: pack partial Nodes properly (.materialization<FULL)
 
-class EncodeOptions(NamedTuple):
-    pass
 
+class EncoderOptions(NamedTuple):
+    """Options for encoding."""
 
-class DecodeOptions(NamedTuple):
-    pass
+    """Whether to include the metatype of BuiltinObjects."""
+    include_metatype: bool = True
+    """Whether to include the key of properties."""
+    include_key: bool = True
+    # include_type?
 
 
 class Encoder[T: Any = Any](ABC):
@@ -21,12 +27,16 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
+    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_metatype=True, include_key=True)
+    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_metatype=False, include_key=False)
+
     @abstractmethod
     def pack_object(
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
         object: BuiltinObject,
+        options: EncoderOptions,
     ) -> T:
         """Pack a BuiltinObject into some encoded format."""
         raise NotImplementedError
@@ -38,13 +48,19 @@ class Encoder[T: Any = Any](ABC):
         metatype: NodeType | StructType,
         object: BuiltinObject,
         writer: "BinaryWriter",
+        options: EncoderOptions,
     ) -> None:
         """Pack a BuiltinObject into the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
     def unpack_object(
-        self, kind: ObjectKind, metatype: NodeType | StructType, value: T, session: "Session | None"
+        self,
+        kind: ObjectKind,
+        metatype: NodeType | StructType,
+        value: T,
+        session: "Session | None",
+        options: EncoderOptions,
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from some encoded format."""
         raise NotImplementedError
@@ -56,48 +72,87 @@ class Encoder[T: Any = Any](ABC):
         metatype: NodeType | StructType,
         reader: "BinaryReader",
         session: "Session | None",
+        options: EncoderOptions,
     ) -> BuiltinObject:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def pack_type(self, type: "Type") -> T:
+    def pack_type(
+        self,
+        type: "Type",
+        options: EncoderOptions,
+    ) -> T:
         """Pack a Type into some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def pack_type_binary(self, type: "Type", writer: "BinaryWriter") -> None:
+    def pack_type_binary(
+        self,
+        type: "Type",
+        writer: "BinaryWriter",
+        options: EncoderOptions,
+    ) -> None:
         """Pack a Type into the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def unpack_type(self, type: "Type", value: T) -> Any:
+    def unpack_type(
+        self,
+        value: T,
+        options: EncoderOptions,
+    ) -> Any:
         """Unpack a Type from some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def unpack_type_binary(self, type: "Type", reader: "BinaryReader") -> Any:
+    def unpack_type_binary(
+        self,
+        reader: "BinaryReader",
+        options: EncoderOptions,
+    ) -> Any:
         """Unpack a Type from the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def pack_value(self, type: "Type", value: Any) -> T:
+    def pack_value(
+        self,
+        type: "Type",
+        value: Any,
+        options: EncoderOptions,
+    ) -> T:
         """Pack a value into some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def pack_value_binary(self, type: "Type", value: Any, writer: "BinaryWriter") -> None:
+    def pack_value_binary(
+        self,
+        type: "Type",
+        value: Any,
+        writer: "BinaryWriter",
+        options: EncoderOptions,
+    ) -> None:
         """Pack a value into the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
-    def unpack_value(self, type: "Type", value: T, session: "Session | None") -> Any:
+    def unpack_value(
+        self,
+        type: "Type",
+        value: T,
+        session: "Session | None",
+        options: EncoderOptions,
+    ) -> Any:
         """Unpack a value from some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
     def unpack_value_binary(
-        self, type: "Type", reader: "BinaryReader", session: "Session | None"
+        self,
+        type: "Type",
+        reader: "BinaryReader",
+        session: "Session | None",
+        options: EncoderOptions,
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""
         raise NotImplementedError

@@ -4,19 +4,18 @@ from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language.core import (
     BuiltinObject,
-    Encoding,
+    EncoderOptions,
     Jsonc,
-    NodeReference,
     NodeType,
+    ObjectKind,
     PrimitiveType,
     ScalarType,
+    StructType,
     Type,
     TypeCardinality,
 )
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
 )
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
@@ -25,6 +24,8 @@ from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Session
+
+    from .encoder import JsoncEncoder
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -35,7 +36,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def pack_jsonc(type: Type, value: Any) -> Jsonc:
+def pack_jsonc(encoder: "JsoncEncoder", type: Type, value: Any, options: EncoderOptions) -> Jsonc:
     """Pack a generic typed value to a JSONC object."""
 
     # scalar
@@ -43,7 +44,7 @@ def pack_jsonc(type: Type, value: Any) -> Jsonc:
         if value is None:
             return None
         else:
-            return _pack_scalar_jsonc(type, value)
+            return _pack_scalar_jsonc(encoder, type, value, options)
 
     # list
     elif type.cardinality == TypeCardinality.LIST:
@@ -53,7 +54,7 @@ def pack_jsonc(type: Type, value: Any) -> Jsonc:
             assert type.value_type is not None, f"no value type for {type!r}"
             packed_list: list[Jsonc] = []
             for item in value:
-                packed_list.append(_pack_scalar_jsonc(type.value_type, item))
+                packed_list.append(_pack_scalar_jsonc(encoder, type.value_type, item, options))
             return packed_list
 
     # tuple
@@ -64,7 +65,7 @@ def pack_jsonc(type: Type, value: Any) -> Jsonc:
             assert type.element_types is not None, f"no element types for {type!r}"
             packed_tuple: list[Jsonc] = []
             for item, element_type in zip(value, type.element_types):
-                packed_tuple.append(_pack_scalar_jsonc(element_type, item))
+                packed_tuple.append(_pack_scalar_jsonc(encoder, element_type, item, options))
             return packed_tuple
 
     # map
@@ -76,8 +77,8 @@ def pack_jsonc(type: Type, value: Any) -> Jsonc:
             assert type.value_type is not None, f"no value type for {type!r}"
             packed_map: dict[str, Jsonc] = {}
             for key, val in value.items():
-                packed_key = _pack_scalar_jsonc(type.key_type, key)
-                packed_val = _pack_scalar_jsonc(type.value_type, val)
+                packed_key = _pack_scalar_jsonc(encoder, type.key_type, key, options)
+                packed_val = _pack_scalar_jsonc(encoder, type.value_type, val, options)
                 packed_map[str(packed_key)] = packed_val
             return packed_map
 
@@ -85,7 +86,13 @@ def pack_jsonc(type: Type, value: Any) -> Jsonc:
         assert_never(type.cardinality)
 
 
-def unpack_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
+def unpack_jsonc(
+    encoder: "JsoncEncoder",
+    type: Type,
+    value: Jsonc,
+    session: "Session | None",
+    options: EncoderOptions,
+) -> Any:
     """Unpack a JSONC object to a generic typed value."""
 
     # scalar
@@ -93,7 +100,7 @@ def unpack_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
         if value is None:
             return None
         else:
-            return _unpack_scalar_jsonc(type, value, session)
+            return _unpack_scalar_jsonc(encoder, type, value, session, options)
 
     # list
     elif type.cardinality == TypeCardinality.LIST:
@@ -103,7 +110,9 @@ def unpack_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
             assert type.value_type is not None, f"no value type for {type!r}"
             unpacked_list = []
             for item in value:
-                unpacked_list.append(_unpack_scalar_jsonc(type.value_type, item, session))
+                unpacked_list.append(
+                    _unpack_scalar_jsonc(encoder, type.value_type, item, session, options)
+                )
             return unpacked_list
 
     # tuple
@@ -114,7 +123,9 @@ def unpack_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
             assert type.element_types is not None, f"no element types for {type!r}"
             unpacked_tuple: list[Any] = []
             for item, element_type in zip(value, type.element_types):
-                unpacked_tuple.append(_unpack_scalar_jsonc(element_type, item, session))
+                unpacked_tuple.append(
+                    _unpack_scalar_jsonc(encoder, element_type, item, session, options)
+                )
             return tuple(unpacked_tuple)
 
     # map
@@ -127,16 +138,20 @@ def unpack_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
             unpacked_map = {}
             for key, val in value.items():
                 unpacked_key = (
-                    _unpack_scalar_jsonc(type.key_type, key, session) if type.key_type else key
+                    _unpack_scalar_jsonc(encoder, type.key_type, key, session, options)
+                    if type.key_type
+                    else key
                 )
-                unpacked_val = _unpack_scalar_jsonc(type.value_type, val, session)
+                unpacked_val = _unpack_scalar_jsonc(encoder, type.value_type, val, session, options)
                 unpacked_map[unpacked_key] = unpacked_val
             return unpacked_map
     else:
         assert_never(type.cardinality)
 
 
-def _pack_scalar_jsonc(type: Type, value: Any) -> Jsonc:
+def _pack_scalar_jsonc(
+    encoder: "JsoncEncoder", type: Type, value: Any, options: EncoderOptions
+) -> Jsonc:
     """Pack a scalar value to JSONC."""
 
     assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
@@ -199,10 +214,11 @@ def _pack_scalar_jsonc(type: Type, value: Any) -> Jsonc:
 
     # node reference, node value, struct
     elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
+        assert type.struct_type is not None, f"no struct type for {type!r}"
         assert isinstance(value, BuiltinObject), (
             f"expected BuiltinObject for {type!r}, got {value!r}"
         )
-        return value.pack(Encoding.JSONC)
+        return encoder.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
 
     # literal
     elif type.scalar_type == ScalarType.LITERAL:
@@ -217,7 +233,13 @@ def _pack_scalar_jsonc(type: Type, value: Any) -> Jsonc:
         assert_never(type.scalar_type)
 
 
-def _unpack_scalar_jsonc(type: Type, value: Jsonc, session: "Session | None") -> Any:
+def _unpack_scalar_jsonc(
+    encoder: "JsoncEncoder",
+    type: Type,
+    value: Jsonc,
+    session: "Session | None",
+    options: EncoderOptions,
+) -> Any:
     """Unpack a scalar value from JSONC."""
     assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
@@ -276,19 +298,18 @@ def _unpack_scalar_jsonc(type: Type, value: Jsonc, session: "Session | None") ->
 
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return NodeReference.unpack(Encoding.JSONC, value, session)
+        return encoder.unpack_object(
+            ObjectKind.STRUCT, StructType.NODE_REFERENCE, value, session, options
+        )
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        node_type = NodeType(value["1"])
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-        return node_cls.unpack(Encoding.JSONC, value, session)
+        return encoder.unpack_object(ObjectKind.NODE, NodeType(value["1"]), value, session, options)
 
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-        return struct_cls.unpack(Encoding.JSONC, value, session)  #
+        return encoder.unpack_object(ObjectKind.STRUCT, type.struct_type, value, session, options)
 
     # literal
     elif type.scalar_type == ScalarType.LITERAL:

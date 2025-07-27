@@ -23,6 +23,8 @@ _FLOAT_NAN = float("nan")
 class BinaryWriter:
     """Write binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
 
+    __slots__ = ("buffer",)
+
     def __init__(self) -> None:
         self.buffer = bytearray()
 
@@ -304,6 +306,8 @@ class BinaryWriter:
 
 class BinaryReader:
     """Read binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
+
+    __slots__ = ("buffer", "pos")
 
     def __init__(self, data: bytes) -> None:
         self.buffer = data

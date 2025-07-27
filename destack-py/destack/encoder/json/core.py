@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
-from destack.language.core import BuiltinObject, Session
+from destack.language.core import BuiltinObject, EncoderOptions, Session
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
 if TYPE_CHECKING:
-    pass
+    from .encoder import JsonEncoder
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -19,12 +19,19 @@ type_ = type
 class JsonObjectEncoder:
     """JSON object encoder."""
 
-    def pack_object(self, object: BuiltinObject) -> dict[str, Any]:
+    def pack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object: BuiltinObject,
+        _options: EncoderOptions,
+    ) -> dict[str, Any]:
         raise NotImplementedError
 
     def unpack_object(
         self,
-        json_obj: dict[str, Any],
-        session: Session | None,
+        _encoder: "JsonEncoder",
+        _object_json: dict[str, Any],
+        _session: Session | None,
+        _options: EncoderOptions,
     ) -> BuiltinObject:
         raise NotImplementedError
