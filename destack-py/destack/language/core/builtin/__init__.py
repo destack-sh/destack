@@ -103,7 +103,7 @@ from .entity import (
     Materialization,
 )
 from .enum import Enum, builtin_enum
-from .event import CustomEvent, Event, EventStatus
+from .event import Event, EventStatus
 from .meta import (
     ActionDeclaration,
     ConstantDeclaration,
@@ -141,7 +141,7 @@ from .relation import (
     StructDefinitionReference,
     StructDefinitionType,
 )
-from .struct import Struct, StructFrozen, StructMutable, builtin_struct
+from .struct import Struct, StructFrozen, builtin_struct
 from .trait import (
     TRAIT_PREFIXES,
     IsActor,
@@ -227,8 +227,6 @@ __all__ = [
     "ConstraintDeclaration",
     "ConstraintDefinition",
     "ConstraintType",
-    "CustomEvent",
-    "CustomEvent",
     "DestackError",
     "EdgeDirection",
     "EdgeType",
@@ -310,11 +308,11 @@ __all__ = [
     "ScalarType",
     "StringConstraint",
     "Struct",
+    "Struct",
     "StructDefinition",
     "StructDefinitionReference",
     "StructDefinitionType",
     "StructFrozen",
-    "StructMutable",
     "StructType",
     "Tag",
     "TagDeclaration",

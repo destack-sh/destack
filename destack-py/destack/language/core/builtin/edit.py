@@ -13,7 +13,7 @@ from .node import builtin_node
 from .property import builtin_property
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, NodeReference, Value
+    from destack.language import CustomPropertyDefinition, NodeReference, Value
 
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
@@ -85,7 +85,7 @@ The id of the builtin Property being edited.
 If it's a custom Property, this just refers to Entity.custom_values.
 """,
     )
-    custom_property: "CustomProperty | None" = builtin_property(
+    custom_property: "CustomPropertyDefinition | None" = builtin_property(
         104, is_repr=True, description="The custom Property being edited (if not a builtin)."
     )
     key: "Value | None" = builtin_property(

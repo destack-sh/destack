@@ -28,9 +28,9 @@ from .trait import Trait
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomEvent,
-        CustomProperty,
-        CustomStruct,
+        CustomEventDefinition,
+        CustomPropertyDefinition,
+        CustomStructDefinition,
         Entity,
         Node,
         PropertyDefinition,
@@ -105,7 +105,7 @@ class NodeDefinitionReference(StructFrozen):
                 if NodeType.ENTITY in node_cls.__inherits__:
                     definition_node_type = base.type  # same as instance
                 elif NodeType.EVENT in node_cls.__inherits__:
-                    definition_node_type = NodeType.CUSTOM_EVENT
+                    definition_node_type = NodeType.CUSTOM_EVENT_DEFINITION
                 else:
                     raise ValueError(f"unexpected node reference: {base!r}")
                 definition_ptr = NodeReference(
@@ -197,12 +197,11 @@ class ObjectDefinitionReference(StructFrozen):
             "type[Node]",
             "type[Trait]",
             "type[Struct]",
-            "CustomEvent",
-            "CustomStruct",
+            "CustomEventDefinition",
+            "CustomStructDefinition",
         ],
     ) -> "ObjectDefinitionReference":
-        from ..common.struct import CustomStruct
-        from .event import CustomEvent
+        from ..common.custom import CustomEventDefinition, CustomStructDefinition
         from .node import Node
 
         if isinstance(base, NodeType):
@@ -228,8 +227,8 @@ class ObjectDefinitionReference(StructFrozen):
                     struct_type=base.metatype,
                 )
             else:
-                raise ValueError(f"invalid object reference type: {base!r}")
-        elif isinstance(base, (CustomEvent, CustomStruct)):
+                assert_never(base)
+        elif isinstance(base, (CustomEventDefinition, CustomStructDefinition)):
             raise NotImplementedError(f"unexpected object definition reference: {base!r}")
         else:
             assert_never(base)
@@ -249,7 +248,7 @@ class StructDefinitionReference(StructFrozen):
 
     type: StructDefinitionType = builtin_property(100, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(101, is_repr=True)
-    definition: "CustomStruct" = builtin_property(105, is_repr=True)
+    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -281,7 +280,7 @@ class PropertyReference(StructFrozen):
         is_repr=True,
         description="id of the builtin Property",
     )
-    custom_property: "CustomProperty | None" = builtin_property(
+    custom_property: "CustomPropertyDefinition | None" = builtin_property(
         106,
         is_repr=True,
         description="custom Property of a custom Node or Struct",
@@ -296,7 +295,7 @@ class PropertyReference(StructFrozen):
         """Get this PropertyReference (for convenience)."""
         return self
 
-    def resolve_maybe(self) -> "PropertyDefinition | CustomProperty | None":
+    def resolve_maybe(self) -> "PropertyDefinition | CustomPropertyDefinition | None":
         """Resolves the property reference to a Property."""
         if self.type == PropertyReferenceType.BUILTIN:
             if (node_type := self.node_type) is not None:
@@ -316,7 +315,7 @@ class PropertyReference(StructFrozen):
         else:
             return None
 
-    def resolve(self) -> "PropertyDefinition | CustomProperty":
+    def resolve(self) -> "PropertyDefinition | CustomPropertyDefinition":
         """Resolves the property reference to a Property."""
         resolved = self.resolve_maybe()
         if resolved is None:
@@ -325,15 +324,15 @@ class PropertyReference(StructFrozen):
 
     @staticmethod
     def of(
-        base: "PropertyDeclaration | PropertyDefinition | CustomProperty",
+        base: "PropertyDeclaration | PropertyDefinition | CustomPropertyDefinition",
     ) -> "PropertyReference":
-        from destack.language.core import CustomProperty
+        from destack.language.core import CustomPropertyDefinition
 
         if isinstance(base, PropertyDeclaration):
             return base.to_ref()
         elif isinstance(base, PropertyDefinition):
             raise ValueError(f"cannot convert {base!r} to a PropertyReference")
-        elif isinstance(base, CustomProperty):
+        elif isinstance(base, CustomPropertyDefinition):
             assert base.parent_ptr is not None, f"no parent for {base!r}"
             return PropertyReference(
                 type=PropertyReferenceType.CUSTOM,

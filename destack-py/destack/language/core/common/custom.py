@@ -1,28 +1,112 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
+
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     CascadeAction,
     EdgeType,
     Entity,
+    Event,
     NodeType,
-    PropertyZone,
+    Struct,
+    StructType,
     builtin_node,
     builtin_property,
+    builtin_property_parent,
+    builtin_struct,
 )
 from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
     from destack.language import (
         CheckedType,
+        Condition,
         Icon,
+        NodeDefinitionReference,
+        NodeReference,
+        StructDefinitionReference,
+        Value,
     )
 
+# pyright: reportIncompatibleVariableOverride=false
 
-# pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
+
+@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
+class CustomEventDefinition(
+    Entity,
+):
+    """A CustomEvent defines a custom Event with custom Properties."""
+
+    icon: "Icon | None" = builtin_property(102)
+
+    base_type: Optional["NodeDefinitionReference"] = builtin_property(110)
+    self_traits: list["NodeDefinitionReference"] = builtin_property(111)
+    is_abstract: bool = builtin_property(112, default=False)
 
 
-@builtin_node(NodeType.CUSTOM_PROPERTY)
-class CustomProperty(Entity):
+@builtin_node(
+    NodeType.CUSTOM_EVENT,
+    frozen=True,  # type: ignore (frozen)
+    is_extensible=True,
+    is_abstract=True,
+)
+class CustomEvent(Event):
+    """
+    A generic Event of a CustomEvent.
+    """
+
+    definition: "CustomEventDefinition" = builtin_property(
+        6,
+        is_internal=True,
+        is_readonly=True,
+        description="The CustomEvent this Signal is an instance of.",
+    )
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
+class CustomStructDefinition(
+    Entity,
+):
+    """A CustomStruct describes a custom Struct with custom Properties."""
+
+    icon: "Icon | None" = builtin_property(102)
+
+    base_type: Optional["StructDefinitionReference"] = builtin_property(110)
+
+
+@builtin_struct(StructType.CUSTOM_STRUCT)
+class CustomStruct(Struct):
+    """A CustomStruct is an instance of a custom Struct with custom Properties."""
+
+    custom_values: dict[UUID, "Value"] = builtin_property(
+        45,
+        description="The custom Values of this Struct, keyed by custom Property id..",
+    )
+    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
+
+
+@builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
+class CustomEnumDefinition(
+    Entity,
+):
+    """A CustomEnum describes a custom Enum with custom Options."""
+
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(NodeType.CUSTOM_OPTION_DEFINITION)
+class CustomOptionDefinition(
+    Entity,
+):
+    parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
+
+    icon: "Icon | None" = builtin_property(102)
+
+
+@builtin_node(NodeType.CUSTOM_PROPERTY_DEFINITION)
+class CustomPropertyDefinition(Entity):
     """
     A CustomProperty is a custom attribute of an Entity.
     """
@@ -32,11 +116,6 @@ class CustomProperty(Entity):
         description="The actual Type of this custom Property.",
     )
     icon: "Icon | None" = builtin_property(102)
-    zone: PropertyZone = builtin_property(
-        103,
-        default=PropertyZone.MEMBER,
-        description="Where in the parent Entity this Property resides.",
-    )
 
     # relationship
     edge_type: Optional[EdgeType] = builtin_property(140)
@@ -66,7 +145,7 @@ class CustomProperty(Entity):
 
     def neq(self, value: Any) -> Condition:
         if value is None:
-            return self.exists()
+            return self.is_not_none()
         return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
     def gt(self, value: Any) -> Condition:
@@ -92,9 +171,6 @@ class CustomProperty(Entity):
 
     def not_in(self, *values: Any) -> Condition:
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
-
-    def exists(self) -> Condition:
-        return Condition.of(self, ConditionalType.EXISTS)
 
     def is_not_none(self) -> Condition:
         return Condition.of(self, ConditionalType.EXISTS)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Enum,
     EnumType,
-    StructMutable,
+    Struct,
     StructType,
     UInt8,
     UInt16,
@@ -58,7 +58,7 @@ class ScheduleFrequency(Enum):
 
 
 @builtin_struct(StructType.SCHEDULE)
-class Schedule(StructMutable):
+class Schedule(Struct):
     """The time-based schedule of something (compatible with rrule)."""
 
     frequency: ScheduleFrequency = builtin_property(101)

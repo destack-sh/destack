@@ -18,8 +18,6 @@ if TYPE_CHECKING:
     from destack.language import (
         Branch,
         Client,
-        Icon,
-        NodeDefinitionReference,
         NodeReference,
         Snapshot,
         Space,
@@ -206,37 +204,3 @@ class Event[N: Node = Node](Node):
             yield self
         finally:
             ACTIVE_EVENT.reset(token)
-
-
-@builtin_node(NodeType.CUSTOM_EVENT)
-class CustomEvent(
-    Entity,
-):
-    """A CustomEvent defines a custom Event with custom Properties."""
-
-    icon: "Icon | None" = builtin_property(102)
-
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(110)
-    self_traits: list["NodeDefinitionReference"] = builtin_property(111)
-    is_abstract: bool = builtin_property(112, default=False)
-
-
-@builtin_node(
-    NodeType.SIGNAL_EVENT,
-    frozen=True,  # type: ignore (frozen)
-    is_extensible=True,
-    is_abstract=True,
-)
-class SignalEvent(Event):
-    """
-    A generic Event of a CustomEvent.
-    """
-
-    definition: "CustomEvent" = builtin_property(
-        6,
-        is_internal=True,
-        is_readonly=True,
-        description="The CustomEvent this Signal is an instance of.",
-    )
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
