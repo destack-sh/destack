@@ -33,7 +33,6 @@ if TYPE_CHECKING:
 
 from .core import KompaktObjectEncoder
 
-# ruff: noqa: SIM114, FURB113
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -52,11 +51,23 @@ def _generate_kompakt_object_encoder(cls: type["BuiltinObject"]) -> tuple[str, s
     impl = f"""
 class {encoder_name}(KompaktObjectEncoder):
     @override
-    def pack_object(self, _object: "{cls.__name__}", writer: BinaryWriter) -> None:
+    def pack_object(
+        self, 
+        _encoder: "KompaktEncoder",
+        _object: "{cls.__name__}", 
+        _writer: BinaryWriter,
+        _options: "EncoderOptions"
+    ) -> None:
 {pack_kompakt}
 
     @override
-    def unpack_object(self, _reader: BinaryReader, _session: "Session | None") -> "{cls.__name__}":
+    def unpack_object(
+        self, 
+        _encoder: "KompaktEncoder",
+        _reader: BinaryReader,
+        _session: "Session | None",
+        _options: "EncoderOptions",
+    ) -> "{cls.__name__}":
 {unpack_kompakt}
 """
 
@@ -87,17 +98,8 @@ class {encoder_name}(KompaktObjectEncoder):
 def _generate_pack_kompakt(cls: type["BuiltinObject"]) -> str:
     """Generate the pack_object method implementation."""
     lines: list[str] = [
-        f"writer.write_uint32({cls.metatype.value})",
+        f"_writer.write_uint32({cls.metatype.value})",
     ]
-
-    wired_properties_in_order = list(cls.__wired_properties__.values())
-    wired_properties_in_order.sort(key=lambda p: p.id or 0)
-    for prop in wired_properties_in_order:
-        if prop.is_computed:
-            continue
-        pack_code = _generate_pack_kompakt_type(prop, f"_object.{prop.name}")
-        if pack_code:
-            lines.append(pack_code)
 
     return "\n".join(lines)
 
@@ -105,29 +107,9 @@ def _generate_pack_kompakt(cls: type["BuiltinObject"]) -> str:
 def _generate_unpack_kompakt(cls: type["BuiltinObject"]) -> str:
     """Generate the unpack_object method implementation."""
     lines: list[str] = [
-        "metatype = reader.read_uint32()",
+        "metatype = _reader.read_uint32()",
         f"assert metatype == {cls.metatype.value}",
     ]
-
-    # build up the object
-    wired_properties_in_order = list(cls.__wired_properties__.values())
-    wired_properties_in_order.sort(key=lambda p: p.id or 0)
-    for prop in wired_properties_in_order:
-        if prop.is_computed:
-            continue
-        target_expr = f"_object_{prop.name}"
-        unpack_code, is_simple = _generate_unpack_kompakt_type(prop, target_expr)
-        if is_simple:
-            lines.append(f"{target_expr} = {unpack_code}")
-        else:
-            lines.append(unpack_code)
-
-    # constructor
-    constructor_args = ",\n".join(
-        f"    {prop.name}=_object_{prop.name}" for prop in wired_properties_in_order
-    )
-    lines.append(f"_object = {cls.__name__}(\n{constructor_args}\n)")
-    lines.append("return _object")
 
     return "\n".join(lines)
 
@@ -135,128 +117,13 @@ def _generate_unpack_kompakt(cls: type["BuiltinObject"]) -> str:
 def _generate_pack_kompakt_type(type: TypeDeclaration, value_expr: str) -> str:
     """Generate the pack_kompakt method implementation for a property."""
 
-    lines: list[str] = []
-
-    # scalar
-    if type.cardinality == TypeCardinality.SCALAR:
-        scalar_pack_str = _generate_pack_kompakt_scalar(type, value_expr)
-        if type.is_required:
-            lines.append(scalar_pack_str)
-        else:
-            lines.append(f"if {value_expr} is not None:")
-            lines.append("    writer.write_bool(True)")
-            lines.append(textwrap.indent(scalar_pack_str, " " * 4))
-            lines.append("else:")
-            lines.append("    writer.write_bool(False)")
-
-    # list
-    elif type.cardinality == TypeCardinality.LIST:
-        assert type.value_type is not None, f"no value type for {type!r}"
-        item_expr = _generate_pack_kompakt_type(type.value_type, "_item")
-        if type.is_required:
-            lines.append(f"writer.write_uint32({len(value_expr)})")
-            lines.append(f"for _item in {value_expr}:")
-            lines.append(textwrap.indent(item_expr, " " * 4))
-        else:
-            lines.append(f"if {value_expr}:")
-            lines.append("    writer.write_bool(True)")
-            lines.append(f"    writer.write_uint32({len(value_expr)})")
-            lines.append(f"    for _item in {value_expr}:")
-            lines.append(textwrap.indent(item_expr, " " * 4))
-            lines.append("else:")
-            lines.append("    writer.write_bool(False)")
-
-    # tuple
-    elif type.cardinality == TypeCardinality.TUPLE:
-        raise NotImplementedError(f"cannot pack tuple: {type!r}")
-
-    # map
-    elif type.cardinality == TypeCardinality.MAP:
-        assert type.key_type is not None, f"no key type for {type!r}"
-        assert type.value_type is not None, f"no value type for {type!r}"
-        key_expr = _generate_pack_kompakt_type(type.key_type, "_key")
-        item_expr = _generate_pack_kompakt_type(type.value_type, "_value")
-        if type.is_required:
-            lines.append(f"writer.write_uint32({len(value_expr)})")
-            lines.append(f"for _key, _value in {value_expr}.items():")
-            lines.append(textwrap.indent(key_expr, " " * 4))
-            lines.append(textwrap.indent(item_expr, " " * 4))
-        else:
-            lines.append(f"if {value_expr} is not None:")
-            lines.append("    writer.write_bool(True)")
-            lines.append(f"    writer.write_uint32({len(value_expr)})")
-            lines.append(f"    for _key, _value in {value_expr}.items():")
-            lines.append(textwrap.indent(key_expr, " " * 4))
-            lines.append(textwrap.indent(item_expr, " " * 4))
-            lines.append("else:")
-            lines.append("    writer.write_bool(False)")
-
-    else:
-        assert_never(type.cardinality)
-
-    return "\n".join(lines)
+    ...
 
 
 def _generate_unpack_kompakt_type(type: TypeDeclaration, target_expr: str) -> tuple[str, bool]:
     """Generate the unpack_kompakt method implementation for a property."""
 
-    lines: list[str] = []
-
-    # scalar
-    if type.cardinality == TypeCardinality.SCALAR:
-        unpack_scalar_str, is_simple = _generate_unpack_kompakt_scalar(type, target_expr)
-        if type.is_required:
-            lines.append(unpack_scalar_str)
-        else:
-            lines.append("if reader.read_bool():")
-            lines.append(textwrap.indent(unpack_scalar_str, " " * 4))
-            lines.append("else:")
-            lines.append(f"    {target_expr} = None")
-
-    # list
-    elif type.cardinality == TypeCardinality.LIST:
-        assert type.value_type is not None, f"no value type for {type!r}"
-        unpack_item_expr, is_simple = _generate_unpack_kompakt_type(type.value_type, "_item")
-        assert is_simple, f"cannot unpack non-simple list: {type!r}"
-        if type.is_required:
-            lines.append(f"{target_expr} = []")
-            lines.append("for _ in range(reader.read_uint32()):")
-            lines.append(textwrap.indent(f"{target_expr}.append({unpack_item_expr})", " " * 4))
-        else:
-            lines.append("if reader.read_bool():")
-            lines.append(f"{target_expr} = []")
-            lines.append("for _ in range(reader.read_uint32()):")
-            lines.append(textwrap.indent(f"{target_expr}.append({unpack_item_expr})", " " * 4))
-            lines.append("else:")
-            lines.append(f"    {target_expr} = None")
-
-    # tuple
-    elif type.cardinality == TypeCardinality.TUPLE:
-        raise NotImplementedError(f"cannot pack tuple: {type!r}")
-
-    # map
-    elif type.cardinality == TypeCardinality.MAP:
-        assert type.key_type is not None, f"no key type for {type!r}"
-        assert type.value_type is not None, f"no value type for {type!r}"
-        key_expr, is_key_simple = _generate_unpack_kompakt_type(type.key_type, "_key")
-        value_expr, is_value_simple = _generate_unpack_kompakt_type(type.value_type, "_value")
-        assert is_key_simple and is_value_simple, f"cannot unpack non-simple map: {type!r}"
-        if type.is_required:
-            lines.append(f"{target_expr} = {{}}")
-            lines.append("for _ in range(reader.read_uint32()):")
-            lines.append(textwrap.indent(f"{target_expr}[{key_expr}] = {value_expr}", " " * 4))
-        else:
-            lines.append("if reader.read_bool():")
-            lines.append(f"{target_expr} = {{}}")
-            lines.append("for _ in range(reader.read_uint32()):")
-            lines.append(textwrap.indent(f"{target_expr}[{key_expr}] = {value_expr}", " " * 4))
-            lines.append("else:")
-            lines.append(f"    {target_expr} = None")
-
-    else:
-        assert_never(type.cardinality)
-
-    return "\n".join(lines), len(lines) == 1
+    ...
 
 
 def _generate_pack_kompakt_scalar(type: TypeDeclaration, value_expr: str) -> str:
@@ -272,67 +139,75 @@ def _generate_pack_kompakt_scalar(type: TypeDeclaration, value_expr: str) -> str
         if type.primitive_type == PrimitiveType.NONE:
             raise NotImplementedError(f"cannot pack none: {type!r}")
         elif type.primitive_type == PrimitiveType.BOOLEAN:
-            lines.append(f"writer.write_bool({value_expr})")
+            lines.append(f"_writer.write_bool({value_expr})")
         elif type.primitive_type == PrimitiveType.INT8:
-            lines.append(f"writer.write_int8({value_expr})")
+            lines.append(f"_writer.write_int8({value_expr})")
         elif type.primitive_type == PrimitiveType.INT16:
-            lines.append(f"writer.write_int16({value_expr})")
+            lines.append(f"_writer.write_int16({value_expr})")
         elif type.primitive_type == PrimitiveType.INT32:
-            lines.append(f"writer.write_int32({value_expr})")
+            lines.append(f"_writer.write_int32({value_expr})")
         elif type.primitive_type == PrimitiveType.INT64:
-            lines.append(f"writer.write_int64({value_expr})")
+            lines.append(f"_writer.write_int64({value_expr})")
         elif type.primitive_type == PrimitiveType.INT128:
-            lines.append(f"writer.write_int128({value_expr})")
+            lines.append(f"_writer.write_int128({value_expr})")
         elif type.primitive_type == PrimitiveType.UINT8:
-            lines.append(f"writer.write_uint8({value_expr})")
+            lines.append(f"_writer.write_uint8({value_expr})")
         elif type.primitive_type == PrimitiveType.UINT16:
-            lines.append(f"writer.write_uint16({value_expr})")
+            lines.append(f"_writer.write_uint16({value_expr})")
         elif type.primitive_type == PrimitiveType.UINT32:
-            lines.append(f"writer.write_uint32({value_expr})")
+            lines.append(f"_writer.write_uint32({value_expr})")
         elif type.primitive_type == PrimitiveType.UINT64:
-            lines.append(f"writer.write_uint64({value_expr})")
+            lines.append(f"_writer.write_uint64({value_expr})")
         elif type.primitive_type == PrimitiveType.UINT128:
-            lines.append(f"writer.write_uint128({value_expr})")
+            lines.append(f"_writer.write_uint128({value_expr})")
         elif type.primitive_type == PrimitiveType.FLOAT16:
-            lines.append(f"writer.write_float16({value_expr})")
+            lines.append(f"_writer.write_float16({value_expr})")
         elif type.primitive_type == PrimitiveType.FLOAT32:
-            lines.append(f"writer.write_float32({value_expr})")
+            lines.append(f"_writer.write_float32({value_expr})")
         elif type.primitive_type == PrimitiveType.FLOAT64:
-            lines.append(f"writer.write_float64({value_expr})")
+            lines.append(f"_writer.write_float64({value_expr})")
         elif type.primitive_type == PrimitiveType.DATETIME:
-            lines.append(f"writer.write_datetime({value_expr})")
+            lines.append(f"_writer.write_datetime({value_expr})")
         elif type.primitive_type == PrimitiveType.DATE:
-            lines.append(f"writer.write_date({value_expr})")
+            lines.append(f"_writer.write_date({value_expr})")
         elif type.primitive_type == PrimitiveType.TIME:
-            lines.append(f"writer.write_time({value_expr})")
+            lines.append(f"_writer.write_time({value_expr})")
         elif type.primitive_type == PrimitiveType.DURATION:
-            lines.append(f"writer.write_duration({value_expr})")
+            lines.append(f"_writer.write_duration({value_expr})")
         elif type.primitive_type == PrimitiveType.STRING:
-            lines.append(f"writer.write_string({value_expr})")
+            lines.append(f"_writer.write_string({value_expr})")
         elif type.primitive_type == PrimitiveType.UUID:
-            lines.append(f"writer.write_uuid({value_expr})")
+            lines.append(f"_writer.write_uuid({value_expr})")
         elif type.primitive_type == PrimitiveType.BYTES:
-            lines.append(f"writer.write_bytes({value_expr})")
+            lines.append(f"_writer.write_bytes({value_expr})")
         elif type.primitive_type == PrimitiveType.JSON:
-            lines.append(f"writer.write_json({value_expr})")
+            lines.append(f"_writer.write_json({value_expr})")
         else:
             assert_never(type.primitive_type)
 
     # enum
     elif type.scalar_type == ScalarType.ENUM:
-        lines.append(f"writer.write_uint32({value_expr})")
+        lines.append(f"_writer.write_uint32({value_expr})")
 
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
-        lines.append(f"{value_expr}.pack_binary({Encoding.KOMPAKT.value}, writer)")
+        assert type.struct_type is not None, f"no struct type for {type!r}"
+        lines.append(
+            f"_encoder.pack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, {value_expr}, _writer, _options)"
+        )
 
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        lines.append(f"{value_expr}.pack_binary({Encoding.KOMPAKT.value}, writer)")
+        lines.append(
+            f"_encoder.pack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, {value_expr}, _writer, _options)"
+        )
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        lines.append(f"{value_expr}.pack_binary({Encoding.KOMPAKT.value}, writer)")
+        lines.append(f"_writer.write_uint32({value_expr}.metatype.value)")
+        lines.append(
+            f"_encoder.pack_object_binary({ObjectKind.NODE}, {value_expr}.metatype, {value_expr}, _writer, _options)"
+        )
 
     # literal
     elif type.scalar_type == ScalarType.LITERAL:
@@ -359,49 +234,49 @@ def _generate_unpack_kompakt_scalar(type: TypeDeclaration, target_expr: str) -> 
         if type.primitive_type == PrimitiveType.NONE:
             raise NotImplementedError(f"cannot pack none: {type!r}")
         elif type.primitive_type == PrimitiveType.BOOLEAN:
-            return "reader.read_bool()", True
+            return "_reader.read_bool()", True
         elif type.primitive_type == PrimitiveType.INT8:
-            return "reader.read_int8()", True
+            return "_reader.read_int8()", True
         elif type.primitive_type == PrimitiveType.INT16:
-            return "reader.read_int16()", True
+            return "_reader.read_int16()", True
         elif type.primitive_type == PrimitiveType.INT32:
-            return "reader.read_int32()", True
+            return "_reader.read_int32()", True
         elif type.primitive_type == PrimitiveType.INT64:
-            return "reader.read_int64()", True
+            return "_reader.read_int64()", True
         elif type.primitive_type == PrimitiveType.INT128:
-            return "reader.read_int128()", True
+            return "_reader.read_int128()", True
         elif type.primitive_type == PrimitiveType.UINT8:
-            return "reader.read_uint8()", True
+            return "_reader.read_uint8()", True
         elif type.primitive_type == PrimitiveType.UINT16:
-            return "reader.read_uint16()", True
+            return "_reader.read_uint16()", True
         elif type.primitive_type == PrimitiveType.UINT32:
-            return "reader.read_uint32()", True
+            return "_reader.read_uint32()", True
         elif type.primitive_type == PrimitiveType.UINT64:
-            return "reader.read_uint64()", True
+            return "_reader.read_uint64()", True
         elif type.primitive_type == PrimitiveType.UINT128:
-            return "reader.read_uint128()", True
+            return "_reader.read_uint128()", True
         elif type.primitive_type == PrimitiveType.FLOAT16:
-            return "reader.read_float16()", True
+            return "_reader.read_float16()", True
         elif type.primitive_type == PrimitiveType.FLOAT32:
-            return "reader.read_float32()", True
+            return "_reader.read_float32()", True
         elif type.primitive_type == PrimitiveType.FLOAT64:
-            return "reader.read_float64()", True
+            return "_reader.read_float64()", True
         elif type.primitive_type == PrimitiveType.DATETIME:
-            return "reader.read_datetime()", True
+            return "_reader.read_datetime()", True
         elif type.primitive_type == PrimitiveType.DATE:
-            return "reader.read_date()", True
+            return "_reader.read_date()", True
         elif type.primitive_type == PrimitiveType.TIME:
-            return "reader.read_time()", True
+            return "_reader.read_time()", True
         elif type.primitive_type == PrimitiveType.DURATION:
-            return "reader.read_duration()", True
+            return "_reader.read_duration()", True
         elif type.primitive_type == PrimitiveType.STRING:
-            return "reader.read_string()", True
+            return "_reader.read_string()", True
         elif type.primitive_type == PrimitiveType.UUID:
-            return "reader.read_uuid()", True
+            return "_reader.read_uuid()", True
         elif type.primitive_type == PrimitiveType.BYTES:
-            return "reader.read_bytes()", True
+            return "_reader.read_bytes()", True
         elif type.primitive_type == PrimitiveType.JSON:
-            return "reader.read_json()", True
+            return "_reader.read_json()", True
         else:
             assert_never(type.primitive_type)
 
@@ -409,24 +284,24 @@ def _generate_unpack_kompakt_scalar(type: TypeDeclaration, target_expr: str) -> 
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum type for {type!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-        return f"{enum_cls.__name__}[reader.read_uint32()]", True
+        return f"{enum_cls.__name__}[_reader.read_uint32()]", True
 
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for {type!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
         return (
-            f"{struct_cls.__name__}.unpack_binary({Encoding.KOMPAKT.value}, reader, _session)",
+            f"{struct_cls.__name__}.unpack_binary({Encoding.KOMPAKT.value}, _reader, _session)",
             True,
         )
 
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.unpack_binary({Encoding.KOMPAKT.value}, reader, _session)", True
+        return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options)", True
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack_binary({Encoding.KOMPAKT.value}, reader, _session)", True
+        return f"_encoder.unpack_object_binary({ObjectKind.NODE}, _reader.read_uint32(), _reader, _session, _options)", True
 
     # literal
     elif type.scalar_type == ScalarType.LITERAL:
@@ -471,7 +346,7 @@ def _generate():
             impl,
             {**builtin_class_by_name, **extra_glbls},
             locals_,
-            f"{node_cls.__name__}:kompakt",
+            encoder_name,
         )
         encoder_cls = locals_[encoder_name]
         KOMPAKT_OBJECT_ENCODERS[node_cls.__kind__, node_cls.metatype] = encoder_cls()

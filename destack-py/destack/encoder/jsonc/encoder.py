@@ -124,7 +124,7 @@ class JsoncEncoder(Encoder[Jsonc]):
         value: Any,
         options: EncoderOptions,
     ) -> Jsonc:
-        return pack_jsonc(self, value, type, options)
+        return pack_jsonc(self, type, value, options)
 
     @override
     def pack_value_binary(
@@ -134,7 +134,7 @@ class JsoncEncoder(Encoder[Jsonc]):
         writer: BinaryWriter,
         options: EncoderOptions,
     ) -> None:
-        writer.write_bytes(pack_jsonc(self, value, type, options).encode("utf-8"))
+        writer.write_bytes(pack_jsonc(self, type, value, options).encode("utf-8"))
 
     @override
     def unpack_value(
@@ -144,7 +144,7 @@ class JsoncEncoder(Encoder[Jsonc]):
         session: Session | None,
         options: EncoderOptions,
     ) -> Any:
-        return unpack_jsonc(self, value, type, session, options)
+        return unpack_jsonc(self, type, value, session, options)
 
     @override
     def unpack_value_binary(
