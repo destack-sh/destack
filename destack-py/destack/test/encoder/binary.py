@@ -711,6 +711,61 @@ def test_json():
         {"key": "value"},
         {"nested": {"data": [1, 2, {"more": "stuff"}]}},
         ["mixed", 123, True, None, {"obj": "ect"}],
+        # complex nested structures
+        {
+            "id": 1,
+            "name": "Alice",
+            "email": "alice@example.com",
+            "profile": {
+                "age": 30,
+                "preferences": {
+                    "theme": "dark",
+                    "notifications": True,
+                    "languages": ["en", "fr", "es"],
+                },
+                "metadata": None,
+            },
+            "roles": ["admin", "user"],
+        },
+        # deeply nested arrays and objects
+        {
+            "level1": {
+                "level2": {
+                    "level3": {
+                        "level4": {
+                            "level5": [
+                                {"data": [1, 2, [3, 4, [5, 6]]]},
+                                {"more": {"even": {"deeper": {"nesting": True}}}},
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        # unicode and special characters
+        {
+            "unicode": "Hello 世界 🌍 🚀",
+            "special_chars": "!@#$%^&*()_+-=[]{}|;':\",./<>?",
+            "escaped": "line1\nline2\ttab\"quote'apostrophe\\backslash",
+            "empty_string": "",
+            "whitespace": "   \n\t\r   ",
+        },
+        # edge cases with numbers
+        {
+            "integers": [0, -1, 1, 2147483647, -2147483648],
+            "floats": [0.0, -0.0, 1.5, -1.5, 1e10, 1e-10, math.inf, -math.inf],
+            "scientific": [1.23e-4, 5.67e8, -9.87e-6],
+        },
+        # complex boolean and null patterns
+        {
+            "matrix": [[True, False, None], [None, True, False], [False, None, True]],
+            "flags": {
+                "enabled": True,
+                "disabled": False,
+                "unknown": None,
+                "nested_flags": {"a": True, "b": False, "c": None},
+            },
+        },
     ]
 
     writer = BinaryWriter()
@@ -719,5 +774,6 @@ def test_json():
 
     reader = BinaryReader(writer.to_bytes())
     for expected in test_cases:
-        assert reader.read_json() == expected
+        result = reader.read_json()
+        assert result == expected
     assert reader.remaining == 0
