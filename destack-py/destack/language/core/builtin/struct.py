@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         ActionDefinition,
         BinaryWriter,
         ConstantDefinition,
+        EncoderOptions,
         MethodDefinition,
         StructDefinition,
     )
@@ -183,7 +184,10 @@ class StructFrozen(Struct):
 
     @builtin_method(30)
     @override
-    def pack(self, encoding: Encoding) -> Any:
+    def pack(self, encoding: Encoding, options: "EncoderOptions | None" = None) -> Any:
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         # check if we have a cached packed representation
         if self._packed_cache is not None:
             for cached in self._packed_cache:
@@ -191,7 +195,7 @@ class StructFrozen(Struct):
                     return cached.packed
         # pack the object
         encoder = ENCODERS[encoding]
-        packed_object = encoder.pack_object(self.__kind__, self.metatype, self)
+        packed_object = encoder.pack_object(self.__kind__, self.metatype, self, options)
         # cache the result
         new_cache = PackedObjectCache(encoding=encoding, is_bytes=False, packed=packed_object)
         if self._packed_cache is None:
@@ -202,7 +206,12 @@ class StructFrozen(Struct):
 
     @builtin_method(31)
     @override
-    def pack_binary(self, encoding: Encoding, writer: "BinaryWriter") -> None:
+    def pack_binary(
+        self, encoding: Encoding, writer: "BinaryWriter", options: "EncoderOptions | None" = None
+    ) -> None:
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         # check if we have a cached packed bytes representation
         if self._packed_cache is not None:
             for cached in self._packed_cache:
@@ -211,7 +220,7 @@ class StructFrozen(Struct):
                     return
         # pack the object as bytes
         encoder = ENCODERS[encoding]
-        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer)
+        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer, options)
         # cache the result
         new_cache = PackedObjectCache(encoding=encoding, is_bytes=True, packed=writer.to_bytes())
         if self._packed_cache is None:

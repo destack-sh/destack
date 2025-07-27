@@ -118,6 +118,7 @@ class TypeDeclaration:
     # flags
     is_required: bool = True
     is_self: bool = False
+    is_any: bool = False
 
     _basic_type: Optional["Type"] = None  # cached
 
@@ -380,6 +381,10 @@ class PropertyDeclaration(CheckedTypeDeclaration):
                 self.struct_type = object_type
             else:
                 assert_never(object_type)
+
+        # check any type
+        if annotation.is_any and object_type != StructType.VALUE:
+            raise ValueError(f"Any is only allowed in Value: {self!r}")
 
         # parent must be optional
         if self.name == "parent" and self.is_required:
@@ -645,7 +650,9 @@ def parse_type_annotation(
 
     # determine scalar type
     is_self = False
+    is_any = False
     class_name = get_class_name(py_type)
+    assert class_name is not None, f"undetermined class name: {py_type!r}"
     if isinstance(py_type, (type, TypeAliasType)) and (
         primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
     ):
@@ -657,16 +664,20 @@ def parse_type_annotation(
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
-    elif class_name and (enum_t := resolve_enum_type(class_name)):
+    elif class_name == "Any":
+        scalar_type = ScalarType.LITERAL
+        is_any = True
+    elif enum_t := resolve_enum_type(class_name):
         scalar_type = ScalarType.ENUM
         enum_type = enum_t
-    elif class_name and (struct_t := resolve_struct_type(class_name)):
+    elif struct_t := resolve_struct_type(class_name):
         scalar_type = ScalarType.STRUCT
         struct_type = struct_t
-    elif class_name and (node_t := resolve_node_types(class_name)):
+    elif node_t := resolve_node_types(class_name):
         scalar_type = ScalarType.NODE_REFERENCE
         node_types = list(node_t)
-    assert scalar_type is not None, f"undetermined scalar type: {py_type!r}"
+    else:
+        raise ValueError(f"undetermined scalar type: {py_type!r}")
 
     # default: scalar
     return TypeDeclaration(
@@ -676,6 +687,7 @@ def parse_type_annotation(
         enum_type=enum_type,
         struct_type=struct_type,
         node_types=node_types,
+        is_any=is_any,
         is_self=is_self,
         is_required=is_required,
     )

@@ -1669,7 +1669,7 @@ def _generate_constant_member(definition: ConstantDefinition) -> str:
     if definition._is_deferred:
         value_str = "undefined as any /* (deferred) */"
     else:
-        value_str = generate_value(definition.value.type, definition.value.get())
+        value_str = generate_value(definition.value.type, definition.value.value)
 
     return f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -2340,7 +2340,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
         for constant in object_cls.__constants__:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
-                value_str = generate_value(constant.value.type, constant.value.get())
+                value_str = generate_value(constant.value.type, constant.value.value)
                 body_parts.append(f"""\
 {_generate_multiline_doc(constant.description or constant.name)}
 const {constant_name} = {value_str};

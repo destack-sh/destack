@@ -1,6 +1,6 @@
 from .binary import BinaryReader, BinaryWriter
 from .connection import GraphConnection
-from .encoder import Encoder
+from .encoder import Encoder, EncoderOptions
 from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle, WorldOracle
 from .render import Aliasing, get_active_aliasing
@@ -12,6 +12,7 @@ __all__ = [
     "BinaryReader",
     "BinaryWriter",
     "Encoder",
+    "EncoderOptions",
     "Graph",
     "GraphConnection",
     "Oracle",

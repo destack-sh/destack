@@ -3,9 +3,7 @@ from typing import TYPE_CHECKING, Any
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .common import Encoding, Jsonc
-from .const import ENCODERS, active_session
-from .property import builtin_property, builtin_property_runtime
+from .property import builtin_property
 from .struct import StructFrozen, StructType, builtin_struct
 from .type import ScalarType, Type, TypeCardinality
 
@@ -24,23 +22,19 @@ type_ = type
 class Value(StructFrozen):
     """
     A generic Value of any Type.
-    Values are used to represent any generic or user-provided data.
+    Values are used to represent any generic data.
     """
 
-    type: Type = builtin_property(100, is_repr=True)
-    # nocheckin: Value.value should be KOMPAKT
-    value: Jsonc | None = builtin_property(110, default=None)
-
-    _unpacked_value: Any | None = builtin_property_runtime()
-
-    def get(self) -> Any:
-        """Get the unpacked value of this generic Value."""
-        if self._unpacked_value is None:
-            session = active_session()
-            encoder = ENCODERS[Encoding.JSONC]
-            value_unpacked = encoder.unpack_value(self.type, self.value, session)
-            object.__setattr__(self, "_unpacked_value", value_unpacked)
-        return self._unpacked_value
+    type: Type = builtin_property(
+        100,
+        is_repr=True,
+        description="The Type of the Value.",
+    )
+    value: Any = builtin_property(
+        110,
+        is_repr=True,
+        description="The generic Value.",
+    )
 
     @classmethod
     def wrap(
@@ -55,8 +49,6 @@ class Value(StructFrozen):
         If Type isn't provided, it will be inferred from the value.
         """
         from .node import Node
-
-        encoder = ENCODERS[Encoding.JSONC]
 
         # infer type
         if type is None:
@@ -73,7 +65,6 @@ class Value(StructFrozen):
                 value_unpacked = [
                     item.to_ref() if isinstance(item, Node) else item for item in value_unpacked
                 ]
-        # pack value
-        value_packed = encoder.pack_value(value_unpacked, type)
-        value = Value(type=type, value=value_packed, _unpacked_value=value_unpacked)
+
+        value = Value(type=type, value=value_unpacked)
         return value

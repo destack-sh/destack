@@ -63,7 +63,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import BinaryReader, BinaryWriter, Graph, Node, Session
+    from destack.language import BinaryReader, BinaryWriter, EncoderOptions, Graph, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -938,7 +938,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"{value_expr}.id.int"
     elif prop.scalar_type == ScalarType.LITERAL:
-        raise NotImplementedError(f"cannot hash literal: {prop!r}")
+        return f"hash_value({value_expr})"
     elif prop.scalar_type == ScalarType.UNION:
         raise NotImplementedError(f"cannot hash union: {prop!r}")
     else:
@@ -1421,44 +1421,77 @@ class BuiltinObject:
     #
 
     @builtin_method(30)
-    def pack(self, encoding: Encoding) -> Any:
+    def pack(self, encoding: Encoding, options: "EncoderOptions | None" = None) -> Any:
         """Pack this BuiltinObject into some encoded format."""
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        packed_object = encoder.pack_object(self.__kind__, self.metatype, self)
+        packed_object = encoder.pack_object(self.__kind__, self.metatype, self, options)
         return packed_object
 
     @builtin_method(31)
-    def pack_binary(self, encoding: Encoding, writer: "BinaryWriter") -> None:
+    def pack_binary(
+        self, encoding: Encoding, writer: "BinaryWriter", options: "EncoderOptions | None" = None
+    ) -> None:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer)
+        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer, options)
 
     @builtin_method(32)
     @classmethod
-    def unpack(cls, encoding: Encoding, value: Any, session: "Session | None") -> Self:
+    def unpack(
+        cls,
+        encoding: Encoding,
+        value: Any,
+        session: "Session | None",
+        options: "EncoderOptions | None" = None,
+    ) -> Self:
         """Unpack a BuiltinObject from some encoded format."""
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object(cls.__kind__, cls.metatype, value, session)
+        unpacked_object = encoder.unpack_object(cls.__kind__, cls.metatype, value, session, options)
         return cast(Self, unpacked_object)
 
     @builtin_method(33)
     @classmethod
     def unpack_binary(
-        cls, encoding: Encoding, reader: "BinaryReader", session: "Session | None"
+        cls,
+        encoding: Encoding,
+        reader: "BinaryReader",
+        session: "Session | None",
+        options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object_binary(cls.__kind__, cls.metatype, reader, session)
+        unpacked_object = encoder.unpack_object_binary(
+            cls.__kind__, cls.metatype, reader, session, options
+        )
         return cast(Self, unpacked_object)
 
     @builtin_method(34)
     @classmethod
     def unpack_binary_base64(
-        cls, encoding: Encoding, value: str, session: "Session | None"
+        cls,
+        encoding: Encoding,
+        value: str,
+        session: "Session | None",
+        options: "EncoderOptions | None" = None,
     ) -> Self:
+        from ..runtime.encoder import Encoder
+
+        options = options or Encoder.TAGGED
         reader = BinaryReader(base64.b64decode(value))
-        return cls.unpack_binary(encoding, reader, session)
+        return cls.unpack_binary(encoding, reader, session, options)
