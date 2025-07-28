@@ -648,7 +648,6 @@ def _generate_equals[ObjectT: BuiltinObject](
     """Generate BuiltinObject.equals method."""
 
     eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
-    assert eq_properties, f"{cls.__name__} has no properties to compare"
     cmp_strs = []
     for prop in eq_properties:
         cmp_str = _generate_property_cmp_impl(prop)
@@ -794,7 +793,6 @@ def _generate_hash[ObjectT: BuiltinObject](
     hash_properties = [
         prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
     ]
-    assert hash_properties, f"{cls.__name__} has no properties to hash"
     hash_parts: list[str] = ["h = 1"]
     for prop in hash_properties:
         prop_hash_impl = _generate_property_hash_impl(prop)

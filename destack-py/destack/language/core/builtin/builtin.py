@@ -221,6 +221,12 @@ class StructType(Enum):
     # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
+    BUILTIN_OBJECT_DEFINITION = (
+        10,
+        "Builtin Definition",
+        "Definition of a builtin Node or Struct",
+        "fas fa-shapes",
+    )
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
     NODE_DEFINITION_REFERENCE = 13
