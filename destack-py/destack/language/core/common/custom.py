@@ -81,6 +81,12 @@ class CustomStruct(Struct):
         description="The custom Values of this Struct, keyed by custom Property name.",
     )
 
+    def __getitem__(self, key: str) -> "Value":
+        return self.custom_values[key]
+
+    def __getattr__(self, name: str) -> "Value | None":
+        return self.custom_values.get(name)
+
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(

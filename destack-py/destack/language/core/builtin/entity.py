@@ -51,10 +51,10 @@ class Materialization(Enum):
 
     """
 
-    VIRTUAL = 1, "Virtual", "Exists only when queried"
-    PARTIAL = 2, "Partial", "Partial override"
-    FULL = 10, "Full", "Full copy"
-    ROOT = 11, "Root", "Root Entity"
+    VIRTUAL = 1, "Virtual", "Entity matches its definition, only exists when queried"
+    PARTIAL = 2, "Partial", "Entity is a partial override of its definition"
+    FULL = 10, "Full", "Entity is a full copy of its definition"
+    ROOT = 11, "Root", "Entity is its own root (no other definition)"
 
 
 @builtin_node(
@@ -255,11 +255,11 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The absolute order key of this Entity in its parent.",
         tags=("entity",),
     )
-    key: str | None = builtin_property(
-        42,
-        description="The key to uniquely identify this Entity in reconciliation. If not set, name is used.",
-        tags=("source",),
-    )
+    # key: str | None = builtin_property(
+    #     42,
+    #     description="The key to uniquely identify this Entity in reconciliation. If not set, name is used.",
+    #     tags=("source",),
+    # )
     custom_values: dict[str, "Value"] = builtin_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
@@ -604,9 +604,10 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         raise NotImplementedError
 
     @builtin_method(61)
-    def instantiate(self, *, attach: bool = True) -> "Self":
+    def instantiate(self, *, partial: bool = True, attach: bool = False, **override: Any) -> "Self":
         """
-        Instantiate this Entity into a new Entity.
+        Instantiate this Entity into a new (partial or full) Entity.
+        If partial is True, the new Entity will be a partial Entity with only override set.
         If attach is True, the new Entity will be attached to the current Entity's parent.
         """
         raise NotImplementedError

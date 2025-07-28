@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, override
+from typing import Any, ClassVar, cast, override
 
 from destack.language.core import (
     BinaryReader,
@@ -14,13 +14,31 @@ from destack.language.core import (
     Type,
 )
 
-from .generate import KOMPAKT_OBJECT_ENCODERS
+from .core import KompaktObjectEncoder
 
 
 class KompaktEncoder(Encoder[bytes]):
     """Encoder for our Kompakt format."""
 
     encoding: ClassVar[Encoding] = Encoding.KOMPAKT
+
+    def __init__(
+        self, encoders: dict[tuple[ObjectKind, NodeType | StructType], KompaktObjectEncoder]
+    ):
+        self.encoders = encoders
+
+    @classmethod
+    def generate(cls) -> "KompaktEncoder":
+        from .generate import KompaktEncoderGenerator
+
+        generator = KompaktEncoderGenerator()
+        encoders: dict[tuple[ObjectKind, NodeType | StructType], KompaktObjectEncoder] = {
+            **generator.generate()
+        }
+        encoders[ObjectKind.STRUCT, StructType.TYPE] = cast(
+            KompaktObjectEncoder, KompaktTypeEncoder()
+        )
+        return cls(encoders)
 
     @override
     def pack_object(
@@ -44,7 +62,7 @@ class KompaktEncoder(Encoder[bytes]):
         writer: BinaryWriter,
         options: EncoderOptions,
     ) -> None:
-        encoder = KOMPAKT_OBJECT_ENCODERS.get((kind, metatype))
+        encoder = self.encoders.get((kind, metatype))
         assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{metatype.name}"
         encoder.pack_object(self, object, writer, options)
 
@@ -70,7 +88,7 @@ class KompaktEncoder(Encoder[bytes]):
         session: Session | None,
         options: EncoderOptions,
     ) -> BuiltinObject:
-        encoder = KOMPAKT_OBJECT_ENCODERS.get((kind, metatype))
+        encoder = self.encoders.get((kind, metatype))
         assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.unpack_object(self, reader, session, options)
 
@@ -150,3 +168,27 @@ class KompaktEncoder(Encoder[bytes]):
         options: EncoderOptions,
     ) -> Any:
         raise NotImplementedError
+
+
+class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
+    """Short-circuit Type encoding to the KompaktEncoder's own methods."""
+
+    @override
+    def pack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _object: Type,
+        _writer: BinaryWriter,
+        _options: EncoderOptions,
+    ) -> None:
+        return _encoder.pack_type_binary(_object, _writer, _options)
+
+    @override
+    def unpack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _reader: BinaryReader,
+        _session: Session | None,
+        _options: EncoderOptions,
+    ) -> Type:
+        return _encoder.unpack_type_binary(_reader, _options)

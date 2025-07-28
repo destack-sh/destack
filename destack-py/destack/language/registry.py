@@ -46,6 +46,8 @@ NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
 
 NODE_TYPE_SCALAR_BY_TYPE: dict[NodeType, "Type"] = {}
 
+BUILTIN_CLASS_BY_NAME: dict[str, type["Node"] | type["Struct"] | type["Enum"]] = {}
+
 
 def get_builtin_object_cls(
     object_type: NodeType | StructType | TraitType,

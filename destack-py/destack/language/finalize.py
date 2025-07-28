@@ -15,6 +15,7 @@ from .core.builtin.builtin import (
     TraitType,
 )
 from .registry import (
+    BUILTIN_CLASS_BY_NAME,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -49,6 +50,17 @@ def finalize():
         return
 
     _finalize_start = time.time()
+
+    BUILTIN_CLASS_BY_NAME.update(
+        {
+            cls.__name__: cls
+            for cls in chain(
+                NODE_CLASS_BY_TYPE.values(),
+                STRUCT_CLASS_BY_TYPE.values(),
+                ENUM_CLASS_BY_TYPE.values(),
+            )
+        }
+    )
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)
@@ -175,9 +187,9 @@ def finalize():
     from destack.encoder import JsoncEncoder, JsonEncoder, KompaktEncoder
     from destack.language.core import ENCODERS, Encoding
 
-    ENCODERS[Encoding.JSON] = JsonEncoder()
-    ENCODERS[Encoding.JSONC] = JsoncEncoder()
-    ENCODERS[Encoding.KOMPAKT] = KompaktEncoder()
+    ENCODERS[Encoding.JSON] = JsonEncoder.generate()
+    ENCODERS[Encoding.JSONC] = JsoncEncoder.generate()
+    ENCODERS[Encoding.KOMPAKT] = KompaktEncoder.generate()
     assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 
     # generate definition refs

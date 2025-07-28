@@ -20,8 +20,6 @@ from .types import (
     Int64,
     Int128,
     Json,
-    Jsonc,
-    Kompakt,
     String,
     Time,
     UInt8,
@@ -543,9 +541,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     UUID: PrimitiveType.UUID,
     bytes: PrimitiveType.BYTES,
     Bytes: PrimitiveType.BYTES,
-    Jsonc: PrimitiveType.JSON,
     Json: PrimitiveType.JSON,
-    Kompakt: PrimitiveType.BYTES,
 }
 PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance(t, type))
 

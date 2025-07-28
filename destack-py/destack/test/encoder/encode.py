@@ -23,7 +23,7 @@ from destack.utils.uuid import uuid4
 def _do_test_roundtrip_object(
     obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
 ) -> None:
-    if encoding != Encoding.JSON:
+    if encoding == Encoding.KOMPAKT:
         return  # nocheckin
 
     # pack/unpack
