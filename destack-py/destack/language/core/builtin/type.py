@@ -67,10 +67,10 @@ class Type(StructFrozen):
         is_repr=True,
         description="Element types of this Type (tuple).",
     )
-    length: UInt32 | None = builtin_property(
+    dimensions: list[UInt32] | None = builtin_property(
         114,
         is_repr=True,
-        description="Length of this Type (list).",
+        description="Dimensions of this Type (list, ndarray).",
     )
 
     # scalar

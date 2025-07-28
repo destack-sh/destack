@@ -49,6 +49,7 @@ def _do_test_roundtrip_object(
 
     print(repr(obj))
     print(packed_obj)
+    print(len(packed_obj_bytes))
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):
