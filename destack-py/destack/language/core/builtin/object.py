@@ -1080,7 +1080,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cardinality=TypeCardinality.SCALAR,
         is_required=True,
         is_computed=True,  # is set statically by class decorator
-        is_wired=True,
+        is_wired=False,
         is_stored=False,
         primitive_type=PrimitiveType.INT32,
         enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,

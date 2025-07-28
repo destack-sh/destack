@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
     BuiltinObject,
+    Encoding,
     NodeType,
     ObjectKind,
     PackedObjectCache,
@@ -105,17 +106,25 @@ def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
-        if prop.is_computed:
-            continue
-        elif cls.metatype == StructType.VALUE and prop.name == "value":
+        if cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
                 f"_object_json['{prop.name}'] = _encoder.pack_value(_object.type, _object.value, _options)"
             )
         else:
             # normal property
-            pack_code = _generate_pack_json_property(prop)
-            lines.extend(pack_code)
+            json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
+            prop_name = (
+                prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+            )
+            obj_json = f"_object.{prop_name}"
+            pack_code = _generate_pack_json_value(
+                prop,
+                key=f"_{prop_name}",
+                source_expr=obj_json,
+                target_expr=f"_object_json['{json_key}']",
+            )
+            lines.append(pack_code)
 
     lines.append("return _object_json")
     return "\n".join(lines)
@@ -129,9 +138,7 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
     wired_properties_in_order = list(cls.__wired_properties__.values())
     wired_properties_in_order.sort(key=lambda p: p.id or 0)
     for prop in wired_properties_in_order:
-        if prop.is_computed:
-            continue  # set implicitly
-        elif cls.metatype == StructType.VALUE and prop.name == "value":
+        if cls.metatype == StructType.VALUE and prop.name == "value":
             # generic value
             lines.append(
                 "_unpacked_value = _encoder.unpack_value(_unpacked_type, _object_json.get('value'), _session, _options)"
@@ -142,12 +149,19 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
             prop_name = (
                 prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
             )
-            unpack_code = _generate_unpack_json_property(prop)
-            lines.extend(unpack_code)
+            json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
+            data_json = f'_object_json.get("{json_key}")'
+            unpack_code = _generate_unpack_json_value(
+                prop,
+                key=f"_{prop_name}",
+                source_expr=data_json,
+                target_expr=f"_unpacked_{prop_name}",
+            )
+            lines.append(unpack_code)
             assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         assignments.append(
-            "_packed_cache=PackedObjectCache(encoding=Encoding.JSON, is_bytes=False, packed=_object_json)"
+            f"_packed_cache=PackedObjectCache(encoding={Encoding.JSON}, is_bytes=False, packed=_object_json)"
         )
 
     lines.append("return cls(")
@@ -159,130 +173,228 @@ def _generate_unpack_json(cls: type["BuiltinObject"]) -> str:
     return "\n".join(lines)
 
 
-def _generate_pack_json_property(prop: PropertyDeclaration) -> list[str]:
-    """Generate code to pack a property into JSON."""
-    lines: list[str] = []
-    json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
-    prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
-    obj_json = f"_object.{prop_name}"
-
+def _generate_pack_json_value(
+    prop: TypeDeclaration, key: str, source_expr: str, target_expr: str
+) -> str:
+    """Generate code to pack some value into JSON."""
     # scalar
     if prop.cardinality == TypeCardinality.SCALAR:
-        value_expr = _generate_pack_json_scalar(prop, obj_json)
+        value_packed = _generate_pack_json_scalar_value(prop, source_expr)
         if prop.is_required:
-            lines.append(f'_object_json["{json_key}"] = {value_expr}')
+            return f"{target_expr} = {value_packed}"
         else:
-            lines.append(f"if ({prop_name} := {obj_json}) is not None:")
-            lines.append(f'    _object_json["{json_key}"] = {value_expr}')
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = {value_packed}"""
 
     # list
     elif prop.cardinality == TypeCardinality.LIST:
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_pack_json_scalar(prop.value_type, "_item")
+        item_source_expr = f"{key}_item"
+        item_target_expr = f"{key}_item_json"
+        item_packed = _generate_pack_json_value(
+            prop.value_type,
+            key=f"{key}_value",
+            source_expr=item_source_expr,
+            target_expr=item_target_expr,
+        )
         if prop.is_required:
-            lines.append(f"_packed_{prop_name} = []")
-            lines.append(f"for _item in {obj_json}:")
-            lines.append(f"    _packed_{prop_name}.append({item_expr})")
-            lines.append(f'_object_json["{json_key}"] = _packed_{prop_name}')
+            return f"""\
+{target_expr} = []
+for {item_source_expr} in {source_expr}:
+{textwrap.indent(item_packed, " " * 4)}
+    {target_expr}.append({item_target_expr})"""
         else:
-            lines.append(f"if {obj_json} is not None:")
-            lines.append(f"    _packed_{prop_name} = []")
-            lines.append(f"    for _item in {obj_json}:")
-            lines.append(f"        _packed_{prop_name}.append({item_expr})")
-            lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = []
+    for {item_source_expr} in {source_expr}:
+{textwrap.indent(item_packed, " " * 8)}
+        {target_expr}.append({item_target_expr})"""
 
     # tuple
     elif prop.cardinality == TypeCardinality.TUPLE:
-        raise NotImplementedError(f"cannot pack tuple: {prop!r}")
-
-    # map
-    elif prop.cardinality == TypeCardinality.MAP:
-        assert prop.key_type is not None, f"no key type for {prop!r}"
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_pack_json_scalar(prop.key_type, "_key")
-        value_expr = _generate_pack_json_scalar(prop.value_type, "_value")
-        if prop.is_required:
-            lines.append(f"_packed_{prop_name} = {{}}")
-            lines.append(f"for _key, _value in {obj_json}.items():")
-            lines.append(f"    _packed_{prop_name}[str({key_expr})] = {value_expr}")
-            lines.append(f'_object_json["{json_key}"] = _packed_{prop_name}')
-        else:
-            lines.append(f"if {obj_json} is not None:")
-            lines.append(f"    _packed_{prop_name} = {{}}")
-            lines.append(f"    for _key, _value in {obj_json}.items():")
-            lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
-            lines.append(f'    _object_json["{json_key}"] = _packed_{prop_name}')
-
-    else:
-        assert_never(prop.cardinality)
-
-    return lines
-
-
-def _generate_unpack_json_property(prop: PropertyDeclaration) -> list[str]:
-    """Generate code to unpack a property from JSON."""
-    lines: list[str] = []
-    json_key = to_casing(prop.name, Casing.LOWER_CAMEL)
-    prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
-    data_json = f'_object_json.get("{json_key}")'
-
-    # scalar
-    if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_required:
-            value_expr = _generate_unpack_json_scalar(prop, data_json)
-            lines.append(f"_unpacked_{prop_name} = {value_expr}")
-        else:
-            value_expr = _generate_unpack_json_scalar(prop, prop_name)
-            lines.append(
-                f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_json}) is not None else None"
+        assert prop.element_types is not None, f"no element types for {prop!r}"
+        element_target_exprs = []
+        element_packs = []
+        for i, element_type in enumerate(prop.element_types):
+            element_source_expr = f"{key}_element_{i}"
+            element_target_expr = f"{key}_element_{i}_json"
+            element_target_exprs.append(element_target_expr)
+            element_packed = _generate_pack_json_value(
+                element_type,
+                key=f"{key}_element_{i}",
+                source_expr=element_source_expr,
+                target_expr=element_target_expr,
             )
-
-    # list
-    elif prop.cardinality == TypeCardinality.LIST:
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_unpack_json_scalar(prop.value_type, "_item")
+            element_packs.append(element_packed)
+        element_packed_str = "\n".join(element_packs)
         if prop.is_required:
-            lines.append(f"_unpacked_{prop_name} = []")
-            lines.append(f"for _item in {data_json}:")
-            lines.append(f"    _unpacked_{prop_name}.append({item_expr})")
+            return f"""\
+    {element_packed_str}
+    {target_expr} = [{", ".join(element_target_exprs)}]"""
         else:
-            lines.append(f"if {data_json} is not None:")
-            lines.append(f"    _unpacked_{prop_name} = []")
-            lines.append(f"    for _item in {data_json}:")
-            lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
-            lines.append("else:")
-            lines.append(f"    _unpacked_{prop_name} = None")
-
-    # tuple
-    elif prop.cardinality == TypeCardinality.TUPLE:
-        raise NotImplementedError(f"cannot unpack tuple: {prop!r}")
+            return f"""\
+if {source_expr} is not None:
+    {textwrap.indent(element_packed_str, " " * 4)}
+    {target_expr} = [{", ".join(element_target_exprs)}]"""
 
     # map
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_unpack_json_scalar(prop.key_type, "_key")
-        value_expr = _generate_unpack_json_scalar(prop.value_type, "_value")
+        key_source_expr = f"{key}_key"
+        key_target_expr = f"{key}_key_json"
+        value_source_expr = f"{key}_value"
+        value_target_expr = f"{key}_value_json"
+        key_packed = _generate_pack_json_value(
+            prop.key_type,
+            key=f"{key}_key",
+            source_expr=key_source_expr,
+            target_expr=key_target_expr,
+        )
+        value_packed = _generate_pack_json_value(
+            prop.value_type,
+            key=f"{key}_value",
+            source_expr=value_source_expr,
+            target_expr=value_target_expr,
+        )
         if prop.is_required:
-            lines.append(f"_unpacked_{prop_name} = {{}}")
-            lines.append(f"for _key, _value in {data_json}.items():")
-            lines.append(f"    _unpacked_{prop_name}[{key_expr}] = {value_expr}")
+            return f"""\
+{target_expr} = {{}}
+for {key_source_expr}, {value_source_expr} in {source_expr}.items():
+{textwrap.indent(key_packed, " " * 4)}
+{textwrap.indent(value_packed, " " * 4)}
+    {target_expr}[{key_target_expr}] = {value_target_expr}"""
         else:
-            lines.append(f"if {data_json} is not None:")
-            lines.append(f"    _unpacked_{prop_name} = {{}}")
-            lines.append(f"    for _key, _value in {data_json}.items():")
-            lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
-            lines.append("else:")
-            lines.append(f"    _unpacked_{prop_name} = None")
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = {{}}
+    for {key_source_expr}, {value_source_expr} in {source_expr}.items():
+{textwrap.indent(key_packed, " " * 8)}
+{textwrap.indent(value_packed, " " * 8)}
+        {target_expr}[{key_target_expr}] = {value_target_expr}"""
 
     else:
         assert_never(prop.cardinality)
 
-    return lines
+
+def _generate_unpack_json_value(
+    prop: TypeDeclaration, key: str, source_expr: str, target_expr: str
+) -> str:
+    """Generate code to unpack a property from JSON."""
+
+    # scalar
+    if prop.cardinality == TypeCardinality.SCALAR:
+        if prop.is_required:
+            value_unpacked = _generate_unpack_json_scalar_value(prop, source_expr)
+            return f"{target_expr} = {value_unpacked}"
+        else:
+            value_unpacked = _generate_unpack_json_scalar_value(prop, source_expr)
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = {value_unpacked}
+else:
+    {target_expr} = None"""
+
+    # list
+    elif prop.cardinality == TypeCardinality.LIST:
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        item_source_expr = f"{key}_item_json"
+        item_target_expr = f"{key}_item"
+        item_unpacked = _generate_unpack_json_value(
+            prop.value_type,
+            key=f"{key}_value",
+            source_expr=item_source_expr,
+            target_expr=item_target_expr,
+        )
+        if prop.is_required:
+            return f"""\
+{target_expr} = []
+for {item_source_expr} in {source_expr}:
+{textwrap.indent(item_unpacked, " " * 4)}
+    {target_expr}.append({item_target_expr})"""
+        else:
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = []
+    for {item_source_expr} in {source_expr}:
+{textwrap.indent(item_unpacked, " " * 8)}
+        {target_expr}.append({item_target_expr})
+else:
+    {target_expr} = None"""
+
+    # tuple
+    elif prop.cardinality == TypeCardinality.TUPLE:
+        assert prop.element_types is not None, f"no element types for {prop!r}"
+        element_target_exprs = []
+        element_unpacks = []
+        for i, element_type in enumerate(prop.element_types):
+            element_source_expr = f"{key}_element_{i}_json"
+            element_target_expr = f"{key}_element_{i}"
+            element_target_exprs.append(element_target_expr)
+            element_unpacked = _generate_unpack_json_value(
+                element_type,
+                key=f"{key}_element_{i}",
+                source_expr=element_source_expr,
+                target_expr=element_target_expr,
+            )
+            element_unpacks.append(element_unpacked)
+        element_unpacked_str = "\n".join(element_unpacks)
+        if prop.is_required:
+            return f"""\
+    {element_unpacked_str}
+    {target_expr} = [{", ".join(element_target_exprs)}]"""
+        else:
+            return f"""\
+if {source_expr} is not None:
+    {textwrap.indent(element_unpacked_str, " " * 4)}
+    {target_expr} = ({", ".join(element_target_exprs)})"""
+
+    # map
+    elif prop.cardinality == TypeCardinality.MAP:
+        assert prop.key_type is not None, f"no key type for {prop!r}"
+        assert prop.value_type is not None, f"no value type for {prop!r}"
+        key_source_expr = f"{key}_key_json"
+        key_target_expr = f"{key}_key"
+        value_source_expr = f"{key}_value_json"
+        value_target_expr = f"{key}_value"
+        key_unpacked = _generate_unpack_json_value(
+            prop.key_type,
+            key=f"{key}_key",
+            source_expr=key_source_expr,
+            target_expr=key_target_expr,
+        )
+        value_unpacked = _generate_unpack_json_value(
+            prop.value_type,
+            key=f"{key}_value",
+            source_expr=value_source_expr,
+            target_expr=value_target_expr,
+        )
+        if prop.is_required:
+            return f"""\
+{target_expr} = {{}}
+for {key_source_expr}, {value_source_expr} in {source_expr}.items():
+{textwrap.indent(key_unpacked, " " * 4)}
+{textwrap.indent(value_unpacked, " " * 4)}
+    {target_expr}[{key_target_expr}] = {value_target_expr}"""
+        else:
+            return f"""\
+if {source_expr} is not None:
+    {target_expr} = {{}}
+    for {key_source_expr}, {value_source_expr} in {source_expr}.items():
+{textwrap.indent(key_unpacked, " " * 8)}
+{textwrap.indent(value_unpacked, " " * 8)}
+        {target_expr}[{key_target_expr}] = {value_target_expr}
+else:
+    {target_expr} = None"""
+
+    else:
+        assert_never(prop.cardinality)
 
 
-def _generate_pack_json_scalar(
-    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+def _generate_pack_json_scalar_value(
+    prop: "PropertyDeclaration | TypeDeclaration", source_expr: str
 ) -> str:
     """Generate the packing code for a scalar value."""
 
@@ -295,7 +407,7 @@ def _generate_pack_json_scalar(
         if prop.primitive_type == PrimitiveType.NONE:
             return "None"
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.INT8,
             PrimitiveType.INT16,
@@ -303,7 +415,7 @@ def _generate_pack_json_scalar(
             PrimitiveType.INT64,
             PrimitiveType.INT128,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
@@ -311,57 +423,73 @@ def _generate_pack_json_scalar(
             PrimitiveType.UINT64,
             PrimitiveType.UINT128,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.astimezone(UTC).isoformat()"
+            return f"{source_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
-            return f"{value_expr}.isoformat()"
+            return f"{source_expr}.isoformat()"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
+            return f"{source_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"timedelta_to_isoformat({value_expr})"
+            return f"timedelta_to_isoformat({source_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
-            return value_expr
+            return source_expr
         elif prop.primitive_type == PrimitiveType.UUID:
-            return f"str({value_expr})"
+            return f"str({source_expr})"
         elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64encode({value_expr}).decode()"
+            return f"base64.b64encode({source_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.JSON:
-            return value_expr
+            return source_expr
         else:
             assert_never(prop.primitive_type)
 
     # enum
     elif prop.scalar_type == ScalarType.ENUM:
         # use the enum name in CONSTANT_UPPER_CASE for JSON
-        return f"{value_expr}.name"
+        return f"{source_expr}.name"
 
     # struct
     elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-        return f"{value_expr}.pack(Encoding.JSON)"
+        return f"""\
+_encoder.pack_object(
+    {ObjectKind.STRUCT},
+    {source_expr}.metatype,
+    {source_expr},
+    _options,
+)"""
 
     # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"{value_expr}.pack(Encoding.JSON)"
+        return f"""\
+_encoder.pack_object(
+    {ObjectKind.STRUCT},
+    {source_expr}.metatype,
+    {source_expr},
+    _options,
+)"""
 
     # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"{value_expr}.pack(Encoding.JSON)"
+        return f"""\
+_encoder.pack_object(
+    {ObjectKind.STRUCT},
+    {source_expr}.metatype,
+    {source_expr},
+    _options,
+)"""
 
     #
     else:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_json_scalar(
-    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
-) -> str:
+def _generate_unpack_json_scalar_value(prop: "TypeDeclaration", source_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
     assert prop.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {prop!r}"
@@ -373,7 +501,7 @@ def _generate_unpack_json_scalar(
         if prop.primitive_type == PrimitiveType.NONE:
             return "None"
         elif prop.primitive_type == PrimitiveType.BOOLEAN:
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.INT8,
             PrimitiveType.INT16,
@@ -381,7 +509,7 @@ def _generate_unpack_json_scalar(
             PrimitiveType.INT64,
             PrimitiveType.INT128,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
@@ -389,29 +517,29 @@ def _generate_unpack_json_scalar(
             PrimitiveType.UINT64,
             PrimitiveType.UINT128,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type in (
             PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
-            return value_expr
+            return source_expr
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"datetime.fromisoformat({value_expr})"
+            return f"datetime.fromisoformat({source_expr})"
         elif prop.primitive_type == PrimitiveType.DATE:
-            return f"date.fromisoformat({value_expr})"
+            return f"date.fromisoformat({source_expr})"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"time.fromisoformat({value_expr})"
+            return f"time.fromisoformat({source_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
-            return f"timedelta_from_isoformat({value_expr})"
+            return f"timedelta_from_isoformat({source_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
-            return value_expr
+            return source_expr
         elif prop.primitive_type == PrimitiveType.UUID:
-            return f"UUID({value_expr})"
+            return f"UUID({source_expr})"
         elif prop.primitive_type == PrimitiveType.BYTES:
-            return f"base64.b64decode({value_expr})"
+            return f"base64.b64decode({source_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            return value_expr
+            return source_expr
         else:
             assert_never(prop.primitive_type)
 
@@ -419,21 +547,41 @@ def _generate_unpack_json_scalar(
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-        return f"{enum_cls.__name__}[{value_expr}]"
+        return f"{enum_cls.__name__}[{source_expr}]"
 
     # struct
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        return f"{struct_cls.__name__}.unpack(Encoding.JSON, {value_expr}, _session)"
+        return f"""\
+_encoder.unpack_object(
+    {ObjectKind.STRUCT},
+    StructType[{source_expr}['metatype']],
+    {source_expr},
+    _session,
+    _options,
+)"""
 
     # node reference
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
-        return f"NodeReference.unpack(Encoding.JSON, {value_expr}, _session)"
+        return f"""\
+_encoder.unpack_object(
+    {ObjectKind.STRUCT},
+    {StructType.NODE_REFERENCE},
+    {source_expr},
+    _session,
+    _options,
+)"""
 
     # node value
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        return f"Node.unpack(Encoding.JSON, {value_expr}, _session)"
+        return f"""\
+_encoder.unpack_object(
+    {ObjectKind.NODE},
+    NodeType[{source_expr}['metatype']],
+    {source_expr},
+    _session,
+    _options,
+)"""
 
     #
     else:
@@ -462,6 +610,11 @@ def _generate():
             continue
         encoder_name, impl, extra_glbls = _generate_json_object_encoder(node_cls)
         locals_ = {}
+        print("=" * 80)
+        print(node_cls.__name__ + ":json")
+        print("=" * 80)
+        print(impl)
+        print("=" * 80)
         exec_(
             impl,
             {**builtin_class_by_name, **extra_glbls},

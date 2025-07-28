@@ -15,8 +15,6 @@ if TYPE_CHECKING:
 class EncoderOptions(NamedTuple):
     """Options for encoding."""
 
-    """Whether to include the metatype of BuiltinObjects."""
-    include_metatype: bool = True
     """Whether to include the key of properties."""
     include_key: bool = True
     # include_type?
@@ -27,8 +25,8 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_metatype=True, include_key=True)
-    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_metatype=False, include_key=False)
+    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=True)
+    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=False)
 
     @abstractmethod
     def pack_object(

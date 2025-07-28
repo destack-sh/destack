@@ -303,8 +303,9 @@ class TypeCardinality(Enum):
     SCALAR = 1, "Scalar", "Single value"
     LIST = 2, "List", "Dynamic sequence of homogeneous values"
     TUPLE = 3, "Tuple", "Fixed sequence of heterogeneous values"
-    # SET? = 4, "Set", "Set of unique values (dynamic length)"
-    MAP = 5, "Map", "Mapping of homogenous keys to homogeneous values"
+    # ARRAY/MATRIX/NDARRAY?
+    # SET? = 5, "Set", "Set of unique values (dynamic length)"
+    MAP = 7, "Map", "Mapping of homogenous keys to homogeneous values"
 
 
 assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :Encoding
