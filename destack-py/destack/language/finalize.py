@@ -197,6 +197,7 @@ def finalize():
         NodeDefinition,
         ScalarType,
         StructDefinition,
+        TagDefinition,
         TraitDefinition,
         Type,
         TypeCardinality,
@@ -211,6 +212,9 @@ def finalize():
         node_cls.__definition__ = node_definition
         node_cls.__definition_reference__ = NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        struct_cls.__tags__ = tuple(
+            TagDefinition.from_declaration(tag) for tag in struct_cls.__declared_tags__
+        )
         struct_definition = StructDefinition.from_declaration(struct_cls)
         STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
         struct_cls.__definition__ = struct_definition

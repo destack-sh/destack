@@ -17,7 +17,7 @@ from destack.utils.telemetry import get_tracer
 from .builtin import EnumType, ObjectKind, StructType
 from .common import Encoding, PackedObjectCache
 from .const import ENCODERS
-from .meta import builtin_method
+from .meta import TagDeclaration, builtin_method
 from .object import (
     BuiltinObject,
     _process_object_cls,
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         EncoderOptions,
         MethodDefinition,
         StructDefinition,
+        TagDefinition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -49,6 +50,7 @@ def builtin_struct(
     is_abstract: bool = False,
     is_stable: bool = False,
     enum_types: tuple[EnumType, ...] = (),
+    tags: tuple["TagDeclaration", ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
 
@@ -107,6 +109,9 @@ def builtin_struct(
             STRUCT_CLASS_BY_TYPE[struct_type] = cls
             STRUCT_TYPE_BY_CLASS[cls] = struct_type
 
+        # tags
+        cls.__declared_tags__ = tags
+
         return cast(type["Struct"], cls)
 
     return decorate
@@ -116,11 +121,10 @@ def builtin_struct(
 class Struct(BuiltinObject, abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
+    # meta
     metatype: ClassVar[StructType]
     __definition__: ClassVar["StructDefinition"]
     __kind__: ClassVar[ObjectKind] = ObjectKind.STRUCT
-
-    # flags
     __is_struct__: ClassVar[bool] = True
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
@@ -144,8 +148,12 @@ class Struct(BuiltinObject, abc.ABC):
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
     """The constants for this Struct type."""
     __constants__: ClassVar[tuple["ConstantDefinition", ...]] = ()
+    """The tags for this Struct type."""
+    __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
+    """The tags for this Struct type (declarations for during construction)."""
+    __declared_tags__: ClassVar[tuple["TagDeclaration", ...]] = ()
 
-    # enum
+    # associations
     __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
     __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 

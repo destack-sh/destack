@@ -60,9 +60,12 @@ if TYPE_CHECKING:
 type_ = type
 
 
-def resolve_tagging(object_cls: type_["Node"], tagging: str) -> "TagDefinition":
+def resolve_tagging(
+    object_cls: type_["Node | Struct"], tagging: str
+) -> "TagDefinition | TagDeclaration":
     """Resolve a tagging to a definition."""
     from .node import Node
+    from .struct import Struct
 
     for tag in object_cls.__tags__:
         if tag.name == tagging:
@@ -72,42 +75,104 @@ def resolve_tagging(object_cls: type_["Node"], tagging: str) -> "TagDefinition":
             for tag in cls.__tags__:
                 if tag.name == tagging:
                     return tag
+        elif issubclass(cls, Struct):
+            for tag in cls.__declared_tags__:
+                if tag.name == tagging:
+                    return tag
 
-    raise ValueError(f"tagging {tagging} not found for {object_cls.__name__}")
+    raise ValueError(f"tagging '{tagging}' not found for {object_cls.__name__}")
+
+
+@builtin_struct(
+    StructType.BUILTIN_OBJECT_DEFINITION,
+    frozen=True,
+    is_abstract=True,
+    tags=(
+        TagDeclaration(
+            id=100,
+            name="meta",
+            description="Meta information of a definition.",
+        ),
+        TagDeclaration(
+            id=101,
+            name="content",
+            description="Content of a definition (properties, methods, etc.).",
+        ),
+        TagDeclaration(
+            id=102,
+            name="inheritance",
+            description="Inheritance of builtin definitions.",
+        ),
+        TagDeclaration(
+            id=103,
+            name="graph",
+            description="Graph information of a definition (ancestors, descendants, domain, etc.).",
+        ),
+        TagDeclaration(
+            id=104,
+            name="associations",
+            description="Associations of a definition (enums, events, etc.).",
+        ),
+    ),
+)
+class BuiltinObjectDefinition(StructFrozen):
+    """Definition of a builtin Trait, Node or Struct."""
+
+    pass
 
 
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
-class NodeDefinition(StructFrozen):
+class NodeDefinition(BuiltinObjectDefinition):
     """Definition of a builtin Node."""
 
     # meta
-    type: NodeType = builtin_property(100, is_repr=True)
-    id: UInt32 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[UInt8] = builtin_property(109)
-
-    # flags
+    type: NodeType = builtin_property(
+        100,
+        is_repr=True,
+        tags=("meta",),
+    )
+    id: UInt32 = builtin_property(
+        2,
+        is_repr=True,
+        tags=("meta",),
+    )
+    name: str = builtin_property(
+        101,
+        is_repr=True,
+        tags=("meta",),
+    )
+    icon: "Icon | None" = builtin_property(
+        102,
+        tags=("meta",),
+    )
+    description: str | None = builtin_property(
+        103,
+        is_repr=True,
+        tags=("meta",),
+    )
     is_abstract: bool = builtin_property(
         110,
         is_repr=True,
         description="Whether this Node cannot be instantiated directly.",
+        tags=("meta",),
     )
     is_extensible: bool = builtin_property(
         111,
         is_repr=True,
         description="Whether this Node can be extended by custom Nodes.",
+        tags=("meta",),
     )
     is_final: bool = builtin_property(
         112,
         is_repr=True,
         description="Whether this Node cannot be extended by custom Nodes.",
+        tags=("meta",),
     )
     is_frozen: bool = builtin_property(
         113,
         is_repr=True,
         description="Whether this Node cannot be modified.",
+        tags=("meta",),
     )
     # is_singleton? is_static?
 
@@ -115,29 +180,42 @@ class NodeDefinition(StructFrozen):
     properties: list["PropertyDefinition"] = builtin_property(
         120,
         description="All properties of this Node (including inherited).",
+        tags=("content",),
     )
     indexes: list["IndexDefinition"] = builtin_property(
         121,
         description="All indexes of this Node (including inherited).",
+        tags=("content",),
     )
     constraints: list["ConstraintDefinition"] = builtin_property(
         122,
         description="All constraints of this Node (including inherited).",
+        tags=("content",),
     )
     permissions: list["PermissionDefinition"] = builtin_property(
         123,
         description="All permissions of this Node (including inherited).",
+        tags=("content",),
     )
     methods: list["MethodDefinition"] = builtin_property(
         125,
         description="All methods of this Node (including inherited, excluding actions).",
+        tags=("content",),
     )
     actions: list["ActionDefinition"] = builtin_property(
         126,
         description="All actions of this Node (including inherited).",
+        tags=("content",),
     )
     constants: list["ConstantDefinition"] = builtin_property(
-        128, description="All constants of this Node (including inherited)."
+        128,
+        description="All constants of this Node (including inherited).",
+        tags=("content",),
+    )
+    tags: list["TagDefinition"] = builtin_property(
+        129,
+        description="All tags of this Node.",
+        tags=("content",),
     )
 
     # inheritance
@@ -145,88 +223,103 @@ class NodeDefinition(StructFrozen):
         130,
         is_repr=True,
         description="The base type this Node extends (directly).",
+        tags=("inheritance",),
     )
     extended_by: list[NodeType] = builtin_property(
         131,
         description="Nodes that extend this Node type (directly).",
+        tags=("inheritance",),
     )
     inherits: list[NodeType] = builtin_property(
         132,
         description="Nodes that this Node inherits.",
+        tags=("inheritance",),
     )
     inherited_by: list[NodeType] = builtin_property(
         133,
         description="Nodes that inherit this Node type.",
+        tags=("inheritance",),
     )
     traits: list[TraitType] = builtin_property(
         134,
         description="Traits implemented by this Node.",
+        tags=("inheritance",),
     )
     self_traits: list[TraitType] = builtin_property(
         135,
         description="Traits declared by this Node (directly).",
+        tags=("inheritance",),
     )
 
-    # event
-    event_types: list[NodeType] = builtin_property(
-        140,
-        description="The event types related to this Node.",
-    )
-    self_event_types: list[NodeType] = builtin_property(
-        141,
-        description="The event types declared by this Node (directly).",
-    )
-
-    # enum
-    enum_types: list[EnumType] = builtin_property(
-        150,
-        description="The enum types related to this Node.",
-    )
-    self_enum_types: list[EnumType] = builtin_property(
-        151,
-        description="The enum types declared by this Node (directly).",
-    )
-
-    # tree
+    # graph
     parent_types: list[NodeType] = builtin_property(
         160,
         is_repr=True,
         description="The parent types of this Node type (directly).",
+        tags=("graph",),
     )
     child_types: list[NodeType] = builtin_property(
         161,
         is_repr=True,
         description="The child types of this Node type (directly).",
+        tags=("graph",),
     )
     ancestor_types: list[NodeType] = builtin_property(
         162,
         description="The ancestor types of this Node type.",
+        tags=("graph",),
     )
     descendant_types: list[NodeType] = builtin_property(
         163,
         description="The descendant types of this Node type.",
+        tags=("graph",),
     )
-
-    # expected tree
     expected_parent_types: list[NodeType] = builtin_property(
         170,
         description="The parent types expected for this Node type (any of).",
+        tags=("graph",),
     )
     expected_child_types: list[NodeType] = builtin_property(
         171,
         description="The child types expected for this Node type (any of).",
+        tags=("graph",),
     )
     expected_ancestor_types: list[NodeType] = builtin_property(
         172,
         description="The ancestor types expected for this Node type (any of).",
+        tags=("graph",),
     )
     expected_descendant_types: list[NodeType] = builtin_property(
         173,
         description="The descendant types expected for this Node type (any of).",
+        tags=("graph",),
+    )
+    domain: GraphDomain | None = builtin_property(
+        180,
+        tags=("graph",),
     )
 
-    # graph
-    domain: GraphDomain | None = builtin_property(200)
+    # associations
+    event_types: list[NodeType] = builtin_property(
+        200,
+        description="The event types related to this Node.",
+        tags=("associations",),
+    )
+    self_event_types: list[NodeType] = builtin_property(
+        201,
+        description="The event types declared by this Node (directly).",
+        tags=("associations",),
+    )
+    enum_types: list[EnumType] = builtin_property(
+        210,
+        description="The enum types related to this Node.",
+        tags=("associations",),
+    )
+    self_enum_types: list[EnumType] = builtin_property(
+        211,
+        description="The enum types declared by this Node (directly).",
+        tags=("associations",),
+    )
 
     @classmethod
     def from_declaration(cls, node_cls: type_["Node"]) -> "NodeDefinition":
@@ -239,7 +332,6 @@ class NodeDefinition(StructFrozen):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            # flags
             is_abstract=node_cls.__is_abstract__,
             is_extensible=node_cls.__is_extensible__,
             is_final=node_cls.__is_final__,
@@ -254,6 +346,7 @@ class NodeDefinition(StructFrozen):
             methods=list(node_cls.__methods__),
             actions=list(node_cls.__actions__),
             constants=list(node_cls.__constants__),
+            tags=list(node_cls.__tags__),
             # inheritance
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
@@ -261,26 +354,26 @@ class NodeDefinition(StructFrozen):
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             self_traits=list(node_cls.__self_traits__),
-            # event
-            event_types=list(node_cls.__event_types__),
-            self_event_types=list(node_cls.__self_event_types__),
-            # tree
+            # graph
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),
             ancestor_types=list(node_cls.__ancestor_types__),
             descendant_types=list(node_cls.__descendant_types__),
-            # expected tree
             expected_parent_types=list(node_cls.__expected_parent_types__),
             expected_child_types=list(node_cls.__expected_child_types__),
             expected_ancestor_types=list(node_cls.__expected_ancestor_types__),
             expected_descendant_types=list(node_cls.__expected_descendant_types__),
-            # graph
             domain=node_cls.__domain__,
+            # associations
+            event_types=list(node_cls.__event_types__),
+            self_event_types=list(node_cls.__self_event_types__),
+            enum_types=list(node_cls.__enum_types__),
+            self_enum_types=list(node_cls.__self_enum_types__),
         )
 
 
 @builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
-class TraitDefinition(StructFrozen):
+class TraitDefinition(BuiltinObjectDefinition):
     """Definition of a builtin Trait."""
 
     # meta
@@ -290,8 +383,6 @@ class TraitDefinition(StructFrozen):
     icon: "Icon | None" = builtin_property(102)
     description: str | None = builtin_property(103, is_repr=True)
     taggings: list[UInt8] = builtin_property(109)
-
-    # flags
     alias: str = builtin_property(110, is_repr=True)
     is_extensible: bool = builtin_property(
         111,
@@ -315,23 +406,21 @@ class TraitDefinition(StructFrozen):
         description="Traits directly and indirectly inherited by this Trait.",
     )
 
-    # event
+    # associations
     event_types: list[NodeType] = builtin_property(
-        140,
+        200,
         description="The event types related to this Trait.",
     )
     self_event_types: list[NodeType] = builtin_property(
-        141,
+        201,
         description="The base event types related to this Trait (directly).",
     )
-
-    # enum
     enum_types: list[EnumType] = builtin_property(
-        150,
+        210,
         description="The enum types related to this Trait.",
     )
     self_enum_types: list[EnumType] = builtin_property(
-        151,
+        211,
         description="The base enum types related to this Trait (directly).",
     )
 
@@ -366,69 +455,111 @@ class TraitDefinition(StructFrozen):
 
 
 @builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
-class StructDefinition(StructFrozen):
+class StructDefinition(BuiltinObjectDefinition):
     """Definition of a builtin Struct."""
 
     # meta
-    type: StructType = builtin_property(100, is_repr=True)
-    id: UInt32 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-    description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[UInt8] = builtin_property(109)
-
-    # flags
+    type: StructType = builtin_property(
+        100,
+        is_repr=True,
+        tags=("meta",),
+    )
+    id: UInt32 = builtin_property(
+        2,
+        is_repr=True,
+        tags=("meta",),
+    )
+    name: str = builtin_property(
+        101,
+        is_repr=True,
+        tags=("meta",),
+    )
+    icon: "Icon | None" = builtin_property(
+        102,
+        tags=("meta",),
+    )
+    description: str | None = builtin_property(
+        103,
+        is_repr=True,
+        tags=("meta",),
+    )
+    taggings: list[UInt8] = builtin_property(
+        109,
+        tags=("meta",),
+    )
     is_frozen: bool = builtin_property(
         110,
         description="Whether this Struct is read-only (cannot be modified).",
+        tags=("meta",),
     )
     is_abstract: bool = builtin_property(
         111,
         description="Whether this Struct is abstract (cannot be instantiated directly).",
+        tags=("meta",),
     )
     is_stable: bool = builtin_property(
         112,
         description="Whether this Struct is stable (cannot be redefined by the system).",
+        tags=("meta",),
     )
 
     # content
     properties: list["PropertyDefinition"] = builtin_property(
         120,
         description="All properties of this Struct.",
+        tags=("content",),
     )
     methods: list["MethodDefinition"] = builtin_property(
         125,
         description="All methods of this Struct (excluding actions).",
+        tags=("content",),
     )
     actions: list["ActionDefinition"] = builtin_property(
         126,
         description="All actions of this Struct.",
+        tags=("content",),
     )
-    constants: list["ConstantDefinition"] = builtin_property(128)
-    tags: list["TagDefinition"] = builtin_property(129)
+    constants: list["ConstantDefinition"] = builtin_property(
+        128,
+        tags=("content",),
+    )
+    tags: list["TagDefinition"] = builtin_property(
+        129,
+        tags=("content",),
+    )
 
     # inheritance
     base_type: StructType | None = builtin_property(
-        130, description="The base type this Struct extends (directly)."
+        130,
+        description="The base type this Struct extends (directly).",
+        tags=("inheritance",),
     )
     extended_by: list[StructType] = builtin_property(
-        131, description="Structs that extend this Struct type (directly)."
+        131,
+        description="Structs that extend this Struct type (directly).",
+        tags=("inheritance",),
     )
     inherits: list[StructType] = builtin_property(
-        132, description="Structs that this Struct inherits."
+        132,
+        description="Structs that this Struct inherits.",
+        tags=("inheritance",),
     )
     inherited_by: list[StructType] = builtin_property(
-        133, description="Structs that inherit this Struct type."
+        133,
+        description="Structs that inherit this Struct type.",
+        tags=("inheritance",),
     )
 
-    # enum
+    # associations
     enum_types: list[EnumType] = builtin_property(
-        150,
+        210,
         description="The enum types related to this Node.",
+        tags=("associations",),
     )
     self_enum_types: list[EnumType] = builtin_property(
-        151,
+        211,
         description="The base enum types related to this Node (directly).",
+        tags=("associations",),
     )
 
     @classmethod
@@ -442,7 +573,6 @@ class StructDefinition(StructFrozen):
             name=struct_cls.__name__,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
-            # flags
             is_frozen=struct_cls.__is_frozen__,
             is_abstract=struct_cls.__is_abstract__,
             is_stable=struct_cls.__is_stable__,
@@ -453,12 +583,13 @@ class StructDefinition(StructFrozen):
             methods=list(struct_cls.__methods__),
             actions=list(struct_cls.__actions__),
             constants=list(struct_cls.__constants__),
+            tags=list(struct_cls.__tags__),
             # inheritance
             base_type=struct_cls.__base_type__,
             extended_by=list(struct_cls.__extended_by__),
             inherits=list(struct_cls.__inherits__),
             inherited_by=list(struct_cls.__inherited_by__),
-            # enum
+            # associations
             enum_types=list(struct_cls.__enum_types__),
             self_enum_types=list(struct_cls.__self_enum_types__),
         )
@@ -549,6 +680,7 @@ Whether this Property is part of the object's identity.
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
         from .node import Node
+        from .struct import Struct
 
         assert prop.id is not None, f"{prop!r} has no id"
         type = prop.to_type()
@@ -556,8 +688,11 @@ Whether this Property is part of the object's identity.
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
             prop.original_component, object_ref
         )
-        object_cls = prop.component if issubclass(prop.component, Node) else Node
-        taggings = [resolve_tagging(object_cls, tag).id for tag in prop.tags]
+        object_cls = prop.component if issubclass(prop.component, (Node, Struct)) else Node
+        taggings = [
+            resolve_tagging(cast(type_["Node"] | type_["Struct"], object_cls), tag).id
+            for tag in prop.tags
+        ]
 
         return cls(
             id=prop.id,

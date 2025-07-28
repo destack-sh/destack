@@ -203,6 +203,7 @@ class Node(BuiltinObject):
     Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
 
+    # meta
     """The specific metatype of this Node."""
     metatype: ClassVar[NodeType]
     """The kind of this Node."""
@@ -213,8 +214,6 @@ class Node(BuiltinObject):
     __definition__: ClassVar["NodeDefinition"]
     """The reference to the definition this Node is an instance of."""
     __definition_reference__: ClassVar["NodeDefinitionReference"]
-
-    # flags
     """Whether this class is an actual Node (not a Trait)."""
     __is_node__: ClassVar[bool] = True
     """Whether this class is a Trait (not a Node)."""
@@ -256,18 +255,6 @@ class Node(BuiltinObject):
     """The tags defined for this Node."""
     __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
 
-    # event
-    """The base event types of this Node (directly)."""
-    __self_event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The event types of this Node (directly and indirectly)."""
-    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
-
-    # enum
-    """The base enum types of this Node (directly)."""
-    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
-    """The enum types of this Node (directly and indirectly)."""
-    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
-
     # tree
     """The parent type of this Node (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration | None] = None
@@ -291,6 +278,16 @@ class Node(BuiltinObject):
     __expected_ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The expected descendant types of this Node (any of)."""
     __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    # associations
+    """The base event types of this Node (directly)."""
+    __self_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The event types of this Node (directly and indirectly)."""
+    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The base enum types of this Node (directly)."""
+    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    """The enum types of this Node (directly and indirectly)."""
+    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
     # 1-20: node identity
     # Node.metatype: 1

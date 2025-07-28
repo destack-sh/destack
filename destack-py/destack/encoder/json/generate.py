@@ -97,7 +97,12 @@ class {encoder_name}(JsonObjectEncoder):
     )
 
 
-def _generate_pack_json(cls: type["BuiltinObject"]) -> str:
+def _generate_pack_json(
+    cls: type["BuiltinObject"],
+    # nocheckin: materialization/partials
+    # can_be_partial: bool,
+    # is_partial_expr: str | None,
+) -> str:
     """Generate the pack_object method for a BuiltinObject."""
     lines: list[str] = [
         f"_object_json: dict[str, Any] = {{'metatype': '{cls.metatype.name}'}}",
