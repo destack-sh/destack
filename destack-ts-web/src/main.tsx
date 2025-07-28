@@ -6,8 +6,7 @@ import { VERSION } from "@destack/language";
 import { ENV, IS_DEV } from "@destack/utils/env";
 import { getLogger } from "@destack/utils/log";
 import { trace } from "@opentelemetry/api";
-import React from "react";
-import ReactDOM from "react-dom/client";
+import { render } from "preact";
 import "./assets/index.css";
 import Destack from "./Destack";
 
@@ -29,12 +28,7 @@ async function init() {
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
-  const root = ReactDOM.createRoot(document.getElementById("app")!);
-  root.render(
-    <React.StrictMode>
-      <Destack />
-    </React.StrictMode>,
-  );
+  render(<Destack />, document.getElementById("app")!);
 }
 
 init();

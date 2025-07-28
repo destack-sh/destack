@@ -1,23 +1,29 @@
+import { type Signal, useComputed } from "@preact/signals";
 import type { SignalOptions } from "@preact/signals-core";
 import { effect } from "@preact/signals-core";
-import { Signal, useComputed } from "@preact/signals-react";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 /** Reactively read the value of a signal. */
 export function useSignalValue<T>(s: Signal<T>): T {
-  return useSyncExternalStore(
-    (cb) => s.subscribe(cb),
-    () => s.value,
-  );
+  const [value, setValue] = useState(s.value);
+
+  useEffect(() => {
+    return s.subscribe((val) => setValue(val));
+  }, [s]);
+
+  return value;
 }
 
 /** Reactively read the computed value of a signal. */
 export function useComputedValue<T>(compute: () => T, options?: SignalOptions<T>): T {
   const sig = useComputed(compute, options);
-  return useSyncExternalStore(
-    (cb) => sig.subscribe(cb),
-    () => sig.value,
-  );
+  const [value, setValue] = useState(sig.value);
+
+  useEffect(() => {
+    return sig.subscribe((val) => setValue(val));
+  }, [sig]);
+
+  return value;
 }
 
 /** Run fn whenever any signal it reads changes (like useEffect for signals). */

@@ -1,6 +1,6 @@
-import { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
-import { batch } from "@preact/signals-react";
-import { EditEvent, Entity, Session } from "destack";
+import type { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
+import { batch } from "@preact/signals";
+import { type EditEvent, type Entity, Session } from "destack";
 
 /** A reactive variant of Session. */
 export class ReactiveSession extends Session {

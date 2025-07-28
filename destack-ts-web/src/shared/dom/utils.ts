@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Vector4 } from "destack";
+import type { Vector2, Vector3, Vector4 } from "destack";
 
 export function vector2String(A: Vector2 | Vector3 | Vector4) {
   return `${toDomPrecision(A.x)},${toDomPrecision(A.y)} `;

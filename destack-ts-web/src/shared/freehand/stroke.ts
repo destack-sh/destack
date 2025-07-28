@@ -1,5 +1,5 @@
 import { EASING_FUNCTIONS } from "@destack-web/shared/easings";
-import { Stroke, StrokePoint, Vector2 } from "destack";
+import { type Stroke, StrokePoint, Vector2 } from "destack";
 
 const RATE_OF_PRESSURE_CHANGE = 0.275;
 
@@ -36,7 +36,7 @@ export function getStrokeOutlineTracks(
   const firstStrokePoint = points[0];
   const lastStrokePoint = points[points.length - 1];
   const totalLength = lastStrokePoint.runningLength;
-  const minDistance2 = Math.pow(size * smoothing, 2);
+  const minDistance2 = (size * smoothing) ** 2;
   const leftPoints: Vector2[] = [];
   const rightPoints: Vector2[] = [];
 
@@ -135,7 +135,6 @@ export function getStrokeOutlineTracks(
     }
 
     prevVector = direction;
-    continue;
   }
 
   return { left: leftPoints, right: rightPoints };
