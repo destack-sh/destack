@@ -1,3 +1,5 @@
+import json
+
 from destack.language import (
     ENCODERS,
     BinaryReader,
@@ -48,7 +50,7 @@ def _do_test_roundtrip_object(
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
 
     print(repr(obj))
-    print(packed_obj)
+    print(json.dumps(packed_obj, indent=2))
     print(len(packed_obj_bytes))
 
 

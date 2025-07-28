@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from destack.utils.uuid import UUID
-
 from ..builtin import (
     CascadeAction,
     EdgeType,
@@ -78,9 +76,9 @@ class CustomStruct(Struct):
     """A CustomStruct is an instance of a custom Struct with custom Properties."""
 
     definition: "CustomStructDefinition" = builtin_property(11, is_repr=True)
-    custom_values: dict[UUID, "Value"] = builtin_property(
+    custom_values: dict[str, "Value"] = builtin_property(
         45,
-        description="The custom Values of this Struct, keyed by custom Property id..",
+        description="The custom Values of this Struct, keyed by custom Property name.",
     )
 
 
@@ -100,6 +98,8 @@ class CustomOptionDefinition(
     parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
 
     icon: "Icon | None" = builtin_property(102)
+
+    value: "Value" = builtin_property(110)
 
 
 @builtin_node(NodeType.CUSTOM_PROPERTY_DEFINITION)

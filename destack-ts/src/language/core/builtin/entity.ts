@@ -186,27 +186,36 @@ export abstract class Entity extends Node {
 
   /** Get the children of this Node. */
   getChildren(): Node[];
-  getChildren<N extends Node>(nodeType?: NodeClass<N>): N[];
-  getChildren(nodeType?: NodeClass): Node[] {
+  getChildren<N extends Node>(
+    nodeType?: NodeClass<N>,
+    options?: { includeDeleted?: boolean },
+  ): N[];
+  getChildren(nodeType?: NodeClass, options?: { includeDeleted?: boolean }): Node[] {
     return this._session.graph.getChildren({
       node: this,
       spaceId: this.spacePtr.id,
       branchId: this.branchPtr.id,
       snapshotId: this.snapshotPtr.id,
       type: nodeType?.metatype,
+      includeDeleted: options?.includeDeleted,
     });
   }
 
   /** Get a specific child of this Node by name. */
-  getChild<N extends Node>(nodeType: NodeClass<N>, name: string): N | null;
-  getChild(nodeType: NodeClass, name: string): Node | null;
-  getChild(nodeType: NodeClass, name: string): Node | null {
+  getChild<N extends Node>(
+    nodeType: NodeClass<N>,
+    name: string,
+    options?: { includeDeleted?: boolean },
+  ): N | null;
+  getChild(nodeType: NodeClass, name: string, options?: { includeDeleted?: boolean }): Node | null;
+  getChild(nodeType: NodeClass, name: string, options?: { includeDeleted?: boolean }): Node | null {
     const children = this._session.graph.getChildren({
       node: this,
       spaceId: this.spacePtr.id,
       branchId: this.branchPtr.id,
       snapshotId: this.snapshotPtr.id,
       type: nodeType.metatype,
+      includeDeleted: options?.includeDeleted,
     });
     for (const child of children) {
       if ((child as any).name === name) {
@@ -217,10 +226,14 @@ export abstract class Entity extends Node {
   }
 
   /** Get a specific child of this Node by name, or raises an error if not found. */
-  child<N extends Node>(nodeType: NodeClass<N>, name: string): N;
-  child(nodeType: NodeClass, name: string): Node;
-  child(nodeType: NodeClass, name: string): Node {
-    const child = this.getChild(nodeType, name);
+  child<N extends Node>(
+    nodeType: NodeClass<N>,
+    name: string,
+    options?: { includeDeleted?: boolean },
+  ): N;
+  child(nodeType: NodeClass, name: string, options?: { includeDeleted?: boolean }): Node;
+  child(nodeType: NodeClass, name: string, options?: { includeDeleted?: boolean }): Node {
+    const child = this.getChild(nodeType, name, options);
     if (child === null) {
       throw new Error(`no child ${name} of ${this}`);
     }
@@ -229,14 +242,15 @@ export abstract class Entity extends Node {
 
   /** Get the descendants of this Node. */
   getDescendants(): Node[];
-  getDescendants<N extends Node>(nodeType?: NodeClass<N>): N[];
-  getDescendants(nodeType?: NodeClass): Node[] {
+  getDescendants<N extends Node>(nodeType?: NodeClass<N>, options?: { includeDeleted?: boolean }): N[];
+  getDescendants(nodeType?: NodeClass, options?: { includeDeleted?: boolean }): Node[] {
     return this._session.graph.getDescendants({
       node: this,
       spaceId: this.spacePtr.id,
       branchId: this.branchPtr.id,
       snapshotId: this.snapshotPtr.id,
       type: nodeType?.metatype,
+      includeDeleted: options?.includeDeleted,
     });
   }
 

@@ -11,7 +11,6 @@ from destack.language.core import (
     Jsonc,
     NodeType,
     ObjectKind,
-    PackedObjectCache,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -98,7 +97,6 @@ class {encoder_name}(JsoncObjectEncoder):
             "cls": cls,
             "BuiltinObject": BuiltinObject,
             "Encoding": Encoding,
-            "PackedObjectCache": PackedObjectCache,
         },
     )
 
@@ -152,10 +150,6 @@ def _generate_unpack_jsonc(cls: type["BuiltinObject"]) -> str:
             unpack_code = _generate_unpack_jsonc_property(prop)
             lines.extend(unpack_code)
             assignments.append(f"{prop_name}=_unpacked_{prop_name}")
-    if cls.__is_frozen__ and not cls.__is_node__:
-        assignments.append(
-            "_packed_cache = (PackedObjectCache(Encoding.JSONC, False, _object_jsonc),)"
-        )
 
     lines.append("return cls(")
     for assignment in assignments:

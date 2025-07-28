@@ -31,7 +31,6 @@ from .common import (
     GraphDomain,
     GraphKey,
     OperatingSystem,
-    PackedObjectCache,
     PlatformType,
     PrimitiveType,
     PropertyZone,
@@ -99,7 +98,10 @@ from .edit import (
     EditType,
 )
 from .entity import (
+    ENTITY_MATERIALIZATION_ID,
+    ENTITY_MATERIALIZATION_KEY,
     Entity,
+    EntityPartial,
     Materialization,
 )
 from .enum import Enum, builtin_enum
@@ -199,6 +201,8 @@ __all__ = [
     "EMPTY_LIST",
     "EMPTY_SET",
     "ENCODERS",
+    "ENTITY_MATERIALIZATION_ID",
+    "ENTITY_MATERIALIZATION_KEY",
     "ENUM_TYPES",
     "EPSILON",
     "METATYPE_PROPERTY_ID",
@@ -237,6 +241,7 @@ __all__ = [
     "Entity",
     "Entity2D",
     "Entity3D",
+    "EntityPartial",
     "Enum",
     "EnumDefinition",
     "EnumType",
@@ -288,7 +293,6 @@ __all__ = [
     "ObjectKind",
     "OperatingSystem",
     "OptionDefinition",
-    "PackedObjectCache",
     "PermissionDeclaration",
     "PermissionDefinition",
     "PlatformType",

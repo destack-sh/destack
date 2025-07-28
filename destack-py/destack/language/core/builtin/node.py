@@ -255,7 +255,7 @@ class Node(BuiltinObject):
     """The tags defined for this Node."""
     __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
 
-    # tree
+    # graph
     """The parent type of this Node (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration | None] = None
     """The parent classes of this Node (directly)."""
@@ -269,8 +269,6 @@ class Node(BuiltinObject):
     """The descendant types of this Node (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The expected parent types of this Node (any of)."""
-
-    # expected tree
     __expected_parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The expected child types of this Node (any of)."""
     __expected_child_types__: ClassVar[tuple[NodeType, ...]] = ()
@@ -296,6 +294,7 @@ class Node(BuiltinObject):
         is_internal=True,
         is_eq=False,
         is_readonly=True,
+        is_identity=True,
         description="The universally unique identifier of this Node.",
         tags=("identity",),
     )
@@ -303,6 +302,7 @@ class Node(BuiltinObject):
         5,
         is_internal=True,
         is_readonly=True,
+        is_identity=True,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
         tags=("identity",),

@@ -1078,6 +1078,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
         cardinality=TypeCardinality.SCALAR,
         is_required=True,
         is_computed=True,  # is set statically by class decorator
+        is_identity=True,
         is_wired=False,
         is_stored=False,
         primitive_type=PrimitiveType.INT32,

@@ -61,7 +61,7 @@ class BreakoutBrick(Entity2D):
 
 @entity
 class BreakoutBall(Entity2D):
-    pass
+    radius: Int8
 
 
 # ===============================================
@@ -71,4 +71,5 @@ class BreakoutBall(Entity2D):
 
 @entity
 class BreakoutWall(Entity2D):
-    pass
+    width: Int8
+    height: Int8

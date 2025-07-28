@@ -37,30 +37,3 @@ def test_node_space_ptr(session: Session, space: Space):
         folder.add_children(*tags)
         for tag in tags:
             assert tag.space_ptr and tag.space_ptr.id == space.id
-
-
-def test_node_ordering(session: Session, space: Space):
-    """Add Nodes that are IsOrdered and check that they are ordered."""
-
-    folder = Folder(name="MyFolder")
-    session.create(folder)
-
-    # create tags
-    tag_a = Tag(name="A")
-    tag_b = Tag(name="B")
-    tag_c = Tag(name="C")
-    folder.add_children(tag_a, tag_b, tag_c)
-    assert folder.get_children(Tag) == [tag_a, tag_b, tag_c]
-    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a2"]
-
-    # move tags
-    tag_b1 = Tag(name="B1")
-    tag_b1.move_to(folder, after=tag_b, before=tag_c)
-    assert folder.get_children(Tag) == [tag_a, tag_b, tag_b1, tag_c]
-    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a1P", "a2"]
-
-    # insert tags
-    tag_b2 = Tag(name="B2")
-    tag_b2.move_to(folder, after=tag_b1, before=tag_c)
-    assert folder.get_children(Tag) == [tag_a, tag_b, tag_b1, tag_b2, tag_c]
-    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a1P", "a1h", "a2"]

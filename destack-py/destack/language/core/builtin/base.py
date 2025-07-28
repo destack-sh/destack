@@ -39,10 +39,7 @@ object_set_ = object.__setattr__
     is_extensible=True,
     is_abstract=True,
 )
-class Record(
-    IsOwnable,
-    Entity,
-):
+class Record(IsOwnable, Entity):
     """
     A generic Record instance of a CustomEntity.
     """
@@ -55,10 +52,7 @@ class Record(
     is_extensible=True,
     is_abstract=True,
 )
-class Resource(
-    IsOwnable,
-    Entity,
-):
+class Resource(IsOwnable, Entity):
     """
     A Resource represents an external asset outside of Destack.
     The lifecycle of a Resource may be managed by some Provisioner (Service).
@@ -72,10 +66,7 @@ class Resource(
     is_extensible=True,
     is_abstract=True,
 )
-class Variant(
-    IsOwnable,
-    Entity,
-):
+class Variant(IsOwnable, Entity):
     """A Variant is an alternative version of an Entity."""
 
     icon: "Icon | None" = builtin_property(102)
@@ -85,20 +76,14 @@ class Variant(
     NodeType.TAG,
     is_extensible=True,
 )
-class Tag(
-    IsOrdered,
-    Entity,
-):
+class Tag(IsOrdered, Entity):
     """A Tag to tag an Entity with (in a Tagging)."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_node(NodeType.TAGGING)
-class Tagging(
-    IsOrdered,
-    Entity,
-):
+class Tagging(IsOrdered, Entity):
     """A Tagging of a Node by a Tag."""
 
     tag: Tag = builtin_property(110)
@@ -111,9 +96,7 @@ class Tagging(
     is_extensible=True,
     is_abstract=True,
 )
-class Entity2D(
-    Entity,
-):
+class Entity2D(Entity):
     """An Entity in 2D space."""
 
     # transform
@@ -152,9 +135,7 @@ class Entity2D(
     is_extensible=True,
     is_abstract=True,
 )
-class Entity3D(
-    Entity,
-):
+class Entity3D(Entity):
     """An Entity in 3D space."""
 
     # transform
