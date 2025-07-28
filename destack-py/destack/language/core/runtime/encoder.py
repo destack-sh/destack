@@ -18,6 +18,7 @@ class EncoderOptions(NamedTuple):
     """Whether to include the key of properties."""
     include_key: bool = True
     # include_type?
+    omit_none: bool = False
 
 
 class Encoder[T: Any = Any](ABC):

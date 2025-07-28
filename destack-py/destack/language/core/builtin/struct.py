@@ -6,7 +6,6 @@ from typing import (
     Self,
     cast,
     dataclass_transform,
-    override,
 )
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
@@ -15,21 +14,14 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
 from .builtin import EnumType, ObjectKind, StructType
-from .common import Encoding, PackedObjectCache
-from .const import ENCODERS
 from .meta import TagDeclaration, builtin_method
-from .object import (
-    BuiltinObject,
-    _process_object_cls,
-)
+from .object import BuiltinObject, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
-        BinaryWriter,
         ConstantDefinition,
-        EncoderOptions,
         MethodDefinition,
         StructDefinition,
         TagDefinition,
@@ -174,59 +166,11 @@ class StructFrozen(Struct):
     _hash: "int | None" = builtin_property_runtime()
     """Cached repr of the Struct."""
     _repr: "str | None" = builtin_property_runtime()
-    """Cached packed representations (first N = each Encoding, next N = each Encoding as bytes)."""
-    _packed_cache: "tuple[PackedObjectCache, ...] | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
         object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_repr", None)
-
-    @builtin_method(30)
-    @override
-    def pack(self, encoding: Encoding, options: "EncoderOptions | None" = None) -> Any:
-        from ..runtime.encoder import Encoder
-
-        options = options or Encoder.TAGGED
-        # check if we have a cached packed representation
-        if self._packed_cache is not None:
-            for cached in self._packed_cache:
-                if cached.encoding == encoding and not cached.is_bytes:
-                    return cached.packed
-        # pack the object
-        encoder = ENCODERS[encoding]
-        packed_object = encoder.pack_object(self.__kind__, self.metatype, self, options)
-        # cache the result
-        new_cache = PackedObjectCache(encoding=encoding, is_bytes=False, packed=packed_object)
-        if self._packed_cache is None:
-            object.__setattr__(self, "_packed_cache", (new_cache,))
-        else:
-            object.__setattr__(self, "_packed_cache", (*self._packed_cache, new_cache))
-        return packed_object
-
-    @builtin_method(31)
-    @override
-    def pack_binary(
-        self, encoding: Encoding, writer: "BinaryWriter", options: "EncoderOptions | None" = None
-    ) -> None:
-        from ..runtime.encoder import Encoder
-
-        options = options or Encoder.TAGGED
-        # check if we have a cached packed bytes representation
-        if self._packed_cache is not None:
-            for cached in self._packed_cache:
-                if cached.encoding == encoding and cached.is_bytes:
-                    writer.write_bytes(cached.packed)
-                    return
-        # pack the object as bytes
-        encoder = ENCODERS[encoding]
-        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer, options)
-        # cache the result
-        new_cache = PackedObjectCache(encoding=encoding, is_bytes=True, packed=writer.to_bytes())
-        if self._packed_cache is None:
-            object.__setattr__(self, "_packed_cache", (new_cache,))
-        else:
-            object.__setattr__(self, "_packed_cache", (*self._packed_cache, new_cache))
 
     @builtin_method(60)
     def clone(self, **override: Any) -> Self:

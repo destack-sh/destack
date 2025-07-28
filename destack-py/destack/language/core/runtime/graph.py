@@ -133,7 +133,7 @@ class Graph(abc.ABC):
         """Gets an Entity by id, raising an error if not found."""
         node = self.get(id, space_id, branch_id, snapshot_id, include_deleted)
         if node is None:
-            raise KeyError(f"node {id!r} not found in {self!r}")
+            raise KeyError(f"Entity {id!r} not found in {self!r}")
         return node
 
     @abc.abstractmethod

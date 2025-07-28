@@ -1,5 +1,5 @@
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeAliasType
+from typing import TYPE_CHECKING, TypeAliasType
 
 from destack.utils.uuid import UUID
 
@@ -594,9 +594,3 @@ class ClientType(Enum):
 class Tenancy(Enum):
     DEDICATED = 1
     SHARED = 2
-
-
-class PackedObjectCache(NamedTuple):
-    encoding: Encoding
-    is_bytes: bool
-    packed: Any

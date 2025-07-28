@@ -10,7 +10,6 @@ from destack.language.core import (
     Encoding,
     NodeType,
     ObjectKind,
-    PackedObjectCache,
     PrimitiveType,
     ScalarType,
     Session,
@@ -90,7 +89,6 @@ class {encoder_name}(KompaktObjectEncoder):
             "BuiltinObject": BuiltinObject,
             "Encoding": Encoding,
             "Session": Session,
-            "PackedObjectCache": PackedObjectCache,
         },
     )
 
@@ -327,11 +325,11 @@ def _generate():
             continue
         encoder_name, impl, extra_glbls = _generate_kompakt_object_encoder(node_cls)
         locals_ = {}
-        print("=" * 80)
-        print(node_cls.__name__ + ":kompakt")
-        print("=" * 80)
-        print(impl)
-        print("=" * 80)
+        # print("=" * 80)
+        # print(node_cls.__name__ + ":kompakt")
+        # print("=" * 80)
+        # print(impl)
+        # print("=" * 80)
         exec_(
             impl,
             {**builtin_class_by_name, **extra_glbls},
