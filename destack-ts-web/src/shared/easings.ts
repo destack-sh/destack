@@ -20,15 +20,9 @@ export const EASING_FUNCTIONS: Record<Easing, (t: number) => number> = {
   [Easing.EASE_IN_SINE]: (t: number) => 1 - Math.cos((t * Math.PI) / 2),
   [Easing.EASE_OUT_SINE]: (t: number) => Math.sin((t * Math.PI) / 2),
   [Easing.EASE_IN_OUT_SINE]: (t: number) => -(Math.cos(Math.PI * t) - 1) / 2,
-  [Easing.EASE_IN_EXPO]: (t: number) => (t <= 0 ? 0 : Math.pow(2, 10 * t - 10)),
-  [Easing.EASE_OUT_EXPO]: (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  [Easing.EASE_IN_EXPO]: (t: number) => (t <= 0 ? 0 : 2 ** (10 * t - 10)),
+  [Easing.EASE_OUT_EXPO]: (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t)),
   [Easing.EASE_IN_OUT_EXPO]: (t: number) =>
-    t <= 0
-      ? 0
-      : t >= 1
-        ? 1
-        : t < 0.5
-          ? Math.pow(2, 20 * t - 10) / 2
-          : (2 - Math.pow(2, -20 * t + 10)) / 2,
+    t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 2 ** (20 * t - 10) / 2 : (2 - 2 ** (-20 * t + 10)) / 2,
   [Easing.EASE_PEN]: (t: number) => t * 0.65 + Math.sin((t * Math.PI) / 2) * 0.35,
 } as const;

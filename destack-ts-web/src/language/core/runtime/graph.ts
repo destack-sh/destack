@@ -1,4 +1,4 @@
-import { Graph } from "destack";
+import type { Graph } from "destack";
 
 /** A reactive Graph. */
 export interface ReactiveGraph extends Graph {

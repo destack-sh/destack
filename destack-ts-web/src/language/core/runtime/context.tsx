@@ -1,26 +1,16 @@
-import { ACTIVE_SESSION } from "@destack/language";
-import { ReactiveSession } from "@destack-web/language/core/runtime/session";
-import { useSignals } from "@preact/signals-react/runtime";
-import React, { createContext, type ReactNode, useContext } from "react";
+import type { ReactiveSession } from "@destack-web/language/core/runtime/session";
+import { type ComponentChildren, createContext } from "preact";
+import { useContext } from "preact/hooks";
 
 const SessionContext = createContext<ReactiveSession | null>(null);
 
 interface SessionProviderProps {
   session: ReactiveSession;
-  children: ReactNode;
+  children: ComponentChildren;
 }
 
 /** Provider component to make a session available to child components */
-export const SessionProvider: React.FC<SessionProviderProps> = ({ session, children }) => {
-  React.useEffect(() => {
-    const prevSession = ACTIVE_SESSION.get();
-    ACTIVE_SESSION.set(session);
-
-    return () => {
-      ACTIVE_SESSION.set(prevSession);
-    };
-  }, [session]);
-
+export const SessionProvider = ({ session, children }: SessionProviderProps) => {
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 };
 
@@ -35,9 +25,8 @@ export function getActiveSession(): ReactiveSession | null {
  * */
 export function useSession(): ReactiveSession {
   const session = useContext(SessionContext);
-  if (session == null) {
-    throw new Error("no active Session");
+  if (!session) {
+    throw new Error("useSession must be called within a SessionProvider");
   }
-  useSignals();
   return session;
 }

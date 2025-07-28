@@ -39,7 +39,7 @@ export function usePyodideWorker(): {
         case "status":
           setStatus(data.message);
           break;
-        case "result":
+        case "result": {
           setIsRunning(false);
           const resultOutput = data.stdout
             ? `${data.stdout}${data.result ? `\n${data.result}` : ""}`
@@ -47,6 +47,7 @@ export function usePyodideWorker(): {
           setOutput(resultOutput);
           setDuration(data.duration);
           break;
+        }
         case "error":
           setIsRunning(false);
           setOutput(`Error: ${data.message}`);

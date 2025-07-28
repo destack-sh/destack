@@ -1,6 +1,6 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
 import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
-import { Stroke, StrokePoint, Vector2 } from "destack";
+import { type Stroke, StrokePoint, type Vector2 } from "destack";
 
 /**
  * Generate SVG path data for stroke with ink-like rendering.
@@ -201,7 +201,6 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
       currentPartition = cleanUpPartition(currentPartition);
       partitions.push(currentPartition);
       currentPartition = [currentPoint];
-      continue;
     }
   }
 

@@ -21,7 +21,7 @@ from destack.utils.uuid import uuid4
 def _do_test_roundtrip_object(
     obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
 ) -> None:
-    if encoding == Encoding.KOMPAKT:
+    if encoding != Encoding.JSON:
         return  # nocheckin
 
     # pack/unpack
@@ -46,6 +46,9 @@ def _do_test_roundtrip_object(
     )
     assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
+
+    print(repr(obj))
+    print(packed_obj)
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):

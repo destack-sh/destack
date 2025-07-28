@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath, URL } from "node:url";
-import react from "@vitejs/plugin-react";
+import preact from "@preact/preset-vite";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -19,25 +19,19 @@ export function viteStaticCopyPyodide() {
   });
 }
 
-const ReactCompilerConfig = {
-  /* ... */
-};
-
 // https://vitejs.dev/config/
 const defaultConfig = defineConfig(() => ({
   logLevel: "info",
   optimizeDeps: { exclude: ["pyodide", "destack"] },
   plugins: [
-    react({
+    preact({
       babel: {
         presets: [
           ["@babel/preset-typescript", { allowDeclareFields: true }],
-          "@babel/preset-react",
         ],
         compact: true,
         plugins: [
           ["@babel/plugin-proposal-decorators", { version: "2023-11" }],
-          ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
       },
     }),

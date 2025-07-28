@@ -11,7 +11,7 @@ import {
   Universe,
   uuid4,
 } from "destack";
-import React from "react";
+import type { FunctionComponent } from "preact";
 import LayerView from "./Layer";
 
 const graph = new MemoryGraph();
@@ -40,7 +40,7 @@ const layer = new Layer({ name: "My Layer" });
 session.create(layer);
 // await session.commit();
 
-const Destack: React.FC = () => {
+const Destack: FunctionComponent = () => {
   return (
     <SessionProvider session={session}>
       <LayerView layerPtr={layer.toRef()} />

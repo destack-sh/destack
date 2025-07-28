@@ -2,9 +2,9 @@ import { useSession } from "@destack-web/language";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import {
   Easing,
-  Event,
-  Layer,
-  NodeReference,
+  type Event,
+  type Layer,
+  type NodeReference,
   PathShape2D,
   PointerMoveEvent,
   Stroke,
@@ -12,7 +12,8 @@ import {
   Universe,
   Vector2,
 } from "destack";
-import React, { useRef, useState } from "react";
+import type { FunctionComponent } from "preact";
+import { useRef, useState } from "preact/hooks";
 
 const strokeOptions = new Stroke({
   type: StrokeType.FREEHAND,
@@ -23,9 +24,9 @@ const strokeOptions = new Stroke({
   easing: Easing.LINEAR,
 });
 
-export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) => {
+export const LayerView: FunctionComponent<{ layerPtr: NodeReference }> = ({ layerPtr }) => {
   const session = useSession();
-  const layer = session.graph.get(layerPtr) as Layer | null ;
+  const layer = session.graph.get(layerPtr) as Layer | null;
   const [events, setEvents] = useState<Event[]>([]);
   const lines = layer?.getChildren(PathShape2D) ?? [];
 
@@ -34,7 +35,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   const [lastMousePosition, setLastMousePosition] = useState<Vector2 | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2 => {
+  const getMousePosition = (event: MouseEvent): Vector2 => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
     }
@@ -45,7 +46,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   };
 
   // begin drawing on mouse down
-  const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseDown = (event: MouseEvent) => {
     if (layer == null) {
       return;
     }
@@ -60,7 +61,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   };
 
   // add points on mouse move
-  const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseMove = (event: MouseEvent) => {
     const currentPoint = getMousePosition(event);
 
     if (isDrawing && currentLine) {
