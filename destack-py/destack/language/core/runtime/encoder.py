@@ -16,9 +16,9 @@ class EncoderOptions(NamedTuple):
     """Options for encoding."""
 
     """Whether to include the key of properties."""
-    include_key: bool = True
+    include_key: bool
     # include_type?
-    omit_none: bool = False
+    prefer_omit_none: bool
 
 
 class Encoder[T: Any = Any](ABC):
@@ -26,8 +26,8 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=True)
-    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=False)
+    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=True, prefer_omit_none=True)
+    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=False, prefer_omit_none=True)
 
     @abstractmethod
     def pack_object(

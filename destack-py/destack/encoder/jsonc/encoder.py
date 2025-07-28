@@ -1,158 +1,64 @@
-import json
 from typing import Any, ClassVar, override
 
 from destack.language.core import (
-    BinaryReader,
-    BinaryWriter,
-    BuiltinObject,
-    Encoder,
     EncoderOptions,
     Encoding,
-    Jsonc,
     NodeType,
     ObjectKind,
+    ScalarType,
     Session,
-    StructType,
     Type,
 )
+from destack.language.core.builtin.const import METATYPE_PROPERTY_KEY
+from destack.language.registry import ENUM_CLASS_BY_TYPE
 
-from .generate import JSONC_OBJECT_ENCODERS
-from .value import pack_jsonc, unpack_jsonc
+from ..json.encoder import JsonEncoder
 
 
-class JsoncEncoder(Encoder[Jsonc]):
+class JsoncEncoder(JsonEncoder):
     """Encoder for our custom constant folded JSON format."""
 
     encoding: ClassVar[Encoding] = Encoding.JSONC
 
-    @override
-    def pack_object(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        object: BuiltinObject,
-        options: EncoderOptions,
-    ) -> Jsonc:
-        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
-        return encoder.pack_object(self, object, options)
+    @classmethod
+    def generate(cls) -> "JsoncEncoder":
+        from .generate import JsoncEncoderGenerator
+
+        generator = JsoncEncoderGenerator()
+        encoders = generator.generate()
+        return cls(encoders)
 
     @override
-    def pack_object_binary(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        object: BuiltinObject,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
-        object_packed = encoder.pack_object(self, object, options)
-        writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
-
-    @override
-    def unpack_object(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        value: Jsonc,
-        session: Session | None,
-        options: EncoderOptions,
-    ) -> BuiltinObject:
-        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
-        return encoder.unpack_object(self, value, session, options)
-
-    @override
-    def unpack_object_binary(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        reader: BinaryReader,
-        session: Session | None,
-        options: EncoderOptions,
-    ) -> BuiltinObject:
-        encoder = JSONC_OBJECT_ENCODERS.get((kind, metatype))
-        assert encoder is not None, f"no JsoncObjectEncoder for {kind.name}:{metatype.name}"
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return encoder.unpack_object(self, value_decoded, session, options)
-
-    @override
-    def pack_type(
-        self,
-        type: Type,
-        options: EncoderOptions,
-    ) -> Jsonc:
-        return self.pack_object(ObjectKind.STRUCT, type.metatype, type, options)
-
-    @override
-    def pack_type_binary(
-        self,
-        type: Type,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        self.pack_object_binary(ObjectKind.STRUCT, StructType.TYPE, type, writer, options)
-
-    @override
-    def unpack_type(
-        self,
-        value: Jsonc,
-        options: EncoderOptions,
-    ) -> Type:
-        unpacked_type = self.unpack_object(ObjectKind.STRUCT, StructType.TYPE, value, None, options)
-        assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
-        return unpacked_type
-
-    @override
-    def unpack_type_binary(
-        self,
-        reader: BinaryReader,
-        options: EncoderOptions,
-    ) -> Type:
-        unpacked_type = self.unpack_object_binary(
-            ObjectKind.STRUCT, StructType.TYPE, reader, None, options
-        )
-        assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
-        return unpacked_type
-
-    @override
-    def pack_value(
+    def pack_scalar_value(
         self,
         type: Type,
         value: Any,
         options: EncoderOptions,
-    ) -> Jsonc:
-        return pack_jsonc(self, type, value, options)
+    ) -> str:
+        if type.scalar_type == ScalarType.ENUM:
+            return value.value
+        else:
+            return super().pack_scalar_value(type, value, options)
 
     @override
-    def pack_value_binary(
+    def unpack_scalar_value(
         self,
         type: Type,
         value: Any,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        writer.write_bytes(pack_jsonc(self, type, value, options).encode("utf-8"))
-
-    @override
-    def unpack_value(
-        self,
-        type: Type,
-        value: Jsonc,
         session: Session | None,
         options: EncoderOptions,
     ) -> Any:
-        return unpack_jsonc(self, type, value, session, options)
+        # enum
+        if type.scalar_type == ScalarType.ENUM:
+            assert type.enum_type is not None, f"no enum type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            return enum_cls(value)
 
-    @override
-    def unpack_value_binary(
-        self,
-        type: Type,
-        reader: BinaryReader,
-        session: Session | None,
-        options: EncoderOptions,
-    ) -> Any:
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return unpack_jsonc(self, value_decoded, type, session, options)
+        # node value
+        elif type.scalar_type == ScalarType.NODE_VALUE:
+            node_type = NodeType[value[METATYPE_PROPERTY_KEY]]
+            return self.unpack_object(ObjectKind.NODE, node_type, value, session, options)
+
+        # default
+        else:
+            return super().unpack_scalar_value(type, value, session, options)

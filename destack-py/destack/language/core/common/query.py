@@ -387,13 +387,13 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     having: Optional[Condition] = builtin_property(
         113, is_repr=True, description="Filter the Query groups (for grouped Queries)."
     )
-    group_by: list[Expression] = builtin_property(
+    group_by: list[Expression] | None = builtin_property(
         114, is_repr=True, description="Discriminator for grouped Queries."
     )
     aggregation: Optional[Aggregation] = builtin_property(
         115, is_repr=True, description="Aggregate the Query."
     )
-    sort: list[Sort] = builtin_property(
+    sort: list[Sort] | None = builtin_property(
         116,
         is_repr=True,
         description="How to sort the Query results.",

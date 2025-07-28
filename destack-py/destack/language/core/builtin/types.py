@@ -30,8 +30,6 @@ type String = str
 # type UUID = UUID
 type Bytes = bytes
 type Json = Any
-type Jsonc = Json  # just an alias
-type Kompakt = bytes  # just an alias
 
 __all__ = [  # noqa: RUF022
     "Boolean",
@@ -60,6 +58,5 @@ __all__ = [  # noqa: RUF022
     "UUID",
     "Bytes",
     "Json",
-    "Jsonc",
-    "Kompakt",
+    "Bytes",
 ]

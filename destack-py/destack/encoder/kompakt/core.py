@@ -16,13 +16,13 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class KompaktObjectEncoder:
+class KompaktObjectEncoder[T: BuiltinObject = BuiltinObject]:
     """Kompakt object encoder."""
 
     def pack_object(
         self,
         _encoder: "KompaktEncoder",
-        _object: BuiltinObject,
+        _object: T,
         _writer: BinaryWriter,
         _options: EncoderOptions,
     ) -> None:
@@ -34,5 +34,5 @@ class KompaktObjectEncoder:
         _reader: BinaryReader,
         _session: Session | None,
         _options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> T:
         raise NotImplementedError

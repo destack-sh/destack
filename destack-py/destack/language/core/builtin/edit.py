@@ -13,7 +13,7 @@ from .node import builtin_node
 from .property import builtin_property
 
 if TYPE_CHECKING:
-    from destack.language import CustomPropertyDefinition, NodeReference, Value
+    from destack.language import NodeReference, Value
 
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
@@ -40,17 +40,8 @@ class EditOperation(Enum):
     SET = 1, "Set a Property to a value (may be an empty value)"
     # UNSET = 3, "Unset a Property (remove it from the override)"
 
-    # list
-    # LIST_APPEND, LIST_SET, LIST_REMOVE, ...
-
-    # tuple
-    # ...
-
-    # set
-    # SET_ADD, SET_REMOVE, ...
-
-    # map
-    # MAP_SET, MAP_REMOVE, ...
+    # sequence
+    # ADD, REMOVE, ...
 
     # math/operation (more general than number with custom types, vectors, etc.)
     # OPERATION_ADD, OPERATION_SUBTRACT, OPERATION_MULTIPLY, OPERATION_DIVIDE, ...
@@ -85,12 +76,11 @@ The id of the builtin Property being edited.
 If it's a custom Property, this just refers to Entity.custom_values.
 """,
     )
-    custom_property: "CustomPropertyDefinition | None" = builtin_property(
-        104, is_repr=True, description="The custom Property being edited (if not a builtin)."
+    custom_property_name: str | None = builtin_property(
+        104, is_repr=True, description="The name of the custom Property being edited."
     )
-    key: "Value | None" = builtin_property(
-        105, is_repr=True, description="The key for map operations."
-    )
+    key: "Value | None" = builtin_property(105, is_repr=True, description="The key being edited.")
+    # path?
     value: "Value | None" = builtin_property(120)
     if TYPE_CHECKING:
         node_ptr: "NodeReference" = UNSET
