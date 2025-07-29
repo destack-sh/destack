@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.THEME,
-    is_extensible=True,
 )
 class Theme(
     Entity,

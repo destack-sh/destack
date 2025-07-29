@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.CONTENT_VIEW,
-    is_extensible=True,
     is_abstract=True,
 )
 class ContentView(View):

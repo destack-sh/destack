@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.STYLE,
-    is_extensible=True,
     is_abstract=True,
 )
 class Style(

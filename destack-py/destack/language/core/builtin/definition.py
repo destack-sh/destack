@@ -143,20 +143,14 @@ class NodeDefinition(ObjectDefinition):
         description="Whether this Node cannot be instantiated directly.",
         tags=("meta",),
     )
-    is_extensible: bool = builtin_property(
-        111,
-        is_repr=True,
-        description="Whether this Node can be extended by custom Nodes.",
-        tags=("meta",),
-    )
     is_final: bool = builtin_property(
-        112,
+        111,
         is_repr=True,
         description="Whether this Node cannot be extended by custom Nodes.",
         tags=("meta",),
     )
     is_frozen: bool = builtin_property(
-        113,
+        112,
         is_repr=True,
         description="Whether this Node cannot be modified.",
         tags=("meta",),
@@ -319,7 +313,6 @@ class NodeDefinition(ObjectDefinition):
             description=node_cls.__doc__,
             stability=node_cls.__stability__,
             is_abstract=node_cls.__declaration__.is_abstract,
-            is_extensible=node_cls.__declaration__.is_extensible,
             is_final=node_cls.__declaration__.is_final,
             is_frozen=node_cls.__declaration__.is_frozen,
             # content

@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.PALETTE,
-    is_extensible=True,
 )
 class Palette(
     Entity,

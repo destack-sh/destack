@@ -59,7 +59,6 @@ class Materialization(Enum):
 @builtin_node(
     NodeType.ENTITY,
     is_abstract=True,
-    is_extensible=True,
     event_types=(NodeType.EDIT_EVENT,),
     permissions=(PermissionDeclaration(id=20, name="create", description="Create (or Upsert)"),),
     tags=(

@@ -10,7 +10,7 @@ from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.uuid import UUID
 
 from .builtin import EnumType, NodeType, ObjectStability, StructType
-from .common import GraphKey, UInt8
+from .common import UInt8
 from .enum import Enum, builtin_enum
 from .object import Object
 from .property import PropertyDeclaration, builtin_property
@@ -355,11 +355,6 @@ class NodeReference(StructFrozen):
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )
     # epoch? (but then we would have to re-create NodeReferences every time the Node is updated)
-    store_key: Optional[GraphKey] = builtin_property(
-        110,
-        is_repr=True,
-        description="The type of the Store the Node came from.",
-    )
 
     def to_ref(self) -> "NodeReference":
         """Get this NodeReference (for convenience)."""

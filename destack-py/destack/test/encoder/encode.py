@@ -1,3 +1,5 @@
+from typing import Any
+
 from destack.language import (
     ENCODERS,
     BinaryReader,
@@ -12,8 +14,10 @@ from destack.language import (
     Object,
     Session,
     Space,
+    Type,
     User,
     UserStatus,
+    Vector3,
 )
 from destack.utils.uuid import uuid4
 
@@ -44,8 +48,27 @@ def _do_test_roundtrip_object(
     assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
 
-    print(repr(obj))
-    print(len(packed_obj_bytes))
+    print(repr(obj))  # noqa: T201
+    print(len(packed_obj_bytes))  # noqa: T201
+    if encoding == Encoding.KOMPAKT:
+        print(packed_obj_bytes.hex(sep=" "))  # noqa: T201
+
+
+def _do_test_roundtrip_value(
+    type: Type, value: Any, session: Session, encoder: Encoder, encoding: Encoding
+) -> None:
+    # pack/unpack as bytes
+    writer = BinaryWriter()
+    encoder.pack_value_binary(type, value, writer, Encoder.TAGGED)
+    packed_value_bytes = writer.to_bytes()
+    reader = BinaryReader(packed_value_bytes)
+    unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session, Encoder.TAGGED)
+    assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
+
+    print(repr(value))  # noqa: T201
+    print(len(packed_value_bytes))  # noqa: T201
+    if encoding == Encoding.KOMPAKT:
+        print(packed_value_bytes.hex(sep=" "))  # noqa: T201
 
 
 def test_roundtrip_node_reference(session: Session, space: Space):
@@ -59,6 +82,21 @@ def test_roundtrip_node_reference(session: Session, space: Space):
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(node_ref, session, encoder, encoding)
+
+
+def test_roundtrip_vector3(session: Session, space: Space):
+    """Pack and unpack a Vector3."""
+    vector3 = Vector3(x=1.0, y=2.0, z=3.0)
+    for encoding, encoder in ENCODERS.items():
+        _ = _do_test_roundtrip_object(vector3, session, encoder, encoding)
+
+
+def test_roundtrip_vector3_list(session: Session, space: Space):
+    """Pack and unpack a Vector3."""
+    vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(100)]
+    type = Type.infer(vectors)
+    for encoding, encoder in ENCODERS.items():
+        _ = _do_test_roundtrip_value(type, vectors, session, encoder, encoding)
 
 
 def test_roundtrip_query(session: Session, space: Space):

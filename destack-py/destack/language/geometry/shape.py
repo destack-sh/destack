@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.SHAPE2D,
-    is_extensible=True,
     is_abstract=True,
 )
 class Shape2D(Entity2D):
@@ -29,7 +28,6 @@ class Shape2D(Entity2D):
 
 @builtin_node(
     NodeType.SHAPE3D,
-    is_extensible=True,
     is_abstract=True,
 )
 class Shape3D(Entity3D):

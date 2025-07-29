@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
+from enum import IntFlag
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..builtin import Encoding, NodeType, Object, ObjectKind, StructType
 from .binary import BinaryReader, BinaryWriter
@@ -12,14 +13,19 @@ if TYPE_CHECKING:
 # nocheckin: pack partial Nodes properly (.materialization<FULL)
 
 
-class EncoderOptions(NamedTuple):
+class EncoderOptions(IntFlag):
     """Options for encoding."""
 
-    """Whether to include the key of properties."""
-    include_key: bool
-    # include_type?
-    prefer_omit_none: bool
-    unwrap_value: bool
+    # whether to include the metatype of the object
+    INCLUDE_METATYPE = 1
+    # whether to include the key of properties
+    # INCLUDE_KEY = 1 << 1
+    # whether to include the type of the value
+    # INCLUDE_TYPE = 1 << 2
+    # whether to try to omit None values
+    PREFER_OMIT_NONE = 1 << 3
+    # whether to try to unwrap Values
+    PREFER_UNWRAP_VALUE = 1 << 4
 
 
 class Encoder[T: Any = Any](ABC):
@@ -27,11 +33,8 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(
-        include_key=True, prefer_omit_none=True, unwrap_value=False
-    )
-    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(
-        include_key=False, prefer_omit_none=True, unwrap_value=False
+    TAGGED: ClassVar[EncoderOptions] = (
+        EncoderOptions.INCLUDE_METATYPE | EncoderOptions.PREFER_OMIT_NONE
     )
 
     @abstractmethod
