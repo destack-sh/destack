@@ -12,20 +12,20 @@ uv pip compile \
 
 uv pip compile \
     destack-py/destack/requirements/requirements.in \
-    destack-py-system/destack_system/requirements/requirements.in \
-    --output-file destack-py-system/destack_system/requirements/requirements.txt
+    destack-py-runtime/destack_runtime/requirements/requirements.in \
+    --output-file destack-py-runtime/destack_runtime/requirements/requirements.txt
 
 uv pip compile \
     destack-py/destack/requirements/requirements.in \
     destack-py/destack/requirements/dev.in \
-    destack-py-system/destack_system/requirements/requirements.in \
-    destack-py-system/destack_system/requirements/dev.in \
-    --output-file destack-py-system/destack_system/requirements/requirements-dev.txt
+    destack-py-runtime/destack_runtime/requirements/requirements.in \
+    destack-py-runtime/destack_runtime/requirements/dev.in \
+    --output-file destack-py-runtime/destack_runtime/requirements/requirements-dev.txt
 
 # optionally also sync packages with --sync
 if [ "$1" == "--sync" ]; then
     source destack-py/venv/bin/activate && \
         uv pip sync destack-py/destack/requirements/requirements-dev.txt
-    source destack-py-system/venv/bin/activate && \
-        uv pip sync destack-py-system/destack_system/requirements/requirements-dev.txt
+    source destack-py-runtime/venv/bin/activate && \
+        uv pip sync destack-py-runtime/destack_runtime/requirements/requirements-dev.txt
 fi

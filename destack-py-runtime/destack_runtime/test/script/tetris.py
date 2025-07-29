@@ -5,6 +5,8 @@ import pytest
 if not TYPE_CHECKING:
     pytest.skip(allow_module_level=True)
 
+from destack import *  # noqa: F403
+
 from .scaffold import *  # noqa: F403
 
 # ruff: noqa: F405
@@ -18,7 +20,7 @@ from .scaffold import *  # noqa: F403
 
 
 @entity
-class TetrisGame(IsStarable, Record):
+class TetrisGame(Entity):
     pass
 
 

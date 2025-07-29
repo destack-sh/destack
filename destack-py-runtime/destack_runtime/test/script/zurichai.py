@@ -32,7 +32,7 @@ class MeetupMembership(Membership):
 
 
 @entity
-class MeetupSeries(IsStarable, IsFollowable, Record):
+class MeetupSeries(Entity):
     name: str
 
 
@@ -42,7 +42,7 @@ class MeetupSeries(IsStarable, IsFollowable, Record):
 
 
 @entity
-class Meetup(IsStarable, Record):
+class Meetup(Entity):
     id: int
     name: str | None
     capacity: int
@@ -163,7 +163,7 @@ class MeetupResponseType(Enum):
 
 
 @entity
-class MeetupResponse(IsOwnable, Record):
+class MeetupResponse(Entity):
     parent: Meetup
     user: User
     response_type: MeetupResponseType
