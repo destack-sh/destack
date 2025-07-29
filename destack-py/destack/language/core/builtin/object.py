@@ -30,6 +30,7 @@ from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 from .builtin import (
     NodeType,
     ObjectKind,
+    ObjectStability,
     StructType,
     TraitType,
 )
@@ -1353,6 +1354,7 @@ class BuiltinObject:
 
     metatype: ClassVar[NodeType | StructType] = UNSET
     __kind__: ClassVar[ObjectKind] = UNSET
+    __stability__: ClassVar[ObjectStability] = ObjectStability.CAN_CHANGE
 
     __is_frozen__: ClassVar[bool] = False
     __is_struct__: ClassVar[bool] = False

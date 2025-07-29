@@ -13,7 +13,7 @@ from destack.utils.func import get_superclasses
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .builtin import EnumType, ObjectKind, StructType
+from .builtin import EnumType, ObjectKind, ObjectStability, StructType
 from .meta import TagDeclaration, builtin_method
 from .object import BuiltinObject, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
@@ -40,7 +40,7 @@ def builtin_struct(
     *,
     frozen: bool = False,
     is_abstract: bool = False,
-    is_stable: bool = False,
+    stability: ObjectStability = ObjectStability.CAN_CHANGE,
     enum_types: tuple[EnumType, ...] = (),
     tags: tuple["TagDeclaration", ...] = (),
 ):
@@ -60,7 +60,7 @@ def builtin_struct(
         cls.__inherits__ = tuple(reversed(inherits))
         cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
         cls.__is_abstract__ = is_abstract
-        cls.__is_stable__ = is_stable
+        cls.__stability__ = stability
 
         # enum types
         cls.__self_enum_types__ = tuple(enum_types)
@@ -120,8 +120,8 @@ class Struct(BuiltinObject, abc.ABC):
     __is_struct__: ClassVar[bool] = True
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
-    """Whether this Struct is stable (cannot be redefined by the system)."""
-    __is_stable__: ClassVar[bool] = False
+    """The stability of this Struct (how it is expected to change)."""
+    __stability__: ClassVar[ObjectStability] = ObjectStability.CAN_CHANGE
 
     # inheritance
     """The base type this Struct extends (directly)."""

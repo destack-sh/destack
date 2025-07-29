@@ -31,16 +31,14 @@ if TYPE_CHECKING:
 class BranchType(Enum):
     """The type of a Branch."""
 
-    ROOT = 1
-    FULL = 2
+    PARTIAL = 2
+    FULL = 10
+    ROOT = 11
 
 
 @builtin_node(NodeType.BRANCH, is_final=True)
 @final
-class Branch(
-    IsOwnable,
-    Entity,
-):
+class Branch(IsOwnable, Entity):
     """
     A Branch is a version of a Snapshot.
 
@@ -65,8 +63,8 @@ class Branch(
 class SnapshotType(Enum):
     """The type of a Snapshot."""
 
-    ROOT = 1
-    FULL = 2
+    FULL = 10
+    ROOT = 11
 
 
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
@@ -80,10 +78,7 @@ class SnapshotStatus(Enum):
 
 @builtin_node(NodeType.SNAPSHOT, is_final=True)
 @final
-class Snapshot(
-    IsOwnable,
-    Entity,
-):
+class Snapshot(IsOwnable, Entity):
     """
     A Snapshot is a point in Space-time.
     Snapshots may branch off of other Snapshots, either as a full copy or a partial override.

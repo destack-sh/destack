@@ -18,6 +18,7 @@ class EnumType(Enum):
     STRUCT_TYPE = 3
     TRAIT_TYPE = 4
     OBJECT_KIND = 7
+    OBJECT_STABILITY = 8
     UNIVERSE_CATEGORY = 9
     NODE_DEFINITION_TYPE = 10
     OBJECT_DEFINITION_TYPE = 11
@@ -214,6 +215,13 @@ class ObjectKind(Enum):
     NODE = 1
     STRUCT = 2
     ENUM = 3
+
+
+@builtin_enum(EnumType.OBJECT_STABILITY)
+class ObjectStability(Enum):
+    CAN_CHANGE = 1, "Definition can change in every allowed way"
+    CAN_GROW = 2, "Definition can only be extended with properties at the end"
+    CANNOT_CHANGE = 3, "Definition can never change"
 
 
 @builtin_enum(EnumType.STRUCT_TYPE)
@@ -555,6 +563,8 @@ class NodeType(Enum):
         "Migration Operation of an Entity",
         "fas fa-database",
     )
+
+    # nocheckin: *_definition/custom_*_definition inconsistency (Event, Method, Permission, ...)
 
     # logic
     METHOD = 40_000, "Method", None, "fas fa-code"

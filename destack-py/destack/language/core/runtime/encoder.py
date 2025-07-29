@@ -19,6 +19,7 @@ class EncoderOptions(NamedTuple):
     include_key: bool
     # include_type?
     prefer_omit_none: bool
+    unwrap_value: bool
 
 
 class Encoder[T: Any = Any](ABC):
@@ -26,8 +27,12 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=True, prefer_omit_none=True)
-    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(include_key=False, prefer_omit_none=True)
+    TAGGED: ClassVar[EncoderOptions] = EncoderOptions(
+        include_key=True, prefer_omit_none=True, unwrap_value=False
+    )
+    UNTAGGED: ClassVar[EncoderOptions] = EncoderOptions(
+        include_key=False, prefer_omit_none=True, unwrap_value=False
+    )
 
     @abstractmethod
     def pack_object(

@@ -1,14 +1,8 @@
 from typing import TYPE_CHECKING, Any, Self, assert_never, cast
 
-from destack.language.registry import (
-    OBJECT_DEFINITION_REFERENCE_BY_CLASS,
-)
+from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
-from .builtin import (
-    NodeType,
-    StructType,
-    TraitType,
-)
+from .builtin import NodeType, ObjectStability, StructType, TraitType
 from .common import (
     CascadeAction,
     EdgeType,
@@ -148,6 +142,11 @@ class NodeDefinition(BuiltinObjectDefinition):
     description: str | None = builtin_property(
         103,
         is_repr=True,
+        tags=("meta",),
+    )
+    stability: ObjectStability = builtin_property(
+        105,
+        description="The stability of this Node (how its definition is expected to change).",
         tags=("meta",),
     )
     is_abstract: bool = builtin_property(
@@ -332,6 +331,7 @@ class NodeDefinition(BuiltinObjectDefinition):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
+            stability=node_cls.__stability__,
             is_abstract=node_cls.__is_abstract__,
             is_extensible=node_cls.__is_extensible__,
             is_final=node_cls.__is_final__,
@@ -483,6 +483,11 @@ class StructDefinition(BuiltinObjectDefinition):
         is_repr=True,
         tags=("meta",),
     )
+    stability: ObjectStability = builtin_property(
+        105,
+        description="The stability of this Struct (how its definition is expected to change).",
+        tags=("meta",),
+    )
     taggings: list[UInt8] = builtin_property(
         109,
         tags=("meta",),
@@ -495,11 +500,6 @@ class StructDefinition(BuiltinObjectDefinition):
     is_abstract: bool = builtin_property(
         111,
         description="Whether this Struct is abstract (cannot be instantiated directly).",
-        tags=("meta",),
-    )
-    is_stable: bool = builtin_property(
-        112,
-        description="Whether this Struct is stable (cannot be redefined by the system).",
         tags=("meta",),
     )
 
@@ -573,9 +573,9 @@ class StructDefinition(BuiltinObjectDefinition):
             name=struct_cls.__name__,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
+            stability=struct_cls.__stability__,
             is_frozen=struct_cls.__is_frozen__,
             is_abstract=struct_cls.__is_abstract__,
-            is_stable=struct_cls.__is_stable__,
             # content
             properties=[
                 prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
