@@ -4,10 +4,9 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IsActor,
-    IsJoinable,
     NodeReference,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -26,13 +25,13 @@ class OrganizationStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.ORGANIZATION, is_final=True)
+@builtin_node(
+    NodeType.ORGANIZATION,
+    is_final=True,
+    traits=(TraitType.ACTOR, TraitType.JOINABLE),
+)
 @final
-class Organization(
-    IsActor,
-    IsJoinable,
-    Entity,
-):
+class Organization(Entity):
     """
     An Organization with Users and Teams.
     """

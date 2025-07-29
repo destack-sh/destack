@@ -134,7 +134,7 @@ class MemoryGraph(Graph):
             is_ordered = False
             for children_of_type in children_by_type.values():
                 node_cls = type_(children_of_type[0])
-                if TraitType.ORDERED in node_cls.__traits__:
+                if TraitType.ORDERED in node_cls.__definition__.traits:
                     is_ordered = True
                 children.extend(children_of_type)
             if is_ordered:
@@ -151,7 +151,7 @@ class MemoryGraph(Graph):
             if len(node_types) == 1:
                 # collect for single node type
                 children: list = children_by_type.get(node_types[0], EMPTY_LIST)
-                if children and TraitType.ORDERED in node_cls.__traits__:
+                if children and TraitType.ORDERED in node_cls.__definition__.traits:
                     children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
                 return children
             else:
@@ -159,7 +159,7 @@ class MemoryGraph(Graph):
                 children: list = []
                 for node_type in node_types:
                     children.extend(children_by_type.get(node_type, EMPTY_LIST))
-                if children and TraitType.ORDERED in node_cls.__traits__:
+                if children and TraitType.ORDERED in node_cls.__definition__.traits:
                     children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
                 return children
 

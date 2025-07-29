@@ -2,9 +2,8 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    IsActor,
-    IsJoinable,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
     builtin_property_parent,
@@ -16,12 +15,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TEAM)
-class Team(
-    IsActor,
-    IsJoinable,
-    Entity,
-):
+@builtin_node(
+    NodeType.TEAM,
+    traits=(TraitType.ACTOR, TraitType.JOINABLE),
+)
+class Team(Entity):
     """
     An Team with Users and Teams.
     """

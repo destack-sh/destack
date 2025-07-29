@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from ..builtin.builtin import NodeType
+from ..builtin.declaration import ConstraintType, IndexType
 from ..builtin.entity import Entity
-from ..builtin.meta import ConstraintType, IndexType
 from ..builtin.node import builtin_node
 from ..builtin.property import builtin_property
 

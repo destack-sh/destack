@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
     UNSET,
-    BuiltinObject,
     Entity,
     Materialization,
     Node,
     NodeType,
+    Object,
     ObjectKind,
     PrimitiveType,
     PropertyDeclaration,
@@ -49,13 +49,11 @@ type_ = type
 class JsonEncoderGenerator:
     """Generate a JsonObjectEncoder for a BuiltinObject."""
 
-    def get_encoder_name(self, cls: type["BuiltinObject"]) -> str:
+    def get_encoder_name(self, cls: type["Object"]) -> str:
         """Get the name of the JsonObjectEncoder for a BuiltinObject."""
         return f"{cls.__name__}JsonEncoder"
 
-    def generate_object_encoder(
-        self, cls: type["BuiltinObject"]
-    ) -> tuple[str, str, dict[str, Any]]:
+    def generate_object_encoder(self, cls: type["Object"]) -> tuple[str, str, dict[str, Any]]:
         """Generate the JsonObjectEncoder class for a BuiltinObject."""
 
         is_entity = issubclass(cls, Entity)
@@ -105,17 +103,17 @@ class {encoder_name}(JsonObjectEncoder):
                 "Any": Any,
                 "Self": cls,
                 "cls": cls,
-                "BuiltinObject": BuiltinObject,
+                "BuiltinObject": Object,
             },
         )
 
-    def generate_pack_object_metatype(self, cls: type["BuiltinObject"]) -> str:
+    def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
         """Generate the metatype code for a BuiltinObject."""
         return f"_object_json['metatype'] = '{cls.metatype.name}'"
 
     def generate_pack_object(
         self,
-        cls: type["BuiltinObject"],
+        cls: type["Object"],
         *,
         is_entity: bool,
     ) -> str:
@@ -126,7 +124,7 @@ class {encoder_name}(JsonObjectEncoder):
         ]
 
         # collect properties
-        properties = list(cls.__wired_properties__.values())
+        properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
         if is_entity:
             set_properties = [p for p in properties if p.is_identity]
@@ -186,18 +184,19 @@ else:
         lines.append("return _object_json")
         return "\n".join(lines)
 
-    def generate_unpack_object(self, cls: type["BuiltinObject"], *, is_entity: bool) -> str:
+    def generate_unpack_object(self, cls: type["Object"], *, is_entity: bool) -> str:
         """Generate the unpack method for a BuiltinObject."""
         assignments: list[str] = []
         lines: list[str] = []
         if is_entity:
             materialization_key = self.get_target_property_key(Entity.property("materialization"))
-            lines.append(
-                f"_is_partial = Materialization[_object_json.get('{materialization_key}')] < {Materialization.FULL}"
+            materialization_expr = self.generate_unpack_enum(
+                "Materialization", f"_object_json.get('{materialization_key}')"
             )
+            lines.append(f"_is_partial = {materialization_expr} < {Materialization.FULL}")
 
         # collect properties
-        properties = list(cls.__wired_properties__.values())
+        properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
         if is_entity:
             set_properties = [p for p in properties if p.is_identity]
@@ -699,7 +698,7 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
         # generate pack/unpack methods
         encoders = {}
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-            if node_cls.__is_abstract__:
+            if node_cls.__declaration__.is_abstract:
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}

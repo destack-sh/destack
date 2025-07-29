@@ -47,7 +47,7 @@ class TextSpan(StructFrozen):
 
     def _to_option_kwargs(self):
         kwargs = {}
-        for prop in self.__declared_properties__.values():
+        for prop in self.__declaration__.properties:
             value = getattr(self, prop.name)
             if value is not None:
                 kwargs[prop.name] = value
@@ -74,7 +74,7 @@ class Text(StructFrozen):
 
     def _to_option_kwargs(self):
         kwargs = {}
-        for prop in self.__declared_properties__.values():
+        for prop in self.__declaration__.properties:
             value = getattr(self, prop.name)
             if value is not None:
                 kwargs[prop.name] = value

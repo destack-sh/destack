@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
-    BuiltinObject,
     Encoding,
     Entity,
     NodeType,
+    Object,
     ObjectKind,
     ObjectStability,
     PrimitiveType,
@@ -54,13 +54,11 @@ class KompaktEncoderGenerator:
             source_name += "_ptr"
         return source_name
 
-    def get_encoder_name(self, cls: type["BuiltinObject"]) -> str:
+    def get_encoder_name(self, cls: type["Object"]) -> str:
         """Get the name of the KompaktObjectEncoder for a BuiltinObject."""
         return f"{cls.__name__}KompaktEncoder"
 
-    def generate_object_encoder(
-        self, cls: type["BuiltinObject"]
-    ) -> tuple[str, str, dict[str, Any]]:
+    def generate_object_encoder(self, cls: type["Object"]) -> tuple[str, str, dict[str, Any]]:
         """Generate the KompaktObjectEncoder class for a BuiltinObject."""
 
         is_entity = issubclass(cls, Entity)
@@ -111,7 +109,7 @@ class {encoder_name}(KompaktObjectEncoder):
                 "override": override,
                 "Self": cls,
                 "cls": cls,
-                "BuiltinObject": BuiltinObject,
+                "BuiltinObject": Object,
                 "Encoding": Encoding,
                 "Session": Session,
             },
@@ -119,7 +117,7 @@ class {encoder_name}(KompaktObjectEncoder):
 
     def generate_pack_object(
         self,
-        cls: type["BuiltinObject"],
+        cls: type["Object"],
         *,
         is_entity: bool,
         stability: ObjectStability,
@@ -131,7 +129,7 @@ class {encoder_name}(KompaktObjectEncoder):
         ]
 
         # collect properties
-        properties = list(cls.__wired_properties__.values())
+        properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
         if is_entity:
             set_properties = [p for p in properties if p.is_identity]
@@ -190,7 +188,7 @@ else:
 
     def generate_unpack_object(
         self,
-        cls: type["BuiltinObject"],
+        cls: type["Object"],
         *,
         is_entity: bool,
         stability: ObjectStability,
@@ -202,7 +200,7 @@ else:
         ]
 
         # collect properties
-        properties = list(cls.__wired_properties__.values())
+        properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
         if is_entity:
             set_properties = [p for p in properties if p.is_identity]
@@ -591,7 +589,7 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
         # generate pack/unpack methods
         encoders = {}
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-            if node_cls.__is_abstract__:
+            if node_cls.__declaration__.is_abstract:
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}

@@ -5,14 +5,12 @@ from destack.utils.uuid import UUID
 from ..builtin import (
     Enum,
     EnumType,
-    GraphDomain,
     Node,
     NodeDefinitionReference,
     PropertyDeclaration,
     PropertyReference,
     StructFrozen,
     StructType,
-    Trait,
     TypeCardinality,
     UInt32,
     Value,
@@ -342,7 +340,7 @@ class QueryType(Enum):
 
 
 @builtin_struct(StructType.QUERY, frozen=True)
-class Query[RootT: "Trait | Node"](StructFrozen):
+class Query(StructFrozen):
     """
     A Query into the supergraph about Nodes (node or scalar and potentially grouped).
     Queries may either be about Entities or Events.
@@ -351,9 +349,6 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     # meta
     id: UUID = builtin_property(2, default_factory=ValueFactory.UUID4)
     type: QueryType = builtin_property(100, is_repr=True, description="The type of Query.")
-    domain: GraphDomain = builtin_property(
-        101, is_repr=True, description="The domain of the Query (Entity or Event)."
-    )
     name: str = builtin_property(
         105,
         description="Name for this subquery. Should be unique within the parent Query.",

@@ -5,8 +5,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -73,12 +73,10 @@ class NotificationExpiredEvent(NotificationEvent):
 
 @builtin_node(
     NodeType.NOTIFICATION,
+    traits=(TraitType.OWNABLE,),
     event_types=(NodeType.NOTIFICATION_EVENT,),
 )
-class Notification(
-    IsOwnable,
-    Entity,
-):
+class Notification(Entity):
     """A Notification is a message about something."""
 
     title: str = builtin_property(101)

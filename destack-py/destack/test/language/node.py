@@ -13,17 +13,17 @@ from destack.language import (
 def test_node_inheritance(session: Session):
     """Test the Node inheritance hierarchy."""
     assert Node.metatype == NodeType.NODE
-    assert Node.__is_abstract__
+    assert Node.__definition__.is_abstract
     assert Shape2D.metatype == NodeType.SHAPE2D
-    assert Shape2D.__is_abstract__
-    assert LineShape2D.__base_type__ == Shape2D.metatype
-    assert LineShape2D.__inherits__ == (
+    assert Shape2D.__definition__.is_abstract
+    assert LineShape2D.__definition__.base_type == Shape2D.metatype
+    assert LineShape2D.__definition__.inherits == (
         NodeType.NODE,
         NodeType.ENTITY,
         NodeType.ENTITY2D,
         NodeType.SHAPE2D,
     )
-    assert len(Node.__inherited_by__) == len(NodeType) - 1
+    assert len(Node.__definition__.inherited_by) == len(NodeType) - 1
 
 
 def test_node_space_ptr(session: Session, space: Space):

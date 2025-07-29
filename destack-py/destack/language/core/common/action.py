@@ -1,12 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..builtin import (
-    IsRunnable,
-    NodeType,
-    StructType,
-    builtin_node,
-    builtin_struct,
-)
+from ..builtin import NodeType, StructType, TraitType, builtin_node, builtin_struct
 from .method import Method, MethodDefinition
 
 if TYPE_CHECKING:
@@ -22,8 +16,11 @@ class ActionDefinition(MethodDefinition):
     pass
 
 
-@builtin_node(NodeType.ACTION)
-class Action(IsRunnable, Method):
+@builtin_node(
+    NodeType.ACTION,
+    traits=(TraitType.RUNNABLE,),
+)
+class Action(Method):
     """
     An implementation of a unit of work, usually expressed with Code or some tool.
     May defer to a builtin or some other service in a separate system.

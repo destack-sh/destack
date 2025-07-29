@@ -2,7 +2,6 @@ from destack.language import (
     ENCODERS,
     BinaryReader,
     BinaryWriter,
-    BuiltinObject,
     Encoder,
     Encoding,
     Folder,
@@ -10,6 +9,7 @@ from destack.language import (
     JoinType,
     NodeReference,
     NodeType,
+    Object,
     Session,
     Space,
     User,
@@ -19,7 +19,7 @@ from destack.utils.uuid import uuid4
 
 
 def _do_test_roundtrip_object(
-    obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
+    obj: Object, session: Session, encoder: Encoder, encoding: Encoding
 ) -> None:
     # pack/unpack
     packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj, Encoder.TAGGED)

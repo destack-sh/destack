@@ -7,12 +7,12 @@ from typing import Any, ClassVar, assert_never, override
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
-    BuiltinObject,
     Encoder,
     EncoderOptions,
     Encoding,
     Json,
     NodeType,
+    Object,
     ObjectKind,
     PrimitiveType,
     PropertyDeclaration,
@@ -58,7 +58,7 @@ class JsonEncoder(Encoder[Json]):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         options: EncoderOptions,
     ) -> dict[str, Any]:
         encoder = self.encoders.get((kind, metatype))
@@ -70,7 +70,7 @@ class JsonEncoder(Encoder[Json]):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         writer: BinaryWriter,
         options: EncoderOptions,
     ) -> None:
@@ -87,7 +87,7 @@ class JsonEncoder(Encoder[Json]):
         value: Json,
         session: Session | None,
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         encoder = self.encoders.get((kind, metatype))
         assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.unpack_object(self, value, session, options)
@@ -100,7 +100,7 @@ class JsonEncoder(Encoder[Json]):
         reader: BinaryReader,
         session: Session | None,
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         encoder = self.encoders.get((kind, metatype))
         assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
@@ -354,9 +354,7 @@ class JsonEncoder(Encoder[Json]):
             ScalarType.STRUCT,
         ):
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            assert isinstance(value, BuiltinObject), (
-                f"expected BuiltinObject for {type!r}, got {value!r}"
-            )
+            assert isinstance(value, Object), f"expected BuiltinObject for {type!r}, got {value!r}"
             return self.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
 
         #

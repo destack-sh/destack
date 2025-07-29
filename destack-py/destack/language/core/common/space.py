@@ -8,13 +8,10 @@ from destack.language.core import (
     EPSILON,
     VERSION,
     Entity,
-    IsFollowable,
-    IsJoinable,
-    IsOwnable,
-    IsStarable,
     NodeReference,
     NodeType,
     Region,
+    TraitType,
     ValueFactory,
     builtin_constant,
     builtin_node,
@@ -24,7 +21,6 @@ from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
-    TRAIT_DEFINITION_BY_TYPE,
 )
 from destack.utils.uuid import UUID, uuid4
 
@@ -74,11 +70,6 @@ class Universe(Entity):
         10,
         value=lambda: list(NODE_DEFINITION_BY_TYPE.values()),
         description="All Node definitions.",
-    )
-    TRAITS = builtin_constant(
-        11,
-        value=lambda: list(TRAIT_DEFINITION_BY_TYPE.values()),
-        description="All Trait definitions.",
     )
     STRUCTS = builtin_constant(
         12,
@@ -162,15 +153,13 @@ class CreateSpaceResult(NamedTuple):
     head_snapshot: "Snapshot"
 
 
-@builtin_node(NodeType.SPACE, is_final=True)
+@builtin_node(
+    NodeType.SPACE,
+    is_final=True,
+    traits=(TraitType.FOLLOWABLE, TraitType.JOINABLE, TraitType.OWNABLE, TraitType.STARABLE),
+)
 @final
-class Space(
-    IsFollowable,
-    IsJoinable,
-    IsOwnable,
-    IsStarable,
-    Entity,
-):
+class Space(Entity):
     """
     A Space is the home of your personal software studio.
     """

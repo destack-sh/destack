@@ -26,7 +26,6 @@ class EnumType(Enum):
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
     GRAPH_KEY = 20
-    GRAPH_DOMAIN = 21
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
@@ -214,14 +213,13 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class ObjectKind(Enum):
     NODE = 1
     STRUCT = 2
-    ENUM = 3
 
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
 class ObjectStability(Enum):
-    CAN_CHANGE = 1, "Definition can change in every allowed way"
-    CAN_GROW = 2, "Definition can only be extended with properties at the end"
-    CANNOT_CHANGE = 3, "Definition can never change"
+    DYNAMIC = 1, "Definition can change in every allowed way"
+    GROWABLE = 2, "Definition can only be extended with properties at the end"
+    STATIC = 3, "Definition can never change"
 
 
 @builtin_enum(EnumType.STRUCT_TYPE)
@@ -229,7 +227,7 @@ class StructType(Enum):
     # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    BUILTIN_OBJECT_DEFINITION = (
+    OBJECT_DEFINITION = (
         10,
         "Builtin Definition",
         "Definition of a builtin Node or Struct",
@@ -238,7 +236,6 @@ class StructType(Enum):
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
     NODE_DEFINITION_REFERENCE = 13
-    TRAIT_DEFINITION = 14
     STRUCT_DEFINITION = 15
     STRUCT_DEFINITION_REFERENCE = 16
     ENUM_DEFINITION = 17

@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     Event,
-    IsActor,
     NodeType,
     RoleType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -41,11 +41,9 @@ class RoleUnassignedEvent(RoleEvent):
 @builtin_node(
     NodeType.ROLE,
     event_types=(NodeType.ROLE_EVENT,),
+    traits=(TraitType.OWNABLE,),
 )
-class Role(
-    IsActor,
-    Entity,
-):
+class Role(Entity):
     """A Role for Actors to take."""
 
     type: RoleType = builtin_property(100, is_repr=True)

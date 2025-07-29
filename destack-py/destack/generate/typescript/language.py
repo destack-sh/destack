@@ -7,7 +7,6 @@ from typing import assert_never, cast
 from destack.language import (
     EMPTY_DICT,
     UNSET,
-    BuiltinObject,
     CheckedType,
     ConstantDefinition,
     EdgeType,
@@ -17,6 +16,7 @@ from destack.language import (
     Node,
     NodeDefinition,
     NodeType,
+    Object,
     PrimitiveType,
     PropertyDeclaration,
     PropertyDefinition,
@@ -25,15 +25,13 @@ from destack.language import (
     StructDefinition,
     StructFrozen,
     StructType,
-    Trait,
-    TraitDefinition,
-    TraitType,
     Type,
     TypeCardinality,
     TypeDeclaration,
     ValueFactory,
     expand_node_types,
 )
+from destack.language.core.builtin.builtin import ObjectKind
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -41,9 +39,6 @@ from destack.language.registry import (
     NODE_DEFINITION_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
-    TRAIT_CLASS_BY_TYPE,
-    TRAIT_DEFINITION_BY_TYPE,
-    TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.string import Casing, to_casing
 
@@ -96,13 +91,12 @@ def _generate_multiline_doc(description: str) -> str:
     return f"/**\n{formatted_description}\n */"
 
 
-def _get_properties(cls: type[BuiltinObject]) -> list[PropertyDeclaration]:
+def _get_properties(cls: type[Object]) -> list[PropertyDeclaration]:
     """Get the properties of a class."""
     properties: list[PropertyDeclaration] = []
-    for prop in cls.__wired_properties__.values():
-        if prop.id == 1:
-            continue
-        properties.append(prop)
+    for prop in cls.__properties__.values():
+        if not prop.is_computed:
+            properties.append(prop)
     properties.sort(key=lambda prop: prop.id or 0)
     return properties
 
@@ -115,11 +109,11 @@ def _is_property_effective_readonly(prop: PropertyDeclaration) -> bool:
 def _is_property_tracked(prop: PropertyDeclaration) -> bool:
     """Check if a property is tracked (tracked properties are set on Nodes)."""
     return (
-        not prop.is_computed
+        not prop.is_runtime_only
         and not prop.is_internal
         and not prop.is_readonly
-        and (prop.component.__is_node__ or prop.component.__is_trait__)
-        and not prop.component.__is_frozen__
+        and (prop.component.__declaration__.kind == ObjectKind.NODE)
+        and not prop.component.__declaration__.is_frozen
     )
 
 
@@ -160,8 +154,6 @@ def _generate_type_scalar(
         for node_type in prop.node_types or ():
             if isinstance(node_type, NodeType):
                 node_classes.append(NODE_CLASS_BY_TYPE[node_type].__name__)
-            elif isinstance(node_type, TraitType):
-                node_classes.append(f"(Entity & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
             else:
                 assert_never(node_type)
         return " | ".join(node_classes)
@@ -399,7 +391,7 @@ set {prop_ts_name}(value: {prop_type_str}) {{
     return prop_str
 
 
-def _generate_init(cls: type[BuiltinObject]) -> str:
+def _generate_init(cls: type[Object]) -> str:
     """Generate a Typescript constructor with options-style parameters."""
 
     def _is_property_required(prop: PropertyDeclaration) -> bool:
@@ -411,9 +403,11 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
             and not prop.is_internal
         )
 
-    parent_cls = cls.__base__ if cls.__base__ and issubclass(cls.__base__, BuiltinObject) else None
+    parent_cls = cls.__base__ if cls.__base__ and issubclass(cls.__base__, Object) else None
     is_parent_concrete = (
-        not cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+        not cls.__declaration__.is_abstract
+        and parent_cls is not None
+        and not parent_cls.__declaration__.is_abstract
     )
     properties = {p.name: p for p in _get_properties(cls)}
     header_properties = dict(properties)
@@ -432,7 +426,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
     # header
     header_parts: list[str] = []
     for prop in header_properties.values():
-        if prop.is_computed:
+        if prop.is_runtime_only:
             continue  # computed, can't assign
         ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -500,7 +494,7 @@ super(
     body_properties_in_order = list(body_properties.values())
     body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     for prop in body_properties_in_order:
-        if prop.is_computed:
+        if prop.is_runtime_only:
             continue  # computed, can't assign
         if is_parent_concrete and parent_cls is not None and prop.name in parent_cls.__properties__:
             continue  # parent has this property, don't assign
@@ -509,7 +503,7 @@ super(
         ts_name_self = ts_name_in
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name_self = ts_name_in + "Ptr"
-        if cls.__is_node__ and _is_property_tracked(prop):
+        if cls.__declaration__.kind == ObjectKind.NODE and _is_property_tracked(prop):
             ts_name_self = f"_{ts_name_self}"
 
         if _is_property_required(prop):
@@ -694,7 +688,9 @@ if (options.id == null) {{
 }}
 """
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {cls.__inherits__}")
+            raise NotImplementedError(
+                f"unexpected node {cls.__name__} extends {cls.__declaration__.inherits}"
+            )
     else:
         if issubclass(cls, StructFrozen):
             identity_str = """\
@@ -729,11 +725,11 @@ constructor(options: {{
     return init_str.strip()
 
 
-def _generate_repr(cls: type[BuiltinObject]) -> str:
+def _generate_repr(cls: type[Object]) -> str:
     """Generate BuiltinObject.repr method."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
-        if cls.__is_node__:
+        if cls.__declaration__.kind == ObjectKind.NODE:
             repr_impl = f"""\
 repr(): string {{
     return `<{cls.__name__} "${{this.path}}">`
@@ -853,7 +849,7 @@ repr(): string {{
 
     # wrap in repr
     repr_parts_str = "\n".join(repr_parts_lines)
-    if cls.__is_node__:
+    if cls.__declaration__.kind == ObjectKind.NODE:
         if has_required_repr_props:
             inner_repr_impl = f"""\
 {repr_parts_str}
@@ -884,7 +880,7 @@ if (propertyReprs.length > 0) {{
 }}
 """
 
-    if cls.__is_frozen__ and not cls.__is_node__:
+    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
         # cache _repr in __repr__ (frozen Struct)
         inner_repr_impl = inner_repr_impl.replace(
             "return ", "// @ts-expect-error(readonly) */\nthis._repr = "
@@ -963,9 +959,11 @@ get path(): string {{
     return path_str.strip()
 
 
-def _generate_equals(cls: type[BuiltinObject]) -> str:
+def _generate_equals(cls: type[Object]) -> str:
     """Generate a Typescript equals method."""
-    eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
+    eq_properties = [
+        prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_runtime_only
+    ]
     assert eq_properties, f"{cls.__name__} has no properties to compare"
 
     cmp_strs = []
@@ -1161,10 +1159,10 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
         assert_never(prop.scalar_type)
 
 
-def _generate_hash(cls: type[BuiltinObject]) -> str:
+def _generate_hash(cls: type[Object]) -> str:
     """Generate a Typescript hash method."""
     hash_properties = [
-        prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
+        prop for prop in cls.__properties__.values() if prop.is_hash and not prop.is_runtime_only
     ]
     assert hash_properties, f"{cls.__name__} has no properties to hash"
     hash_parts: list[str] = ["let h = 1;"]
@@ -1173,7 +1171,7 @@ def _generate_hash(cls: type[BuiltinObject]) -> str:
         hash_parts.append(prop_hash_impl)
     hash_parts_str = "\n".join(hash_parts)
 
-    if cls.__is_frozen__ and not cls.__is_node__:
+    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
         hash_impl = f"""\
 hash(): number {{
   if (this._hash != null) {{
@@ -1412,7 +1410,9 @@ def _generate_struct(definition: StructDefinition) -> str:
         else None
     )
     is_parent_concrete = (
-        not struct_cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+        not struct_cls.__declaration__.is_abstract
+        and parent_cls is not None
+        and not parent_cls.__declaration__.is_abstract
     )
 
     # meta
@@ -1433,13 +1433,13 @@ def _generate_struct(definition: StructDefinition) -> str:
             is_tracked=_is_property_tracked(prop),
             is_node=False,
             is_interface=False,
-            is_abstract=struct_cls.__is_abstract__,
+            is_abstract=struct_cls.__declaration__.is_abstract,
         )
         prop_parts.append(prop_str)
     struct_parts.append("\n\n".join(prop_parts))
 
     # body
-    if not struct_cls.__is_abstract__:
+    if not struct_cls.__declaration__.is_abstract:
         init_str = _generate_init(struct_cls)
         struct_parts.append(init_str)
         equals_str = _generate_equals(struct_cls)
@@ -1461,7 +1461,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     generic_str = " <T extends Node = Node>" if definition.name == "Query" else ""
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export {"abstract " if struct_cls.__is_abstract__ else ""}class {definition.name}{generic_str}{extends_str} {{
+export {"abstract " if struct_cls.__declaration__.is_abstract else ""}class {definition.name}{generic_str}{extends_str} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 
   {MARKER_CUSTOM_START}
@@ -1473,70 +1473,6 @@ registerStructClass(StructType.{definition.type.name}, {definition.name});
     return struct_str.strip()
 
 
-def _generate_trait(definition: TraitDefinition) -> str:
-    """Generate a Typescript Trait definition."""
-
-    trait_cls = TRAIT_CLASS_BY_TYPE[definition.type]
-    trait_parts: list[str] = []
-
-    # interface properties
-    prop_parts: list[str] = []
-    for prop in _get_properties(trait_cls):
-        if (
-            prop.name in ("id", "parent")
-            or prop.original_component.__name__ != prop.component.__name__
-        ):
-            continue  # ignore node base properties for traits
-        prop_str = _generate_property(
-            prop,
-            is_effective_readonly=_is_property_effective_readonly(prop),
-            is_tracked=_is_property_tracked(prop),
-            is_node=False,
-            is_interface=True,
-            is_abstract=True,
-        )
-        prop_parts.append(prop_str)
-    trait_parts.append("\n\n".join(prop_parts))
-
-    # interface
-    super_trait_classes = [
-        super_cls
-        for super_cls in trait_cls.__bases__
-        if super_cls != trait_cls and issubclass(super_cls, Trait) and super_cls != Trait
-    ]
-    super_trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
-    extends_str = (
-        " extends " + ", ".join(super_cls.__name__ for super_cls in super_trait_classes)
-        if super_trait_classes
-        else ""
-    )
-
-    # instance
-    instance_parts: list[str] = []
-    instance_str = "\n".join(instance_parts)
-
-    doc_str = definition.description or definition.name
-    trait_str = f"""\
-{_generate_multiline_doc(doc_str)}
-export interface {definition.alias}{extends_str} {{
-{textwrap.indent("\n".join(trait_parts), "  ")}
-
-  {MARKER_CUSTOM_START}
-  /* ... */
-  {MARKER_CUSTOM_END}
-}}
-
-{_generate_multiline_doc(doc_str)}
-class {definition.alias}$Type extends TraitClass<{definition.alias}, TraitType.{definition.type.name}> {{
-{textwrap.indent(instance_str, "  ")}
-}}
-
-export const {definition.alias} = new {definition.alias}$Type(TraitType.{definition.type.name});
-registerTraitClass(TraitType.{definition.type.name}, {definition.alias});
-"""
-    return trait_str.strip()
-
-
 def _generate_node(definition: NodeDefinition) -> str:
     """Generate a Typescript Node definition."""
 
@@ -1546,7 +1482,9 @@ def _generate_node(definition: NodeDefinition) -> str:
         node_cls.__base__ if node_cls.__base__ and issubclass(node_cls.__base__, Node) else None
     )
     is_parent_concrete = (
-        not node_cls.__is_abstract__ and parent_cls is not None and not parent_cls.__is_abstract__
+        not node_cls.__declaration__.is_abstract
+        and parent_cls is not None
+        and not parent_cls.__declaration__.is_abstract
     )
 
     # meta
@@ -1557,7 +1495,7 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     # constants
     constant_parts: list[str] = []
-    for constant in node_cls.__constants__:
+    for constant in node_cls.__definition__.constants:
         constant_str = _generate_constant_member(constant)
         constant_parts.append(constant_str)
     node_parts.append("\n\n".join(constant_parts))
@@ -1575,13 +1513,13 @@ def _generate_node(definition: NodeDefinition) -> str:
             is_tracked=_is_property_tracked(prop),
             is_node=True,
             is_interface=False,
-            is_abstract=node_cls.__is_abstract__,
+            is_abstract=node_cls.__declaration__.is_abstract,
         )
         prop_parts.append(prop_str)
     node_parts.append("\n\n".join(prop_parts))
 
     # body
-    if not node_cls.__is_abstract__:
+    if not node_cls.__declaration__.is_abstract:
         init_str = _generate_init(node_cls)
         node_parts.append(init_str)
         equals_str = _generate_equals(node_cls)
@@ -1595,28 +1533,13 @@ def _generate_node(definition: NodeDefinition) -> str:
         repr_str = _generate_repr(node_cls)
         node_parts.append(repr_str)
 
-    # class
-    super_trait_classes = [
-        super_cls
-        for super_cls in node_cls.__bases__
-        if super_cls != node_cls
-        and issubclass(super_cls, Trait)
-        and super_cls != Node
-        and super_cls.__is_trait__
-    ]
-    implements_str = (
-        " implements " + ", ".join(super_cls.__name__ for super_cls in super_trait_classes)
-        if super_trait_classes
-        else ""
-    )
-
     base_type = definition.base_type
     base_cls_name = NODE_CLASS_BY_TYPE[base_type].__name__ if base_type else "Node"
     extends_str = f" extends {base_cls_name}"
     generic_str = ""
     node_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
-export {"abstract " if node_cls.__is_abstract__ else ""}class {definition.name}{generic_str}{extends_str}{implements_str} {{
+export {"abstract " if node_cls.__declaration__.is_abstract else ""}class {definition.name}{generic_str}{extends_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 
   {MARKER_CUSTOM_START}
@@ -1674,14 +1597,8 @@ def _get_type_dependencies(
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
                 for node_type in type.node_types or ():
-                    if isinstance(node_type, NodeType):
-                        node_cls = NODE_CLASS_BY_TYPE[node_type]
-                        dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
-                    elif isinstance(node_type, TraitType):
-                        trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
-                        dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
-                    else:
-                        assert_never(node_type)
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
             else:
                 for node_type in type.node_types or ():
                     node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -1749,15 +1666,13 @@ def _get_type_dependencies(
         assert_never(type.cardinality)
 
 
-def _get_object_references(
-    cls: type["BuiltinObject"], is_value: bool
-) -> set[NodeType | StructType]:
+def _get_object_references(cls: type["Object"], is_value: bool) -> set[NodeType | StructType]:
     """Get only the object references of a class."""
     dependencies: dict[str, Definition] = {}
     value_dependencies: set[str] = set()
 
-    for prop in cls.__wired_properties__.values():
-        if prop.is_computed:
+    for prop in cls.__properties__.values():
+        if prop.is_runtime_only:
             continue  # set implicitly
         prop_dependencies, prop_value_dependencies = _get_type_dependencies(
             prop, is_abstract=False, is_value=is_value
@@ -1775,25 +1690,18 @@ def _get_object_references(
 
 
 def _get_builtin_object_dependencies(
-    cls: type[BuiltinObject], is_abstract: bool
+    cls: type[Object], is_abstract: bool
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
     value_dependencies: set[str] = set()
 
     # base classes
-    if issubclass(cls, (Trait, Struct, Node)):
+    if issubclass(cls, (Struct, Node)):
         for super_cls in cls.__bases__:
-            if (
-                super_cls != cls
-                and issubclass(super_cls, Trait)
-                and super_cls != Trait
-                and super_cls != Node
-            ):
+            if super_cls != cls and super_cls != Node:
                 super_type = super_cls.metatype
-                if isinstance(super_type, TraitType):
-                    dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_type]
-                elif isinstance(super_type, NodeType):
+                if isinstance(super_type, NodeType):
                     dependencies[super_cls.__name__] = NODE_DEFINITION_BY_TYPE[super_type]
                     value_dependencies.add(super_cls.__name__)
                 elif isinstance(super_type, StructType):
@@ -1804,7 +1712,7 @@ def _get_builtin_object_dependencies(
 
     # constants
     if issubclass(cls, (Struct, Node)):
-        for constant in cls.__constants__:
+        for constant in cls.__definition__.constants:
             constant_dependencies, _ = _get_type_dependencies(
                 constant.value.type,
                 is_abstract=True,
@@ -1840,17 +1748,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition_str = _generate_struct(definition)
         name = definition.name
         dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObject], cls), is_abstract=False
-        )
-    elif isinstance(definition, TraitDefinition):
-        kind = "TRAIT"
-        cls = TRAIT_CLASS_BY_TYPE[definition.type]
-        alias = cls.__name__
-        module = cls.__module__
-        definition_str = _generate_trait(definition)
-        name = definition.alias
-        dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObject], cls), is_abstract=True
+            cast(type[Object], cls), is_abstract=False
         )
     elif isinstance(definition, NodeDefinition):
         kind = "NODE"
@@ -1860,7 +1758,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         definition_str = _generate_node(definition)
         name = definition.name
         dependencies, value_dependencies = _get_builtin_object_dependencies(
-            cast(type[BuiltinObject], cls), is_abstract=cls.__is_abstract__
+            cast(type[Object], cls), is_abstract=cls.__declaration__.is_abstract
         )
     else:
         assert_never(definition)
@@ -2002,7 +1900,7 @@ def _generate_file(
 
         # parse the definition block
         kind = start_match.group(1)
-        assert kind in ("ENUM", "STRUCT", "TRAIT", "NODE", "CONSTANT"), (
+        assert kind in ("ENUM", "STRUCT", "NODE", "CONSTANT"), (
             f"invalid kind: {kind} in {file.path}"
         )
         kind = cast(Kind, kind)
@@ -2279,7 +2177,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
     dependencies: set[str] = set()
     value_dependencies: set[str] = set()
     for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        for constant in object_cls.__constants__:
+        for constant in object_cls.__definition__.constants:
             if constant._is_deferred:
                 dependencies.add(object_cls.__name__)
                 value_dependencies.add(object_cls.__name__)
@@ -2297,7 +2195,7 @@ def _generate_constants(definitions_by_name: dict[str, TypescriptDefinition]) ->
     # set all the constants
     body_parts: list[str] = []
     for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        for constant in object_cls.__constants__:
+        for constant in object_cls.__definition__.constants:
             constant_name = f"_{object_cls.__name__}_{constant.name}"
             if constant._is_deferred:
                 value_str = generate_value(constant.value.type, constant.value.value)
@@ -2358,13 +2256,6 @@ def _generate_mapping(definitions_by_name: dict[str, TypescriptDefinition]) -> s
     node_map_str_parts.append("};")
     node_map_str = "\n".join(node_map_str_parts)
     mapping_str_parts.append(node_map_str)
-
-    trait_map_str_parts: list[str] = ["export type TraitTypeMapping = {"]
-    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
-        trait_map_str_parts.append(f"  [TraitType.{trait_type.name}]: {trait_cls.__name__};")
-    trait_map_str_parts.append("};")
-    trait_map_str = "\n".join(trait_map_str_parts)
-    mapping_str_parts.append(trait_map_str)
 
     struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
     for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():

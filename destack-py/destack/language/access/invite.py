@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -57,11 +57,9 @@ class InviteRejectedEvent(InviteEvent):
 @builtin_node(
     NodeType.INVITE,
     event_types=(NodeType.INVITE_EVENT,),
+    traits=(TraitType.OWNABLE,),
 )
-class Invite(
-    IsOwnable,
-    Entity,
-):
+class Invite(Entity):
     """An Invite to a Joinable."""
 
     member: "Entity" = builtin_property(110)

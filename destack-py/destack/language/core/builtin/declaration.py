@@ -1,31 +1,103 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
-from .common import EnumType
+from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
+from .common import ConstraintType, IndexType
 from .enum import Enum, builtin_enum
 
 if TYPE_CHECKING:
-    from .object import BuiltinObject
+    from .node import Node
+    from .object import Object
     from .property import PropertyDeclaration
+    from .struct import Struct
 
 
 type_ = type
 
-
-@builtin_enum(EnumType.CONSTRAINT_TYPE)
-class ConstraintType(Enum):
-    """Type of a Constraint."""
-
-    UNIQUE = 1
-    # CHECK, ...
+# pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.INDEX_TYPE)
-class IndexType(Enum):
-    """Type of an Index."""
+@dataclass(slots=True)
+class ObjectDeclaration:
+    # meta
+    cls: type_["Object"]
+    kind: ObjectKind | None
+    type: NodeType | StructType | None
+    id: int
+    stability: ObjectStability
+    is_abstract: bool
+    is_frozen: bool
+    is_final: bool
 
-    BTREE = 1
-    # HASH, ...
+    # content
+    properties: list["PropertyDeclaration"]
+
+
+@dataclass(slots=True)
+class StructDeclaration(ObjectDeclaration):
+    # meta
+    cls: type_["Struct"]
+    kind: Literal[ObjectKind.STRUCT]
+    type: StructType
+
+    # inheritance
+    base_type: StructType | None
+    inherits: list[StructType]
+    inherited_by: list[StructType]
+    extended_by: list[StructType]
+
+    # content
+    methods: list["MethodDeclaration"]
+    actions: list["ActionDeclaration"]
+    constants: list["ConstantDeclaration"]
+    tags: list["TagDeclaration"]
+
+    # associations
+    enum_types: list[EnumType]
+    self_enum_types: list[EnumType]
+
+
+@dataclass(slots=True)
+class NodeDeclaration(ObjectDeclaration):
+    # meta
+    cls: type_["Node"]
+    kind: Literal[ObjectKind.NODE]
+    type: NodeType
+    is_extensible: bool
+
+    # inheritance
+    base_type: NodeType | None
+    inherits: list[NodeType]
+    inherited_by: list[NodeType]
+    extended_by: list[NodeType]
+    traits: list[TraitType]
+    self_traits: list[TraitType]
+
+    # content
+    indexes: list["IndexDeclaration"]
+    constraints: list["ConstraintDeclaration"]
+    permissions: list["PermissionDeclaration"]
+    methods: list["MethodDeclaration"]
+    actions: list["ActionDeclaration"]
+    constants: list["ConstantDeclaration"]
+    tags: list["TagDeclaration"]
+
+    # graph
+    parent_property: Optional["PropertyDeclaration"]
+    parent_types: list[NodeType]
+    child_types: list[NodeType]
+    ancestor_types: list[NodeType]
+    descendant_types: list[NodeType]
+    expected_parent_types: list[NodeType]
+    expected_child_types: list[NodeType]
+    expected_ancestor_types: list[NodeType]
+    expected_descendant_types: list[NodeType]
+
+    # associations
+    event_types: list[NodeType]
+    self_event_types: list[NodeType]
+    enum_types: list[EnumType]
+    self_enum_types: list[EnumType]
 
 
 @dataclass(slots=True)
@@ -80,8 +152,8 @@ class MethodCardinality(Enum):
 
 
 @dataclass(slots=True)
-class MethodDeclaration:
-    """Declaration of a MethodDefinition (internal use only)."""
+class FunctionDeclaration:
+    """Declaration of a FunctionDefinition (internal use only)."""
 
     id: int
     name: str
@@ -93,18 +165,23 @@ class MethodDeclaration:
     is_abstract: bool
 
 
+@dataclass(slots=True)
+class MethodDeclaration(FunctionDeclaration):
+    """Declaration of a MethodDefinition (internal use only)."""
+
+
 def builtin_method(id: int, *, name: str | None = None, tags: tuple[str, ...] = ()):
     """Declare a builtin Method."""
 
     def decorate(func):
-        # TODO: register the method on the BuiltinObject
+        # nocheckin: register the method on the BuiltinObject
         return func
 
     return decorate
 
 
 @dataclass(slots=True)
-class ActionDeclaration(MethodDeclaration):
+class ActionDeclaration(FunctionDeclaration):
     """Declaration of an ActionDefinition (internal use only)."""
 
     pass
@@ -137,8 +214,8 @@ class ConstantDeclaration:
     is_deferred: bool
     description: str | None
     name: str | None
-    component: type_["BuiltinObject"] | None
-    original_component: type_["BuiltinObject"] | None
+    component: type_["Object"] | None
+    original_component: type_["Object"] | None
 
 
 def builtin_constant[T](

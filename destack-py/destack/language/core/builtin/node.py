@@ -5,7 +5,6 @@ from typing import (
     ClassVar,
     Optional,
     Self,
-    assert_never,
     cast,
     dataclass_transform,
 )
@@ -14,47 +13,35 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_BY_CLASS,
-    NODE_TYPES_BY_TRAIT_TYPE,
 )
-from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, ObjectKind, TraitType
-from .common import GraphDomain
+from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, TraitType
 from .const import UNSET
-from .meta import TagDeclaration, builtin_method
-from .object import BuiltinObject, ValueFactory, _process_object_cls
+from .declaration import NodeDeclaration, TagDeclaration, builtin_method
+from .object import Object, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
-    PropertyDeclaration,
     builtin_property,
     builtin_property_runtime,
-    resolve_trait_type,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
-        ActionDefinition,
         Condition,
-        ConstantDefinition,
         ConstraintDeclaration,
-        ConstraintDefinition,
         ExpressionIn,
         IndexDeclaration,
-        IndexDefinition,
         JoinIn,
-        MethodDefinition,
         Node,
         NodeDefinition,
         NodeDefinitionReference,
         NodeReference,
         PermissionDeclaration,
-        PermissionDefinition,
         Query,
         Session,
         Sort,
         Space,
-        TagDefinition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -64,22 +51,28 @@ type_ = type
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_node(
-    node_type: NodeType | None,
+    # meta
+    node_type: NodeType,
     *,
     frozen: bool = False,
     is_abstract: bool = False,
     is_final: bool = False,
     is_extensible: bool = False,
-    event_types: tuple[NodeType, ...] = (),
-    enum_types: tuple[EnumType, ...] = (),
-    expected_parent_types: tuple[NodeType, ...] = (),
-    expected_child_types: tuple[NodeType, ...] = (),
-    expected_ancestor_types: tuple[NodeType, ...] = (),
-    expected_descendant_types: tuple[NodeType, ...] = (),
+    # inheritance
+    traits: tuple[TraitType, ...] = (),
+    # content
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
     permissions: tuple["PermissionDeclaration", ...] = (),
     tags: tuple["TagDeclaration", ...] = (),
+    # tree
+    expected_parent_types: tuple[NodeType, ...] = (),
+    expected_child_types: tuple[NodeType, ...] = (),
+    expected_ancestor_types: tuple[NodeType, ...] = (),
+    expected_descendant_types: tuple[NodeType, ...] = (),
+    # associations
+    event_types: tuple[NodeType, ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -87,35 +80,25 @@ def builtin_node(
         nonlocal frozen
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
 
-        # base types
-        traits: list[TraitType] = []
-        self_traits: list[TraitType] = []
+        # bases
         inherits: list[NodeType] = []
-        for base in cls.__bases__:
-            if trait := resolve_trait_type(base.__name__):
-                if trait not in self_traits:
-                    self_traits.append(trait)
-        for superclass in get_superclasses(cls):
-            if trait := resolve_trait_type(superclass.__name__):
-                if trait not in traits:
-                    traits.append(trait)
-            elif isinstance(base_type := getattr(superclass, "metatype", None), NodeType):
-                if base_type not in inherits:
-                    inherits.append(base_type)
-        cls.__is_trait__ = False  # override Trait.__is_trait__
-        cls.__traits__ = tuple(reversed(traits))
-        cls.__self_traits__ = tuple(reversed(self_traits))
-        cls.__inherits__ = tuple(reversed(inherits))
-        cls.__base_type__ = cls.__inherits__[-1] if cls.__inherits__ else None
-        cls.__is_abstract__ = is_abstract
-        cls.__is_final__ = is_final
-        cls.__is_extensible__ = is_extensible
-
-        # event types
-        cls.__self_event_types__ = tuple(event_types)
-
-        # enum types
-        cls.__self_enum_types__ = tuple(enum_types)
+        all_traits: list[TraitType] = list(traits)
+        all_enum_types: list[EnumType] = []
+        all_event_types: list[NodeType] = []
+        if cls.__name__ != "Node":
+            for base in cls.__mro__:
+                if issubclass(base, Node):
+                    if base.metatype not in inherits:
+                        inherits.append(base.metatype)
+                    for trait in base.__declaration__.traits:
+                        if trait not in all_traits:
+                            all_traits.append(trait)
+                    for enum_type in base.__declaration__.enum_types:
+                        if enum_type not in all_enum_types:
+                            all_enum_types.append(enum_type)
+                    for event_type in base.__declaration__.event_types:
+                        if event_type not in all_event_types:
+                            all_event_types.append(event_type)
 
         # abstract nodes cannot extend non-abstract nodes
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
@@ -125,64 +108,59 @@ def builtin_node(
         if NodeType.EVENT in inherits:
             frozen = True  # Events are always frozen
 
-        # expected types
-        cls.__expected_parent_types__ = tuple(expected_parent_types)
-        cls.__expected_child_types__ = tuple(expected_child_types)
-        cls.__expected_ancestor_types__ = tuple(expected_ancestor_types)
-        cls.__expected_descendant_types__ = tuple(expected_descendant_types)
+        # declaration
+        declaration = NodeDeclaration(
+            # meta
+            cls=cls,
+            type=node_type,
+            id=node_type.value,
+            kind=ObjectKind.NODE,
+            stability=ObjectStability.DYNAMIC,
+            is_abstract=is_abstract,
+            is_frozen=frozen,
+            is_final=is_final,
+            is_extensible=is_extensible,
+            # inherits
+            base_type=inherits[0] if inherits else None,
+            inherits=list(reversed(inherits)),
+            inherited_by=[],
+            extended_by=[],
+            traits=list(reversed(all_traits)),
+            self_traits=list(all_traits),
+            # content
+            properties=[],
+            methods=[],
+            actions=[],
+            constants=[],
+            indexes=list(indexes),
+            constraints=list(constraints),
+            permissions=list(permissions),
+            tags=list(tags),
+            # graph
+            parent_property=None,
+            parent_types=[],
+            child_types=[],
+            ancestor_types=[],
+            descendant_types=[],
+            expected_parent_types=list(expected_parent_types),
+            expected_child_types=list(expected_child_types),
+            expected_ancestor_types=list(expected_ancestor_types),
+            expected_descendant_types=list(expected_descendant_types),
+            # associations
+            event_types=list(reversed(all_event_types)),
+            self_event_types=list(event_types),
+            enum_types=list(reversed(all_enum_types)),
+            self_enum_types=list(enum_types),
+        )
 
         # process class
-        is_entity = any(base.__name__ == "Entity" for base in cls.__bases__)
-        cls, _ = _process_object_cls(
-            cls=cast(type["Node"], cls),
-            object_type=node_type,
-            is_struct=False,
-            is_concrete=node_type is not None,
-            is_node=True,
-            is_root_node=node_type == NodeType.SPACE,
-            is_entity=is_entity,
-            is_frozen=frozen,
-            is_abstract=is_abstract,
-            base_type=None,
-            traits=cls.__traits__,
-            inherits=cls.__inherits__,
-        )
-        if node_type is not None:
-            cls.metatype = node_type
-
-        # meta
-        if indexes:
-            from .definition import IndexDefinition
-
-            cls.__indexes__ = tuple(
-                IndexDefinition.from_declaration(cls, index) for index in indexes
-            )
-        if constraints:
-            from .definition import ConstraintDefinition
-
-            cls.__constraints__ = tuple(
-                ConstraintDefinition.from_declaration(cls, constraint) for constraint in constraints
-            )
-        if permissions:
-            from .definition import PermissionDefinition
-
-            cls.__permissions__ = tuple(
-                PermissionDefinition.from_declaration(permission) for permission in permissions
-            )
-        if tags:
-            from .definition import TagDefinition
-
-            cls.__tags__ = tuple(TagDefinition.from_declaration(tag) for tag in tags)
+        cls, _ = _process_object_cls(cast(type["Node"], cls), declaration)
+        cls.metatype = node_type
 
         # register
-        if node_type is not None:
-            NODE_CLASS_BY_TYPE[node_type] = cls
-            NODE_TYPE_BY_CLASS[cls] = node_type
-            NODE_CLASS_BY_TYPE[node_type] = cls
-
-        # parent/root
-        parent_property = cls.__properties__.get("parent", None)
-        cls.__parent_property__ = parent_property
+        NODE_CLASS_BY_TYPE[node_type] = cls
+        NODE_TYPE_BY_CLASS[cls] = node_type
+        NODE_CLASS_BY_TYPE[node_type] = cls
 
         return cls
 
@@ -197,95 +175,17 @@ def builtin_node(
         TagDeclaration(id=2, name="tracking", description="Node tracking"),
     ),
 )
-class Node(BuiltinObject):
+class Node(Object):
     """
     A Node with some Properties and a persistent identity (its id).
     Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
 
     # meta
-    """The specific metatype of this Node."""
     metatype: ClassVar[NodeType]
-    """The kind of this Node."""
-    __kind__: ClassVar[ObjectKind] = ObjectKind.NODE
-    """The domain of this Node (Entity or Event)."""
-    __domain__: ClassVar[GraphDomain | None] = None
-    """The definition this Node is an instance of."""
+    __declaration__: ClassVar["NodeDeclaration"]
     __definition__: ClassVar["NodeDefinition"]
-    """The reference to the definition this Node is an instance of."""
     __definition_reference__: ClassVar["NodeDefinitionReference"]
-    """Whether this class is an actual Node (not a Trait)."""
-    __is_node__: ClassVar[bool] = True
-    """Whether this class is a Trait (not a Node)."""
-    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
-    """Whether this class is abstract (not concrete)."""
-    __is_abstract__: ClassVar[bool] = False
-    """Whether this class is final (cannot be extended by any Nodes)."""
-    __is_final__: ClassVar[bool] = False
-    """Whether this class is extensible (can be extended by custom Nodes)."""
-    __is_extensible__: ClassVar[bool] = False
-
-    # inheritance
-    """The base type this Node extends (directly)."""
-    __base_type__: ClassVar[NodeType | None] = None
-    """Nodes that extend this Node (directly)."""
-    __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
-    """Nodes that this Node extends (directly and indirectly)."""
-    __inherits__: ClassVar[tuple[NodeType, ...]] = ()
-    """Nodes that extend this Node (directly and indirectly)."""
-    __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
-    """Traits directly inherited by this Node (directly)."""
-    __self_traits__: ClassVar[tuple[TraitType, ...]] = ()
-    """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
-    __traits__: ClassVar[tuple[TraitType, ...]] = ()
-
-    # content
-    """The indexes defined for this Node."""
-    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
-    """The constraints defined for this Node."""
-    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
-    """The permissions defined for this Node."""
-    __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods defined for this Node."""
-    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions defined for this Node."""
-    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
-    """The constants defined for this Node."""
-    __constants__: ClassVar[tuple["ConstantDefinition", ...]] = ()
-    """The tags defined for this Node."""
-    __tags__: ClassVar[tuple["TagDefinition", ...]] = ()
-
-    # graph
-    """The parent type of this Node (directly)."""
-    __parent_property__: ClassVar[PropertyDeclaration | None] = None
-    """The parent classes of this Node (directly)."""
-    __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
-    """The parent types of this Node (directly)."""
-    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The child types of this Node (directly)."""
-    __child_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The ancestor types of this Node (directly and indirectly)."""
-    __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The descendant types of this Node (directly and indirectly)."""
-    __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected parent types of this Node (any of)."""
-    __expected_parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected child types of this Node (any of)."""
-    __expected_child_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected ancestor types of this Node (any of)."""
-    __expected_ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected descendant types of this Node (any of)."""
-    __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
-
-    # associations
-    """The base event types of this Node (directly)."""
-    __self_event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The event types of this Node (directly and indirectly)."""
-    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The base enum types of this Node (directly)."""
-    __self_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
-    """The enum types of this Node (directly and indirectly)."""
-    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
     # 1-20: node identity
     # Node.metatype: 1
@@ -358,11 +258,8 @@ class Node(BuiltinObject):
         """Make a get Query for this Node."""
         from ..common.query import Join, Query, QueryType, to_subqueries
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
-
         query = Query(
             type=QueryType.NODE,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -389,10 +286,8 @@ class Node(BuiltinObject):
         """Make a search Query for this Node."""
         from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -424,10 +319,8 @@ class Node(BuiltinObject):
             QueryType,
         )
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -451,10 +344,8 @@ class Node(BuiltinObject):
         """Make a min Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -481,10 +372,8 @@ class Node(BuiltinObject):
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -512,10 +401,8 @@ class Node(BuiltinObject):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -543,10 +430,8 @@ class Node(BuiltinObject):
         """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
-        assert cls.__domain__ is not None, f"{cls.__name__} has no domain"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            domain=cls.__domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -565,15 +450,10 @@ def expand_node_inheritance(types: Collection[NodeType]) -> Sequence[NodeType]:
     """
     node_types: set[NodeType] = set()
     for typ in types:
-        if isinstance(typ, NodeType):
-            node_cls = NODE_CLASS_BY_TYPE[typ]
-            node_types.update(node_cls.__inherited_by__)
-            if not node_cls.__is_abstract__:
-                node_types.add(typ)
-        elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
-        else:
-            assert_never(typ)
+        node_cls = NODE_CLASS_BY_TYPE[typ]
+        node_types.update(node_cls.__definition__.inherited_by)
+        if not node_cls.__definition__.is_abstract:
+            node_types.add(typ)
     return tuple(node_types)
 
 

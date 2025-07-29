@@ -13,18 +13,17 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import INTEGER_ZERO, get_order_key
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, TraitType
-from .common import GraphDomain, UInt128, ValueFactory
+from .builtin import EnumType, NodeType, ObjectKind, TraitType
+from .common import UInt128, ValueFactory
 from .const import UNSET
+from .declaration import PermissionDeclaration, TagDeclaration, builtin_method
 from .enum import Enum, builtin_enum
-from .meta import PermissionDeclaration, TagDeclaration, builtin_method
 from .node import Node, builtin_node
 from .property import (
     PropertyDeclaration,
     builtin_property,
     builtin_property_parent,
 )
-from .trait import IsOrdered
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -86,7 +85,7 @@ class Entity(Node):
      (id, definition_id) @ (branch_id, snapshot_id)
     """
 
-    __domain__ = GraphDomain.ENTITY
+    __kind__ = ObjectKind.NODE
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     parent: Optional["Entity"] = builtin_property_parent(
@@ -294,7 +293,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 
     def set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET operations)."""
-        prop = self.__tracked_properties__.get(key)
+        prop = self.__properties_by_alias__.get(key)
         if prop is not None and not self._is_new:
             self._session.update_set_property(self, prop, value)
         object_set_(self, key, value)
@@ -430,8 +429,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         order_base = next(
             (
                 node_type
-                for node_type in child.__inherits__
-                if TraitType.OWNED in NODE_CLASS_BY_TYPE[node_type].__traits__
+                for node_type in child.__definition__.inherits
+                if TraitType.OWNED in NODE_CLASS_BY_TYPE[node_type].__definition__.traits
             ),
             child.metatype,
         )
@@ -445,10 +444,10 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         if _existing_nodes:
             if after is None:
                 after = _existing_nodes[-1]
-            after_order_key = after.order_key if isinstance(after, IsOrdered) else None
+            after_order_key = after.order_key
             if (
-                isinstance(before, IsOrdered)
-                and after_order_key is not None
+                after_order_key is not None
+                and before is not None
                 and before.order_key > after_order_key
             ):
                 before_order_key = before.order_key
@@ -496,7 +495,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         # assign parent & order
         if parent is not None:
             self.parent_ptr = parent.to_ref()
-            if isinstance(self, IsOrdered):
+            if TraitType.ORDERED in self.__definition__.traits:
                 parent._assign_order(self, after, before)
 
         # create new nodes
