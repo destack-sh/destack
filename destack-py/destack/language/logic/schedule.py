@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     Enum,
@@ -57,7 +57,8 @@ class ScheduleFrequency(Enum):
     MINUTE = 6
 
 
-@builtin_struct(StructType.SCHEDULE)
+@builtin_struct(StructType.SCHEDULE, is_final=True)
+@final
 class Schedule(Struct):
     """The time-based schedule of something (compatible with rrule)."""
 

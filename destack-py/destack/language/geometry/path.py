@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     NodeType,
@@ -17,7 +17,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(StructType.PATH2D, frozen=True)
+@builtin_struct(
+    StructType.PATH2D,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Path2D(StructFrozen):
     """A Path is a path of multiple points."""
 

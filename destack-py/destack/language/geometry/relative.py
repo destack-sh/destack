@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     Enum,
@@ -86,7 +86,12 @@ class LengthType(Enum):
     FILL = 11, "Fill", "fill"
 
 
-@builtin_struct(StructType.LENGTH, frozen=True)
+@builtin_struct(
+    StructType.LENGTH,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Length(StructFrozen):
     """An absolute or relative length value."""
 
@@ -94,7 +99,12 @@ class Length(StructFrozen):
     value: Float32 = builtin_property(102, is_repr=True)
 
 
-@builtin_struct(StructType.OFFSET2, frozen=True)
+@builtin_struct(
+    StructType.OFFSET2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Offset2(StructFrozen):
     """A 2-dimensional position value (relative or absolute)."""
 
@@ -105,7 +115,12 @@ class Offset2(StructFrozen):
     height: Length | None = builtin_property(104, is_repr=True)
 
 
-@builtin_struct(StructType.INSET2, frozen=True)
+@builtin_struct(
+    StructType.INSET2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Inset2(StructFrozen):
     """A 2-dimensional insets value (base + side overrides)."""
 
@@ -116,7 +131,12 @@ class Inset2(StructFrozen):
     bottom: UInt16 | None = builtin_property(105, is_repr=True)
 
 
-@builtin_struct(StructType.CORNER2, frozen=True)
+@builtin_struct(
+    StructType.CORNER2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Corner2(StructFrozen):
     """A 2-dimensional corners value (base + corner overrides)."""
 
@@ -127,7 +147,12 @@ class Corner2(StructFrozen):
     bottom_right: UInt16 | None = builtin_property(105, is_repr=True)
 
 
-@builtin_struct(StructType.AXIS2, frozen=True)
+@builtin_struct(
+    StructType.AXIS2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Axis2(StructFrozen):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
@@ -136,7 +161,12 @@ class Axis2(StructFrozen):
     y: Float32 | None = builtin_property(103, is_repr=True)
 
 
-@builtin_struct(StructType.AXIS3, frozen=True)
+@builtin_struct(
+    StructType.AXIS3,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Axis3(StructFrozen):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
@@ -146,7 +176,12 @@ class Axis3(StructFrozen):
     z: Float32 | None = builtin_property(104, is_repr=True)
 
 
-@builtin_struct(StructType.GRID2, frozen=True)
+@builtin_struct(
+    StructType.GRID2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Grid2(StructFrozen):
     """A 2-dimensional grid configuration value."""
 
@@ -157,7 +192,12 @@ class Grid2(StructFrozen):
     row_height: Length | None = builtin_property(105, is_repr=True)
 
 
-@builtin_struct(StructType.GRID_SPAN2, frozen=True)
+@builtin_struct(
+    StructType.GRID_SPAN2,
+    frozen=True,
+    is_final=True,
+)
+@final
 class GridSpan2(StructFrozen):
     """A 2-dimensional grid span value."""
 

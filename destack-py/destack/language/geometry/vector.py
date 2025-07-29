@@ -503,6 +503,7 @@ class Vector4(StructFrozen):
     is_final=True,
     stability=ObjectStability.STATIC,
 )
+@final
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
@@ -649,6 +650,7 @@ class Vector2i(StructFrozen):
     is_final=True,
     stability=ObjectStability.STATIC,
 )
+@final
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
@@ -809,6 +811,7 @@ class Vector3i(StructFrozen):
     is_final=True,
     stability=ObjectStability.STATIC,
 )
+@final
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 

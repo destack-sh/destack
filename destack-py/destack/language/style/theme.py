@@ -19,3 +19,5 @@ class Theme(
     Entity,
 ):
     """A Theme with common Styles."""
+
+    pass

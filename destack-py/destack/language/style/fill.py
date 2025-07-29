@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -50,7 +50,12 @@ class FillSize(Enum):
     TILE = 4
 
 
-@builtin_struct(StructType.FILL, frozen=True)
+@builtin_struct(
+    StructType.FILL,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Fill(StructFrozen):
     """A fill value."""
 
