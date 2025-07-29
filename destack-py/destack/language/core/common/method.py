@@ -37,20 +37,18 @@ class MethodDefinition(StructFrozen):
     output_property: Optional["PropertyReference"] | None = builtin_property(123)
     # runtimes/languages/...?
 
-    platforms: list[PlatformType] = builtin_property(
+    platforms: list[PlatformType] | None = builtin_property(
         130,
         description="The platforms this Method is available on (all if empty).",
     )
-    languages: list[RuntimeLanguage] = builtin_property(
+    languages: list[RuntimeLanguage] | None = builtin_property(
         131,
         description="The languages this Method is available in (all if empty).",
     )
 
 
 @builtin_node(NodeType.METHOD)
-class Method(
-    Entity,
-):
+class Method(Entity):
     """
     A Method is a small piece of logic.
     """
@@ -59,11 +57,11 @@ class Method(
     text: Optional["Text"] = builtin_property(104)
     cardinality: MethodCardinality = builtin_property(110, default=MethodCardinality.UNARY)
 
-    platforms: list[PlatformType] = builtin_property(
+    platforms: list[PlatformType] | None = builtin_property(
         130,
         description="The platforms this Method is available on (all if empty).",
     )
-    languages: list[RuntimeLanguage] = builtin_property(
+    languages: list[RuntimeLanguage] | None = builtin_property(
         131,
         description="The languages this Method is available in (all if empty).",
     )

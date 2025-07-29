@@ -14,6 +14,7 @@ from .builtin import (
     EnumType,
     NodeType,
     ObjectKind,
+    ObjectStability,
     StructType,
     TraitType,
 )
@@ -287,6 +288,7 @@ __all__ = [
     "ObjectDefinitionReference",
     "ObjectDefinitionType",
     "ObjectKind",
+    "ObjectStability",
     "OperatingSystem",
     "OptionDefinition",
     "PermissionDeclaration",

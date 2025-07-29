@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Float32,
     Int32,
+    ObjectStability,
     StructFrozen,
     StructType,
     builtin_method,
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     pass
 
 
-@builtin_struct(StructType.VECTOR2, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR2, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector2(StructFrozen):
     """A 2D floating point Vector."""
 
@@ -160,7 +161,7 @@ class Vector2(StructFrozen):
         return 2
 
 
-@builtin_struct(StructType.VECTOR3, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR3, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector3(StructFrozen):
     """A 3D floating point vector."""
 
@@ -315,7 +316,7 @@ class Vector3(StructFrozen):
         return 3
 
 
-@builtin_struct(StructType.VECTOR4, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR4, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector4(StructFrozen):
     """A 4D floating point vector."""
 
@@ -478,7 +479,7 @@ class Vector4(StructFrozen):
         return 4
 
 
-@builtin_struct(StructType.VECTOR2I, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR2I, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
@@ -619,7 +620,7 @@ class Vector2i(StructFrozen):
         return 2
 
 
-@builtin_struct(StructType.VECTOR3I, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR3I, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
@@ -774,7 +775,7 @@ class Vector3i(StructFrozen):
         return 3
 
 
-@builtin_struct(StructType.VECTOR4I, frozen=True, is_stable=True)
+@builtin_struct(StructType.VECTOR4I, frozen=True, stability=ObjectStability.CANNOT_CHANGE)
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 

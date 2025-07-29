@@ -1,5 +1,3 @@
-import json
-
 from destack.language import (
     ENCODERS,
     BinaryReader,
@@ -23,9 +21,6 @@ from destack.utils.uuid import uuid4
 def _do_test_roundtrip_object(
     obj: BuiltinObject, session: Session, encoder: Encoder, encoding: Encoding
 ) -> None:
-    if encoding == Encoding.KOMPAKT:
-        return  # nocheckin
-
     # pack/unpack
     packed_obj = encoder.pack_object(obj.__kind__, obj.metatype, obj, Encoder.TAGGED)
     writer = BinaryWriter()
@@ -50,7 +45,6 @@ def _do_test_roundtrip_object(
     assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
 
     print(repr(obj))
-    print(json.dumps(packed_obj, indent=2))
     print(len(packed_obj_bytes))
 
 
@@ -68,7 +62,7 @@ def test_roundtrip_node_reference(session: Session, space: Space):
 
 
 def test_roundtrip_query(session: Session, space: Space):
-    """Pack and unpack a Query."""
+    """Pack and unpack a Query (with a custom Vlue)."""
     query = Folder.search(
         sort=[Folder.property("created_at").asc()],
         limit=25,
@@ -78,6 +72,18 @@ def test_roundtrip_query(session: Session, space: Space):
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(query, session, encoder, encoding)
+
+
+def test_roundtrip_struct_subclass(session: Session, space: Space):
+    """Pack and unpack a Struct subclass."""
+
+    ...
+
+
+def test_roundtrip_custom_struct_instance(session: Session, space: Space):
+    """Pack and unpack a custom Struct instance."""
+
+    ...
 
 
 def test_roundtrip_user(session: Session, space: Space):

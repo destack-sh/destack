@@ -161,9 +161,10 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.EPOCH,
-        description="The logical time in the Client when it created this Event (client).",
+        description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking", "client"),
     )
+    # nocheckin: Event.client_logical_clock?
     status: "EventStatus" = builtin_property(
         30,
         is_repr=True,

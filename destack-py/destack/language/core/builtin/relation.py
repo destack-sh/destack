@@ -16,6 +16,7 @@ from destack.utils.uuid import UUID
 from .builtin import (
     EnumType,
     NodeType,
+    ObjectStability,
     StructType,
     TraitType,
 )
@@ -343,7 +344,7 @@ class PropertyReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_struct(StructType.NODE_REFERENCE, frozen=True)
+@builtin_struct(StructType.NODE_REFERENCE, frozen=True, stability=ObjectStability.CAN_GROW)
 class NodeReference(StructFrozen):
     """
     A reference to a Node in spacetime.
