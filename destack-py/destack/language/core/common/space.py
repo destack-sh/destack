@@ -6,6 +6,7 @@ from destack.language.core import (
     ACTIVE_SPACE,
     BEGINNING_OF_TIME,
     EPSILON,
+    EPSILON_EXPONENT,
     VERSION,
     Entity,
     NodeReference,
@@ -63,8 +64,13 @@ class Universe(Entity):
         value=EPSILON,
         description="The float epsilon used for floating point comparisons.",
     )
-    BEGINNING_OF_TIME = builtin_constant(
+    EPISLON_EXPONENT = builtin_constant(
         3,
+        value=EPSILON_EXPONENT,
+        description="The exponent used for floating point comparisons.",
+    )
+    BEGINNING_OF_TIME = builtin_constant(
+        4,
         value=BEGINNING_OF_TIME,
         description="The beginning of time. (1970-01-01T00:00:00+00:00)",
     )

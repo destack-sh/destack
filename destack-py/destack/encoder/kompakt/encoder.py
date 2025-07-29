@@ -528,3 +528,6 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         _options: EncoderOptions,
     ) -> Type:
         return _encoder.unpack_type_binary(_reader, _options)
+
+
+# nocheckin: KompaktValueEncoder?

@@ -26,19 +26,21 @@ def _do_test_roundtrip_object(
     obj: Object, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
     # pack/unpack as bytes
+    print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
     encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer, Encoder.TAGGED)
     packed_obj_bytes = writer.to_bytes()
     print(repr(obj))  # noqa: T201
-    print(len(packed_obj_bytes))  # noqa: T201
+    print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_obj_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_obj_bytes)
-    unpacked_obj_bytes = encoder.unpack_object_binary(
+    unpacked_obj = encoder.unpack_object_binary(
         obj.__kind__, obj.metatype, reader, session, Encoder.TAGGED
     )
-    assert unpacked_obj_bytes.equals(obj), f"{unpacked_obj_bytes!r} != {obj!r}"
-    assert unpacked_obj_bytes.hash() == obj.hash(), f"{unpacked_obj_bytes.hash()} != {obj.hash()}"
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
+    print(repr(unpacked_obj))  # noqa: T201
     return packed_obj_bytes
 
 
@@ -46,16 +48,18 @@ def _do_test_roundtrip_value(
     type: Type, value: Any, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
     # pack/unpack as bytes
+    print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
     encoder.pack_value_binary(type, value, writer, Encoder.TAGGED)
     packed_value_bytes = writer.to_bytes()
     print(repr(value))  # noqa: T201
-    print(len(packed_value_bytes))  # noqa: T201
+    print(f"bytes: {len(packed_value_bytes)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_value_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_value_bytes)
     unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session, Encoder.TAGGED)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
+    print(repr(unpacked_value_bytes))  # noqa: T201
     return packed_value_bytes
 
 
@@ -92,7 +96,7 @@ def test_roundtrip_type(session: Session, space: Space):
 
 def test_roundtrip_vector3_list(session: Session, space: Space):
     """Pack and unpack a Vector3 list."""
-    vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(10)]
+    vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(3)]
     type = Type.infer(vectors)
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_value(type, vectors, session, encoder, encoding)

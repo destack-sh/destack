@@ -7,6 +7,7 @@ import { Temporal } from "temporal-polyfill";
 // forever constants
 export const VERSION = "2025.07.29.0";
 export const EPSILON = 1e-6;
+export const EPSILON_EXPONENT = 6;
 export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 
 // runtime constants
