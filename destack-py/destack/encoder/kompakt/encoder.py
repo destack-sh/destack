@@ -47,7 +47,7 @@ class KompaktEncoder(Encoder[bytes]):
         kind: ObjectKind,
         type: int,
         object: Object,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> bytes:
         writer = BinaryWriter()
         self.pack_object_binary(kind, type, object, writer, options)
@@ -61,7 +61,7 @@ class KompaktEncoder(Encoder[bytes]):
         type: int,
         value: bytes,
         session: Session | None,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         reader = BinaryReader(value)
         object = self.unpack_object_binary(kind, type, reader, session, options)
@@ -74,7 +74,7 @@ class KompaktEncoder(Encoder[bytes]):
         type: int,
         object: Object,
         writer: BinaryWriter,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         encoder = self.encoders.get((kind, type))
         assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{type}"
@@ -87,7 +87,7 @@ class KompaktEncoder(Encoder[bytes]):
         type: int,
         reader: BinaryReader,
         session: Session | None,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         encoder = self.encoders.get((kind, type))
         assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{type}"
@@ -97,7 +97,7 @@ class KompaktEncoder(Encoder[bytes]):
     def pack_type(
         self,
         type: Type,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> bytes:
         writer = BinaryWriter()
         self.pack_type_binary(type, writer, options)
@@ -108,7 +108,7 @@ class KompaktEncoder(Encoder[bytes]):
     def unpack_type(
         self,
         value: bytes,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
         reader = BinaryReader(value)
         type = self.unpack_type_binary(reader, options)
@@ -119,11 +119,11 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         type: Type,
         writer: BinaryWriter,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        inner_options = options & EncoderOptions.PREFER_OMIT_METATYPE
+        inner_options = options | EncoderOptions.OMIT_METATYPE
         # metatype
-        if not inner_options & EncoderOptions.PREFER_OMIT_METATYPE:
+        if not inner_options | EncoderOptions.OMIT_METATYPE:
             writer.write_uint32(Type.metatype)
         # preamble (3 bits cardinality, 3 bits scalar type, 1 bit is_required)
         writer.write_uint8(
@@ -172,11 +172,11 @@ class KompaktEncoder(Encoder[bytes]):
     def unpack_type_binary(
         self,
         reader: BinaryReader,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
-        inner_options = options & EncoderOptions.PREFER_OMIT_METATYPE
+        inner_options = options | EncoderOptions.OMIT_METATYPE
         # metatype
-        if not inner_options & EncoderOptions.PREFER_OMIT_METATYPE:
+        if not inner_options | EncoderOptions.OMIT_METATYPE:
             metatype = reader.read_uint32()
             assert metatype == Type.metatype, (
                 f"expected Type metatype: {Type.metatype}, got: {metatype}"
@@ -241,7 +241,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         type: Type,
         value: Any,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         writer = BinaryWriter()
         self.pack_value_binary(type, value, writer, options)
@@ -254,7 +254,7 @@ class KompaktEncoder(Encoder[bytes]):
         type: Type,
         value: Any,
         session: Session | None,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         reader = BinaryReader(value)
         return self.unpack_value_binary(type, reader, session, options)
@@ -265,9 +265,9 @@ class KompaktEncoder(Encoder[bytes]):
         type: Type,
         value: Any,
         writer: BinaryWriter,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        inner_options = options & EncoderOptions.PREFER_OMIT_METATYPE
+        inner_options = options | EncoderOptions.OMIT_METATYPE
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             self.pack_scalar_value_binary(type, value, writer, inner_options)
@@ -301,9 +301,9 @@ class KompaktEncoder(Encoder[bytes]):
         type: Type,
         reader: BinaryReader,
         session: Session | None,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
-        inner_options = options & EncoderOptions.PREFER_OMIT_METATYPE
+        inner_options = options | EncoderOptions.OMIT_METATYPE
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             return self.unpack_scalar_value_binary(type, reader, session, inner_options)

@@ -303,7 +303,7 @@ else:
                 return f"""\
 if {source_expr} is not None:
     {target_expr} = {value_packed}
-{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # list
@@ -331,7 +331,7 @@ if {source_expr} is not None:
     for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 8)}
         {target_expr}.append({item_target_expr})
-{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # tuple
@@ -361,7 +361,7 @@ if {source_expr} is not None:
 if {source_expr} is not None:
 {textwrap.indent(element_packed_str, " " * 4)}
     {target_expr} = [{", ".join(element_target_exprs)}]
-{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # map
@@ -401,7 +401,7 @@ if {source_expr} is not None:
 {textwrap.indent(key_packed, " " * 8)}
 {textwrap.indent(value_packed, " " * 8)}
         {target_expr}[{key_target_expr}] = {value_target_expr}
-{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         else:

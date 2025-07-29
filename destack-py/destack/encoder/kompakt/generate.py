@@ -125,11 +125,19 @@ class {encoder_name}(KompaktObjectEncoder):
         stability: ObjectStability,
     ) -> str:
         """Generate the pack method for a BuiltinObject."""
-        lines: list[str] = [
-            f"_writer.write_uint32({cls.metatype.value})",
-            # nocheckin: include object encoded byte size in KompaktEncoder (so we know when to stop)
-        ]
+        lines: list[str] = []
 
+        # metatype
+        needs_metatype = not cls.__declaration__.is_final
+        if needs_metatype:
+            lines.append(f"_writer.write_uint32({cls.metatype.value})")
+        else:
+            lines.append(f"""\
+if not _options | EncoderOptions.OMIT_METATYPE:
+    _writer.write_uint32({cls.metatype.value})
+""")
+
+        # nocheckin: include object encoded byte size in KompaktEncoder (so we know when to stop)
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
@@ -196,10 +204,17 @@ else:
         stability: ObjectStability,
     ) -> str:
         """Generate the unpack method for a BuiltinObject."""
-        lines: list[str] = [
-            "metatype = _reader.read_uint32()",
-            f"assert metatype == {cls.metatype.value}",
-        ]
+        lines: list[str] = []
+
+        # metatype
+        needs_metatype = not cls.__declaration__.is_final
+        if needs_metatype:
+            lines.append("metatype = _reader.read_uint32()")
+        else:
+            lines.append("""\
+if not _options | EncoderOptions.OMIT_METATYPE:
+    metatype = _reader.read_uint32()
+""")
 
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]

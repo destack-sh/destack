@@ -18,16 +18,16 @@ class EncoderOptions(IntFlag):
 
     DEFAULT = 0
 
-    # whether to always include the metatype of the object
-    PREFER_OMIT_METATYPE = 1
-    # whether to include the key of properties
-    # INCLUDE_KEY = 1 << 1
-    # whether to include the type of the value
-    # INCLUDE_TYPE = 1 << 2
-    # whether to try to omit None values
-    PREFER_OMIT_NONE = 1 << 3
-    # whether to try to unwrap Values
-    PREFER_UNWRAP_VALUE = 1 << 4
+    # whether to omit the metatype of the object (if possible)
+    OMIT_METATYPE = 1
+    # whether to omit the key of properties (if possible)
+    # OMIT_KEY = 1 << 1
+    # whether to omit the type of the value (if possible)
+    # OMIT_TYPE = 1 << 2
+    # whether to omit None values (if possible)
+    OMIT_NONE = 1 << 3
+    # whether to unwrap Values (if possible)
+    UNWRAP_VALUE = 1 << 4
 
 
 class Encoder[T: Any = Any](ABC):
@@ -35,15 +35,13 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = EncoderOptions.DEFAULT
-
     @abstractmethod
     def pack_object(
         self,
         kind: ObjectKind,
         type: int,
         object: Object,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> T:
         """Pack a BuiltinObject into some encoded format."""
         raise NotImplementedError
@@ -55,7 +53,7 @@ class Encoder[T: Any = Any](ABC):
         type: int,
         value: T,
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         """Unpack a BuiltinObject from some encoded format."""
         raise NotImplementedError
@@ -67,7 +65,7 @@ class Encoder[T: Any = Any](ABC):
         type: NodeType | StructType,
         object: Object,
         writer: "BinaryWriter",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack a BuiltinObject into the byte representation of its encoded format."""
         raise NotImplementedError
@@ -79,7 +77,7 @@ class Encoder[T: Any = Any](ABC):
         type: int,
         reader: "BinaryReader",
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         raise NotImplementedError
@@ -88,7 +86,7 @@ class Encoder[T: Any = Any](ABC):
     def pack_type(
         self,
         type: "Type",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> T:
         """Pack a Type into some encoded format."""
         raise NotImplementedError
@@ -97,7 +95,7 @@ class Encoder[T: Any = Any](ABC):
     def unpack_type(
         self,
         value: T,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a Type from some encoded format."""
         raise NotImplementedError
@@ -107,7 +105,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         type: "Type",
         writer: "BinaryWriter",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack a Type into the byte representation of its encoded format."""
         raise NotImplementedError
@@ -116,7 +114,7 @@ class Encoder[T: Any = Any](ABC):
     def unpack_type_binary(
         self,
         reader: "BinaryReader",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a Type from the byte representation of its encoded format."""
         raise NotImplementedError
@@ -126,7 +124,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         type: "Type",
         value: Any,
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> T:
         """Pack a value into some encoded format."""
         raise NotImplementedError
@@ -137,7 +135,7 @@ class Encoder[T: Any = Any](ABC):
         type: "Type",
         value: T,
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from some encoded format."""
         raise NotImplementedError
@@ -148,7 +146,7 @@ class Encoder[T: Any = Any](ABC):
         type: "Type",
         value: Any,
         writer: "BinaryWriter",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack a value into the byte representation of its encoded format."""
         raise NotImplementedError
@@ -159,7 +157,7 @@ class Encoder[T: Any = Any](ABC):
         type: "Type",
         reader: "BinaryReader",
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""
         raise NotImplementedError

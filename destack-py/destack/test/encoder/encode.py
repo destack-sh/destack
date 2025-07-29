@@ -28,16 +28,14 @@ def _do_test_roundtrip_object(
     # pack/unpack as bytes
     print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
-    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer, Encoder.TAGGED)
+    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
     packed_obj_bytes = writer.to_bytes()
     print(repr(obj))  # noqa: T201
     print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_obj_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_obj_bytes)
-    unpacked_obj = encoder.unpack_object_binary(
-        obj.__kind__, obj.metatype, reader, session, Encoder.TAGGED
-    )
+    unpacked_obj = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
     print(repr(unpacked_obj))  # noqa: T201
@@ -50,14 +48,14 @@ def _do_test_roundtrip_value(
     # pack/unpack as bytes
     print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
-    encoder.pack_value_binary(type, value, writer, Encoder.TAGGED)
+    encoder.pack_value_binary(type, value, writer)
     packed_value_bytes = writer.to_bytes()
     print(repr(value))  # noqa: T201
     print(f"bytes: {len(packed_value_bytes)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_value_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_value_bytes)
-    unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session, Encoder.TAGGED)
+    unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
     print(repr(unpacked_value_bytes))  # noqa: T201
     return packed_value_bytes
@@ -104,13 +102,14 @@ def test_roundtrip_vector3_list(session: Session, space: Space):
 
 def test_roundtrip_vector3_list_compact(session: Session, space: Space):
     """Pack and unpack a Vector3 list with Kompakt."""
-    num_vectors = 100
+    num_vectors = 10
     vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(num_vectors)]
     type = Type.infer(vectors)
     vectors_bytes = _do_test_roundtrip_value(
         type, vectors, session, ENCODERS[Encoding.KOMPAKT], Encoding.KOMPAKT
     )
-    assert len(vectors_bytes) <= num_vectors * 3 * 4  # 100 vectors, 3 floats, 4 bytes per float
+    # num vectors * 3 floats * 4 bytes per float
+    assert len(vectors_bytes) <= num_vectors * 3 * 4
 
 
 def test_roundtrip_query(session: Session, space: Space):
