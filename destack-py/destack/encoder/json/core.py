@@ -16,13 +16,13 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class JsonObjectEncoder:
+class JsonObjectEncoder[T: Object = Object]:
     """JSON object encoder."""
 
     def pack_object(
         self,
         _encoder: "JsonEncoder",
-        _object: Object,
+        _object: T,
         _options: EncoderOptions,
     ) -> dict[str, Any]:
         raise NotImplementedError
@@ -33,5 +33,5 @@ class JsonObjectEncoder:
         _object_json: dict[str, Any],
         _session: Session | None,
         _options: EncoderOptions,
-    ) -> Object:
+    ) -> T:
         raise NotImplementedError

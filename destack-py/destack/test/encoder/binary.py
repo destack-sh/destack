@@ -448,9 +448,9 @@ def test_mixed_types():
         (lambda: writer.write_int32(-1234567), 4),  # 4 bytes (varint)
         (lambda: writer.write_int128(-(2**100)), 15),  # 15 bytes (varint)
         (lambda: writer.write_uint128(2**100), 15),  # 15 bytes (varint)
-        (lambda: writer.write_float16(1.5), 3),  # 3 bytes
-        (lambda: writer.write_float32(math.pi), 5),  # 5 bytes
-        (lambda: writer.write_float64(math.e), 9),  # 9 bytes
+        (lambda: writer.write_float16(1.5), 2),  # 2 bytes
+        (lambda: writer.write_float32(math.pi), 4),  # 4 bytes
+        (lambda: writer.write_float64(math.e), 8),  # 8 bytes
         (lambda: writer.write_string("test string"), 12),  # 12 bytes (1 + 11)
         (lambda: writer.write_bytes(b"\x01\x02\x03"), 4),  # 4 bytes (1 + 3)
     ]

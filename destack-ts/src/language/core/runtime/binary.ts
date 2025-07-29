@@ -78,7 +78,7 @@ export class BinaryWriter {
    * Size: 1-3 bytes.
    */
   writeInt16(value: number): void {
-    this.writeVarint(this.zigzagEncode(value));
+    this.writeVarintNUmber(this.zigzagEncode(value));
   }
 
   // PrimitiveType.INT32
@@ -87,7 +87,7 @@ export class BinaryWriter {
    * Size: 1-5 bytes.
    */
   writeInt32(value: number): void {
-    this.writeVarint(this.zigzagEncode(value));
+    this.writeVarintNUmber(this.zigzagEncode(value));
   }
 
   // PrimitiveType.INT64
@@ -96,7 +96,7 @@ export class BinaryWriter {
    * Size: 1-10 bytes.
    */
   writeInt64(value: bigint): void {
-    this.writeVarint64(this.zigzagEncode64(value));
+    this.writeVarintBigint(this.zigzagEncode64(value));
   }
 
   // PrimitiveType.INT128
@@ -105,7 +105,7 @@ export class BinaryWriter {
    * Size: 1-19 bytes.
    */
   writeInt128(value: bigint): void {
-    this.writeVarint128(this.zigzagEncode128(value));
+    this.writeVarintBigint(this.zigzagEncode128(value));
   }
 
   // PrimitiveType.UINT8
@@ -124,7 +124,7 @@ export class BinaryWriter {
    * Size: 1-3 bytes.
    */
   writeUint16(value: number): void {
-    this.writeVarint(value);
+    this.writeVarintNUmber(value);
   }
 
   // PrimitiveType.UINT32
@@ -133,7 +133,7 @@ export class BinaryWriter {
    * Size: 1-5 bytes.
    */
   writeUint32(value: number): void {
-    this.writeVarint(value);
+    this.writeVarintNUmber(value);
   }
 
   // PrimitiveType.UINT64
@@ -142,7 +142,7 @@ export class BinaryWriter {
    * Size: 1-10 bytes.
    */
   writeUint64(value: bigint): void {
-    this.writeVarint64(value);
+    this.writeVarintBigint(value);
   }
 
   // PrimitiveType.UINT128
@@ -151,7 +151,7 @@ export class BinaryWriter {
    * Size: 1-19 bytes.
    */
   writeUint128(value: bigint): void {
-    this.writeVarint128(value);
+    this.writeVarintBigint(value);
   }
 
   // PrimitiveType.FLOAT16
@@ -196,7 +196,7 @@ export class BinaryWriter {
   writeDateTime(value: Temporal.ZonedDateTime): void {
     // convert to microseconds since epoch (64-bit)
     const micros = BigInt(value.epochMilliseconds) * 1000n + BigInt(value.nanosecond / 1000);
-    this.writeVarint64(this.zigzagEncode64(micros));
+    this.writeVarintBigint(this.zigzagEncode64(micros));
   }
 
   // PrimitiveType.DATE
@@ -207,7 +207,7 @@ export class BinaryWriter {
   writeDate(value: Temporal.PlainDate): void {
     // convert to days since epoch
     const days = _EPOCH_DATE.until(value, { largestUnit: "days" }).days;
-    this.writeVarint(this.zigzagEncode(days));
+    this.writeVarintNUmber(this.zigzagEncode(days));
   }
 
   // PrimitiveType.TIME
@@ -222,7 +222,7 @@ export class BinaryWriter {
       BigInt(value.second) * 1_000_000n +
       BigInt(value.millisecond) * 1_000n +
       BigInt(value.microsecond);
-    this.writeVarint64(micros);
+    this.writeVarintBigint(micros);
   }
 
   // PrimitiveType.DURATION
@@ -233,7 +233,7 @@ export class BinaryWriter {
   writeDuration(value: Temporal.Duration): void {
     // convert to total microseconds
     const totalMicroseconds = value.total({ unit: "microseconds" });
-    this.writeVarint64(this.zigzagEncode64(BigInt(Math.round(totalMicroseconds))));
+    this.writeVarintBigint(this.zigzagEncode64(BigInt(Math.round(totalMicroseconds))));
   }
 
   // PrimitiveType.STRING
@@ -269,7 +269,7 @@ export class BinaryWriter {
    * Size: 1-5 bytes (length) + data length.
    */
   writeBytes(value: Uint8Array): void {
-    this.writeVarint(value.length);
+    this.writeVarintNUmber(value.length);
     this.ensureCapacity(value.length);
     new Uint8Array(this.buffer, this.pos, value.length).set(value);
     this.pos += value.length;
@@ -296,7 +296,12 @@ export class BinaryWriter {
     } else if (value === true) {
       this.view.setUint8(this.pos++, 2);
     } else if (typeof value === "number") {
-      if (!Object.is(value, -0) && Number.isInteger(value) && value >= Number.MIN_SAFE_INTEGER && value <= Number.MAX_SAFE_INTEGER) {
+      if (
+        !Object.is(value, -0) &&
+        Number.isInteger(value) &&
+        value >= Number.MIN_SAFE_INTEGER &&
+        value <= Number.MAX_SAFE_INTEGER
+      ) {
         // encode as int64
         this.view.setUint8(this.pos++, 3);
         this.writeInt64(BigInt(value));
@@ -310,14 +315,14 @@ export class BinaryWriter {
       this.writeString(value);
     } else if (Array.isArray(value)) {
       this.view.setUint8(this.pos++, 6);
-      this.writeVarint(value.length);
+      this.writeVarintNUmber(value.length);
       for (const item of value) {
         this.writeJson(item);
       }
     } else if (typeof value === "object") {
       this.view.setUint8(this.pos++, 7);
       const entries = Object.entries(value);
-      this.writeVarint(entries.length);
+      this.writeVarintNUmber(entries.length);
       for (const [key, val] of entries) {
         this.writeString(key);
         this.writeJson(val);
@@ -327,7 +332,7 @@ export class BinaryWriter {
     }
   }
 
-  private writeVarint(value: number): void {
+  private writeVarintNUmber(value: number): void {
     this.ensureCapacity(5); // max 5 bytes for 32-bit
     // convert to unsigned 32-bit
     value = value >>> 0;
@@ -338,16 +343,7 @@ export class BinaryWriter {
     this.view.setUint8(this.pos++, value & 0x7f);
   }
 
-  private writeVarint64(value: bigint): void {
-    this.ensureCapacity(10); // max 10 bytes for 64-bit
-    while (value >= 0x80n) {
-      this.view.setUint8(this.pos++, Number(value & 0x7fn) | 0x80);
-      value = value >> 7n;
-    }
-    this.view.setUint8(this.pos++, Number(value & 0x7fn));
-  }
-
-  private writeVarint128(value: bigint): void {
+  private writeVarintBigint(value: bigint): void {
     this.ensureCapacity(19); // max 19 bytes for 128-bit
     while (value >= 0x80n) {
       this.view.setUint8(this.pos++, Number(value & 0x7fn) | 0x80);
@@ -450,6 +446,54 @@ export class BinaryReader {
     return this.buffer.length - this.pos;
   }
 
+  // PrimitiveType.UINT8
+  /**
+   * Peek at the next unsigned 8-bit integer without advancing the position.
+   * Size: 1 byte.
+   */
+  peekUint8(): number {
+    if (this.pos >= this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+    return this.buffer[this.pos];
+  }
+
+  // PrimitiveType.UINT16
+  /**
+   * Peek at the next unsigned 16-bit integer without advancing the position.
+   * Size: 2 bytes.
+   */
+  peekUint16(): number {
+    if (this.pos + 2 > this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+    return this.peekVarintNumber();
+  }
+
+  // PrimitiveType.UINT32
+  /**
+   * Peek at the next unsigned 32-bit integer without advancing the position.
+   * Size: 4 bytes.
+   */
+  peekUint32(): number {
+    if (this.pos + 4 > this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+    return this.peekVarintNumber();
+  }
+
+  // PrimitiveType.UINT64
+  /**
+   * Peek at the next unsigned 64-bit integer without advancing the position.
+   * Size: 8 bytes.
+   */
+  peekUint64(): bigint {
+    if (this.pos + 8 > this.buffer.length) {
+      throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+    }
+    return this.peekVarintBigint();
+  }
+
   // PrimitiveType.BOOLEAN
   /**
    * Read a boolean from 1 byte (0 for false, non-zero for true).
@@ -480,7 +524,7 @@ export class BinaryReader {
    * Size: 1-3 bytes.
    */
   readInt16(): number {
-    return this.zigzagDecode(this.readVarint());
+    return this.zigzagDecode(this.readVarintNumber());
   }
 
   // PrimitiveType.INT32
@@ -489,7 +533,7 @@ export class BinaryReader {
    * Size: 1-5 bytes.
    */
   readInt32(): number {
-    return this.zigzagDecode(this.readVarint());
+    return this.zigzagDecode(this.readVarintNumber());
   }
 
   // PrimitiveType.INT64
@@ -498,7 +542,7 @@ export class BinaryReader {
    * Size: 1-10 bytes.
    */
   readInt64(): bigint {
-    return this.zigzagDecode64(this.readVarint64());
+    return this.zigzagDecode64(this.readVarintBigint());
   }
 
   // PrimitiveType.INT128
@@ -507,7 +551,7 @@ export class BinaryReader {
    * Size: 1-19 bytes.
    */
   readInt128(): bigint {
-    return this.zigzagDecode128(this.readVarint128());
+    return this.zigzagDecode128(this.readVarintBigint());
   }
 
   // PrimitiveType.UINT8
@@ -528,7 +572,7 @@ export class BinaryReader {
    * Size: 1-3 bytes.
    */
   readUint16(): number {
-    return this.readVarint();
+    return this.readVarintNumber();
   }
 
   // PrimitiveType.UINT32
@@ -537,7 +581,7 @@ export class BinaryReader {
    * Size: 1-5 bytes.
    */
   readUint32(): number {
-    return this.readVarint();
+    return this.readVarintNumber();
   }
 
   // PrimitiveType.UINT64
@@ -546,7 +590,7 @@ export class BinaryReader {
    * Size: 1-10 bytes.
    */
   readUint64(): bigint {
-    return this.readVarint64();
+    return this.readVarintBigint();
   }
 
   // PrimitiveType.UINT128
@@ -555,7 +599,7 @@ export class BinaryReader {
    * Size: 1-19 bytes.
    */
   readUint128(): bigint {
-    return this.readVarint128();
+    return this.readVarintBigint();
   }
 
   // PrimitiveType.FLOAT16
@@ -606,7 +650,7 @@ export class BinaryReader {
    * Size: 1-10 bytes.
    */
   readDateTime(): Temporal.ZonedDateTime {
-    const micros = this.zigzagDecode64(this.readVarint64());
+    const micros = this.zigzagDecode64(this.readVarintBigint());
     return Temporal.Instant.fromEpochNanoseconds(micros * 1000n).toZonedDateTimeISO("UTC");
   }
 
@@ -616,7 +660,7 @@ export class BinaryReader {
    * Size: 1-5 bytes.
    */
   readDate(): Temporal.PlainDate {
-    const days = this.zigzagDecode(this.readVarint());
+    const days = this.zigzagDecode(this.readVarintNumber());
     return _EPOCH_DATE.add({ days });
   }
 
@@ -626,7 +670,7 @@ export class BinaryReader {
    * Size: 1-6 bytes.
    */
   readTime(): Temporal.PlainTime {
-    const micros = this.readVarint64();
+    const micros = this.readVarintBigint();
     const hours = Number(micros / 3_600_000_000n);
     const remaining1 = micros % 3_600_000_000n;
     const minutes = Number(remaining1 / 60_000_000n);
@@ -644,7 +688,7 @@ export class BinaryReader {
    * Size: 1-10 bytes.
    */
   readDuration(): Temporal.Duration {
-    const micros = Number(this.zigzagDecode64(this.readVarint64()));
+    const micros = Number(this.zigzagDecode64(this.readVarintBigint()));
     return Temporal.Duration.from({ microseconds: micros });
   }
 
@@ -686,7 +730,7 @@ export class BinaryReader {
    * Size: 1-5 bytes (length) + data length.
    */
   readBytes(): Uint8Array {
-    const length = this.readVarint();
+    const length = this.readVarintNumber();
     if (this.pos + length > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
@@ -713,7 +757,7 @@ export class BinaryReader {
     }
 
     const tag = this.buffer[this.pos++];
-    
+
     if (tag === 0) {
       return null;
     } else if (tag === 1) {
@@ -727,14 +771,14 @@ export class BinaryReader {
     } else if (tag === 5) {
       return this.readString();
     } else if (tag === 6) {
-      const length = this.readVarint();
+      const length = this.readVarintNumber();
       const result = [];
       for (let i = 0; i < length; i++) {
         result.push(this.readJson());
       }
       return result;
     } else if (tag === 7) {
-      const length = this.readVarint();
+      const length = this.readVarintNumber();
       const result: any = {};
       for (let i = 0; i < length; i++) {
         const key = this.readString();
@@ -747,22 +791,18 @@ export class BinaryReader {
     }
   }
 
-  private readVarint(): number {
+  private readVarintNumber(): number {
     let value = 0;
     let shift = 0;
-
     while (true) {
       if (this.pos >= this.buffer.length) {
         throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
       }
-
       const byte = this.buffer[this.pos++];
       value |= (byte & 0x7f) << shift;
-
       if ((byte & 0x80) === 0) {
         return value >>> 0; // ensure unsigned
       }
-
       shift += 7;
       if (shift >= 35) {
         throw new BinaryError(`varint too long at ${this.pos}`);
@@ -770,48 +810,61 @@ export class BinaryReader {
     }
   }
 
-  private readVarint64(): bigint {
+  private readVarintBigint(): bigint {
     let value = 0n;
     let shift = 0n;
-
     while (true) {
       if (this.pos >= this.buffer.length) {
         throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
       }
-
       const byte = this.buffer[this.pos++];
       value |= BigInt(byte & 0x7f) << shift;
-
       if ((byte & 0x80) === 0) {
         return value;
       }
-
       shift += 7n;
-      if (shift >= 70n) {
+      if (shift >= 140n) {
         throw new BinaryError(`varint too long at ${this.pos}`);
       }
     }
   }
 
-  private readVarint128(): bigint {
+  private peekVarintNumber(): number {
+    let value = 0;
+    let shift = 0;
+    let pos = this.pos;
+    while (true) {
+      if (pos >= this.buffer.length) {
+        throw new BinaryError(`unexpected end of buffer at ${pos}`);
+      }
+      const byte = this.buffer[pos++];
+      value |= (byte & 0x7f) << shift;
+      if ((byte & 0x80) === 0) {
+        return value >>> 0; // ensure unsigned
+      }
+      shift += 7;
+      if (shift >= 35) {
+        throw new BinaryError(`varint too long at ${pos}`);
+      }
+    }
+  }
+
+  private peekVarintBigint(): bigint {
     let value = 0n;
     let shift = 0n;
-
+    let pos = this.pos;
     while (true) {
-      if (this.pos >= this.buffer.length) {
-        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
+      if (pos >= this.buffer.length) {
+        throw new BinaryError(`unexpected end of buffer at ${pos}`);
       }
-
-      const byte = this.buffer[this.pos++];
+      const byte = this.buffer[pos++];
       value |= BigInt(byte & 0x7f) << shift;
-
       if ((byte & 0x80) === 0) {
         return value;
       }
-
       shift += 7n;
       if (shift >= 140n) {
-        throw new BinaryError(`varint too long at ${this.pos}`);
+        throw new BinaryError(`varint too long at ${pos}`);
       }
     }
   }

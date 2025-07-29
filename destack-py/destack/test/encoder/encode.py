@@ -17,6 +17,7 @@ from destack.language import (
     Type,
     User,
     UserStatus,
+    Value,
     Vector3,
 )
 from destack.utils.uuid import uuid4
@@ -111,6 +112,17 @@ def test_roundtrip_vector3_list_compact(session: Session, space: Space):
     # num vectors * 3 floats * 4 bytes per float
     target_size = num_vectors * 3 * 4 + 1  # for array length varint
     assert len(vectors_bytes) <= target_size
+
+
+def test_roundtrip_value(session: Session, space: Space):
+    """Pack and unpack a Value."""
+    for value in (
+        Value.wrap(1),
+        Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
+        Value.wrap((2, bool, "Hello")),
+    ):
+        for encoding, encoder in ENCODERS.items():
+            _ = _do_test_roundtrip_object(value, session, encoder, encoding)
 
 
 def test_roundtrip_query(session: Session, space: Space):
