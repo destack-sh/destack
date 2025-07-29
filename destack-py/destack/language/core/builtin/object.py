@@ -49,6 +49,8 @@ from .const import (
     ACTIVE_SPACE,
     EMPTY_DICT,
     ENCODERS,
+    EPSILON,
+    EPSILON_EXPONENT,
     METATYPE_PROPERTY_ID,
     REGION,
     UNSET,
@@ -438,7 +440,13 @@ def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
         ScalarType.NODE_REFERENCE,
         ScalarType.NODE_VALUE,
     ):
-        if prop.primitive_type == PrimitiveType.UUID:
+        if prop.primitive_type in (
+            PrimitiveType.FLOAT16,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return f"{value_expr}:0.{EPSILON_EXPONENT}"
+        elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
         elif prop.primitive_type in (
             PrimitiveType.DATETIME,
@@ -772,7 +780,10 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration | PropertyDeclaration) -> tu
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
-            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10", False
+            return (
+                f"{{self_val}} == {{other_val}} or abs({{self_val}} - {{other_val}}) < {EPSILON}",
+                False,
+            )
         else:
             return "{self_val} == {other_val}", True
     elif prop.scalar_type == ScalarType.ENUM:

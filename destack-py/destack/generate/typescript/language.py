@@ -6,6 +6,7 @@ from typing import assert_never, cast
 
 from destack.language import (
     EMPTY_DICT,
+    EPSILON_EXPONENT,
     UNSET,
     CheckedType,
     ConstantDefinition,
@@ -752,7 +753,13 @@ repr(): string {{
 
         # primitive
         if prop.scalar_type == ScalarType.PRIMITIVE:
-            if prop.primitive_type == PrimitiveType.DATETIME:
+            if prop.primitive_type in (
+                PrimitiveType.FLOAT16,
+                PrimitiveType.FLOAT32,
+                PrimitiveType.FLOAT64,
+            ):
+                return f"{value_expr}.toFixed({EPSILON_EXPONENT})"
+            elif prop.primitive_type == PrimitiveType.DATETIME:
                 return f"{value_expr}.toString({{ timeZoneName: 'never'}})"
             elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
                 return f"{value_expr}.toString()"
