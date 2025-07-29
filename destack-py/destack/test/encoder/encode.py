@@ -109,7 +109,8 @@ def test_roundtrip_vector3_list_compact(session: Session, space: Space):
         type, vectors, session, ENCODERS[Encoding.KOMPAKT], Encoding.KOMPAKT
     )
     # num vectors * 3 floats * 4 bytes per float
-    assert len(vectors_bytes) <= num_vectors * 3 * 4
+    target_size = num_vectors * 3 * 4 + 1  # for array length varint
+    assert len(vectors_bytes) <= target_size
 
 
 def test_roundtrip_query(session: Session, space: Space):
