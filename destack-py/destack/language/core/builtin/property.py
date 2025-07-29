@@ -324,7 +324,7 @@ class PropertyDeclaration(CheckedTypeDeclaration):
             self._definition = PropertyDefinition.from_declaration(self)
         return self._definition
 
-    def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:
+    def determine(self, object_type: int | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         if self.is_runtime_only:
             return  # runtime only, nothing to do
@@ -347,7 +347,7 @@ class PropertyDeclaration(CheckedTypeDeclaration):
             elif isinstance(object_type, StructType):
                 self.struct_type = object_type
             else:
-                assert_never(object_type)
+                raise ValueError(f"invalid object type: {object_type!r}")
 
         # check any type
         if annotation.is_any and object_type != StructType.VALUE:

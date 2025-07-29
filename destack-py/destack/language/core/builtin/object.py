@@ -1295,6 +1295,7 @@ def _object[ObjectT: Object](
 
     def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
         declaration = ObjectDeclaration(
+            # meta
             cls=cls_in,
             kind=ObjectKind.STRUCT,
             type=object_type,
@@ -1303,6 +1304,12 @@ def _object[ObjectT: Object](
             is_abstract=True,
             is_frozen=frozen,
             is_final=False,
+            # inheritance
+            base_type=None,
+            inherits=[],
+            inherited_by=[],
+            extended_by=[],
+            # content
             properties=[],
         )
         cls, _properties = _process_object_cls(cast(Any, cls_in), declaration)
@@ -1363,9 +1370,8 @@ class Object:
     @builtin_method(30)
     def pack(self, encoding: Encoding, options: "EncoderOptions | None" = None) -> Any:
         """Pack this BuiltinObject into some encoded format."""
-        from ..runtime.encoder import Encoder
 
-        options = options or Encoder.TAGGED
+        options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         packed_object = encoder.pack_object(self.__kind__, self.metatype, self, options)
@@ -1376,9 +1382,8 @@ class Object:
         self, encoding: Encoding, writer: "BinaryWriter", options: "EncoderOptions | None" = None
     ) -> None:
         """Pack this BuiltinObject into the byte representation of its encoded format."""
-        from ..runtime.encoder import Encoder
 
-        options = options or Encoder.TAGGED
+        options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         encoder.pack_object_binary(self.__kind__, self.metatype, self, writer, options)
@@ -1393,9 +1398,8 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack a BuiltinObject from some encoded format."""
-        from ..runtime.encoder import Encoder
 
-        options = options or Encoder.TAGGED
+        options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object(cls.__kind__, cls.metatype, value, session, options)
@@ -1411,9 +1415,8 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
-        from ..runtime.encoder import Encoder
 
-        options = options or Encoder.TAGGED
+        options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object_binary(
@@ -1430,8 +1433,6 @@ class Object:
         session: "Session | None",
         options: "EncoderOptions | None" = None,
     ) -> Self:
-        from ..runtime.encoder import Encoder
-
-        options = options or Encoder.TAGGED
+        options = options or EncoderOptions.DEFAULT
         reader = BinaryReader(base64.b64decode(value))
         return cls.unpack_binary(encoding, reader, session, options)

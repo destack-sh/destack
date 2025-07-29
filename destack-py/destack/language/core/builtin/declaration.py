@@ -22,12 +22,18 @@ class ObjectDeclaration:
     # meta
     cls: type_["Object"]
     kind: ObjectKind | None
-    type: NodeType | StructType | None
+    type: int | None
     id: int
     stability: ObjectStability
     is_abstract: bool
     is_frozen: bool
     is_final: bool
+
+    # inheritance
+    base_type: int | None
+    inherits: list[int]
+    inherited_by: list[int]
+    extended_by: list[int]
 
     # content
     properties: list["PropertyDeclaration"]
